@@ -16,7 +16,8 @@ use wtx_examples::{LocalTlsMode, PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 type LocalWebSocket = WebSocket<(), TcpStream, LocalTlsMode, false>;
 
-fn main() -> wtx::Result<()> {
+#[tokio::main]
+async fn main() -> wtx::Result<()> {
   WebSocketServerFramework::new(
     TokioExecutor::default(),
     TlsConfig::from_keys_pem(
@@ -26,7 +27,8 @@ fn main() -> wtx::Result<()> {
     )?
     .into(),
   )?
-  .run_in_threads(&host_from_args(), (("/echo", echo),))
+  .run(&host_from_args(), (("/echo", echo),))
+  .await
 }
 
 async fn echo(mut buffer: Vector<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {

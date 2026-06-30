@@ -1,10 +1,12 @@
 use crate::{
   executor::{
-    Executor, ExecutorTy, SpawnThreadedFut, StdRuntime, TcpListener, TcpStream, tcp_listener_std,
+    Executor, ExecutorError, ExecutorTy, SpawnFuture, StdRuntime, TcpListener, TcpStream,
+    tcp_listener_std,
   },
   misc::TcpParams,
 };
 use core::{
+  marker::PhantomData,
   mem,
   net::SocketAddr,
   pin::Pin,
@@ -20,7 +22,8 @@ impl Executor for StdExecutor {
   const TY: ExecutorTy = ExecutorTy::Std;
 
   type LocalRuntime = StdRuntime;
-  type SpawnFuture<T> = StdSpawnFutureFut<T>;
+  type SpawnFuture<T> = StdSpawnFuture<T>;
+  type SpawnLocalFuture<T> = StdSpawnLocalFuture<T>;
   type TcpListener = std::net::TcpListener;
   type TcpStream = std::net::TcpStream;
 
@@ -35,7 +38,16 @@ impl Executor for StdExecutor {
     F: Future + Send + 'static,
     F::Output: Send + 'static,
   {
-    StdSpawnFutureFut(self.0.spawn_threaded(future))
+    StdSpawnFuture(self.0.spawn(future))
+  }
+
+  #[inline]
+  fn spawn_local<F>(&self, _future: F) -> Self::SpawnLocalFuture<F::Output>
+  where
+    F: Future + 'static,
+    F::Output: 'static,
+  {
+    StdSpawnLocalFuture(PhantomData)
   }
 }
 
@@ -73,9 +85,9 @@ impl TcpStream for std::net::TcpStream {
 
 /// Returned by [`StdExecutor::spawn`].
 #[derive(Debug)]
-pub struct StdSpawnFutureFut<T>(crate::Result<SpawnThreadedFut<T>>);
+pub struct StdSpawnFuture<T>(crate::Result<SpawnFuture<T>>);
 
-impl<T> Future for StdSpawnFutureFut<T> {
+impl<T> Future for StdSpawnFuture<T> {
   type Output = crate::Result<T>;
 
   #[inline]
@@ -88,5 +100,18 @@ impl<T> Future for StdSpawnFutureFut<T> {
       Err(err) => return Poll::Ready(Err(mem::replace(err, crate::Error::ExpiredFuture))),
     };
     Poll::Ready(Ok(ready!(Pin::new(fut).poll(cx))))
+  }
+}
+
+/// Returned by [`StdExecutor::spawn_local`].
+#[derive(Debug)]
+pub struct StdSpawnLocalFuture<T>(PhantomData<T>);
+
+impl<T> Future for StdSpawnLocalFuture<T> {
+  type Output = crate::Result<T>;
+
+  #[inline]
+  fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+    Poll::Ready(Err(ExecutorError::UnsupportedStdSpawnLocal.into()))
   }
 }

@@ -45,7 +45,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
   )
   .await
   .unwrap();
-  let _jh = runtime.spawn_threaded(frame_header).unwrap();
+  let _jh = runtime.spawn(frame_header).unwrap();
 
   let uri_ref = uri.to_ref();
 
@@ -77,7 +77,7 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
   let runtime_fut = runtime.clone();
   let _server_jh = runtime
-    .spawn_threaded(async move {
+    .spawn(async move {
       let (stream, _) = listener.accept().unwrap();
       let tls_stream =
         TlsAcceptor::new(&TlsConfig::empty(), ChaCha20::from_std_random().unwrap(), stream)
@@ -94,7 +94,7 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
       )
       .await
       .unwrap();
-      let _jh = runtime_fut.spawn_threaded(frame_header);
+      let _jh = runtime_fut.spawn(frame_header);
       stream_server(&mut http2, |req| {
         _0(req.msg_data.body(), req.msg_data.headers());
       })

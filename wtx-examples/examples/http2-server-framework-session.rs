@@ -81,9 +81,8 @@ async fn main() -> wtx::Result<()> {
   )?;
   server
     .set_data(Data { pool, session_manager, session_state: None })
-    .run_in_threads(&host_from_args(), router)
-    .await?;
-  Ok(())
+    .run(&host_from_args(), router)
+    .await
 }
 
 async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {

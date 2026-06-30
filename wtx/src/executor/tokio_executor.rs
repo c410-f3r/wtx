@@ -17,7 +17,8 @@ impl Executor for TokioExecutor {
   const TY: ExecutorTy = ExecutorTy::Tokio;
 
   type LocalRuntime = tokio::runtime::LocalRuntime;
-  type SpawnFuture<T> = TokioSpawnFutureFut<T>;
+  type SpawnFuture<T> = TokioSpawnFutureFuture<T>;
+  type SpawnLocalFuture<T> = TokioSpawnFutureFuture<T>;
   type TcpListener = tokio::net::TcpListener;
   type TcpStream = tokio::net::TcpStream;
 
@@ -32,7 +33,16 @@ impl Executor for TokioExecutor {
     F: Future + Send + 'static,
     F::Output: Send + 'static,
   {
-    TokioSpawnFutureFut(tokio::spawn(future))
+    TokioSpawnFutureFuture(tokio::task::spawn(future))
+  }
+
+  #[inline]
+  fn spawn_local<F>(&self, future: F) -> Self::SpawnLocalFuture<F::Output>
+  where
+    F: Future + 'static,
+    F::Output: 'static,
+  {
+    TokioSpawnFutureFuture(tokio::task::spawn_local(future))
   }
 }
 
@@ -56,7 +66,7 @@ impl TcpListener for tokio::net::TcpListener {
 
 impl Runtime for tokio::runtime::LocalRuntime {
   #[inline]
-  fn optioned() -> crate::Result<Self> {
+  fn new() -> crate::Result<Self> {
     Ok(Builder::new_current_thread().enable_all().build_local(LocalOptions::default())?)
   }
 
@@ -87,9 +97,9 @@ impl TcpStream for tokio::net::TcpStream {
 
 /// Returned by [`TokioExecutor::spawn`].
 #[derive(Debug)]
-pub struct TokioSpawnFutureFut<T>(tokio::task::JoinHandle<T>);
+pub struct TokioSpawnFutureFuture<T>(tokio::task::JoinHandle<T>);
 
-impl<T> Future for TokioSpawnFutureFut<T> {
+impl<T> Future for TokioSpawnFutureFuture<T> {
   type Output = crate::Result<T>;
 
   #[inline]

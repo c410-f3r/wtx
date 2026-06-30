@@ -319,7 +319,7 @@ mod tests {
       let tx = tx.clone();
       let mutex = mutex.clone();
       let _fut = runtime
-        .spawn_threaded(async move {
+        .spawn(async move {
           let mut guard = mutex.lock().await;
           *guard += 1;
           tx.send(()).unwrap();

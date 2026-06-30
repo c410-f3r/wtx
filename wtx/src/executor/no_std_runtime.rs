@@ -19,7 +19,7 @@ impl NoStdRuntime {
 
 impl Runtime for NoStdRuntime {
   #[inline]
-  fn optioned() -> crate::Result<Self> {
+  fn new() -> crate::Result<Self> {
     Ok(Self::new())
   }
 

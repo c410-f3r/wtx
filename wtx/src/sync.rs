@@ -10,6 +10,8 @@ mod atomic_cell;
 mod atomic_waker;
 mod back_off;
 mod cache_padded;
+#[cfg(feature = "std")]
+mod enter;
 mod fence;
 mod mpmc;
 mod no_std_mutex;
@@ -24,6 +26,8 @@ pub use atomic_cell::AtomicCell;
 pub use atomic_waker::AtomicWaker;
 pub use back_off::Backoff;
 pub use cache_padded::CachePadded;
+#[cfg(feature = "std")]
+pub use enter::Enter;
 pub use fence::fence;
 pub use mpmc::*;
 pub use no_std_mutex::{NoStdMutex, NoStdMutexGuard};

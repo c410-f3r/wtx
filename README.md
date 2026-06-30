@@ -7,7 +7,7 @@
 [![rustc](https://img.shields.io/badge/rustc-1.96-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.96.0.html)
 [![tests](https://img.shields.io/github/actions/workflow/status/c410-f3r/wtx/tests.yaml?label=tests)](https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml)
 
-Written by humans. `WTX` is a collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 9 IETF RFCs along side other elements.
+Written by humans. `WTX` is a collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of +8 IETF RFCs along side other elements.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
@@ -15,19 +15,17 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | ------------------------ | ---------------------------------------------------------------- |
 | `gRPC`                   | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
 | `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
-| `HTTP Cookies`           | <https://datatracker.ietf.org/doc/html/rfc6265>                  |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
 | `PostgreSQL`             | <https://www.postgresql.org/docs/current/protocol.html>          |
-| `Raw Public Keys in TLS` | <https://datatracker.ietf.org/doc/html/rfc7250>                        |
 | `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
 | `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
 | `WebSocket Compression`  | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
-| `WebSocket over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
+| `WebSocket Over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
 | `X.509`                  | <https://datatracker.ietf.org/doc/html/rfc5280>                  |
 
 ## High-level benchmarks
 
-Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench) or [HttpArena](https://www.http-arena.com). Feel free to indicate possible misconfigurations or misunderstandings.
+Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench) or [HttpArena](https://www.http-arena.com) and feel free to indicate possible misunderstandings.
 
 | gRPC                                      | HTTP/2                                        | WebSocket                                  |
 | :---------------------------------------: | :-------------------------------------------: | :----------------------------------------: |

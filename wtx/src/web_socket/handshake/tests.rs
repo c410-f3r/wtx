@@ -80,7 +80,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
 
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
   let _fut = runtime
-    .spawn_threaded(async move {
+    .spawn(async move {
       let (stream, _) = listener.accept().unwrap();
       let mut ws = WebSocketAcceptor::default()
         .set_compression(server_compression)
