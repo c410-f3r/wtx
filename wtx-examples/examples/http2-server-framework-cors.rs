@@ -18,12 +18,11 @@ async fn main() -> wtx::Result<()> {
     )?
     .into(),
   )?
-  .run_in_threads(
+  .run(
     &host_from_args(),
     HttpRouter::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive())?,
   )
-  .await?;
-  Ok(())
+  .await
 }
 
 async fn hello() -> &'static str {

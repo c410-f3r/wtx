@@ -248,6 +248,8 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   DatabaseError(crate::database::DatabaseError),
   #[doc = associated_element_doc!()]
+  ExecutorError(crate::executor::ExecutorError),
+  #[doc = associated_element_doc!()]
   FixedStringError(FixedStringError),
   #[doc = associated_element_doc!()]
   FromRadix10Error(FromRadix10Error),
@@ -618,6 +620,13 @@ impl From<crate::database::DatabaseError> for Error {
   #[inline]
   fn from(from: crate::database::DatabaseError) -> Self {
     Self::DatabaseError(from)
+  }
+}
+
+impl From<crate::executor::ExecutorError> for Error {
+  #[inline]
+  fn from(from: crate::executor::ExecutorError) -> Self {
+    Self::ExecutorError(from)
   }
 }
 

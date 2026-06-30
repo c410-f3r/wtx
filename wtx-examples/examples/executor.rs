@@ -11,7 +11,7 @@ async fn main() {
 #[wtx::test]
 async fn test_with_runtime(runtime: &wtx::executor::StdRuntime) {
   runtime
-    .spawn_threaded(async move {
+    .spawn(async move {
       println!("Behind every successful diet is an unwatched pizza");
     })
     .unwrap();

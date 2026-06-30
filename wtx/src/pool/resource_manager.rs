@@ -138,7 +138,7 @@ pub(crate) mod database {
     pub fn new(
       mut rng: ChaCha20,
       secret_context: SecretContext,
-      tls_config: Arc<TlsConfig<TM>>,
+      tls_config: TlsConfig<TM>,
       uri: &mut [u8],
     ) -> crate::Result<Self> {
       let secret = Secret::new(uri, &mut rng, secret_context)?;
@@ -148,7 +148,7 @@ pub(crate) mod database {
         rng: AtomicCell::new(rng),
         secret,
         tcp_params: TcpParams::default(),
-        tls_config,
+        tls_config: tls_config.into(),
       })
     }
   }

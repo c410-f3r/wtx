@@ -28,7 +28,7 @@ where
   FUT: Future,
   TS: TcpStream<Executor = EX>,
 {
-  EX::LocalRuntime::optioned()?.block_on(async move {
+  EX::LocalRuntime::new()?.block_on(async move {
     let local_vars: DatabaseUriFromVars = EnvVars::from_available([])?.finish();
     let uri = local_vars.uri.as_str().into();
 

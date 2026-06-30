@@ -2,6 +2,7 @@
 
 #![allow(clippy::disallowed_types, reason = "traits require the `Arc` from std")]
 
+mod executor_error;
 mod no_std_runtime;
 #[cfg(feature = "std")]
 mod std_executor;
@@ -12,13 +13,14 @@ mod tokio_executor;
 
 use crate::{misc::TcpParams, stream::Stream};
 use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+pub use executor_error::ExecutorError;
 pub use no_std_runtime::NoStdRuntime;
 #[cfg(feature = "tokio")]
-pub use tokio_executor::{TokioExecutor, TokioSpawnFutureFut};
+pub use tokio_executor::{TokioExecutor, TokioSpawnFutureFuture};
 #[cfg(feature = "std")]
 pub use {
-  std_executor::{StdExecutor, StdSpawnFutureFut},
-  std_runtime::{SpawnThreadedFut, StdRuntime},
+  std_executor::{StdExecutor, StdSpawnFuture, StdSpawnLocalFuture},
+  std_runtime::{SpawnFuture, StdRuntime},
 };
 
 /// Identifies the associated executor.
@@ -35,10 +37,12 @@ pub trait Executor {
   /// See [`ExecutorTy`].
   const TY: ExecutorTy;
 
-  /// Local runtime.
+  /// `!Send` bound, less overhead and thread affinity.
   type LocalRuntime: Runtime;
   /// Future of [`Self::spawn`].
   type SpawnFuture<T>: Future<Output = crate::Result<T>>;
+  /// Future of [`Self::spawn_local`].
+  type SpawnLocalFuture<T>: Future<Output = crate::Result<T>>;
   /// See [`TcpListener`].
   type TcpListener: TcpListener<TcpStream = Self::TcpStream>;
   /// See [`TcpStream`].
@@ -54,12 +58,18 @@ pub trait Executor {
   where
     F: Future + Send + 'static,
     F::Output: Send + 'static;
+
+  /// `!Send` version of [`Self::spawn`]
+  fn spawn_local<F>(&self, future: F) -> Self::SpawnLocalFuture<F::Output>
+  where
+    F: Future + 'static,
+    F::Output: 'static;
 }
 
 /// Runs asynchronous tasks.
 pub trait Runtime: Sized {
   /// Initializes a new runtime instance with optional parameters.
-  fn optioned() -> crate::Result<Self>;
+  fn new() -> crate::Result<Self>;
 
   /// Blocks the current thread until the provided future completes.
   fn block_on<F>(&self, future: F) -> F::Output

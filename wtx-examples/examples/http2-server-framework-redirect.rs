@@ -21,7 +21,7 @@ async fn main() -> wtx::Result<()> {
     )?
     .into(),
   )?
-  .run_in_threads(
+  .run(
     &host_from_args(),
     HttpRouter::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?,
   )

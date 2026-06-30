@@ -1,5 +1,5 @@
 use crate::{
-  executor::Runtime,
+  executor::{ExecutorError, Runtime},
   sync::{Arc, AtomicWaker},
 };
 use alloc::task::Wake;
@@ -10,6 +10,10 @@ use core::{
   task::{Context, Poll, Waker},
 };
 use std::{sync::mpsc::Receiver, thread, thread_local};
+
+thread_local! {
+  static BLOCK_ON: RefCell<Waker> = RefCell::new(CurrThreadWaker::waker());
+}
 
 /// Simple dependency-free runtime intended for tests, toy programs and demonstrations.
 #[derive(Clone, Copy)]
@@ -28,11 +32,8 @@ impl StdRuntime {
   where
     F: Future,
   {
-    thread_local! {
-      static CACHE: RefCell<Waker> = RefCell::new(CurrThreadWaker::waker());
-    }
     let pinned_future = pin!(future);
-    CACHE.with(|cache| {
+    BLOCK_ON.with(|cache| {
       let new;
       let stored;
       let waker = if let Ok(elem) = cache.try_borrow_mut() {
@@ -46,9 +47,9 @@ impl StdRuntime {
     })
   }
 
-  /// Spawns a new thread in the background that will awake the returned future once finished.
+  /// Spawns a new asynchronous task.
   #[inline]
-  pub fn spawn_threaded<F>(&self, future: F) -> crate::Result<SpawnThreadedFut<F::Output>>
+  pub fn spawn<F>(&self, future: F) -> crate::Result<SpawnFuture<F::Output>>
   where
     F: Future + Send + 'static,
     F::Output: Send,
@@ -65,13 +66,22 @@ impl StdRuntime {
       let _rslt = sender.send(output);
       atomic_waker_thread.wake();
     })?;
-    Ok(SpawnThreadedFut { atomic_waker, receiver })
+    Ok(SpawnFuture { atomic_waker, receiver })
+  }
+
+  /// Spawns a `!Send` future on the current thread.
+  #[inline]
+  pub fn spawn_local<F>(&self, _: F) -> crate::Result<SpawnFuture<F::Output>>
+  where
+    F: Future + 'static,
+  {
+    Err(ExecutorError::UnsupportedStdSpawnLocal.into())
   }
 }
 
 impl Runtime for StdRuntime {
   #[inline]
-  fn optioned() -> crate::Result<Self> {
+  fn new() -> crate::Result<Self> {
     Ok(Self::new())
   }
 
@@ -110,14 +120,14 @@ where
   }
 }
 
-/// Returned by [`StdRuntime::spawn_threaded`]
+/// Returned by [`StdRuntime::spawn`]
 #[derive(Debug)]
-pub struct SpawnThreadedFut<T> {
+pub struct SpawnFuture<T> {
   atomic_waker: Arc<AtomicWaker>,
   receiver: Receiver<T>,
 }
 
-impl<T> Future for SpawnThreadedFut<T> {
+impl<T> Future for SpawnFuture<T> {
   type Output = T;
 
   #[inline]

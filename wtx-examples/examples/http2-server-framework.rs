@@ -62,8 +62,7 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  server.set_data(pool).run_in_threads(&host_from_args(), router).await?;
-  Ok(())
+  server.set_data(pool).run(&host_from_args(), router).await
 }
 
 async fn deserialization_and_serialization(state: State<'_, LocalPool>) -> wtx::Result<JsonReply> {
