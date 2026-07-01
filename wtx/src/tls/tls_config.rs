@@ -1,7 +1,7 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper},
-  collections::{ArrayVector, ArrayVectorU8, ShortBoxSliceU16, Vector},
+  collections::{ArrayVector, ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
   tls::{
@@ -84,13 +84,13 @@ impl<TM> TlsConfig<TM> {
   ///
   /// <https://datatracker.ietf.org/doc/html/rfc7301>
   #[inline]
-  pub const fn alpn(&self) -> &ArrayVectorU8<ArrayVectorU8<u8, 8>, MAX_ALPN_LEN> {
+  pub const fn alpn(&self) -> &ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN> {
     &self.inner.alpn.protocol_name_list
   }
 
   /// Mutable version of [`Self::alpn`].
   #[inline]
-  pub const fn alpn_mut(&mut self) -> &mut ArrayVectorU8<ArrayVectorU8<u8, 8>, MAX_ALPN_LEN> {
+  pub const fn alpn_mut(&mut self) -> &mut ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN> {
     &mut self.inner.alpn.protocol_name_list
   }
 
@@ -127,7 +127,7 @@ impl<TM> TlsConfig<TM> {
   /// If empty, the handshake will default to X.509.
   #[inline]
   #[must_use]
-  pub fn set_client_cert_types(mut self, value: ArrayVectorU8<TlsCertificateTy, 2>) -> Self {
+  pub fn set_client_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
     self.inner.client_cert_types = CertTypes(value);
     self
   }
@@ -164,7 +164,7 @@ impl<TM> TlsConfig<TM> {
   /// If empty, the handshake will default to X.509.
   #[inline]
   #[must_use]
-  pub fn set_server_cert_types(mut self, value: ArrayVectorU8<TlsCertificateTy, 2>) -> Self {
+  pub fn set_server_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
     self.inner.server_cert_types = CertTypes(value);
     self
   }
@@ -214,19 +214,19 @@ impl<TM> Debug for TlsConfig<TM> {
 #[derive(Clone)]
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Alpn,
-  pub(crate) cipher_suites: ArrayVectorU8<CipherSuite, { CipherSuite::len() }>,
+  pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::len() }>,
   pub(crate) client_cert_types: CertTypes,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<B>, MAX_KEY_SHARES_LEN>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
-  pub(crate) named_groups: ArrayVectorU8<NamedGroup, { NamedGroup::len() }>,
+  pub(crate) named_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   pub(crate) offered_psks: OfferedPsks<B>,
   pub(crate) public_key: (B, B),
   pub(crate) secret_key: (B, B),
   pub(crate) server_cert_types: CertTypes,
   pub(crate) server_name: Option<ServerNameList<B>>,
-  pub(crate) signature_algorithms_cert: ArrayVectorU8<SignatureTy, { SignatureTy::len() }>,
-  pub(crate) signature_algorithms: ArrayVectorU8<SignatureTy, { SignatureTy::len() }>,
+  pub(crate) signature_algorithms_cert: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  pub(crate) signature_algorithms: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
   pub(crate) trust_anchors: Vector<CvTrustAnchor<B>>,
   pub(crate) mode: TM,
 }
@@ -238,23 +238,23 @@ where
   #[inline]
   fn new(mode: TM) -> Self {
     Self {
-      alpn: Alpn { protocol_name_list: ArrayVector::new() },
+      alpn: Alpn { protocol_name_list: ArrayVectorCopy::new() },
       client_cert_types: CertTypes::default(),
-      cipher_suites: ArrayVector::from_array(CipherSuite::all()),
+      cipher_suites: ArrayVectorCopy::from_array(CipherSuite::all()),
       cv_policy: CvPolicy::new(),
       key_shares: ArrayVector::from_array([
         KeyShareEntry { group: NamedGroup::X25519, opaque: B::default() },
         KeyShareEntry { group: NamedGroup::Secp256r1, opaque: B::default() },
       ]),
       max_fragment_length: None,
-      named_groups: ArrayVector::from_array(NamedGroup::all()),
+      named_groups: ArrayVectorCopy::from_array(NamedGroup::all()),
       offered_psks: OfferedPsks { offered_psks: ArrayVectorU8::new() },
       public_key: (B::default(), B::default()),
       secret_key: (B::default(), B::default()),
       server_cert_types: CertTypes::default(),
       server_name: None,
-      signature_algorithms: ArrayVector::from_array(SignatureTy::TLS_PRIORITY),
-      signature_algorithms_cert: ArrayVector::from_array(SignatureTy::TLS_PRIORITY),
+      signature_algorithms: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
+      signature_algorithms_cert: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
       trust_anchors: Vector::new(),
       mode,
     }

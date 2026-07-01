@@ -66,7 +66,7 @@ where
     }
     {
       let mut sw = common.read_buffer.suffix_pusher();
-      encrypted_conn(&mut sw)?;
+      encrypted_conn(sw.inner_mut())?;
       tls_connector.stream_mut().write_all(sw.curr()).await?;
     }
     let mut buf = [0];
@@ -116,7 +116,7 @@ where
 
   async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
     let mut sw = self.cb.common.read_buffer.suffix_pusher();
-    initial_conn_msg(config, &mut sw)?;
+    initial_conn_msg(config, sw.inner_mut())?;
     self.stream.write_all(sw.curr()).await?;
     Ok(())
   }

@@ -32,8 +32,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().inner_mut().push((*self).into())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().push((*self).into())?;
     Ok(())
   }
 }

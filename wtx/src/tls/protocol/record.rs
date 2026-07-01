@@ -29,7 +29,7 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+    let _ = ew.buffer().extend_from_copyable_slices([
       &[u8::from(self.ty)][..],
       &u16::from(self.legacy_record_version).to_be_bytes(),
     ])?;

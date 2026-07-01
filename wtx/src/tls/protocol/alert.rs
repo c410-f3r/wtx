@@ -110,7 +110,7 @@ impl<'de> Decode<'de, De> for Alert {
 impl Encode<De> for Alert {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(&self.data_bytes())?;
+    ew.buffer().extend_from_copyable_slice(&self.data_bytes())?;
     Ok(())
   }
 }

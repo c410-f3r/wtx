@@ -1,4 +1,4 @@
-use crate::collections::{ArrayString, ArrayVector, LinearStorageLen, Vector};
+use crate::collections::{ArrayString, ArrayVector, ArrayVectorCopy, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// See [`Clear::clear`] for more information.
@@ -49,6 +49,16 @@ where
   #[inline]
   fn clear(&mut self) {
     self.truncate(L::ZERO);
+  }
+}
+
+impl<T, const N: usize> Clear for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn clear(&mut self) {
+    (*self).clear();
   }
 }
 

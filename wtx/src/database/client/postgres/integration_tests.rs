@@ -129,7 +129,7 @@ fn custom_composite_type() {
 
       impl Encode<Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
-        fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> crate::Result<()> {
+        fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> crate::Result<()> {
           let _ev = StructEncoder::<crate::Error>::new(ew)?
             .encode(self.0)?
             .encode_with_ty(&self.1, Ty::Varchar)?
@@ -193,7 +193,7 @@ fn custom_domain() {
 
     impl Encode<Postgres<crate::Error>> for CustomDomain {
       #[inline]
-      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> crate::Result<()> {
         <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ew)?;
         Ok(())
       }
@@ -261,7 +261,7 @@ fn custom_enum() {
 
     impl Encode<Postgres<crate::Error>> for Enum {
       #[inline]
-      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> crate::Result<()> {
         let s = match self {
           Enum::Foo => "foo",
           Enum::Bar => "bar",

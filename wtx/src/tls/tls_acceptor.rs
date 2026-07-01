@@ -179,7 +179,7 @@ where
             &client_hello.data.tls_config().key_shares,
             &self.config.lease().inner.key_shares,
           )?,
-          client_hello.data.legacy_session_id().clone(),
+          *client_hello.data.legacy_session_id(),
           &mut self.rng,
           seek_psk(&client_hello.data.tls_config().offered_psks, &[]),
         ),
@@ -187,7 +187,7 @@ where
       },
     );
     self.buffer.writer_buffer.clear();
-    let mut ew = TlsEncodeWrapper::from_buffer(self.buffer.writer_buffer.suffix_pusher());
+    let mut ew = TlsEncodeWrapper::from_buffer(&mut self.buffer.writer_buffer);
     client_hello_record.encode(&mut ew)?;
     let client_cert_type = first_compatible_cert_ty(
       &client_hello.data.tls_config().client_cert_types.0,
@@ -252,7 +252,7 @@ where
   async fn fetch_rec_from_stream(
     &mut self,
     decrypt: bool,
-  ) -> Result<StreamReadItem<ReadRecordInfo>, crate::Error> {
+  ) -> crate::Result<StreamReadItem<ReadRecordInfo>> {
     fetch_rec_from_stream(
       decrypt.then(|| self.key_schedule.read_mut().state_mut()),
       self.config.lease().max_fragment_length_actual(),

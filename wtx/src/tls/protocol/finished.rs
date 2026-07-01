@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   crypto::MAX_HASH_LEN,
   tls::{
     TlsError, de::De, key_schedule::KeyScheduleState,
@@ -28,15 +28,15 @@ impl<'any> Finished<'any> {
   pub(crate) fn record_bytes(
     data_bytes: &[u8],
     kss: &mut KeyScheduleState,
-  ) -> crate::Result<ArrayVectorU8<u8, { 5 + MAX_HASH_LEN + 1 + 16 }>> {
+  ) -> crate::Result<ArrayVectorCopy<u8, { 5 + MAX_HASH_LEN + 1 + 16 }>> {
     let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 2];
     let encrypted_bytes = [data_bytes, &[RecordContentType::Handshake.into()]];
-    let mut encrypted = ArrayVectorU8::<u8, { MAX_HASH_LEN + 1 }>::new();
+    let mut encrypted = ArrayVectorCopy::<u8, { MAX_HASH_LEN + 1 }>::new();
     let _ = encrypted.extend_from_copyable_slices(encrypted_bytes)?;
     let nonce = kss.nonce();
     let secret = kss.cipher_key();
     let tag = kss.cipher_suite().aes_encrypt(&header, &mut encrypted, nonce, secret)?;
-    let mut rslt = ArrayVectorU8::new();
+    let mut rslt = ArrayVectorCopy::new();
     let _ = rslt.extend_from_copyable_slices([header.as_slice(), &encrypted, &tag])?;
     Ok(rslt)
   }

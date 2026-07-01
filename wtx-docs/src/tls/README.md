@@ -12,7 +12,7 @@ To use this functionality, it is necessary to activate the `tls` feature.
 
 It is possible to convert a TLS stream into an unencrypted stream through the use of the `TlsModePlainText` structure. In other words, `TlsModePlainText` makes the TLS stream act like a normal plain-text stream ignoring all associated certificates, handshakes and encryptions.
 
-This feature is useful for local tests and also for applications running behind a service mesh that automatically handles mTLS connections. However, `TlsModePlainText` can be \*\*\***EXTREMELY DANGEROUS**\*\*\* in a misconfiguration or if you don't know what are you doing, as such, be careful!
+This feature is useful for local tests and also for applications running behind a service mesh that automatically handles mTLS connections. However, `TlsModePlainText` can be \*\*\***DANGEROUS**\*\*\* in a misconfiguration or if you don't know what are you doing, as such, be careful!
 
 ## Concurrency
 
@@ -34,6 +34,6 @@ Examples about possible concurrent utilizations are available in the `wtx-exampl
 
 The majority of the other examples like WebSocket clients already use TLS connections by default.
 
-```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-examples/examples/tls.rs}}
+```rust,edition2024,no_run
+{{#rustdoc_include ../../../wtx-examples/examples/tls-client.rs}}
 ```

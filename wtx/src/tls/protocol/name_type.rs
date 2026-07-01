@@ -24,6 +24,6 @@ impl<'de> Decode<'de, De> for NameType {
 impl Encode<De> for NameType {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().push(0)
+    ew.buffer().push(0)
   }
 }

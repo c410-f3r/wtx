@@ -1,23 +1,23 @@
 use crate::{
-  collections::{SuffixPusherVectorMut, TryExtend},
+  collections::{TryExtend, Vector},
   misc::{Lease, LeaseMut},
 };
 
 /// Struct used for encoding TLS elements.
 #[derive(Debug)]
 pub(crate) struct TlsEncodeWrapper<'any> {
-  buffer: SuffixPusherVectorMut<'any, u8>,
+  buffer: &'any mut Vector<u8>,
   is_hello_retry_request: bool,
 }
 
 impl<'any> TlsEncodeWrapper<'any> {
-  pub(crate) const fn from_buffer(buffer: SuffixPusherVectorMut<'any, u8>) -> Self {
+  pub(crate) const fn from_buffer(buffer: &'any mut Vector<u8>) -> Self {
     Self { buffer, is_hello_retry_request: false }
   }
 
   #[inline]
-  pub(crate) const fn buffer(&mut self) -> &mut SuffixPusherVectorMut<'any, u8> {
-    &mut self.buffer
+  pub(crate) const fn buffer(&mut self) -> &mut Vector<u8> {
+    self.buffer
   }
 
   #[inline]
@@ -34,21 +34,21 @@ impl<'any> TlsEncodeWrapper<'any> {
 impl Lease<[u8]> for TlsEncodeWrapper<'_> {
   #[inline]
   fn lease(&self) -> &[u8] {
-    self.buffer.curr()
+    self.buffer
   }
 }
 
 impl LeaseMut<[u8]> for TlsEncodeWrapper<'_> {
   #[inline]
   fn lease_mut(&mut self) -> &mut [u8] {
-    self.buffer.curr_mut()
+    self.buffer
   }
 }
 
 impl<'slice> TryExtend<&'slice [u8]> for TlsEncodeWrapper<'_> {
   #[inline]
   fn try_extend(&mut self, set: &'slice [u8]) -> crate::Result<()> {
-    self.buffer.inner_mut().extend_from_copyable_slice(set)?;
+    self.buffer.extend_from_copyable_slice(set)?;
     Ok(())
   }
 }

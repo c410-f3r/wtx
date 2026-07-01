@@ -28,8 +28,8 @@ macro_rules! impl_primitive {
       E: From<crate::Error>,
     {
       #[inline]
-      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-        ew.buffer().inner_mut().extend_from_copyable_slice(&self.to_be_bytes())?;
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+        ew.buffer().extend_from_copyable_slice(&self.to_be_bytes())?;
         Ok(())
       }
     }
@@ -82,11 +82,11 @@ macro_rules! test {
     fn $name() {
       let mut vec = crate::collections::Vector::new();
       let mut suffix_pusher = vec.suffix_pusher();
-      let mut ew = PostgresEncodeWrapper::new(&mut suffix_pusher);
+      let mut ew = PostgresEncodeWrapper::new(suffix_pusher.inner_mut());
       let instance: $ty = $instance;
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut ew).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&mut PostgresDecodeWrapper::new(
-        ew.buffer().curr(),
+        suffix_pusher.curr(),
         "",
         crate::database::client::postgres::Ty::Any,
       ))

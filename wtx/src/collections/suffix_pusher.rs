@@ -1,8 +1,7 @@
 use crate::{
   collections::{Truncate, TryExtend, Vector},
-  misc::{Lease, LeaseMut, SingleTypeStorage, Wrapper},
+  misc::{Lease, LeaseMut, SingleTypeStorage},
 };
-use core::{iter, ops::Range};
 
 /// [`SuffixPusher`] with a mutable vector reference.
 pub type SuffixPusherVectorMut<'inner, T> = SuffixPusher<&'inner mut Vector<T>>;
@@ -21,6 +20,12 @@ impl<T> SuffixPusher<T>
 where
   T: Truncate<usize>,
 {
+  /// Initial buffer index when this instance was created.
+  #[inline]
+  pub const fn idx(&self) -> usize {
+    self.initial_idx
+  }
+
   /// Inner collection
   #[inline]
   pub const fn inner(&self) -> &T {
@@ -31,6 +36,12 @@ where
   #[inline]
   pub const fn inner_mut(&mut self) -> &mut T {
     &mut self.inner
+  }
+
+  /// Mutable parts
+  #[inline]
+  pub const fn parts_mut(&mut self) -> (usize, &mut T) {
+    (self.initial_idx, &mut self.inner)
   }
 }
 
@@ -53,30 +64,6 @@ where
   #[inline]
   pub fn curr_mut(&mut self) -> &mut [U] {
     self.inner.lease_mut().get_mut(self.initial_idx..).unwrap_or_default()
-  }
-}
-
-impl<T, U> SuffixPusher<T>
-where
-  T: LeaseMut<[U]>
-    + SingleTypeStorage<Item = U>
-    + Truncate<usize>
-    + TryExtend<Wrapper<iter::Map<Range<usize>, fn(usize) -> U>>>,
-  U: Default,
-{
-  /// Reserves space and allows writing to it via a closure.
-  #[cfg(feature = "postgres")]
-  #[inline]
-  pub(crate) fn reserve_and_write(
-    &mut self,
-    additional_bytes: usize,
-    cb: impl FnOnce(&mut [U]) -> crate::Result<usize>,
-  ) -> crate::Result<()> {
-    let prev_len = self.inner.lease().len();
-    self.inner.try_extend(Wrapper((0..additional_bytes).map(|_| U::default())))?;
-    let written = cb(self.inner.lease_mut().get_mut(prev_len..).unwrap_or_default())?;
-    self.inner.truncate(prev_len.wrapping_add(written));
-    Ok(())
   }
 }
 

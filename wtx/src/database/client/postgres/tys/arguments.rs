@@ -13,7 +13,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     ew.buffer().write_fmt(*self).map_err(crate::Error::from)?;
     Ok(())
   }

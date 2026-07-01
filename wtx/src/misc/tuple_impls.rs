@@ -16,12 +16,12 @@ macro_rules! impl_tuples {
           $($T: Encode<DB> + Typed<DB>,)*
         {
           #[inline]
-          fn encode_values<'inner, 'outer, 'rem, AUX>(
+          fn encode_values<'bytes, 'rem, AUX>(
             &self,
             _aux: &mut AUX,
-            _ew: &mut DB::EncodeWrapper<'inner, 'outer, 'rem>,
-            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+            _ew: &mut DB::EncodeWrapper<'bytes, 'bytes, 'rem>,
+            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
           ) -> Result<usize, DB::Error> {
             let mut _n: usize = 0;
             $(
@@ -240,7 +240,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), ERR> {
+          fn encode(&self, _ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
               _ev = _ev.encode(&self.$T13)?;

@@ -43,7 +43,7 @@ where
   {
     {
       let mut sw = read_buffer.suffix_pusher();
-      query(cmd.as_bytes(), &mut sw)?;
+      query(cmd.as_bytes(), sw.inner_mut())?;
       stream.write_all(sw.curr()).await?;
     }
     let begin_data = read_buffer.current_end_idx().wrapping_add(7);

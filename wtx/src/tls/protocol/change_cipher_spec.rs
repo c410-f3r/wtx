@@ -22,6 +22,6 @@ impl<'de> Decode<'de, De> for ChangeCipherSpec {
 impl Encode<De> for ChangeCipherSpec {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().push(1)
+    ew.buffer().push(1)
   }
 }

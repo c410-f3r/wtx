@@ -20,6 +20,7 @@ pub mod format;
 mod from_radix_10;
 mod generic_codec;
 mod hex;
+mod misc;
 mod num_array;
 pub mod protocol;
 mod url_encoding;
@@ -40,6 +41,9 @@ pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{DecodeWrapper, EncodeWrapper, GenericCodec};
 pub use hex::*;
+pub use misc::{
+  decode_base64_buffer, decode_hex_into_buffer, encode_base64_into_buffer, encode_hex_into_buffer,
+};
 pub use num_array::*;
 pub use url_encoding::*;
 

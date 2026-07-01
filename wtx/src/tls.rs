@@ -50,7 +50,7 @@ mod tls_stream_bridge;
 mod tls_stream_reader;
 mod tls_stream_writer;
 
-use crate::{collections::ArrayVectorU8, crypto::MAX_HASH_LEN};
+use crate::{collections::ArrayVectorCopy, crypto::MAX_HASH_LEN};
 pub use handshake_path::HandshakePath;
 pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
@@ -70,7 +70,8 @@ pub use tls_buffer::TlsBuffer;
 pub use tls_certificate_ty::TlsCertificateTy;
 pub use tls_config::TlsConfig;
 pub use tls_connector::{
-  ManageClientRecordsState, ManageRemainingServerRecordsState, TlsConnectRslt, TlsConnector,
+  ManageClientRecordsState, ManageRemainingServerRecordsInput, ManageRemainingServerRecordsState,
+  TlsConnectRslt, TlsConnector,
 };
 pub use tls_error::TlsError;
 pub use tls_mode::*;
@@ -90,12 +91,11 @@ const IV_LEN: usize = 12;
 const MAX_CERTIFICATES: usize = 3;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
 const MAX_KEY_SHARES_LEN: usize = 2;
-const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 
 /// Identifier of a certificate
-pub type SerialNumber = ArrayVectorU8<u8, 20>;
+pub type SerialNumber = ArrayVectorCopy<u8, 20>;
 /// The hash of the server's leaf certificate.
-pub type TlsServerEndPoint = ArrayVectorU8<u8, { MAX_HASH_LEN }>;
+pub type TlsServerEndPoint = ArrayVectorCopy<u8, { MAX_HASH_LEN }>;
 
 mod crypto {
   use crate::{
@@ -124,7 +124,7 @@ mod crypto {
   impl Encode<De> for SignatureTy {
     #[inline]
     fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-      ew.buffer().inner_mut().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
+      ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
       Ok(())
     }
   }

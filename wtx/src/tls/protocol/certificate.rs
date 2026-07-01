@@ -52,7 +52,7 @@ impl Encode<De> for Certificate<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.certificate_request_context)?;
+      local_ew.buffer().extend_from_copyable_slice(self.certificate_request_context)?;
       crate::Result::Ok(())
     })?;
     u24_write_iter(
@@ -124,7 +124,7 @@ impl Encode<De> for CertificateEntry<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u24_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.certificate_bytes)?;
+      local_ew.buffer().extend_from_copyable_slice(self.certificate_bytes)?;
       crate::Result::Ok(())
     })?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |_| Ok(()))

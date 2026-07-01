@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   tls::{
     TlsCertificateTy, TlsError, de::De, misc::u8_list, tls_decode_wrapper::TlsDecodeWrapper,
@@ -10,12 +10,12 @@ use crate::{
 
 /// Can be `client_certificate_type` or `server_certificate_type`
 #[derive(Clone, Debug)]
-pub(crate) struct CertTypes(pub(crate) ArrayVectorU8<TlsCertificateTy, 2>);
+pub(crate) struct CertTypes(pub(crate) ArrayVectorCopy<TlsCertificateTy, 2>);
 
 impl<'de> Decode<'de, De> for CertTypes {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let mut rslt = ArrayVectorU8::new();
+    let mut rslt = ArrayVectorCopy::new();
     u8_list(&mut rslt, dw, TlsError::InvalidCertificateType)?;
     Ok(Self(rslt))
   }
@@ -38,6 +38,6 @@ impl Encode<De> for CertTypes {
 impl Default for CertTypes {
   #[inline]
   fn default() -> Self {
-    Self(ArrayVectorU8::from_array([TlsCertificateTy::X509]))
+    Self(ArrayVectorCopy::from_array([TlsCertificateTy::X509]))
   }
 }

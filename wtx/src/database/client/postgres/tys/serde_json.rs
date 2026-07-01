@@ -28,8 +28,8 @@ where
   T: Serialize,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().inner_mut().push(1)?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().push(1)?;
     serde_json::to_writer(ew.buffer(), &self.0).map_err(Into::into)?;
     Ok(())
   }

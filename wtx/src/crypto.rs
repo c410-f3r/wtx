@@ -83,12 +83,12 @@ _create_wrappers!(
   RsaPssRsaeSha384AwsLcRs<>(),
   X25519AwsLcRs<>(aws_lc_rs::agreement::EphemeralPrivateKey),
   //
-  #[derive(Default)]
-  Sha1HashAwsLcRs<>(),
-  #[derive(Default)]
-  Sha256HashAwsLcRs<>(),
-  #[derive(Default)]
-  Sha384HashAwsLcRs<>(),
+  #[derive(Clone)]
+  Sha1HashAwsLcRs<>(aws_lc_rs::digest::Context),
+  #[derive(Clone)]
+  Sha256HashAwsLcRs<>(aws_lc_rs::digest::Context),
+  #[derive(Clone)]
+  Sha384HashAwsLcRs<>(aws_lc_rs::digest::Context),
   //
   HkdfSha256AwsLcRs<>(aws_lc_rs::hkdf::Prk),
   HkdfSha384AwsLcRs<>(aws_lc_rs::hkdf::Prk),
@@ -123,10 +123,10 @@ _create_wrappers!(
   RsaPssRsaeSha384Graviola<>(),
   X25519Graviola<>(graviola::key_agreement::x25519::PrivateKey),
   //
-  #[derive(Default)]
-  Sha256HashGraviola<>(),
-  #[derive(Default)]
-  Sha384HashGraviola<>(),
+  #[derive(Clone)]
+  Sha256HashGraviola<>(<graviola::hashing::Sha256 as graviola::hashing::Hash>::Context),
+  #[derive(Clone)]
+  Sha384HashGraviola<>(<graviola::hashing::Sha384 as graviola::hashing::Hash>::Context),
   //
   #[derive(Default)]
   HkdfSha256Graviola<>(),
@@ -159,12 +159,12 @@ _create_wrappers!(
   P384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
   X25519Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
   //
-  #[derive(Default)]
-  Sha1HashOpenssl<>(),
-  #[derive(Default)]
-  Sha256HashOpenssl<>(),
-  #[derive(Default)]
-  Sha384HashOpenssl<>(),
+  #[derive(Clone)]
+  Sha1HashOpenssl<>(openssl::hash::Hasher),
+  #[derive(Clone)]
+  Sha256HashOpenssl<>(openssl::hash::Hasher),
+  #[derive(Clone)]
+  Sha384HashOpenssl<>(openssl::hash::Hasher),
   //
   HmacSha256Openssl<>(HmacOpenssl),
   HmacSha384Openssl<>(HmacOpenssl),
@@ -200,12 +200,12 @@ _create_wrappers!(
   RsaPssRsaeSha384Ring<>(),
   X25519Ring<>(ring::agreement::EphemeralPrivateKey),
   //
-  #[derive(Default)]
-  Sha1HashRing<>(),
-  #[derive(Default)]
-  Sha256HashRing<>(),
-  #[derive(Default)]
-  Sha384HashRing<>(),
+  #[derive(Clone)]
+  Sha1HashRing<>(ring::digest::Context),
+  #[derive(Clone)]
+  Sha256HashRing<>(ring::digest::Context),
+  #[derive(Clone)]
+  Sha384HashRing<>(ring::digest::Context),
   //
   HkdfSha256Ring<>(ring::hkdf::Prk),
   HkdfSha384Ring<>(ring::hkdf::Prk),

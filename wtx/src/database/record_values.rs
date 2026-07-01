@@ -10,15 +10,13 @@ where
   D: Database,
 {
   /// Converts the inner values into a byte representation.
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
-  ) -> Result<usize, D::Error>
-  where
-    'inner: 'outer;
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error>;
 
   /// The number of values
   fn len(&self) -> usize;
@@ -36,12 +34,12 @@ where
   T: RecordValues<D>,
 {
   #[inline]
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     (**self).encode_values(aux, ew, prefix_cb, suffix_cb)
   }
@@ -66,12 +64,12 @@ where
   T: RecordValues<D>,
 {
   #[inline]
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     (**self).encode_values(aux, ew, prefix_cb, suffix_cb)
   }
@@ -96,12 +94,12 @@ where
   T: Encode<D> + Typed<D>,
 {
   #[inline]
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in *self {
@@ -133,12 +131,12 @@ where
   T: Encode<D> + Typed<D>,
 {
   #[inline]
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in self.iter() {
@@ -171,12 +169,12 @@ where
   T: Encode<D> + Typed<D>,
 {
   #[inline]
-  fn encode_values<'inner, 'outer, 'rem, A>(
+  fn encode_values<'bytes, 'rem, A>(
     &self,
     aux: &mut A,
-    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
-    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+    ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in self.0.clone() {
@@ -203,13 +201,13 @@ where
   }
 }
 
-pub(crate) fn encode<'inner, 'outer, 'rem, A, D, T>(
+pub(crate) fn encode<'bytes, 'rem, A, D, T>(
   aux: &mut A,
   elem: &T,
-  ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
+  ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
   n: &mut usize,
-  prefix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
-  suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+  prefix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+  suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>, bool, usize) -> usize,
 ) -> Result<(), D::Error>
 where
   D: Database,

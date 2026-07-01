@@ -41,7 +41,7 @@ where
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.name_type.encode(ew)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.name.lease())?;
+      local_ew.buffer().extend_from_copyable_slice(self.name.lease())?;
       Ok(())
     })
   }

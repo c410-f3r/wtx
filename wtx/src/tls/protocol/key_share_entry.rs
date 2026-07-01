@@ -43,9 +43,9 @@ where
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     if ew.is_hello_retry_request() {
-      ew.buffer().inner_mut().extend_from_copyable_slice(&u16::from(self.group).to_be_bytes())?;
+      ew.buffer().extend_from_copyable_slice(&u16::from(self.group).to_be_bytes())?;
     } else {
-      let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+      let _ = ew.buffer().extend_from_copyable_slices([
         &u16::from(self.group).to_be_bytes(),
         &u16::try_from(self.opaque.lease().len())?.to_be_bytes(),
         self.opaque.lease(),

@@ -1,14 +1,19 @@
 use crate::{
   codec::{Decode, Encode},
+  collections::ArrayVectorCopy,
   crypto::{
     AEAD_TAG_LEN, Aead as _, Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305Global, Hash as _,
     Hkdf as _, HkdfSha256Global, HkdfSha384Global, Hmac as _, HmacSha256Global, HmacSha384Global,
-    Sha256HashGlobal, Sha384HashGlobal,
+    MAX_HASH_LEN, Sha256HashGlobal, Sha384HashGlobal,
   },
-  misc::Either,
   tls::{
-    TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
-    tls_hash::TlsHash, tls_hkdf::TlsHkdf, tls_hmac::TlsHmac,
+    TlsError,
+    de::De,
+    tls_decode_wrapper::TlsDecodeWrapper,
+    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_hash::{TlsDigest, TlsHash},
+    tls_hkdf::TlsHkdf,
+    tls_hmac::TlsHmac,
   },
 };
 
@@ -78,12 +83,12 @@ impl CipherSuite {
   }
 
   #[inline]
-  pub(crate) fn hash_digest<'data>(self, data: impl IntoIterator<Item = &'data [u8]>) -> TlsHash {
+  pub(crate) fn hash_digest<'data>(self, data: impl IntoIterator<Item = &'data [u8]>) -> TlsDigest {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        Either::Left(Sha256HashGlobal::digest(data))
+        TlsDigest::Sha256(Sha256HashGlobal::digest(data))
       }
-      CipherSuite::Aes256GcmSha384 => Either::Right(Sha384HashGlobal::digest(data)),
+      CipherSuite::Aes256GcmSha384 => TlsDigest::Sha384(Sha384HashGlobal::digest(data)),
     }
   }
 
@@ -96,16 +101,26 @@ impl CipherSuite {
   }
 
   #[inline]
+  pub(crate) fn hash_new(self) -> TlsHash {
+    match self {
+      CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
+        TlsHash::Sha256(Sha256HashGlobal::new())
+      }
+      CipherSuite::Aes256GcmSha384 => TlsHash::Sha384(Sha384HashGlobal::new()),
+    }
+  }
+
+  #[inline]
   pub(crate) fn hkdf_compute<'data>(
     self,
     data: impl IntoIterator<Item = &'data [u8]>,
     key: &[u8],
-  ) -> crate::Result<TlsHash> {
+  ) -> crate::Result<TlsDigest> {
     Ok(match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        Either::Left(HkdfSha256Global::compute(data, key)?)
+        TlsDigest::Sha256(HkdfSha256Global::compute(data, key)?)
       }
-      CipherSuite::Aes256GcmSha384 => Either::Right(HkdfSha384Global::compute(data, key)?),
+      CipherSuite::Aes256GcmSha384 => TlsDigest::Sha384(HkdfSha384Global::compute(data, key)?),
     })
   }
 
@@ -113,9 +128,9 @@ impl CipherSuite {
   pub(crate) fn hkdf_extract(self, salt: Option<&[u8]>, ikm: &[u8]) -> TlsHkdf {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        Either::Left(HkdfSha256Global::extract(salt, ikm).1)
+        TlsHkdf::Sha256(HkdfSha256Global::extract(salt, ikm).1)
       }
-      CipherSuite::Aes256GcmSha384 => Either::Right(HkdfSha384Global::extract(salt, ikm).1),
+      CipherSuite::Aes256GcmSha384 => TlsHkdf::Sha384(HkdfSha384Global::extract(salt, ikm).1),
     }
   }
 
@@ -123,9 +138,9 @@ impl CipherSuite {
   pub(crate) fn hkdf_from_prk(self, prk: &[u8]) -> crate::Result<TlsHkdf> {
     Ok(match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        Either::Left(HkdfSha256Global::from_prk(prk)?)
+        TlsHkdf::Sha256(HkdfSha256Global::from_prk(prk)?)
       }
-      CipherSuite::Aes256GcmSha384 => Either::Right(HkdfSha384Global::from_prk(prk)?),
+      CipherSuite::Aes256GcmSha384 => TlsHkdf::Sha384(HkdfSha384Global::from_prk(prk)?),
     })
   }
 
@@ -133,10 +148,26 @@ impl CipherSuite {
   pub(crate) fn hmac_from_key(self, key: &[u8]) -> crate::Result<TlsHmac> {
     Ok(match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        Either::Left(HmacSha256Global::from_key(key)?)
+        TlsHmac::Sha256(HmacSha256Global::from_key(key)?)
       }
-      CipherSuite::Aes256GcmSha384 => Either::Right(HmacSha384Global::from_key(key)?),
+      CipherSuite::Aes256GcmSha384 => TlsHmac::Sha384(HmacSha384Global::from_key(key)?),
     })
+  }
+
+  #[inline]
+  pub(crate) fn zeroed_hash(self) -> ArrayVectorCopy<u8, MAX_HASH_LEN> {
+    match self {
+      CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
+        ArrayVectorCopy::from_array([
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0,
+        ])
+      }
+      CipherSuite::Aes256GcmSha384 => ArrayVectorCopy::from_array([
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ]),
+    }
   }
 }
 
@@ -154,7 +185,7 @@ impl<'de> Decode<'de, De> for CipherSuite {
 impl Encode<De> for CipherSuite {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
+    ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
     Ok(())
   }
 }

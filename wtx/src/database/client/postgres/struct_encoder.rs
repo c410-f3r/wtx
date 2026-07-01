@@ -9,22 +9,22 @@ use core::marker::PhantomData;
 
 /// Encodes a Rust struct into a custom PostgreSQL type that represents a table.
 #[derive(Debug)]
-pub struct StructEncoder<'inner, 'ew, 'outer, E> {
-  ew: &'ew mut PostgresEncodeWrapper<'inner, 'outer>,
+pub struct StructEncoder<'bytes, 'ew, E> {
+  ew: &'ew mut PostgresEncodeWrapper<'bytes>,
   len: u32,
   phantom: PhantomData<fn() -> E>,
   start: usize,
 }
 
-impl<'inner, 'ew, 'outer, E> StructEncoder<'inner, 'ew, 'outer, E>
+impl<'bytes, 'ew, E> StructEncoder<'bytes, 'ew, E>
 where
   E: From<crate::Error>,
 {
   /// Pushes initial encoding data.
   #[inline]
-  pub fn new(ew: &'ew mut PostgresEncodeWrapper<'inner, 'outer>) -> Result<Self, E> {
-    let start = ew.buffer().inner().len();
-    ew.buffer().inner_mut().extend_from_copyable_slice(&[0; 4])?;
+  pub fn new(ew: &'ew mut PostgresEncodeWrapper<'bytes>) -> Result<Self, E> {
+    let start = ew.buffer().len();
+    ew.buffer().extend_from_copyable_slice(&[0; 4])?;
     Ok(Self { ew, len: 0, phantom: PhantomData, start })
   }
 
@@ -44,7 +44,7 @@ where
   where
     T: Encode<Postgres<E>>,
   {
-    let buffer = self.ew.buffer().inner_mut();
+    let buffer = self.ew.buffer();
     buffer.extend_from_copyable_slice(&u32::from(ty).to_be_bytes())?;
     if value.is_null() {
       buffer.extend_from_copyable_slice(&(-1i32).to_be_bytes())?;
@@ -53,7 +53,7 @@ where
       buffer.extend_from_copyable_slice(&[0; 4])?;
       let idx = buffer.len();
       value.encode(self.ew)?;
-      let len = self.ew.buffer().inner().len().wrapping_sub(idx).try_into().unwrap_or_default();
+      let len = self.ew.buffer().len().wrapping_sub(idx).try_into().unwrap_or_default();
       write_len(self.ew, len_start, len);
     }
     self.len = self.len.wrapping_add(1);
@@ -61,15 +61,15 @@ where
   }
 }
 
-impl<E> Drop for StructEncoder<'_, '_, '_, E> {
+impl<E> Drop for StructEncoder<'_, '_, E> {
   #[inline]
   fn drop(&mut self) {
     write_len(self.ew, self.start, self.len);
   }
 }
 
-fn write_len(ew: &mut PostgresEncodeWrapper<'_, '_>, start: usize, len: u32) {
-  let Some([b0, b1, b2, b3, ..]) = ew.buffer().inner_mut().get_mut(start..) else {
+fn write_len(ew: &mut PostgresEncodeWrapper<'_>, start: usize, len: u32) {
+  let Some([b0, b1, b2, b3, ..]) = ew.buffer().get_mut(start..) else {
     return;
   };
   let [b4, b5, b6, b7] = len.to_be_bytes();

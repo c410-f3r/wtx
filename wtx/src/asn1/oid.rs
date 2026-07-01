@@ -3,7 +3,7 @@ use crate::{
   codec::{
     Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, u32_string,
   },
-  collections::{ArrayString, ArrayStringU8, ArrayVectorU8},
+  collections::{ArrayString, ArrayStringU8, ArrayVectorCopy},
   misc::bytes_split_once1,
 };
 use core::{
@@ -67,7 +67,7 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Oid {
     };
     let c1 = c1_rslt?;
     let c2 = c2_rslt?;
-    let mut encoded = ArrayVectorU8::<u8, 20>::new();
+    let mut encoded = ArrayVectorCopy::<u8, 20>::new();
     let first = c1
       .checked_mul(40)
       .and_then(|elem| elem.checked_add(c2))
@@ -166,7 +166,7 @@ fn decode_base128_one(bytes: &[u8]) -> crate::Result<(u32, &[u8])> {
   Err(Asn1Error::InvalidOidBase128.into())
 }
 
-fn encode_base128_one(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate::Result<()> {
+fn encode_base128_one(buffer: &mut ArrayVectorCopy<u8, 20>, mut val: u32) -> crate::Result<()> {
   if val == 0 {
     buffer.push(0)?;
     return Ok(());

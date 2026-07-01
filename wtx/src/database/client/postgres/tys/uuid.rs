@@ -23,8 +23,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }

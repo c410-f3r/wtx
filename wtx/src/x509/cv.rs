@@ -31,6 +31,19 @@ use crate::{
   },
 };
 
+/// Verifies `signature` over `msg` using the public key contained in this certificate.
+#[inline]
+pub fn validate_signature(
+  msg: &[u8],
+  signature: &[u8],
+  spki: &SubjectPublicKeyInfo<&[u8]>,
+) -> crate::Result<()> {
+  let params_oid = params_oid(spki);
+  let signature_ty = SignatureTy::try_from((&spki.algorithm.algorithm, params_oid.as_ref()))?;
+  signature_ty.validate_signature(spki.subject_public_key.bytes().lease(), msg, signature)?;
+  Ok(())
+}
+
 #[inline]
 pub(crate) fn validate_chain<'any, B, const IS_EE: bool>(
   cert: &'any CvCertificate<&'any [u8], IS_EE>,

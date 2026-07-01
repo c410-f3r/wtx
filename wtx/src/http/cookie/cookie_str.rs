@@ -1,7 +1,7 @@
 use crate::{
   calendar::DateTime,
   codec::PercentDecode,
-  collections::{ArrayStringU8, ArrayVectorU8, Vector},
+  collections::{ArrayStringU8, ArrayVectorCopy, Vector},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{AsciiGeneric, str_split_once1, str_split1},
 };
@@ -62,7 +62,7 @@ impl<'str> CookieStr<'str> {
       }
     };
 
-    let mut lower_case = ArrayVectorU8::<u8, 12>::new();
+    let mut lower_case = ArrayVectorCopy::<u8, 12>::new();
     for semicolon in semicolons {
       let (name, value) = if let Some(elem) = str_split_once1(semicolon, AsciiGeneric::EQUAL) {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
@@ -111,7 +111,7 @@ impl<'str> CookieStr<'str> {
   }
 }
 
-fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVectorU8<u8, 12>, slice: &str) {
+fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVectorCopy<u8, 12>, slice: &str) {
   buffer.clear();
   let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();
   let _rslt = buffer.extend_from_copyable_slice(sub_slice.as_bytes());

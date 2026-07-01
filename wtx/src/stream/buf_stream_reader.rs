@@ -23,9 +23,9 @@ pub enum BufStreamReaderError {
 ///            |         |           |          |             |
 ///            |         |           |          |             |-> capacity_ub
 ///            |         |           |          |
-///            |         |           |          |---------------> bytes.capacity()
+///            |         |           |          |---------------> buffer.capacity()
 ///            |         |           |
-///            |         |           |--------------------------> bytes.len()
+///            |         |           |--------------------------> buffer.len()
 ///            |         |
 ///            |         |--------------------------------------> current_end_idx
 ///            |
@@ -33,7 +33,7 @@ pub enum BufStreamReaderError {
 /// ```
 pub struct BufStreamReader {
   antecedent_end_idx: usize,
-  bytes: Vector<u8>,
+  buffer: Vector<u8>,
   capacity_ub: usize,
   current_end_idx: usize,
   forbid_clear: bool,
@@ -45,11 +45,20 @@ impl BufStreamReader {
   pub const fn new() -> Self {
     Self {
       antecedent_end_idx: 0,
-      bytes: Vector::new(),
+      buffer: Vector::new(),
       capacity_ub: 1024 * 1024 * 32,
       current_end_idx: 0,
       forbid_clear: false,
     }
+  }
+
+  /// The antecedent (already consumed) region.
+  #[inline]
+  pub fn antecedent(&self) -> &[u8] {
+    let range = 0..self.antecedent_end_idx;
+    // SAFETY: All methods ensure that `antecedent_end_idx` will never be greater than
+    //         the buffer's length
+    unsafe { self.buffer.get(range).unwrap_unchecked() }
   }
 
   /// The end index of the antecedent (already consumed) region.
@@ -72,7 +81,7 @@ impl BufStreamReader {
   /// NO-OP if [`Self::forbid_clear`] is `true`.
   #[inline]
   pub fn clear_if_exhausted(&mut self) {
-    if self.current_end_idx == self.bytes.len() {
+    if self.current_end_idx == self.buffer.len() {
       self.clear();
     }
   }
@@ -83,7 +92,7 @@ impl BufStreamReader {
     let range = self.antecedent_end_idx..self.current_end_idx;
     // SAFETY: All methods ensure that `antecedent_end_idx` and `current_end_idx`
     //         will never be greater than the buffer's length
-    unsafe { self.bytes.get(range).unwrap_unchecked() }
+    unsafe { self.buffer.get(range).unwrap_unchecked() }
   }
 
   /// Mutable version of [`Self::current`].
@@ -92,7 +101,7 @@ impl BufStreamReader {
     let range = self.antecedent_end_idx..self.current_end_idx;
     // SAFETY: All methods ensure that `antecedent_end_idx` and `current_end_idx`
     //         will never be greater than the buffer's length
-    unsafe { self.bytes.get_mut(range).unwrap_unchecked() }
+    unsafe { self.buffer.get_mut(range).unwrap_unchecked() }
   }
 
   /// The end index of the current readable region.
@@ -104,7 +113,7 @@ impl BufStreamReader {
   /// The entire internal buffer as a slice.
   #[inline]
   pub fn filled(&self) -> &[u8] {
-    &self.bytes
+    &self.buffer
   }
 
   /// The filled but unread region.
@@ -112,7 +121,7 @@ impl BufStreamReader {
   pub fn following(&self) -> &[u8] {
     // SAFETY: All methods ensure that `current_end_idx` will never be greater than the
     //         buffer's length
-    unsafe { self.bytes.get(self.current_end_idx..).unwrap_unchecked() }
+    unsafe { self.buffer.get(self.current_end_idx..).unwrap_unchecked() }
   }
 
   /// Whether buffer clearing is currently forbidden.
@@ -129,7 +138,7 @@ impl BufStreamReader {
     &mut self.forbid_clear
   }
 
-  /// Reads `LEN` bytes that are intended to form the header of a protocol message.
+  /// Reads `LEN` buffer that are intended to form the header of a protocol message.
   ///
   /// Also removes the references that compose the current readable region.
   #[inline]
@@ -157,14 +166,14 @@ impl BufStreamReader {
         return Ok(StreamReadItem::empty_cold());
       };
       let new_len = init.len().wrapping_add(len.get());
-      // SAFETY: `stream_reader.read` just initialized `len` bytes
+      // SAFETY: `stream_reader.read` just initialized `len` buffer
       unsafe {
-        self.bytes.set_len(new_len);
+        self.buffer.set_len(new_len);
       }
     }
   }
 
-  /// Reads `payload_len` bytes that are intended to form the body of a protocol message. Should
+  /// Reads `payload_len` buffer that are intended to form the body of a protocol message. Should
   /// be called after [`Self::read_header`].
   ///
   /// Also creates the references that compose the current readable region.
@@ -191,9 +200,9 @@ impl BufStreamReader {
         return Ok(StreamReadItem::empty_cold());
       };
       let new_len = init.len().wrapping_add(len.get());
-      // SAFETY: `stream_reader.read` just initialized `len` bytes
+      // SAFETY: `stream_reader.read` just initialized `len` buffer
       unsafe {
-        self.bytes.set_len(new_len);
+        self.buffer.set_len(new_len);
       }
     }
   }
@@ -208,23 +217,29 @@ impl BufStreamReader {
   /// vector as a slice of `MaybeUninit<T>`.
   #[inline]
   pub fn split_at_spare_mut(&mut self) -> (&mut [u8], &mut [MaybeUninit<u8>]) {
-    self.bytes.split_at_spare_mut()
+    self.buffer.split_at_spare_mut()
+  }
+
+  #[cfg(feature = "postgres")]
+  #[inline]
+  pub(crate) fn buffer_mut(&mut self) -> &mut Vector<u8> {
+    &mut self.buffer
   }
 
   /// Clears internal state
   #[inline]
   pub(crate) fn clear(&mut self) {
-    let Self { antecedent_end_idx, bytes, capacity_ub: _, current_end_idx, forbid_clear } = self;
+    let Self { antecedent_end_idx, buffer, capacity_ub: _, current_end_idx, forbid_clear } = self;
     if *forbid_clear {
       return;
     }
     *antecedent_end_idx = 0;
-    bytes.clear();
+    buffer.clear();
     *current_end_idx = 0;
     *forbid_clear = false;
   }
 
-  /// Useful when the actual amount of required bytes is unknown. Always increases current by the
+  /// Useful when the actual amount of required buffer is unknown. Always increases current by the
   /// number of filled elements.
   ///
   /// `reserve_len` is only used to create a buffer to allow external reads.
@@ -244,9 +259,9 @@ impl BufStreamReader {
       return Ok(StreamReadItem::empty_cold());
     };
     let new_len = init.len().wrapping_add(len.get());
-    // SAFETY: `stream_reader.read` just initialized `len` bytes
+    // SAFETY: `stream_reader.read` just initialized `len` buffer
     unsafe {
-      self.bytes.set_len(new_len);
+      self.buffer.set_len(new_len);
     }
     self.current_end_idx = new_len;
     Ok(StreamReadItem::from_item(len))
@@ -255,50 +270,50 @@ impl BufStreamReader {
   /// Both indices will be capped to avoid data corruption.
   #[cfg(feature = "web-socket-handshake")]
   pub(crate) fn set_indices(&mut self, antecedent_end_idx: usize, current_end_idx: usize) {
-    self.current_end_idx = current_end_idx.min(self.bytes.len());
+    self.current_end_idx = current_end_idx.min(self.buffer.len());
     self.antecedent_end_idx = antecedent_end_idx.min(self.current_end_idx);
   }
 
   #[cfg(any(feature = "postgres", feature = "web-socket-handshake"))]
   pub(crate) fn suffix_pusher(&mut self) -> crate::collections::SuffixPusherVectorMut<'_, u8> {
-    crate::collections::SuffixPusherVectorMut::from(&mut self.bytes)
+    crate::collections::SuffixPusherVectorMut::from(&mut self.buffer)
   }
 
   /// `additional` refers `following`, `trailing` and unreserved memory. In other words, fetched
-  /// but unread bytes, uninitialized bytes and unallocated bytes.
+  /// but unread buffer, uninitialized buffer and unallocated buffer.
   ///
   /// In a partially filled buffer, if `additional` is greater than `current_end_idx - capacity_ub`,
   /// then everything before `current_end_idx` should be left shifted only if `additional` <= `capacity_ub`.
   #[inline]
   fn manage_capacity(&mut self, additional: usize) -> crate::Result<()> {
-    let bytes_len = self.bytes.len();
+    let buffer_len = self.buffer.len();
     let capacity_ub = self.capacity_ub;
     let current_end_idx = self.current_end_idx;
-    let following_len = bytes_len.wrapping_sub(current_end_idx);
+    let following_len = buffer_len.wrapping_sub(current_end_idx);
     if additional > capacity_ub {
       cold_path();
       return Err(BufStreamReaderError::CapacityOverflow.into());
     }
     if following_len == 0 && !self.forbid_clear {
       self.clear();
-      self.bytes.reserve(additional)?;
+      self.buffer.reserve(additional)?;
       return Ok(());
     }
     let required_capacity = current_end_idx.wrapping_add(additional);
-    if self.bytes.capacity() >= required_capacity {
+    if self.buffer.capacity() >= required_capacity {
       return Ok(());
     }
     if required_capacity <= capacity_ub {
-      self.bytes.reserve(required_capacity.wrapping_sub(bytes_len))?;
+      self.buffer.reserve(required_capacity.wrapping_sub(buffer_len))?;
       return Ok(());
     }
     cold_path();
     if self.forbid_clear {
       return Err(BufStreamReaderError::ForbiddenClear.into());
     }
-    self.bytes.copy_within(current_end_idx.., 0);
-    self.bytes.truncate(following_len);
-    self.bytes.reserve(additional.wrapping_sub(following_len))?;
+    self.buffer.copy_within(current_end_idx.., 0);
+    self.buffer.truncate(following_len);
+    self.buffer.reserve(additional.wrapping_sub(following_len))?;
     self.antecedent_end_idx = 0;
     self.current_end_idx = 0;
     Ok(())

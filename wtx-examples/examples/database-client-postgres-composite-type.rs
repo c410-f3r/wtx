@@ -46,7 +46,7 @@ impl Decode<'_, Postgres<wtx::Error>> for CustomCompositeType {
 
 impl Encode<Postgres<wtx::Error>> for CustomCompositeType {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), wtx::Error> {
     let _ev = StructEncoder::<wtx::Error>::new(ew)?.encode(self.0)?.encode(self.1)?;
     Ok(())
   }

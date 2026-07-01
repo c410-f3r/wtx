@@ -50,7 +50,7 @@ impl Decode<'_, Postgres<wtx::Error>> for Enum {
 
 impl Encode<Postgres<wtx::Error>> for Enum {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), wtx::Error> {
     let string = match self {
       Self::Foo => "foo",
       Self::Bar => "bar",

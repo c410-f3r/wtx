@@ -6,7 +6,7 @@ mod window_bits;
 #[cfg(feature = "zlib-rs")]
 mod zlib_rs;
 
-use crate::{codec::Compression, collections::ArrayVectorU8, http::GenericHeader};
+use crate::{codec::Compression, collections::ArrayVectorCopy, http::GenericHeader};
 pub use deflate_config::DeflateConfig;
 pub use web_socket_decompression::WebSocketDecompression;
 pub use window_bits::WindowBits;
@@ -28,7 +28,7 @@ pub trait WsCompression<const IS_CLIENT: bool> {
   ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Requests headers bytes that will be sent to the server.
-  fn req_headers(&self) -> ArrayVectorU8<u8, 160>;
+  fn req_headers(&self) -> ArrayVectorCopy<u8, 160>;
 }
 
 impl<const IS_CLIENT: bool> WsCompression<IS_CLIENT> for () {
@@ -43,8 +43,8 @@ impl<const IS_CLIENT: bool> WsCompression<IS_CLIENT> for () {
   }
 
   #[inline]
-  fn req_headers(&self) -> ArrayVectorU8<u8, 160> {
-    ArrayVectorU8::new()
+  fn req_headers(&self) -> ArrayVectorCopy<u8, 160> {
+    ArrayVectorCopy::new()
   }
 }
 
@@ -59,7 +59,7 @@ pub trait NegotiatedWsCompression: WebSocketCompression + WebSocketDecompression
   fn into_split(self) -> (Self::Compression, Self::Decompression);
 
   /// Response headers
-  fn res_headers(&self) -> ArrayVectorU8<u8, 160>;
+  fn res_headers(&self) -> ArrayVectorCopy<u8, 160>;
 
   /// Rsv1 bit
   fn rsv1(&self) -> u8;
@@ -75,8 +75,8 @@ impl NegotiatedWsCompression for () {
   }
 
   #[inline]
-  fn res_headers(&self) -> ArrayVectorU8<u8, 160> {
-    ArrayVectorU8::new()
+  fn res_headers(&self) -> ArrayVectorCopy<u8, 160> {
+    ArrayVectorCopy::new()
   }
 
   #[inline]
@@ -104,10 +104,10 @@ where
   }
 
   #[inline]
-  fn res_headers(&self) -> ArrayVectorU8<u8, 160> {
+  fn res_headers(&self) -> ArrayVectorCopy<u8, 160> {
     match self {
       Some(el) => el.res_headers(),
-      None => ArrayVectorU8::new(),
+      None => ArrayVectorCopy::new(),
     }
   }
 

@@ -4,7 +4,7 @@
 //! multiple ways to synchronize resources. In this example, special frames are managed using a
 //! mutex but you can utilize any other method.
 //!
-//! See `tls-client-concurrent` to see an example using a channel.
+//! `wtx-client-concurrent` is an example that uses a channel.
 
 extern crate tokio;
 extern crate wtx;

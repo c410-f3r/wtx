@@ -1,7 +1,7 @@
 //! Migration file parser
 
 use crate::{
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -18,7 +18,7 @@ use std::io::{BufRead as _, BufReader, Read};
 #[derive(Debug, Default)]
 pub struct MigrationCfg {
   /// All unique declared databases
-  pub dbs: ArrayVectorU8<DatabaseTy, { DatabaseTy::len() }>,
+  pub dbs: ArrayVectorCopy<DatabaseTy, { DatabaseTy::len() }>,
   /// Declared repeatability
   pub repeatability: Option<Repeatability>,
 }
@@ -94,7 +94,7 @@ pub(crate) fn parse_migration_toml<R>(read: R) -> crate::Result<MigrationCfg>
 where
   R: Read,
 {
-  let mut migration_toml = MigrationCfg { dbs: ArrayVectorU8::new(), repeatability: None };
+  let mut migration_toml = MigrationCfg { dbs: ArrayVectorCopy::new(), repeatability: None };
 
   for (ident, toml_expr) in toml(read)? {
     match (ident.as_str(), toml_expr) {

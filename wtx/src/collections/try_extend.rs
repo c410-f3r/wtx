@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayString, ArrayVector, ExpansionTy, LinearStorageLen, Vector},
+  collections::{ArrayString, ArrayVector, ArrayVectorCopy, ExpansionTy, LinearStorageLen, Vector},
   misc::{Wrapper, from_utf8_basic},
 };
 use alloc::{string::String, vec::Vec};
@@ -125,6 +125,53 @@ impl<I, L, T, const N: usize> TryExtend<Wrapper<I>> for ArrayVector<L, T, N>
 where
   I: IntoIterator<Item = T>,
   L: LinearStorageLen,
+{
+  #[inline]
+  fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {
+    self.extend_from_iter(set.0)?;
+    Ok(())
+  }
+}
+
+// ArrayVectorCopy
+
+impl<T, const N: usize> TryExtend<(T, usize)> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
+    self.expand(ExpansionTy::Additional(len), elem)?;
+    Ok(())
+  }
+}
+
+impl<'slice, T, const N: usize> TryExtend<&'slice [T]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn try_extend(&mut self, set: &'slice [T]) -> crate::Result<()> {
+    self.extend_from_copyable_slice(set)?;
+    Ok(())
+  }
+}
+
+impl<T, const M: usize, const N: usize> TryExtend<[T; M]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn try_extend(&mut self, set: [T; M]) -> crate::Result<()> {
+    self.extend_from_iter(set)?;
+    Ok(())
+  }
+}
+
+impl<I, T, const N: usize> TryExtend<Wrapper<I>> for ArrayVectorCopy<T, N>
+where
+  I: IntoIterator<Item = T>,
+  T: Copy,
 {
   #[inline]
   fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {

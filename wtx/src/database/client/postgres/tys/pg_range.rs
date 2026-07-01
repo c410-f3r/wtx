@@ -90,7 +90,7 @@ where
   T: Encode<Postgres<E>> + PartialOrd,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     let is_empty = match (&self.start, &self.end) {
       (Bound::Unbounded, _) | (_, Bound::Unbounded) => false,
       (Bound::Included(start) | Bound::Excluded(start), Bound::Excluded(end))
@@ -98,7 +98,7 @@ where
       (Bound::Included(start), Bound::Included(end)) => start > end,
     };
     if is_empty {
-      ew.buffer().inner_mut().push(RangeFlags::Empty.into())?;
+      ew.buffer().push(RangeFlags::Empty.into())?;
       return Ok(());
     }
     let mut flags = 0u8;
@@ -112,7 +112,7 @@ where
       Bound::Unbounded => u8::from(RangeFlags::UbInf),
       Bound::Excluded(_) => 0,
     };
-    ew.buffer().inner_mut().push(flags)?;
+    ew.buffer().push(flags)?;
     if let Bound::Excluded(elem) | Bound::Included(elem) = &self.start {
       i32_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| elem.encode(local_ew))?;
     }
@@ -344,7 +344,7 @@ macro_rules! range {
       for<'any> PgRange<&'any T>: Encode<Postgres<E>>,
     {
       #[inline]
-      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
         PgRange::new(self.start_bound(), self.end_bound()).encode(ew)
       }
     }
