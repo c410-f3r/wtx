@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.9...wtx-v0.48.0) - 2026-07-01
+
+### Added
+
+- [**breaking**] Remove the usage of SuffixPusher in decoders
+- feat! Improve frameworks
+- [**breaking**] TLS 1.3
+
+### Other
+
+- Merge pull request #555 from c410-f3r/misc
+- Fix more x509 tests
+- Update x509-limbo
+
 ## [0.47.9](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.8...wtx-v0.47.9) - 2026-06-06
 
 ### Added
