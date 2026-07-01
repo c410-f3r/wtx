@@ -15,19 +15,19 @@ impl Hmac for HmacSha256Ring {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
-  }
-
-  #[inline]
-  fn digest(self) -> Self::Digest {
+  fn finalize(self) -> Self::Digest {
     let tag = self.0.sign();
     if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 32]) }
   }
 
   #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+
+  #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
-    let computed = self.digest();
+    let computed = self.finalize();
     if ring::constant_time::verify_slices_are_equal(&computed, tag).is_ok() {
       Ok(())
     } else {
@@ -45,19 +45,19 @@ impl Hmac for HmacSha384Ring {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
-  }
-
-  #[inline]
-  fn digest(self) -> Self::Digest {
+  fn finalize(self) -> Self::Digest {
     let tag = self.0.sign();
     if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 48]) }
   }
 
   #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+
+  #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
-    let computed = self.digest();
+    let computed = self.finalize();
     if ring::constant_time::verify_slices_are_equal(&computed, tag).is_ok() {
       Ok(())
     } else {

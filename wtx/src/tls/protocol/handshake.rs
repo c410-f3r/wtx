@@ -50,7 +50,7 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().push(u8::from(self.msg_type))?;
+    ew.buffer().push(u8::from(self.msg_type))?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| self.data.encode(local_ew))
   }
 }

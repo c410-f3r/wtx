@@ -2,21 +2,17 @@ pub(crate) mod calendar_token;
 pub(crate) mod parsed_data;
 pub(crate) mod push;
 
-use crate::{
-  calendar::CalendarError,
-  collections::{ArrayVector, ArrayVectorU8},
-  misc::Lease,
-};
+use crate::{calendar::CalendarError, collections::ArrayVectorCopy, misc::Lease};
 
 /// Parses a sequence of bytes into the corresponding tokens.
 #[inline]
 pub fn parse_bytes_into_tokens<B>(
   bytes: impl IntoIterator<Item = B>,
-) -> crate::Result<ArrayVectorU8<calendar_token::CalendarToken, 16>>
+) -> crate::Result<ArrayVectorCopy<calendar_token::CalendarToken, 16>>
 where
   B: Lease<u8>,
 {
-  let mut tokens = ArrayVector::new();
+  let mut tokens = ArrayVectorCopy::new();
   let mut iter = bytes.into_iter();
   while let Some(first) = iter.next() {
     match first.lease() {

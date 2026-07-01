@@ -1,5 +1,5 @@
 use crate::{
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   http::{HttpRecvParams, u31::U31},
   http2::{
     Http2Error, Http2ErrorCode, http_send_params::HttpSendParams,
@@ -134,11 +134,11 @@ impl<'any> WindowsPair<'any> {
     hp: &HttpRecvParams,
     stream_id: U31,
     value: U31,
-  ) -> crate::Result<ArrayVectorU8<u8, 26>> {
+  ) -> crate::Result<ArrayVectorCopy<u8, 26>> {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
     self.conn.recv.withdrawn(None, value.i32())?;
     self.stream.recv.withdrawn(Some(stream_id), value.i32())?;
-    let mut frame = ArrayVectorU8::new();
+    let mut frame = ArrayVectorCopy::new();
     match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
       (false, false) => {}
       (false, true) => {

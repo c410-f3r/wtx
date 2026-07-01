@@ -29,13 +29,13 @@ impl Hmac for HmacSha256Global {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
   }
 
   #[inline]
-  fn digest(self) -> Self::Digest {
-    self.0.digest()
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
   }
 
   #[inline]
@@ -57,13 +57,13 @@ impl Hmac for HmacSha384Global {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
   }
 
   #[inline]
-  fn digest(self) -> Self::Digest {
-    self.0.digest()
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
   }
 
   #[inline]

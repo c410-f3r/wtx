@@ -240,13 +240,13 @@ where
     use crate::{
       asn1::{Len, Oid},
       calendar::DateTime,
-      collections::ArrayVectorU8,
+      collections::ArrayVectorCopy,
       x509::{KeyIdentifier, Time},
     };
 
     Ok(CvTrustAnchor::new(
       raw.0.map(|el| {
-        AuthorityKeyIdentifier::new(Some(KeyIdentifier::new(ArrayVectorU8::from_array(el))))
+        AuthorityKeyIdentifier::new(Some(KeyIdentifier::new(ArrayVectorCopy::from_array(el))))
       }),
       raw.1,
       raw.2,
@@ -254,7 +254,7 @@ where
       None,
       raw.4.try_into().map_err(Into::into)?,
       raw.5.map(|el| {
-        let ki = KeyIdentifier::new(ArrayVectorU8::from_array(el.0));
+        let ki = KeyIdentifier::new(ArrayVectorCopy::from_array(el.0));
         FlaggedExtension::new(SubjectKeyIdentifier::new(ki), el.1)
       }),
       {

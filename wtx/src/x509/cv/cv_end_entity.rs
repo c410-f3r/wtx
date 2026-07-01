@@ -1,11 +1,10 @@
 use crate::{
   asn1::OID_X509_COMMON_NAME,
   collections::ArrayVectorU8,
-  crypto::SignatureTy,
   misc::{Lease, bytes_split_once1},
   x509::{
     CvCertificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor, GeneralName, ServerName,
-    VerifiedPath, X509CvError, cv::params_oid, extensions::SubjectAlternativeName,
+    VerifiedPath, X509CvError, extensions::SubjectAlternativeName,
   },
 };
 
@@ -45,21 +44,6 @@ impl<'any> CvEndEntity<&'any [u8]> {
       return Err(last_err.unwrap_or(X509CvError::ChainValidationDidNotFindPath).into());
     }
     Ok(verified_path)
-  }
-
-  /// Verifies `signature` over `msg` using the public key contained in this certificate.
-  #[inline]
-  pub fn validate_signature(&self, msg: &[u8], signature: &[u8]) -> crate::Result<()> {
-    let subject_public_key_info = &self.subject_public_key_info;
-    let params_oid = params_oid(subject_public_key_info);
-    let signature_ty =
-      SignatureTy::try_from((&subject_public_key_info.algorithm.algorithm, params_oid.as_ref()))?;
-    signature_ty.validate_signature(
-      subject_public_key_info.subject_public_key.bytes().lease(),
-      msg,
-      signature,
-    )?;
-    Ok(())
   }
 
   /// Matches `sn` with [`SubjectAlternativeName`] if it exists, otherwise tries to match `sn`

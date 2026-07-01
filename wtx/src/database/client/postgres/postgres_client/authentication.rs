@@ -1,6 +1,6 @@
 use crate::{
   codec::{Base64Alphabet, base64_decode},
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorCopy, Vector},
   crypto::{Hmac as _, HmacSha256Global},
   database::{
     Identifier,
@@ -154,7 +154,7 @@ where
     let local_nonce = nonce(rng);
     {
       let mut sw = read_buffer.suffix_pusher();
-      sasl_first(&mut sw, (method_bytes, method_header), &local_nonce)?;
+      sasl_first(sw.inner_mut(), (method_bytes, method_header), &local_nonce)?;
       stream.write_all(sw.curr()).await?;
     }
     let (mut auth_data, response_nonce, salted_password) = {
@@ -171,7 +171,7 @@ where
       let mut decoded_salt_buffer = [0; 128];
       let decoded_salt = base64_decode(Base64Alphabet::Standard, salt, &mut decoded_salt_buffer)?;
       let salted_passworded = salted_password(iterations, decoded_salt, config.password)?;
-      let nonce_array = ArrayVectorU8::<u8, 68>::from_copyable_slice(nonce)?;
+      let nonce_array = ArrayVectorCopy::<u8, 68>::from_copyable_slice(nonce)?;
       (
         {
           let mut vec = Vector::with_capacity(64)?;
@@ -187,7 +187,7 @@ where
       let mut sw = read_buffer.suffix_pusher();
       sasl_second(
         &mut auth_data,
-        &mut sw,
+        (sw.idx(), sw.inner_mut()),
         method_header,
         &response_nonce,
         &salted_password,
@@ -205,7 +205,7 @@ where
       let server_key = {
         let mut mac = HmacSha256Global::from_key(&salted_password)?;
         mac.update(b"Server Key");
-        mac.digest()
+        mac.finalize()
       };
 
       let mut mac_verifier = HmacSha256Global::from_key(&server_key[..])?;
@@ -243,13 +243,13 @@ fn salted_password(len: u32, salt: &[u8], str: &str) -> crate::Result<[u8; 32]> 
     let mut hmac = HmacSha256Global::from_key(str.as_bytes())?;
     hmac.update(salt);
     hmac.update(&[0, 0, 0, 1]);
-    hmac.digest()
+    hmac.finalize()
   };
   let mut salted_password = array;
   for _ in 1..len {
     let mut mac = HmacSha256Global::from_key(str.as_bytes())?;
     mac.update(&array);
-    array = mac.digest();
+    array = mac.finalize();
     for (sp_elem, array_elem) in salted_password.iter_mut().zip(array) {
       *sp_elem ^= array_elem;
     }

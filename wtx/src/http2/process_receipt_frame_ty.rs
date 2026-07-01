@@ -1,5 +1,5 @@
 use crate::{
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   http::{HttpError, HttpRecvParams, MsgBufferString, StatusCode, u31::U31},
   http2::{
     Http2Error, Http2ErrorCode, Scorp, Sovrp,
@@ -38,7 +38,7 @@ impl<SR> ProcessReceiptFrameTy<'_, SR>
 where
   SR: StreamReader,
 {
-  pub(crate) fn data(self, sorp: &mut Sovrp) -> crate::Result<ArrayVectorU8<u8, 26>> {
+  pub(crate) fn data(self, sorp: &mut Sovrp) -> crate::Result<ArrayVectorCopy<u8, 26>> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       if self.fi.stream_id <= *self.last_stream_id {
         return Err(crate::Error::Http2ErrorGoAway(

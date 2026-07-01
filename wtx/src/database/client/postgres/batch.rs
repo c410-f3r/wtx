@@ -1,8 +1,6 @@
-use core::mem::ManuallyDrop;
-
 use crate::{
   codec::u64_string,
-  collections::{ArrayVector, ArrayVectorU8, TryExtend},
+  collections::{ArrayVectorCopy, TryExtend},
   database::{
     Database, DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -28,7 +26,7 @@ const MAX_STMTS: usize = 4;
 pub struct Batch<'exec, E, S, TM> {
   client: &'exec mut PostgresClient<E, S, TM>,
   initial_len: usize,
-  stmt_cmd_ids: ArrayVectorU8<(u64, bool), MAX_STMTS>,
+  stmt_cmd_ids: ArrayVectorCopy<(u64, bool), MAX_STMTS>,
 }
 
 impl<'exec, E, S, TM> Batch<'exec, E, S, TM>
@@ -42,9 +40,9 @@ where
     let ClientBuffer { common, .. } = cb;
     let CommonClientBuffer { read_buffer, records_params, values_params, .. } = common;
     clear_query_buffers(records_params, values_params);
-    let initial_len = read_buffer.filled().len();
+    let initial_len = read_buffer.buffer_mut().len();
     *read_buffer.forbid_clear_mut() = true;
-    Self { client, initial_len, stmt_cmd_ids: ArrayVector::new() }
+    Self { client, initial_len, stmt_cmd_ids: ArrayVectorCopy::new() }
   }
 
   /// Combines received results based on previous [`Self::stmt`] calls.
@@ -62,10 +60,10 @@ where
     let ClientBuffer { common, .. } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     {
-      let mut sw = ManuallyDrop::new(read_buffer.suffix_pusher());
-      sync(&mut sw)?;
-      stream.write_all(sw.inner_mut().get(self.initial_len..).unwrap_or_default()).await?;
-      sw.inner_mut().truncate(self.initial_len);
+      let sw = read_buffer.buffer_mut();
+      sync(sw)?;
+      stream.write_all(sw.get(self.initial_len..).unwrap_or_default()).await?;
+      sw.truncate(self.initial_len);
     }
 
     let begin_data = read_buffer.current_end_idx().wrapping_add(7);
@@ -163,17 +161,17 @@ where
     let is_already_known_externally = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some();
     let is_already_known_internally = self.stmt_cmd_ids.iter().any(|&(id, _)| id == stmt_cmd_id);
     let is_already_known = is_already_known_externally || is_already_known_internally;
-    let mut sw = ManuallyDrop::new(read_buffer.suffix_pusher());
+    let sw = read_buffer.buffer_mut();
     if !is_already_known {
       let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
       PostgresClient::<E, S, TM>::write_stmt_prepare::<_, false>(
+        sw,
         &rv,
         stmt_cmd,
         &stmt_cmd_id_array,
-        &mut sw,
       )?;
     }
-    PostgresClient::<E, S, TM>::write_stmt_bind::<_, false>(rv, &stmt_cmd_id_array, &mut sw)?;
+    PostgresClient::<E, S, TM>::write_stmt_bind::<_, false>(rv, &stmt_cmd_id_array, sw)?;
     self.stmt_cmd_ids.push((stmt_cmd_id, is_already_known))?;
     Ok(())
   }
@@ -182,9 +180,8 @@ where
 impl<E, S, TM> Drop for Batch<'_, E, S, TM> {
   #[inline]
   fn drop(&mut self) {
-    *self.client.cb.common.read_buffer.forbid_clear_mut() = false;
-    ManuallyDrop::new(self.client.cb.common.read_buffer.suffix_pusher())
-      .inner_mut()
-      .truncate(self.initial_len);
+    let read_buffer = &mut self.client.cb.common.read_buffer;
+    *read_buffer.forbid_clear_mut() = false;
+    read_buffer.buffer_mut().truncate(self.initial_len);
   }
 }

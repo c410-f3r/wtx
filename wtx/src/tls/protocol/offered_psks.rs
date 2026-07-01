@@ -53,7 +53,7 @@ where
       ew,
       |elem, local_ew| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_sw| {
-          let _ = local_local_sw.buffer().inner_mut().extend_from_copyable_slices([
+          let _ = local_local_sw.buffer().extend_from_copyable_slices([
             elem.identity.lease(),
             &elem.obfuscated_ticket_age.to_be_bytes(),
           ])?;
@@ -68,7 +68,7 @@ where
       ew,
       |elem, local_ew| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_ew| {
-          local_local_ew.buffer().inner_mut().extend_from_copyable_slice(elem)?;
+          local_local_ew.buffer().extend_from_copyable_slice(elem)?;
           crate::Result::Ok(())
         })
       },

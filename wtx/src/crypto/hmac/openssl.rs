@@ -15,20 +15,20 @@ impl Hmac for HmacSha256Openssl {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.signer.update(data).unwrap();
-  }
-
-  #[inline]
-  fn digest(self) -> Self::Digest {
+  fn finalize(self) -> Self::Digest {
     let mut ret = [0; 32];
     let _rslt = self.0.signer.sign(&mut ret);
     ret
   }
 
   #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.signer.update(data).unwrap();
+  }
+
+  #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
-    let computed = self.digest();
+    let computed = self.finalize();
     if memcmp::eq(&computed, tag) { Ok(()) } else { Err(CryptoError::HmacVerificationError.into()) }
   }
 }
@@ -42,20 +42,20 @@ impl Hmac for HmacSha384Openssl {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.signer.update(data).unwrap();
-  }
-
-  #[inline]
-  fn digest(self) -> Self::Digest {
+  fn finalize(self) -> Self::Digest {
     let mut ret = [0; 48];
     let _rslt = self.0.signer.sign(&mut ret);
     ret
   }
 
   #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.signer.update(data).unwrap();
+  }
+
+  #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
-    let computed = self.digest();
+    let computed = self.finalize();
     if memcmp::eq(&computed, tag) { Ok(()) } else { Err(CryptoError::HmacVerificationError.into()) }
   }
 }

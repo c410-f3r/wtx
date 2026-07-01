@@ -13,14 +13,14 @@ impl Hmac for HmacSha256Graviola {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
+  fn finalize(self) -> Self::Digest {
+    let tag = self.0.finish();
+    if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 32]) }
   }
 
   #[inline]
-  fn digest(self) -> Self::Digest {
-    let tag = self.0.finish();
-    if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 32]) }
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
   }
 
   #[inline]
@@ -39,14 +39,14 @@ impl Hmac for HmacSha384Graviola {
   }
 
   #[inline]
-  fn update(&mut self, data: &[u8]) {
-    self.0.update(data);
+  fn finalize(self) -> Self::Digest {
+    let tag = self.0.finish();
+    if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 48]) }
   }
 
   #[inline]
-  fn digest(self) -> Self::Digest {
-    let tag = self.0.finish();
-    if let Ok(elem) = tag.as_ref().try_into() { elem } else { unlikely_elem([0; 48]) }
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
   }
 
   #[inline]

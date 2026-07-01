@@ -114,11 +114,11 @@ where
     <u32 as Encode<De>>::encode(&self.ticket_lifetime, ew)?;
     <u32 as Encode<De>>::encode(&self.ticket_age_add, ew)?;
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.ticket_nonce.lease())?;
+      local_ew.buffer().extend_from_copyable_slice(self.ticket_nonce.lease())?;
       crate::Result::Ok(())
     })?;
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.opaque.lease())?;
+      local_ew.buffer().extend_from_copyable_slice(self.opaque.lease())?;
       crate::Result::Ok(())
     })?;
     Ok(())

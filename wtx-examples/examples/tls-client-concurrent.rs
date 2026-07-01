@@ -4,13 +4,14 @@
 //! there are multiple ways to synchronize resources. In this example, special records are managed
 //! using a channel but you can utilize any other method.
 //!
-//! See `wtx-socket-client-concurrent` to see an example using a mutex.
+//! `wtx-socket-client-concurrent` is an example that uses a mutex.
 
+extern crate tokio;
 extern crate wtx;
 
 use tokio::{net::TcpStream, sync::mpsc::unbounded_channel};
 use wtx::{
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{Stream, StreamReader, StreamWriter},
   tls::{TlsConfig, TlsConnector, TlsModeVerified},
@@ -27,10 +28,11 @@ async fn main() -> wtx::Result<()> {
 
   let reader_fut = async {
     loop {
-      let mut buffer = ArrayVectorU8::<u8, 128>::from_array([0; 128]);
-      if stream_reader.read(buffer.as_slice_mut().into()).await?.is_closed() {
+      let mut buffer = ArrayVectorCopy::<u8, 128>::from_array([0; 128]);
+      let Some(read) = stream_reader.read(buffer.as_slice_mut().into()).await?.opt() else {
         break;
-      }
+      };
+      buffer.truncate(read.get().try_into()?);
       if sender.send(buffer).is_err() {
         break;
       }

@@ -73,10 +73,10 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     match self {
       PgNumeric::NaN => {
-        let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+        let _ = ew.buffer().extend_from_copyable_slices([
           &0i16.to_be_bytes()[..],
           &0i16.to_be_bytes()[..],
           &SIGN_NAN.to_be_bytes()[..],
@@ -85,14 +85,14 @@ where
       }
       PgNumeric::Number { digits, scale, sign, weight } => {
         let len: i16 = digits.len().into();
-        let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+        let _ = ew.buffer().extend_from_copyable_slices([
           &len.to_be_bytes()[..],
           &weight.to_be_bytes()[..],
           &u16::from(*sign).to_be_bytes()[..],
           &scale.to_be_bytes()[..],
         ])?;
         for digit in digits {
-          ew.buffer().inner_mut().extend_from_copyable_slice(&digit.to_be_bytes())?;
+          ew.buffer().extend_from_copyable_slice(&digit.to_be_bytes())?;
         }
       }
     }
@@ -155,7 +155,7 @@ mod tests {
     };
     let mut buffer = Vector::new();
     let mut suffix_pusher = buffer.suffix_pusher();
-    let mut ew = PostgresEncodeWrapper::new(&mut suffix_pusher);
+    let mut ew = PostgresEncodeWrapper::new(suffix_pusher.inner_mut());
     <PgNumeric as Encode<Postgres<crate::Error>>>::encode(&original, &mut ew).unwrap();
     let mut dw = PostgresDecodeWrapper::new(suffix_pusher.curr(), "", Ty::Numeric);
     let decoded = <PgNumeric as Decode<Postgres<crate::Error>>>::decode(&mut dw).unwrap();

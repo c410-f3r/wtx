@@ -57,6 +57,7 @@ pub use cv::{
   cv_policy_mode::CvPolicyMode,
   cv_revoked_certificate::CvRevokedCertificate,
   cv_trust_anchor::CvTrustAnchor,
+  validate_signature,
 };
 pub use distribution_point_name::DistributionPointName;
 pub use extension::Extension;

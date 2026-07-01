@@ -38,7 +38,7 @@ impl Encode<De> for CertificateVerify<'_> {
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     <SignatureTy as Encode<De>>::encode(&self.algorithm, ew)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.buffer().inner_mut().extend_from_copyable_slice(self.signature)?;
+      local_ew.buffer().extend_from_copyable_slice(self.signature)?;
       Ok(())
     })
   }

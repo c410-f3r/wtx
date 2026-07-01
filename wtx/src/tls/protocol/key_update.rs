@@ -64,6 +64,6 @@ impl<'de> Decode<'de, De> for KeyUpdate {
 impl Encode<De> for KeyUpdate {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().push(u8::from(self.request_update))
+    ew.buffer().push(u8::from(self.request_update))
   }
 }

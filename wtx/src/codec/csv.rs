@@ -1,9 +1,9 @@
 use crate::{
   codec::CodecError,
-  collections::{ArrayVectorU8, Clear},
+  collections::{ArrayVectorCopy, Clear},
   misc::{Lease, bytes_split2_indices, strip_new_line},
 };
-use core::{marker::PhantomData, ops::Range};
+use core::{marker::PhantomData, range::Range};
 #[cfg(feature = "std")]
 use {crate::collections::Vector, std::io::BufRead};
 
@@ -20,7 +20,7 @@ pub struct Csv<B, R, S>
 where
   R: FnMut(&mut B, &mut S) -> crate::Result<usize>,
 {
-  indices: ArrayVectorU8<Range<u16>, MAX_COLUMNS>,
+  indices: ArrayVectorCopy<Range<u16>, MAX_COLUMNS>,
   phantom: PhantomData<B>,
   reader: R,
   source: S,
@@ -34,7 +34,7 @@ where
   /// New instance
   #[inline]
   pub const fn new(reader: R, source: S) -> Self {
-    Self { indices: ArrayVectorU8::new(), phantom: PhantomData, reader, source }
+    Self { indices: ArrayVectorCopy::new(), phantom: PhantomData, reader, source }
   }
 
   /// Reads the next line from the source and returns an iterator over the fields.
@@ -210,13 +210,13 @@ where
       // `" data ",` or `," data ",` or `," data "`
       let begin = prev_idx.wrapping_add(if IS_FIRST { 1 } else { 2 });
       let end = curr_idx.wrapping_sub(1);
-      self.indices.push(begin..end)?;
+      self.indices.push((begin..end).into())?;
       *is_in_quote = false;
     } else {
       // ` data ,` or `, data ,`  or `, data `
       let begin = prev_idx.wrapping_add(u16::from(!IS_FIRST));
       let end = curr_idx;
-      self.indices.push(begin..end)?;
+      self.indices.push((begin..end).into())?;
     }
     Ok(())
   }
@@ -236,14 +236,14 @@ where
     {
       Ok(source.read_until(b'\n', buffer.vec_mut())?)
     }
-    Self { indices: ArrayVectorU8::new(), phantom: PhantomData, reader, source }
+    Self { indices: ArrayVectorCopy::new(), phantom: PhantomData, reader, source }
   }
 }
 
 struct ElementsIter<'buffer, 'instance, B> {
   buffer: &'buffer B,
   idx: u16,
-  indices: &'instance ArrayVectorU8<Range<u16>, MAX_COLUMNS>,
+  indices: &'instance ArrayVectorCopy<Range<u16>, MAX_COLUMNS>,
 }
 
 impl<'buffer, B> Iterator for ElementsIter<'buffer, '_, B>
@@ -274,7 +274,7 @@ const fn idx16(idx: usize) -> u16 {
 mod tests {
   use crate::{
     codec::Csv,
-    collections::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorCopy, Vector},
   };
   use core::str;
   use std::io::BufReader;
@@ -361,9 +361,9 @@ mod tests {
   fn parse_one<'buffer>(
     buffer: &'buffer mut Vector<u8>,
     data: &str,
-  ) -> Option<ArrayVectorU8<&'buffer str, 8>> {
+  ) -> Option<ArrayVectorCopy<&'buffer str, 8>> {
     let mut csv = Csv::from_buf_read(BufReader::new(data.as_bytes()));
-    ArrayVectorU8::from_iterator(
+    ArrayVectorCopy::from_iterator(
       csv.next_elements(buffer).ok()??.map(|el| str::from_utf8(el).unwrap()),
     )
     .ok()

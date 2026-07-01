@@ -1,6 +1,6 @@
 use crate::{
   codec::{Compression, CompressionFlush, Decompression, DecompressionFlush, FromRadix10 as _},
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorCopy, Vector},
   http::GenericHeader,
   misc::bytes_split1,
   web_socket::{
@@ -119,7 +119,7 @@ impl<const IS_CLIENT: bool> WsCompression<IS_CLIENT> for ZlibRs {
   }
 
   #[inline]
-  fn req_headers(&self) -> ArrayVectorU8<u8, 160> {
+  fn req_headers(&self) -> ArrayVectorCopy<u8, 160> {
     build_headers(self.dc, true, (true, false), (true, false))
   }
 }
@@ -203,7 +203,7 @@ impl NegotiatedWsCompression for NegotiatedZlibRs {
   }
 
   #[inline]
-  fn res_headers(&self) -> ArrayVectorU8<u8, 160> {
+  fn res_headers(&self) -> ArrayVectorCopy<u8, 160> {
     build_headers(
       self.dc,
       false,
@@ -319,8 +319,8 @@ fn build_headers(
   is_request: bool,
   client: (bool, bool),
   server: (bool, bool),
-) -> ArrayVectorU8<u8, 160> {
-  let mut array = ArrayVectorU8::new();
+) -> ArrayVectorCopy<u8, 160> {
+  let mut array = ArrayVectorCopy::new();
   let _rslt0 = array.extend_from_copyable_slice(b"Sec-WebSocket-Extensions: permessage-deflate");
   if client.0 {
     if is_request {

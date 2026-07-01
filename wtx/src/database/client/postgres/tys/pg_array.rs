@@ -58,9 +58,9 @@ where
   T::Item: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     let slice = self.0.lease();
-    let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+    let _ = ew.buffer().extend_from_copyable_slices([
       &[0, 0, 0, 1, 0, 0, 0, 0][..],
       &u32::from(T::Item::static_ty().unwrap_or(Ty::Custom(0))).to_be_bytes(),
       &u32::try_from(slice.len()).map_err(crate::Error::from)?.to_be_bytes(),
@@ -68,7 +68,7 @@ where
     ])?;
     for elem in slice {
       if elem.is_null() {
-        ew.buffer().inner_mut().extend_from_copyable_slice(&(-1i32).to_be_bytes())?;
+        ew.buffer().extend_from_copyable_slice(&(-1i32).to_be_bytes())?;
       } else {
         i32_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| elem.encode(local_ew))?;
       }
@@ -128,7 +128,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -140,7 +140,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -151,7 +151,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -162,7 +162,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }

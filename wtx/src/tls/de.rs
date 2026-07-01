@@ -77,7 +77,7 @@ impl Encode<De> for [u8] {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(self)?;
+    ew.buffer().extend_from_copyable_slice(self)?;
     Ok(())
   }
 }
@@ -86,7 +86,7 @@ impl Encode<De> for u16 {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(&self.to_be_bytes())?;
+    ew.buffer().extend_from_copyable_slice(&self.to_be_bytes())?;
     Ok(())
   }
 }
@@ -95,7 +95,7 @@ impl Encode<De> for u32 {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(&self.to_be_bytes())?;
+    ew.buffer().extend_from_copyable_slice(&self.to_be_bytes())?;
     Ok(())
   }
 }

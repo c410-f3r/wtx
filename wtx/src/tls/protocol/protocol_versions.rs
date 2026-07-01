@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   tls::{
     TlsError, de::De, misc::u8_list, protocol::protocol_version::ProtocolVersion,
@@ -10,11 +10,11 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct SupportedVersions {
-  pub(crate) versions: ArrayVectorU8<ProtocolVersion, 1>,
+  pub(crate) versions: ArrayVectorCopy<ProtocolVersion, 1>,
 }
 
 impl SupportedVersions {
-  pub(crate) fn new(versions: ArrayVectorU8<ProtocolVersion, 1>) -> Self {
+  pub(crate) fn new(versions: ArrayVectorCopy<ProtocolVersion, 1>) -> Self {
     Self { versions }
   }
 }
@@ -22,7 +22,7 @@ impl SupportedVersions {
 impl<'de> Decode<'de, De> for SupportedVersions {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let mut versions = ArrayVectorU8::new();
+    let mut versions = ArrayVectorCopy::new();
     u8_list(&mut versions, dw, TlsError::InvalidSupportedVersions)?;
     Ok(Self { versions })
   }

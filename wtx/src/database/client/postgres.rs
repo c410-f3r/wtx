@@ -103,7 +103,7 @@ where
     'inner: 'outer;
   type Error = E;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = PostgresEncodeWrapper<'inner, 'outer>
+    = PostgresEncodeWrapper<'inner>
   where
     'inner: 'outer;
 }
@@ -182,7 +182,7 @@ mod crypto {
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
       <&str as Encode<Postgres<E>>>::encode(&(*self).into(), ew)
     }
   }

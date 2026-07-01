@@ -24,7 +24,7 @@ impl<'de> Decode<'de, De> for ProtocolVersion {
 impl Encode<De> for ProtocolVersion {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
+    ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
     Ok(())
   }
 }

@@ -21,7 +21,7 @@ use core::hash::{Hash as _, Hasher as _};
 #[cfg(feature = "std")]
 use {
   crate::{
-    collections::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorCopy, Vector},
     database::schema_manager::{
       Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
@@ -40,7 +40,7 @@ use {
 type MigrationGroupParts = (String, Uid);
 #[cfg(feature = "std")]
 type MigrationParts = (
-  ArrayVectorU8<DatabaseTy, { DatabaseTy::len() }>,
+  ArrayVectorCopy<DatabaseTy, { DatabaseTy::len() }>,
   String,
   Option<Repeatability>,
   String,
@@ -89,7 +89,7 @@ where
     let migrations = migrations_vec.into_iter().map(move |local_path| {
       let name;
       let uid;
-      let mut dbs = ArrayVectorU8::new();
+      let mut dbs = ArrayVectorCopy::new();
       let mut repeatability = None;
       let mut sql_down = String::default();
       let mut sql_up = String::default();

@@ -1,5 +1,5 @@
 use crate::{
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -14,7 +14,7 @@ use alloc::string::String;
 
 /// `UserMigration` - Owned
 pub type UserMigrationOwned =
-  UserMigration<ArrayVectorU8<DatabaseTy, { DatabaseTy::len() }>, String>;
+  UserMigration<ArrayVectorCopy<DatabaseTy, { DatabaseTy::len() }>, String>;
 
 /// `UserMigration` - Reference
 pub type UserMigrationRef<'dbs, 'str> = UserMigration<&'dbs [DatabaseTy], &'str str>;

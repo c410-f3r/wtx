@@ -25,7 +25,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     match self {
       IpAddr::V4(ipv4_addr) => ipv4_addr.encode(ew),
       IpAddr::V6(ipv6_addr) => ipv6_addr.encode(ew),
@@ -66,9 +66,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-    let _ =
-      ew.buffer().inner_mut().extend_from_copyable_slices([&[2, 32, 0, 4][..], &self.octets()])?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    let _ = ew.buffer().extend_from_copyable_slices([&[2, 32, 0, 4][..], &self.octets()])?;
     Ok(())
   }
 }
@@ -109,11 +108,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
-    let _ = ew
-      .buffer()
-      .inner_mut()
-      .extend_from_copyable_slices([&[3, 128, 0, 16][..], &self.octets()])?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    let _ = ew.buffer().extend_from_copyable_slices([&[3, 128, 0, 16][..], &self.octets()])?;
     Ok(())
   }
 }

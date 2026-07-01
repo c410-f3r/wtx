@@ -69,7 +69,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     if self < &PG_MIN || self > &DateTime::MAX {
       return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
@@ -117,7 +117,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
     if self < &PG_MIN.date() || self > &Date::MAX {
       return Err(E::from(
         DatabaseError::UnexpectedValueFromBytes { expected: ShortStrU8::new_truncated_u8("date") }

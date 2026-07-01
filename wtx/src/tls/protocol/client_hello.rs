@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
   misc::{
     Lease, SingleTypeStorage,
     counter_writer::{CounterWriterBytesTy, u16_write},
@@ -39,7 +39,7 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct ClientHello<S, TC> {
   legacy_compression_methods: [u8; 2],
-  legacy_session_id: ArrayVectorU8<u8, 32>,
+  legacy_session_id: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   psk_key_exchange_modes: Option<PskKeyExchangeModes>,
   random: [u8; 32],
@@ -55,7 +55,7 @@ impl<S, TC> ClientHello<S, TC> {
   {
     Self {
       legacy_compression_methods: [1, 0],
-      legacy_session_id: ArrayVectorU8::from_array({
+      legacy_session_id: ArrayVectorCopy::from_array({
         let mut array = [0; 32];
         rng.fill_slice(&mut array[0..4]);
         array
@@ -70,14 +70,14 @@ impl<S, TC> ClientHello<S, TC> {
         array
       },
       secrets,
-      supported_versions: SupportedVersions::new(ArrayVectorU8::from_array([
+      supported_versions: SupportedVersions::new(ArrayVectorCopy::from_array([
         ProtocolVersion::Tls13,
       ])),
       tls_config,
     }
   }
 
-  pub(crate) fn legacy_session_id(&self) -> &ArrayVectorU8<u8, 32> {
+  pub(crate) fn legacy_session_id(&self) -> &ArrayVectorCopy<u8, 32> {
     &self.legacy_session_id
   }
 
@@ -97,19 +97,19 @@ where
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
     let legacy_session_id =
       u8_chunk(dw, TlsError::InvalidLegacySessionId, |el| Ok(el.bytes()))?.try_into()?;
-    let mut alpn = Alpn { protocol_name_list: ArrayVectorU8::new() };
-    let mut cipher_suites = ArrayVectorU8::new();
+    let mut alpn = Alpn { protocol_name_list: ArrayVectorCopy::new() };
+    let mut cipher_suites = ArrayVectorCopy::new();
     let mut client_cert_types = None;
     let mut key_shares = ArrayVectorU8::new();
     let mut last_ty = None;
     let mut max_fragment_length = None;
-    let mut named_groups = ArrayVectorU8::new();
+    let mut named_groups = ArrayVectorCopy::new();
     let mut pre_shared_key = OfferedPsks { offered_psks: ArrayVectorU8::new() };
     let mut psk_key_exchange_modes = None;
     let mut server_cert_types = None;
     let mut server_name = None;
-    let mut signature_algorithms = ArrayVectorU8::new();
-    let mut signature_algorithms_cert = ArrayVectorU8::new();
+    let mut signature_algorithms = ArrayVectorCopy::new();
+    let mut signature_algorithms_cert = ArrayVectorCopy::new();
     let mut supported_versions_opt = None;
     u16_list(&mut cipher_suites, dw, TlsError::InvalidCipherSuite)?;
     let legacy_compression_methods = <[u8; 2] as Decode<'de, De>>::decode(dw)?;
@@ -248,7 +248,7 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+    let _ = ew.buffer().extend_from_copyable_slices([
       u16::from(self.legacy_version).to_be_bytes().as_slice(),
       &self.random[..],
       &self.legacy_session_id,
@@ -256,7 +256,7 @@ where
         .to_be_bytes()
         .as_slice(),
       {
-        let mut cipher_suites = ArrayVectorU8::<_, { 2 * CipherSuite::len() }>::new();
+        let mut cipher_suites = ArrayVectorCopy::<_, { 2 * CipherSuite::len() }>::new();
         for cipher_suite in &self.tls_config.lease().inner.cipher_suites {
           cipher_suites.extend_from_copyable_slice(&u16::from(*cipher_suite).to_be_bytes())?;
         }
@@ -312,7 +312,7 @@ where
       Extension::new(
         ExtensionTy::SignatureAlgorithms,
         SignatureAlgorithms {
-          signature_schemes: ArrayVectorU8::from_iterator(
+          signature_schemes: ArrayVectorCopy::from_iterator(
             self.tls_config.lease().inner.signature_algorithms.iter().copied(),
           )?,
         },
@@ -321,13 +321,13 @@ where
       Extension::new(
         ExtensionTy::SignatureAlgorithmsCert,
         SignatureAlgorithmsCert {
-          supported_groups: self.tls_config.lease().inner.signature_algorithms_cert.clone(),
+          supported_groups: self.tls_config.lease().inner.signature_algorithms_cert,
         },
       )
       .encode(local_ew)?;
       Extension::new(
         ExtensionTy::SupportedGroups,
-        SupportedGroups { supported_groups: self.tls_config.lease().inner.named_groups.clone() },
+        SupportedGroups { supported_groups: self.tls_config.lease().inner.named_groups },
       )
       .encode(local_ew)?;
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;

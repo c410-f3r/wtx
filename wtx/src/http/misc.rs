@@ -15,8 +15,8 @@ pub fn is_web_socket_handshake(
 
 #[cfg(any(feature = "http2-client-pool", feature = "http2-server-framework"))]
 pub(crate) fn push_h2_alpn(
-  alpn: &mut crate::collections::ArrayVectorU8<
-    crate::collections::ArrayVectorU8<u8, 8>,
+  alpn: &mut crate::collections::ArrayVectorCopy<
+    crate::collections::ArrayVectorCopy<u8, 8>,
     { crate::tls::MAX_ALPN_LEN },
   >,
 ) -> crate::Result<()> {

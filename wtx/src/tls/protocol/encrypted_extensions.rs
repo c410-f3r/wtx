@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::{ArrayVectorCopy, ArrayVectorU8},
   rng::CryptoRng,
   tls::{
     CipherSuite, MaxFragmentLength, TlsCertificateTy, TlsError,
@@ -61,7 +61,7 @@ impl<'any> EncryptedExtensions<'any> {
       random,
       selected_identity,
       server_cert_type,
-      supported_versions: SupportedVersions::new(ArrayVectorU8::from_array([
+      supported_versions: SupportedVersions::new(ArrayVectorCopy::from_array([
         ProtocolVersion::Tls13,
       ])),
     }
@@ -77,11 +77,11 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
       u16_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
-    let mut alpn = Alpn { protocol_name_list: ArrayVectorU8::new() };
+    let mut alpn = Alpn { protocol_name_list: ArrayVectorCopy::new() };
     let mut client_cert_type = None;
     let mut key_share_opt = None;
     let mut max_fragment_length: Option<MaxFragmentLength> = None;
-    let mut named_groups = ArrayVectorU8::new();
+    let mut named_groups = ArrayVectorCopy::new();
     let mut selected_identity = None;
     let mut server_cert_type = None;
     let mut server_name = None;
@@ -191,12 +191,9 @@ impl Encode<De> for EncryptedExtensions<'_> {
       supported_versions,
     } = self;
     legacy_version.encode(ew)?;
-    let _ = ew
-      .buffer()
-      .inner_mut()
-      .extend_from_copyable_slices([random.as_slice(), legacy_session_id_echo])?;
+    let _ = ew.buffer().extend_from_copyable_slices([random.as_slice(), legacy_session_id_echo])?;
     cipher_suite.encode(ew)?;
-    ew.buffer().inner_mut().push(*legacy_compression_method)?;
+    ew.buffer().push(*legacy_compression_method)?;
     Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, alpn).encode(ew)?;
     if let Some(el) = client_cert_type {
       Extension::new(ExtensionTy::ClientCertificateType, CertType(*el)).encode(ew)?;

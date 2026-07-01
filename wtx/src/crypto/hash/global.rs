@@ -22,8 +22,8 @@ type Sha384Ty = cfg_select! {
 };
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
-pub struct Sha1HashGlobal;
+#[derive(Clone, Debug)]
+pub struct Sha1HashGlobal(Sha1Ty);
 
 impl Hash for Sha1HashGlobal {
   type Digest = [u8; 20];
@@ -32,11 +32,26 @@ impl Hash for Sha1HashGlobal {
   fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     Sha1Ty::digest(data)
   }
+
+  #[inline]
+  fn new() -> Self {
+    Self(<Sha1Ty as Hash>::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
-pub struct Sha256HashGlobal;
+#[derive(Clone, Debug)]
+pub struct Sha256HashGlobal(Sha256Ty);
 
 impl Hash for Sha256HashGlobal {
   type Digest = [u8; 32];
@@ -45,11 +60,26 @@ impl Hash for Sha256HashGlobal {
   fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     Sha256Ty::digest(data)
   }
+
+  #[inline]
+  fn new() -> Self {
+    Self(<Sha256Ty as Hash>::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
-pub struct Sha384HashGlobal;
+#[derive(Clone, Debug)]
+pub struct Sha384HashGlobal(Sha384Ty);
 
 impl Hash for Sha384HashGlobal {
   type Digest = [u8; 48];
@@ -57,5 +87,20 @@ impl Hash for Sha384HashGlobal {
   #[inline]
   fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     Sha384Ty::digest(data)
+  }
+
+  #[inline]
+  fn new() -> Self {
+    Self(<Sha384Ty as Hash>::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
   }
 }

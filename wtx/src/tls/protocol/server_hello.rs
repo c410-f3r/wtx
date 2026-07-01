@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   rng::CryptoRng,
   tls::{
@@ -24,7 +24,7 @@ pub(crate) struct ServerHello<'any> {
   is_hello_retry_request: bool,
   key_share: KeyShareEntry<&'any [u8]>,
   legacy_compression_method: u8,
-  legacy_session_id_echo: ArrayVectorU8<u8, 32>,
+  legacy_session_id_echo: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   random: [u8; 32],
   selected_identity: Option<u16>,
@@ -36,7 +36,7 @@ impl<'any> ServerHello<'any> {
     cipher_suite: CipherSuite,
     is_hello_retry_request: bool,
     key_share: KeyShareEntry<&'any [u8]>,
-    legacy_session_id_echo: ArrayVectorU8<u8, 32>,
+    legacy_session_id_echo: ArrayVectorCopy<u8, 32>,
     rng: &mut RNG,
     selected_identity: Option<u16>,
   ) -> Self
@@ -59,7 +59,7 @@ impl<'any> ServerHello<'any> {
       legacy_version: ProtocolVersion::Tls12,
       random,
       selected_identity,
-      supported_versions: SupportedVersions::new(ArrayVectorU8::from_array([
+      supported_versions: SupportedVersions::new(ArrayVectorCopy::from_array([
         ProtocolVersion::Tls13,
       ])),
     }
@@ -166,13 +166,13 @@ impl Encode<De> for ServerHello<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.legacy_version.encode(ew)?;
-    let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
+    let _ = ew.buffer().extend_from_copyable_slices([
       &self.random,
       &[self.legacy_session_id_echo.len()][..],
       &self.legacy_session_id_echo,
     ])?;
     self.cipher_suite.encode(ew)?;
-    ew.buffer().inner_mut().push(self.legacy_compression_method)?;
+    ew.buffer().push(self.legacy_compression_method)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       if !self.is_hello_retry_request {
         Extension::new(ExtensionTy::PreSharedKey, self.selected_identity).encode(local_ew)?;

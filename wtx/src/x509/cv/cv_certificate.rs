@@ -32,11 +32,11 @@ use crate::{
 /// The final leaf of a PKI chain and also the entry-point where chains can be validated.
 ///
 /// * Servers should concurrently or sequentially call [`Self::validate_chain`],
-///   [`Self::validate_signature`] and [`Self::validate_subject_name`] to fully validate
+///   `validate_signature` and [`Self::validate_subject_name`] to fully validate
 ///   certificates.
 ///
 /// * Clients should concurrently or sequentially call [`Self::validate_chain`] and
-///   [`Self::validate_signature`] to fully validate certificates.
+///   `validate_signature` to fully validate certificates.
 pub type CvEndEntity<B> = CvCertificate<B, true>;
 
 /// Chain Validation - Intermediate
@@ -71,6 +71,17 @@ where
   pub(crate) subject_alternative_name: Option<FlaggedExtension<SubjectAlternativeName<B>>>,
   pub(crate) subject_key_identifier: Option<FlaggedExtension<SubjectKeyIdentifier>>,
   pub(crate) validity: Validity,
+}
+
+impl<B, const IS_EE: bool> CvCertificate<B, IS_EE>
+where
+  B: Lease<[u8]>,
+{
+  /// See [`SubjectPublicKeyInfo`].
+  #[inline]
+  pub const fn subject_public_key_info(&self) -> &SubjectPublicKeyInfo<B> {
+    &self.subject_public_key_info
+  }
 }
 
 impl<'cert, const IS_EE: bool> CvCertificate<&'cert [u8], IS_EE> {

@@ -29,20 +29,20 @@ pub(crate) fn clear_query_buffers(
 
 // FIXME(STABLE): CommonRecord should implement Record but in such a scenario GAT implies
 // static bounds.
-pub(crate) fn value<'inner, 'outer, 'rem, A, C, CI, D, R, T>(
+pub(crate) fn value<'bytes, 'rem, A, C, CI, D, R, T>(
   ci: CI,
   record: &'rem R,
-) -> Option<<D as CodecController>::DecodeWrapper<'inner, 'outer, 'rem>>
+) -> Option<<D as CodecController>::DecodeWrapper<'bytes, 'bytes, 'rem>>
 where
   A: 'rem,
-  C: ColumnInfo<Ty = D::Ty> + 'inner + 'rem,
+  C: ColumnInfo<Ty = D::Ty> + 'bytes + 'rem,
   CI: ValueIdent<R>,
   D: Database + 'rem,
   D::Ty: Clone,
-  R: Lease<CommonRecord<'inner, A, C, D, T>>,
-  T: 'inner,
-  <D as CodecController>::DecodeWrapper<'inner, 'outer, 'rem>: From<(&'inner [u8], &'rem C)>,
-  'inner: 'rem,
+  R: Lease<CommonRecord<'bytes, A, C, D, T>>,
+  T: 'bytes,
+  <D as CodecController>::DecodeWrapper<'bytes, 'bytes, 'rem>: From<(&'bytes [u8], &'rem C)>,
+  'bytes: 'rem,
 {
   let idx = ci.idx(record)?;
   let (is_null, range) = record.lease().values_params.get(idx)?;

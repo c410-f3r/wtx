@@ -31,7 +31,7 @@ impl<'de> Decode<'de, De> for TlsCertificateTy {
 impl Encode<De> for TlsCertificateTy {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    ew.buffer().inner_mut().push(u8::from(*self))?;
+    ew.buffer().push(u8::from(*self))?;
     Ok(())
   }
 }

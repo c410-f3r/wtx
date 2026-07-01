@@ -1,6 +1,6 @@
 use crate::{
   codec::{U64String, u64_string},
-  collections::SuffixPusherVectorMut,
+  collections::Vector,
   database::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -136,7 +136,7 @@ where
   {
     {
       let mut sw = read_buffer.suffix_pusher();
-      Self::write_stmt_bind::<_, true>(rv, stmt_cmd_id_array, &mut sw)?;
+      Self::write_stmt_bind::<_, true>(rv, stmt_cmd_id_array, sw.inner_mut())?;
       stream.write_all(sw.curr()).await?;
     }
     Self::await_stmt_bind(cs, read_buffer, stream).await
@@ -170,7 +170,7 @@ where
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
     {
       let mut sw = read_buffer.suffix_pusher();
-      Self::write_stmt_prepare::<_, true>(rv, stmt_cmd, &stmt_cmd_id_array, &mut sw)?;
+      Self::write_stmt_prepare::<_, true>(sw.inner_mut(), rv, stmt_cmd, &stmt_cmd_id_array)?;
       stream.write_all(sw.curr()).await?;
     }
     let stmt_mut = Self::await_stmt_prepare::<true>(
@@ -188,7 +188,7 @@ where
   pub(crate) fn write_stmt_bind<RV, const SYNC: bool>(
     rv: RV,
     stmt_cmd_id_array: &U64String,
-    sw: &mut SuffixPusherVectorMut<'_, u8>,
+    sw: &mut Vector<u8>,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,
@@ -202,19 +202,19 @@ where
   }
 
   pub(crate) fn write_stmt_prepare<RV, const SYNC: bool>(
+    buffer: &mut Vector<u8>,
     rv: &RV,
     stmt_cmd: &str,
     stmt_cmd_id_array: &U64String,
-    sw: &mut SuffixPusherVectorMut<'_, u8>,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,
     S: Stream,
   {
-    parse(rv, stmt_cmd, stmt_cmd_id_array, sw)?;
-    describe(stmt_cmd_id_array.as_bytes(), sw, b'S')?;
+    parse(buffer, rv, stmt_cmd, stmt_cmd_id_array)?;
+    describe(buffer, stmt_cmd_id_array.as_bytes(), b'S')?;
     if SYNC {
-      sync(sw)?;
+      sync(buffer)?;
     }
     Ok(())
   }

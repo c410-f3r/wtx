@@ -1,6 +1,6 @@
 use crate::{
   calendar::Instant,
-  collections::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
+  collections::{ArrayString, ArrayStringU8, ArrayVectorCopy, Vector},
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
     Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
@@ -96,7 +96,7 @@ where
     let idx = msg_data.lease().body.len();
     serde_json::to_writer(&mut msg_data.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let enc_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
+    let enc_rslt = session_secret.peek(&mut ArrayVectorCopy::<_, { 16 + 28 }>::new(), |el| {
       Aes128GcmGlobal::encrypt_to_buffer_base64(
         cookie_def.name.as_bytes(),
         &mut cookie_def.value,

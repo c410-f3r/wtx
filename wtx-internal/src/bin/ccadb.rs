@@ -8,7 +8,7 @@ use std::{
 use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
-  collections::{ArrayVectorU8, HashSet, Vector},
+  collections::{ArrayVectorCopy, HashSet, Vector},
   executor::TokioExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
@@ -86,7 +86,7 @@ async fn main() {
   fs::write("wtx/src/x509/ccadb.rs", &file_buffer).unwrap();
 }
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum TrustBits {
   Websites,
   Email,
@@ -188,9 +188,9 @@ impl<'any> CertificateMetadata<'any> {
     Instant::now_date_time(0).unwrap() < distrust_for_tls_after_date.add(days).unwrap()
   }
 
-  fn trust_bits(&self) -> ArrayVectorU8<TrustBits, 4> {
+  fn trust_bits(&self) -> ArrayVectorCopy<TrustBits, 4> {
     let iter = self.trust_bits.split(|el| *el == b';').map(TrustBits::from);
-    let mut trust_bits = ArrayVectorU8::from_iterator(iter).unwrap();
+    let mut trust_bits = ArrayVectorCopy::from_iterator(iter).unwrap();
     trust_bits.sort_unstable();
     let mut iter = trust_bits.windows(2);
     while let Some([lhs, rhs]) = iter.next() {

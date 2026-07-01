@@ -19,6 +19,15 @@ pub trait Hash {
   /// Computes the hash digest of the given `data` and writes the resulting
   /// fixed-size output into `buffer`.
   fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest;
+
+  /// Creates a new empty instance.
+  fn new() -> Self;
+
+  /// Finalizes the computation.
+  fn finalize(self) -> Self::Digest;
+
+  /// Feeds additional data.
+  fn update(&mut self, data: &[u8]);
 }
 
 /// Dummy [`Hash`] implementation used when no backend is enabled.
@@ -35,4 +44,17 @@ where
   fn digest<'data>(_: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     dummy_impl_call();
   }
+
+  #[inline]
+  fn new() -> Self {
+    HashDummy(PhantomData)
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    dummy_impl_call();
+  }
+
+  #[inline]
+  fn update(&mut self, _: &[u8]) {}
 }

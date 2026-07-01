@@ -212,7 +212,7 @@ const fn hex_to_bytes(lhs: u8, rhs: u8) -> Result<u8, HexError> {
 mod test {
   use crate::{
     codec::{HexDisplay, HexEncMode, hex_decode, hex_encode},
-    collections::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorCopy, Vector},
   };
 
   #[test]
@@ -262,7 +262,7 @@ mod test {
   #[test]
   fn hex_display() {
     assert_eq!(
-      &ArrayVectorU8::<u8, 16>::try_from(format_args!(
+      &ArrayVectorCopy::<u8, 16>::try_from(format_args!(
         "{}",
         HexDisplay(b"abcdZ", Some(HexEncMode::WithoutPrefixLower))
       ))
@@ -270,7 +270,7 @@ mod test {
       "616263645a".as_bytes()
     );
     assert_eq!(
-      &ArrayVectorU8::<u8, 16>::try_from(format_args!(
+      &ArrayVectorCopy::<u8, 16>::try_from(format_args!(
         "{}",
         HexDisplay(b"abcdZ", Some(HexEncMode::WithPrefixLower))
       ))
