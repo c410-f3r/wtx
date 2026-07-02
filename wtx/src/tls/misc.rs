@@ -2,12 +2,12 @@ use core::{hint::cold_path, num::NonZeroUsize};
 
 use crate::{
   codec::Decode,
-  collections::{MaybeUninitSlice, ShortBoxSliceU16, TryExtend, Vector},
+  collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, Vector},
   crypto::AEAD_TAG_LEN,
   misc::{FnMutFut, TryArithmetic as _, unlikely_elem},
   stream::{BufStreamReader, StreamReadItem, StreamReader, StreamWriter},
   tls::{
-    TlsError, TlsMode,
+    SERVER_SIG_CTX, TlsError, TlsMode,
     de::De,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
@@ -56,6 +56,7 @@ where
   }
   let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
   if len > max_fragment_length {
+    cold_path();
     return Err(TlsError::ReceivedRecordIsTooLarge.into());
   }
   if reader_buffer.read_payload(len.into(), stream_reader).await?.is_closed() {
@@ -191,6 +192,12 @@ where
   }
 }
 
+pub(crate) fn server_sig_msg(transcript: &[u8]) -> crate::Result<ArrayVectorCopy<u8, 146>> {
+  let mut msg = ArrayVectorCopy::<u8, 146>::from_array([b' '; 64]);
+  let _ = msg.extend_from_copyable_slices([SERVER_SIG_CTX.as_bytes(), transcript])?;
+  Ok(msg)
+}
+
 #[inline(always)]
 fn transfer_after_handshake_data(
   bytes: &mut MaybeUninitSlice<'_, u8>,
@@ -312,7 +319,7 @@ pub(crate) async fn write_data<SW>(
 where
   SW: StreamWriter,
 {
-  writer_buffer.clear();
+  let idx = writer_buffer.len();
   for data in bytes {
     for chunk in data.chunks(max_fragment_length.into()) {
       let len = chunk.len().try_into().unwrap_or_default();
@@ -338,7 +345,8 @@ where
       ksw_state.increment_counter();
     }
   }
-  stream_writer.write_all(writer_buffer).await?;
+  stream_writer.write_all(writer_buffer.get(idx..).unwrap_or_default()).await?;
+  writer_buffer.clear();
   Ok(())
 }
 

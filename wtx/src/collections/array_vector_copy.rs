@@ -10,6 +10,7 @@ use crate::{
   misc::{Lease, LeaseMut, Wrapper, char_slice},
 };
 use core::{
+  borrow::{Borrow, BorrowMut},
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Formatter},
   hash::{Hash, Hasher},
@@ -220,6 +221,26 @@ where
   #[inline]
   pub fn truncate(&mut self, new_len: u8) {
     let _rslt = <[T] as LinearStorageSlice>::truncate(&mut self.0, new_len);
+  }
+}
+
+impl<T, const N: usize> Borrow<[T]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn borrow(&self) -> &[T] {
+    self
+  }
+}
+
+impl<T, const N: usize> BorrowMut<[T]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn borrow_mut(&mut self) -> &mut [T] {
+    self
   }
 }
 

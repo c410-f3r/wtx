@@ -17,7 +17,7 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
 | `PostgreSQL`             | <https://www.postgresql.org/docs/current/protocol.html>          |
-| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
+| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc8446>                  |
 | `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
 | `WebSocket Compression`  | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
 | `WebSocket Over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441>                  |

@@ -35,7 +35,7 @@ impl KeyUpdate {
     [a0]: [u8; 1],
     kss: &mut KeyScheduleState,
   ) -> crate::Result<[u8; 5 + 1 + 1 + 16]> {
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 1];
+    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 18];
     let mut encrypted = [a0, RecordContentType::ApplicationData.into()];
     let nonce = kss.nonce();
     let secret = kss.cipher_key();

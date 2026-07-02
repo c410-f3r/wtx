@@ -10,9 +10,8 @@ use crate::{
     misc::{duplicated_error, u16_chunk},
     protocol::{
       alpn::Alpn, cert_type::CertType, extension::Extension, extension_ty::ExtensionTy,
-      key_share_entry::KeyShareEntry, protocol_version::ProtocolVersion,
-      protocol_versions::SupportedVersions, server_name_list::ServerNameList,
-      supported_groups::SupportedGroups,
+      protocol_version::ProtocolVersion, protocol_versions::SupportedVersions,
+      server_name_list::ServerNameList, supported_groups::SupportedGroups,
     },
     tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
@@ -20,27 +19,27 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct EncryptedExtensions<'any> {
+pub(crate) struct EncryptedExtensions {
   alpn: Alpn,
   cipher_suite: CipherSuite,
   client_cert_type: Option<TlsCertificateTy>,
-  key_share: KeyShareEntry<&'any [u8]>,
   legacy_compression_method: u8,
   legacy_session_id_echo: ArrayVectorU8<u8, 32>,
   legacy_version: ProtocolVersion,
+  max_fragment_length: Option<MaxFragmentLength>,
   random: [u8; 32],
   selected_identity: Option<u16>,
   server_cert_type: Option<TlsCertificateTy>,
   supported_versions: SupportedVersions,
 }
 
-impl<'any> EncryptedExtensions<'any> {
+impl EncryptedExtensions {
   pub(crate) fn new<RNG>(
     alpn: Alpn,
     cipher_suite: CipherSuite,
     client_cert_type: Option<TlsCertificateTy>,
-    key_share: KeyShareEntry<&'any [u8]>,
     legacy_session_id_echo: ArrayVectorU8<u8, 32>,
+    max_fragment_length: Option<MaxFragmentLength>,
     rng: &mut RNG,
     selected_identity: Option<u16>,
     server_cert_type: Option<TlsCertificateTy>,
@@ -54,10 +53,10 @@ impl<'any> EncryptedExtensions<'any> {
       alpn,
       cipher_suite,
       client_cert_type,
-      key_share,
       legacy_compression_method: 0,
       legacy_session_id_echo,
       legacy_version: ProtocolVersion::Tls12,
+      max_fragment_length,
       random,
       selected_identity,
       server_cert_type,
@@ -66,9 +65,13 @@ impl<'any> EncryptedExtensions<'any> {
       ])),
     }
   }
+
+  pub(crate) const fn max_fragment_length(&self) -> Option<MaxFragmentLength> {
+    self.max_fragment_length
+  }
 }
 
-impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
+impl<'de> Decode<'de, De> for EncryptedExtensions {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let legacy_version = ProtocolVersion::decode(dw)?;
@@ -79,12 +82,11 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
     let mut alpn = Alpn { protocol_name_list: ArrayVectorCopy::new() };
     let mut client_cert_type = None;
-    let mut key_share_opt = None;
     let mut max_fragment_length: Option<MaxFragmentLength> = None;
-    let mut named_groups = ArrayVectorCopy::new();
+    let mut named_groups = ArrayVectorCopy::new(); // Not used
     let mut selected_identity = None;
     let mut server_cert_type = None;
-    let mut server_name = None;
+    let mut server_name = None; // Not used
     let mut supported_versions_opt: Option<SupportedVersions> = None;
     u16_chunk(dw, TlsError::InvalidClientHelloLength, |local_dw| {
       while !local_dw.bytes().is_empty() {
@@ -95,15 +97,11 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
         match extension_ty {
           ExtensionTy::ApplicationLayerProtocolNegotiation => {
             duplicated_error(!alpn.protocol_name_list.is_empty())?;
-            alpn = Alpn::decode(local_dw)?;
+            alpn = Extension::<Alpn>::decode(local_dw)?.into_data();
           }
           ExtensionTy::ClientCertificateType => {
             duplicated_error(client_cert_type.is_some())?;
             client_cert_type = Some(Extension::<CertType>::decode(local_dw)?.into_data().0);
-          }
-          ExtensionTy::KeyShare => {
-            duplicated_error(key_share_opt.is_some())?;
-            key_share_opt = Some(KeyShareEntry::decode(local_dw)?);
           }
           ExtensionTy::MaxFragmentLength => {
             duplicated_error(max_fragment_length.is_some())?;
@@ -139,6 +137,7 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
           }
           ExtensionTy::CertificateAuthorities
           | ExtensionTy::Cookie
+          | ExtensionTy::KeyShare
           | ExtensionTy::OidFilters
           | ExtensionTy::Padding
           | ExtensionTy::PostHandshakeAuth
@@ -162,10 +161,10 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
       alpn,
       cipher_suite,
       client_cert_type,
-      key_share: key_share_opt.ok_or(TlsError::MissingKeyShares)?,
       legacy_compression_method,
       legacy_session_id_echo,
       legacy_version,
+      max_fragment_length,
       random,
       selected_identity,
       server_cert_type,
@@ -174,17 +173,17 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
   }
 }
 
-impl Encode<De> for EncryptedExtensions<'_> {
+impl Encode<De> for EncryptedExtensions {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     let Self {
       alpn,
       cipher_suite,
       client_cert_type,
-      key_share,
       legacy_compression_method,
       legacy_session_id_echo,
       legacy_version,
+      max_fragment_length,
       random,
       selected_identity,
       server_cert_type,
@@ -198,7 +197,9 @@ impl Encode<De> for EncryptedExtensions<'_> {
     if let Some(el) = client_cert_type {
       Extension::new(ExtensionTy::ClientCertificateType, CertType(*el)).encode(ew)?;
     }
-    Extension::new(ExtensionTy::KeyShare, key_share).encode(ew)?;
+    if let Some(el) = max_fragment_length {
+      Extension::new(ExtensionTy::MaxFragmentLength, el).encode(ew)?;
+    }
     Extension::new(ExtensionTy::PreSharedKey, selected_identity).encode(ew)?;
     if let Some(el) = server_cert_type {
       Extension::new(ExtensionTy::ServerCertificateType, CertType(*el)).encode(ew)?;

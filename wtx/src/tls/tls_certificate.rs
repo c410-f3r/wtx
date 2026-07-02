@@ -35,3 +35,9 @@ impl Encode<De> for TlsCertificateTy {
     Ok(())
   }
 }
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct TlsCertificate<B> {
+  pub(crate) raw_public_key: B,
+  pub(crate) x509: B,
+}

@@ -29,6 +29,7 @@ use crate::{
       signature_algorithms_cert::SignatureAlgorithmsCert,
       supported_groups::SupportedGroups,
     },
+    tls_certificate::TlsCertificate,
     tls_config::TlsConfigInner,
     tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
@@ -57,7 +58,7 @@ impl<S, TC> ClientHello<S, TC> {
       legacy_compression_methods: [1, 0],
       legacy_session_id: ArrayVectorCopy::from_array({
         let mut array = [0; 32];
-        rng.fill_slice(&mut array[0..4]);
+        rng.fill_slice(&mut array);
         array
       }),
       legacy_version: ProtocolVersion::Tls12,
@@ -123,7 +124,7 @@ where
         match extension_ty {
           ExtensionTy::ApplicationLayerProtocolNegotiation => {
             duplicated_error(!alpn.protocol_name_list.is_empty())?;
-            alpn = Alpn::decode(local_dw)?;
+            alpn = Extension::<Alpn>::decode(local_dw)?.into_data();
           }
           ExtensionTy::ClientCertificateType => {
             duplicated_error(client_cert_types.is_some())?;
@@ -228,8 +229,8 @@ where
         max_fragment_length,
         named_groups,
         offered_psks: pre_shared_key,
-        public_key: (&[], &[]),
-        secret_key: (&[], &[]),
+        public_key: TlsCertificate::default(),
+        secret_key: &[],
         server_cert_types: server_cert_types.unwrap_or_default(),
         server_name,
         signature_algorithms,
@@ -251,6 +252,7 @@ where
     let _ = ew.buffer().extend_from_copyable_slices([
       u16::from(self.legacy_version).to_be_bytes().as_slice(),
       &self.random[..],
+      &[32],
       &self.legacy_session_id,
       u16::from(self.tls_config.lease().inner.cipher_suites.len().wrapping_mul(2))
         .to_be_bytes()

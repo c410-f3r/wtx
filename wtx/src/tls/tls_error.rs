@@ -29,6 +29,8 @@ pub enum TlsError {
   InvalidCipherSuite,
   /// Invalid client hello length
   InvalidClientHelloLength,
+  /// Invalid cookie
+  InvalidCookie,
   /// Invalid client hello
   InvalidExtension,
   /// Invalid Finished Record
@@ -99,6 +101,8 @@ pub enum TlsError {
   UnsupportedMtls,
   /// Secret mismatch
   SecretMismatch,
+  /// The server has a set of suites that the client don't support
+  ServerHasNoCompatibleAlgorithmTy,
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleCypherSuite,
   /// The server has a set of suites that the client don't support

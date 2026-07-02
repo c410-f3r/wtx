@@ -35,7 +35,7 @@ mod psk_ty;
 mod read_record_info;
 mod tls_acceptor;
 mod tls_buffer;
-mod tls_certificate_ty;
+mod tls_certificate;
 mod tls_config;
 mod tls_connector;
 mod tls_decode_wrapper;
@@ -50,8 +50,13 @@ mod tls_stream_bridge;
 mod tls_stream_reader;
 mod tls_stream_writer;
 
-use crate::{collections::ArrayVectorCopy, crypto::MAX_HASH_LEN};
+use crate::{
+  collections::ArrayVectorCopy,
+  crypto::MAX_HASH_LEN,
+  sync::{Arc, SyncMutex},
+};
 pub use handshake_path::HandshakePath;
+use hashbrown::HashMap;
 pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
@@ -67,7 +72,7 @@ pub use psk_ty::PskTy;
 pub use read_record_info::ReadRecordInfo;
 pub use tls_acceptor::{TlsAcceptor, TlsAcceptorRslt};
 pub use tls_buffer::TlsBuffer;
-pub use tls_certificate_ty::TlsCertificateTy;
+pub use tls_certificate::TlsCertificateTy;
 pub use tls_config::TlsConfig;
 pub use tls_connector::{
   ManageClientRecordsState, ManageRemainingServerRecordsInput, ManageRemainingServerRecordsState,
@@ -80,7 +85,7 @@ pub use tls_stream_bridge::{TlsStreamBridge, TlsStreamBridgeData};
 pub use tls_stream_reader::TlsStreamReader;
 pub use tls_stream_writer::TlsStreamWriter;
 
-const DEFAULT_MAX_FRAGMENT_LENGTH: u16 = (1 << 14) - 1;
+const DLFT_MAX_FRAGMENT_LENGTH: u16 = (1 << 14) - 1;
 pub(crate) const MAX_ALPN_LEN: usize = 4;
 const MAX_CIPHER_KEY_LEN: usize = 32;
 const HELLO_RETRY_REQUEST: [u8; 32] = [
@@ -91,7 +96,10 @@ const IV_LEN: usize = 12;
 const MAX_CERTIFICATES: usize = 3;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
 const MAX_KEY_SHARES_LEN: usize = 2;
+const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 
+/// Pre Shared Keys
+pub type Psks = Arc<SyncMutex<HashMap<ArrayVectorCopy<u8, MAX_HASH_LEN>, Psk>>>;
 /// Identifier of a certificate
 pub type SerialNumber = ArrayVectorCopy<u8, 20>;
 /// The hash of the server's leaf certificate.

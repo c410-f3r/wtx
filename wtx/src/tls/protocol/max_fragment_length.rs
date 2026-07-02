@@ -24,6 +24,18 @@ create_enum! {
 }
 
 impl MaxFragmentLength {
+  /// From numerical representation
+  #[inline]
+  pub fn from_num(num: u16) -> crate::Result<Self> {
+    Ok(match num {
+      512 => MaxFragmentLength::_512,
+      1024 => MaxFragmentLength::_1024,
+      2048 => MaxFragmentLength::_2048,
+      4096 => MaxFragmentLength::_4096,
+      _ => return Err(TlsError::InvalidMaxFragmentLength.into()),
+    })
+  }
+
   /// Numerical representation
   #[inline]
   pub const fn num(&self) -> u16 {

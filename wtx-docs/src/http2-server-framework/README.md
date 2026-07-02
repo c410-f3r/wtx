@@ -30,9 +30,9 @@ The above example accepts nothing `()` as input parameter, which automatically i
 ```rust,edition2024
 extern crate wtx;
 
-use wtx::http::{MsgBufferString, server_framework::State};
+use wtx::http::http2_server_framework::State;
 
-async fn print_request(state: State<'_, (), (), MsgBufferString>) {
+async fn print_request(state: State<'_, ()>) {
   assert_eq!(state.req.msg_data.body.len(), 0);
 }
 ```
@@ -63,10 +63,10 @@ A key consideration is that the buffers used for receiving requests are the same
 ```rust,edition2024
 extern crate wtx;
 
-use wtx::http::{MsgBufferString, server_framework::{State, VerbatimParams}};
+use wtx::http::http2_server_framework::{State, VerbatimParams};
 
 // The response will contain the same headers and data received from the request. Basically an echo.
-async fn echo(_: State<'_, (), (), MsgBufferString>) -> wtx::Result<VerbatimParams> {
+async fn echo(_: State<'_, ()>) -> wtx::Result<VerbatimParams> {
   Ok(VerbatimParams::default())
 }
 ```

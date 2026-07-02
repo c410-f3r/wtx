@@ -6,8 +6,7 @@ use crate::{
   stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
   sync::{Arc, AtomicBool},
   tls::{
-    DEFAULT_MAX_FRAGMENT_LENGTH, TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader,
-    TlsStreamWriter,
+    TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
     misc::{read_after_handshake_data, write_data},
     protocol::{
@@ -41,12 +40,18 @@ where
 {
   /// Creates a new instance with a stream that supposedly already performed a handshake.
   #[inline]
-  pub fn new(buffer: TlsBuffer, key_schedule: KeySchedule, stream: S, tm: TM) -> Self {
+  pub fn new(
+    buffer: TlsBuffer,
+    key_schedule: KeySchedule,
+    max_fragment_length: u16,
+    stream: S,
+    tm: TM,
+  ) -> Self {
     Self {
       buffer,
       connection_state: ConnectionState::Open,
       key_schedule,
-      max_fragment_length: DEFAULT_MAX_FRAGMENT_LENGTH,
+      max_fragment_length,
       new_session_ticket: None,
       plaintext_consumed: 0,
       plaintext_len: 0,

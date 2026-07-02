@@ -220,7 +220,7 @@ impl BufStreamReader {
     self.buffer.split_at_spare_mut()
   }
 
-  #[cfg(feature = "postgres")]
+  #[cfg(any(feature = "tls", feature = "postgres"))]
   #[inline]
   pub(crate) fn buffer_mut(&mut self) -> &mut Vector<u8> {
     &mut self.buffer
