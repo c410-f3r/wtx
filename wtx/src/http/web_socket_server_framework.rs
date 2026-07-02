@@ -194,7 +194,8 @@ where
     let router = build_matcher(&*web_socket_router)?;
     loop {
       let Ok(cp) = conn_params::<CO, EC, EX, RNG, TM, WSR>(
-        (&self.compression, &self.error_cb, &mut self.rng, self.tcp_params, &self.tls_config),
+        (&self.compression, &self.error_cb),
+        (&mut self.rng, self.tcp_params, &self.tls_config),
         &listener,
         &router,
         &web_socket_router,
@@ -240,7 +241,7 @@ where
       let thread_comp = self.compression.clone();
       let thread_error_cb = self.error_cb.clone();
       let thread_executor = self.executor.clone();
-      let thread_local_runtime_cb: RC = self.local_runtime_cb.clone();
+      let thread_local_runtime_cb = self.local_runtime_cb.clone();
       let thread_rng = &mut RNG::from_crypto_rng(&mut self.rng)?;
       let thread_router = router.clone();
       let thread_tcp_params = self.tcp_params;
@@ -252,7 +253,8 @@ where
         let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
         loop {
           let Ok(cp) = conn_params::<CO, EC, EX, RNG, TM, WSR>(
-            (&thread_comp, &thread_error_cb, thread_rng, thread_tcp_params, &thread_tls_config),
+            (&thread_comp, &thread_error_cb),
+            (thread_rng, thread_tcp_params, &thread_tls_config),
             &listener,
             &thread_router,
             &thread_web_socket_router,
@@ -286,7 +288,8 @@ where
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     loop {
       let Ok(cp) = conn_params::<CO, EC, EX, RNG, TM, WSR>(
-        (&self.compression, &self.error_cb, &mut self.rng, self.tcp_params, &self.tls_config),
+        (&self.compression, &self.error_cb),
+        (&mut self.rng, self.tcp_params, &self.tls_config),
         &listener,
         &router,
         &web_socket_router,
@@ -381,13 +384,8 @@ where
 }
 
 async fn conn_params<CO, EC, EX, RNG, TM, WSR>(
-  (compression, error_cb, rng, tcp_params, tls_config): (
-    &CO,
-    &EC,
-    &mut RNG,
-    TcpParams,
-    &Arc<TlsConfig<TM>>,
-  ),
+  (compression, error_cb): (&CO, &EC),
+  (rng, tcp_params, tls_config): (&mut RNG, TcpParams, &Arc<TlsConfig<TM>>),
   listener: &EX::TcpListener,
   router: &Arc<Router<u8>>,
   web_socket_router: &Arc<WSR>,
@@ -398,14 +396,12 @@ where
   EX: Executor,
   RNG: CryptoRng + CryptoSeedableRng,
 {
-  let stream = listener.accept(tcp_params).await?.0;
-  let conn_rng = RNG::from_crypto_rng(rng)?;
   Ok(ConnParams {
     compression: compression.clone(),
     error_cb: error_cb.clone(),
-    rng: conn_rng,
+    rng: RNG::from_crypto_rng(rng)?,
     router: router.clone(),
-    stream,
+    stream: listener.accept(tcp_params).await?.0,
     tls_config: tls_config.clone(),
     web_socket_router: web_socket_router.clone(),
   })

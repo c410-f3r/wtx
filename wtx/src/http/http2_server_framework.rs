@@ -25,7 +25,7 @@ mod tests;
 mod verbatim_params;
 
 use crate::{
-  collections::ArrayVectorCopy,
+  collections::{ArrayVectorCopy, Vector},
   executor::{Executor, Runtime as _, TcpListener as _, TcpStream as _},
   http::{
     AutoStream, HttpRecvParams, ManualStream, MsgBufferString, OperationMode, Request, Response,
@@ -36,7 +36,7 @@ use crate::{
   rng::{ChaCha20, CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
   stream::{Stream, StreamReader, StreamWriter},
   sync::Arc,
-  tls::{TlsAcceptor, TlsConfig, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
+  tls::{TlsAcceptor, TlsConfig, TlsMode},
 };
 use core::{mem, net::IpAddr, num::NonZeroUsize};
 pub use cors_middleware::{CorsMiddleware, OriginResponse};
@@ -70,7 +70,6 @@ type ConnRsltTy<EX, TM, ER> = Option<(
 )>;
 type LocalStream<EX, TM> =
   ServerStream<<<EX as Executor>::TcpStream as Stream>::WriteHalfOwned, TM>;
-type ReadHalf<EX> = <<EX as Executor>::TcpStream as Stream>::ReadHalfOwned;
 type WriteHalf<EX> = <<EX as Executor>::TcpStream as Stream>::WriteHalfOwned;
 
 /// HTTP/2 Server Framework
@@ -222,8 +221,8 @@ where
   EX::TcpListener: Send + 'static,
   EX::TcpStream: Send + 'static,
   RC: Clone + Fn() -> Result<EX::LocalRuntime, ER> + 'static,
-  RNG: CryptoRng + CryptoSeedableRng + 'static,
-  TM: TlsMode + Send + 'static,
+  RNG: CryptoRng + CryptoSeedableRng + Send + 'static,
+  TM: TlsMode + Send + Sync + 'static,
 {
   /// Starts the server distributing connections across multiple tasks.
   ///
@@ -236,7 +235,7 @@ where
     hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
   ) -> Result<(), ER>
   where
-    EC: Clone + Fn(ER) + Send + 'static,
+    EX::SpawnFuture<()>: Send,
     EN: EndpointNode<DA, ER, LocalStream<EX, TM>, auto(..): Send, manual(..): Send>
       + Send
       + Sync
@@ -244,23 +243,25 @@ where
     ER: From<crate::Error> + Send + Sync + 'static,
     M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
     M::Aux: Send,
-    <EX as Executor>::SpawnFuture<()>: Send,
-    <EX as Executor>::TcpStream: Send + 'static,
+    <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
     <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
     <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
+    <EX::TcpStream as StreamReader>::read(..): Send,
+    <EX::TcpStream as StreamWriter>::write_all(..): Send,
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read(..): Send,
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read_skip(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all_vectored(..): Send,
+    // TcpStream as StreamWriter>::write_all(..)
   {
     let http_router = Arc::new(hr);
     let uri = Uri::new(addr);
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let xorshift = &mut Xorshift64::from_simple_seed()?;
     loop {
-      let Ok(mut cp) = conn_params(
-        (&self.data, &mut self.rng, self.tcp_params, &*self.tls_config),
-        (&self.error_cb, &self.executor, self.hrc),
+      let Ok(cp) = conn_params(
+        (&self.data, &self.error_cb, &self.executor, self.hrc),
+        (&mut self.rng, self.tcp_params, &self.tls_config),
         (&http_router, &listener, xorshift),
       )
       .await
@@ -268,8 +269,8 @@ where
         continue;
       };
       let conn_fut = async move {
-        let http2_fut = Http2::accept(Http2Buffer::new(&mut cp.xorshift), cp.hrc, cp.split);
-        let (frame_reader, http2) = match http2_fut.await {
+        let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+        let (frame_reader, http2, ip) = match fut.await {
           Err(err) => {
             (cp.error_cb)(err.into());
             return;
@@ -294,7 +295,7 @@ where
           let stream_http_router = cp.http_router.clone();
           let _stream_jh = cp.executor.spawn(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
             headers_aux,
-            cp.ip,
+            ip,
             opt,
             server_stream,
             stream_data,
@@ -338,7 +339,6 @@ where
     <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
     <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
   {
-    use crate::collections::Vector;
     use alloc::string::String;
 
     let runtimes = if let Some(elem) = self.local_runtimes {
@@ -365,9 +365,9 @@ where
         let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
         let xorshift = &mut Xorshift64::from_simple_seed()?;
         loop {
-          let Ok(mut cp) = conn_params(
-            (&thread_data, thread_rng, thread_tcp_params, &*thread_tls_config),
-            (&thread_error_cb, &thread_executor, thread_hrc),
+          let Ok(cp) = conn_params(
+            (&thread_data, &thread_error_cb, &thread_executor, thread_hrc),
+            (thread_rng, thread_tcp_params, &thread_tls_config),
             (&thread_http_router, &listener, xorshift),
           )
           .await
@@ -375,8 +375,8 @@ where
             continue;
           };
           let _conn_jh = thread_executor.spawn_local(async move {
-            let http2_fut = Http2::accept(Http2Buffer::new(&mut cp.xorshift), cp.hrc, cp.split);
-            let (frame_reader, http2) = match http2_fut.await {
+            let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+            let (frame_reader, http2, ip) = match fut.await {
               Err(err) => {
                 (cp.error_cb)(err.into());
                 return;
@@ -401,7 +401,7 @@ where
               let stream_http_router = cp.http_router.clone();
               let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
                 headers_aux,
-                cp.ip,
+                ip,
                 opt,
                 server_stream,
                 stream_data,
@@ -448,9 +448,9 @@ where
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let xorshift = &mut Xorshift64::from_simple_seed()?;
     loop {
-      let Ok(mut cp) = conn_params(
-        (&self.data, &mut self.rng, self.tcp_params, &*self.tls_config),
-        (&self.error_cb, &self.executor, self.hrc),
+      let Ok(cp) = conn_params(
+        (&self.data, &self.error_cb, &self.executor, self.hrc),
+        (&mut self.rng, self.tcp_params, &self.tls_config),
         (&http_router, &listener, xorshift),
       )
       .await
@@ -458,8 +458,8 @@ where
         continue;
       };
       let _conn_jh = self.executor.spawn_local(async move {
-        let http2_fut = Http2::accept(Http2Buffer::new(&mut cp.xorshift), cp.hrc, cp.split);
-        let (frame_reader, http2) = match http2_fut.await {
+        let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+        let (frame_reader, http2, ip) = match fut.await {
           Err(err) => {
             (cp.error_cb)(err.into());
             return;
@@ -484,7 +484,7 @@ where
           let stream_http_router = cp.http_router.clone();
           let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
             headers_aux,
-            cp.ip,
+            ip,
             opt,
             server_stream,
             stream_data,
@@ -497,7 +497,7 @@ where
   }
 }
 
-struct ConnParams<DA, EC, EN, ER, EX, M, TM>
+struct ConnParams<DA, EC, EN, ER, EX, M, RNG, TM>
 where
   EX: Executor,
 {
@@ -506,52 +506,43 @@ where
   executor: EX,
   hrc: HttpRecvParams,
   http_router: Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>>,
-  ip: IpAddr,
-  split: (
-    TlsStreamBridge<false>,
-    TlsStreamReader<ReadHalf<EX>, TM, false>,
-    TlsStreamWriter<WriteHalf<EX>, TM, false>,
-  ),
+  rng: RNG,
+  stream: EX::TcpStream,
+  tls_config: Arc<TlsConfig<TM>>,
   xorshift: Xorshift64,
 }
 
-fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
-  let _method = _req.method.strings().custom[0];
-  let _path = _req.msg_data.uri.path();
-  _debug!(r#"{_peer} "{_method} {_path}""#,);
-}
-
+#[inline]
 async fn conn_params<DA, EC, EN, ER, EX, M, RNG, TM>(
-  (data, rng, tcp_params, tls_config): (&DA, &mut RNG, TcpParams, &TlsConfig<TM>),
-  (error_cb, executor, hrc): (&EC, &EX, HttpRecvParams),
+  (data, error_cb, executor, hrc): (&DA, &EC, &EX, HttpRecvParams),
+  (rng, tcp_params, tls_config): (&mut RNG, TcpParams, &Arc<TlsConfig<TM>>),
   (http_router, listener, xorshift): (
     &Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>>,
     &EX::TcpListener,
     &mut Xorshift64,
   ),
-) -> crate::Result<ConnParams<DA, EC, EN, ER, EX, M, TM>>
+) -> crate::Result<ConnParams<DA, EC, EN, ER, EX, M, RNG, TM>>
 where
   EC: Clone,
   DA: Clone,
   EX: Clone + Executor,
-  RNG: CryptoRng,
+  RNG: CryptoRng + CryptoSeedableRng,
   TM: TlsMode + Send + 'static,
 {
-  let stream = listener.accept(tcp_params).await?.0;
-  let tls_stream = TlsAcceptor::new(tls_config, rng, stream).accept().await?.rslt()?.stream;
-  let peer = tls_stream.stream.peer_addr()?;
   Ok(ConnParams {
     data: data.clone(),
     error_cb: error_cb.clone(),
     executor: executor.clone(),
     hrc,
     http_router: http_router.clone(),
+    rng: RNG::from_crypto_rng(rng)?,
+    stream: listener.accept(tcp_params).await?.0,
+    tls_config: tls_config.clone(),
     xorshift: Xorshift64::from_rng(xorshift)?,
-    ip: peer.ip(),
-    split: tls_stream.into_split()?,
   })
 }
 
+#[inline]
 fn conn_rslt<ER, EX, TM>(
   rslt: crate::Result<ConnRsltTy<EX, TM, ER>>,
 ) -> Result<
@@ -571,7 +562,34 @@ where
   }
 }
 
+#[inline]
+async fn http2<EX, RNG, TM>(
+  hrc: HttpRecvParams,
+  mut rng: RNG,
+  stream: EX::TcpStream,
+  tls_config: Arc<TlsConfig<TM>>,
+  mut xorshift: Xorshift64,
+) -> crate::Result<(impl Future<Output = ()>, Http2<WriteHalf<EX>, TM, false>, IpAddr)>
+where
+  EX: Executor,
+  RNG: CryptoRng,
+  TM: TlsMode,
+{
+  let ip = stream.peer_addr()?.ip();
+  let tsr = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?.rslt()?;
+  let tuple = Http2::accept(Http2Buffer::new(&mut xorshift), hrc, tsr.stream.into_split()?).await?;
+  Ok((tuple.0, tuple.1, ip))
+}
+
+#[inline]
+fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
+  let _method = _req.method.strings().custom[0];
+  let _path = _req.msg_data.uri.path();
+  _debug!(r#"{_peer} "{_method} {_path}""#,);
+}
+
 #[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]
+#[inline]
 fn stream_cb<DA, EN, ER, EX, M, TM>(
   http_router: &HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
   req: Request<&mut MsgBufferString>,
@@ -587,6 +605,7 @@ where
   })
 }
 
+#[inline]
 async fn stream_fut<DA, EC, EN, ER, EX, M, TM>(
   headers_aux: ArrayVectorCopy<RouteMatch, 4>,
   ip: IpAddr,

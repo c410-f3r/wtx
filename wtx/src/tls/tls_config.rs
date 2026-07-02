@@ -5,12 +5,13 @@ use crate::{
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
   tls::{
-    CipherSuite, DEFAULT_MAX_FRAGMENT_LENGTH, MAX_ALPN_LEN, MAX_KEY_SHARES_LEN, MaxFragmentLength,
-    NamedGroup, TlsCertificateTy, TlsModePlainText,
+    CipherSuite, MAX_ALPN_LEN, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsCertificateTy,
+    TlsModePlainText,
     protocol::{
       alpn::Alpn, cert_types::CertTypes, key_share_entry::KeyShareEntry, offered_psks::OfferedPsks,
       server_name_list::ServerNameList,
     },
+    tls_certificate::TlsCertificate,
   },
   x509::{Certificate, CvPolicy, CvTrustAnchor},
 };
@@ -59,7 +60,7 @@ impl<TM> TlsConfig<TM> {
     let mut buffer = Vector::new();
     this.inner.public_key = tls_certificate(&mut buffer, public_key)?;
     buffer.clear();
-    this.inner.secret_key = tls_certificate(&mut buffer, secret_key)?;
+    this.inner.secret_key = tls_certificate(&mut buffer, secret_key)?.x509;
     Ok(this)
   }
 
@@ -109,6 +110,8 @@ impl<TM> TlsConfig<TM> {
   }
 
   /// Mutable version of [`Self::max_fragment_length`].
+  ///
+  /// If [`None`], defaults to `2^24 -1`
   #[inline]
   pub const fn max_fragment_length_mut(&mut self) -> &mut Option<MaxFragmentLength> {
     &mut self.inner.max_fragment_length
@@ -180,10 +183,6 @@ impl<TM> TlsConfig<TM> {
   pub fn trust_anchors_mut(&mut self) -> &mut Vector<CvTrustAnchor<ShortBoxSliceU16<u8>>> {
     &mut self.inner.trust_anchors
   }
-
-  pub(crate) fn max_fragment_length_actual(&self) -> u16 {
-    self.inner.max_fragment_length.map_or(DEFAULT_MAX_FRAGMENT_LENGTH, |el| el.num())
-  }
 }
 
 impl<TM> Lease<TlsConfig<TM>> for TlsConfig<TM> {
@@ -221,8 +220,8 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) named_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   pub(crate) offered_psks: OfferedPsks<B>,
-  pub(crate) public_key: (B, B),
-  pub(crate) secret_key: (B, B),
+  pub(crate) public_key: TlsCertificate<B>,
+  pub(crate) secret_key: B,
   pub(crate) server_cert_types: CertTypes,
   pub(crate) server_name: Option<ServerNameList<B>>,
   pub(crate) signature_algorithms_cert: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
@@ -249,8 +248,8 @@ where
       max_fragment_length: None,
       named_groups: ArrayVectorCopy::from_array(NamedGroup::all()),
       offered_psks: OfferedPsks { offered_psks: ArrayVectorU8::new() },
-      public_key: (B::default(), B::default()),
-      secret_key: (B::default(), B::default()),
+      public_key: TlsCertificate::default(),
+      secret_key: B::default(),
       server_cert_types: CertTypes::default(),
       server_name: None,
       signature_algorithms: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
@@ -261,7 +260,10 @@ where
   }
 }
 
-fn tls_certificate<'de, B>(buffer: &'de mut Vector<u8>, bytes: &'de [u8]) -> crate::Result<(B, B)>
+fn tls_certificate<'de, B>(
+  buffer: &'de mut Vector<u8>,
+  bytes: &'de [u8],
+) -> crate::Result<TlsCertificate<B>>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -272,5 +274,8 @@ where
   let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
   let _cert = Certificate::<&[u8]>::decode(&mut dw)?;
   let spki = dw.decode_aux.spki(dw.bytes).unwrap_or_default();
-  Ok((cert_bytes.try_into().map_err(Into::into)?, spki.try_into().map_err(Into::into)?))
+  Ok(TlsCertificate {
+    raw_public_key: spki.try_into().map_err(Into::into)?,
+    x509: cert_bytes.try_into().map_err(Into::into)?,
+  })
 }

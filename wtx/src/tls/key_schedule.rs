@@ -151,7 +151,7 @@ impl Default for KeySchedule {
     Self::from_cipher_suite(CipherSuite::default())
   }
 }
-/// Data received from the server, not data used by server.
+
 pub(crate) struct KeyScheduleRead {
   state: KeyScheduleState,
 }
@@ -340,8 +340,8 @@ fn hkdf_expand_label<const LENGTH: usize>(
     }
   }
   let mut output = ArrayVectorCopy::from_array([0; LENGTH]);
-  secret.expand(concatenated.as_slice(), &mut output)?;
   output.truncate(output_len);
+  secret.expand(concatenated.as_slice(), &mut output)?;
   Ok(output)
 }
 

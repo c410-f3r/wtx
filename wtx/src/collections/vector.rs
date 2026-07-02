@@ -15,6 +15,7 @@ use core::{
   borrow::{Borrow, BorrowMut},
   cmp::Ordering,
   fmt::{Debug, Display, Formatter},
+  hash::{Hash, Hasher},
   mem::{ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
   slice::{Iter, IterMut},
@@ -479,6 +480,19 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
 }
 
 impl<T> Eq for Vector<T> where T: Eq {}
+
+impl<T> Hash for Vector<T>
+where
+  T: Hash,
+{
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    Hash::hash(&**self, state);
+  }
+}
 
 impl<T> IntoIterator for Vector<T> {
   type Item = T;

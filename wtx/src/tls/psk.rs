@@ -14,7 +14,7 @@ pub struct Psk {
   /// Data
   pub data: ArrayVectorCopy<u8, MAX_HASH_LEN>,
   /// See [`PskTy`]
-  pub psk_ty: PskTy,
+  pub ty: PskTy,
 }
 
 impl Psk {
@@ -23,8 +23,8 @@ impl Psk {
   pub fn new(
     cipher_suite: CipherSuite,
     data: ArrayVectorCopy<u8, MAX_HASH_LEN>,
-    psk_ty: PskTy,
+    ty: PskTy,
   ) -> Self {
-    Self { cipher_suite, data, psk_ty }
+    Self { cipher_suite, data, ty }
   }
 }

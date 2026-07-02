@@ -29,7 +29,7 @@ impl<'any> Finished<'any> {
     data_bytes: &[u8],
     kss: &mut KeyScheduleState,
   ) -> crate::Result<ArrayVectorCopy<u8, { 5 + MAX_HASH_LEN + 1 + 16 }>> {
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 2];
+    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 19];
     let encrypted_bytes = [data_bytes, &[RecordContentType::Handshake.into()]];
     let mut encrypted = ArrayVectorCopy::<u8, { MAX_HASH_LEN + 1 }>::new();
     let _ = encrypted.extend_from_copyable_slices(encrypted_bytes)?;

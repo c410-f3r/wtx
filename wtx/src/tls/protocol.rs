@@ -8,6 +8,7 @@ pub(crate) mod certificate_verify;
 pub(crate) mod change_cipher_spec;
 pub(crate) mod cipher_suite;
 pub(crate) mod client_hello;
+pub(crate) mod cookie;
 pub(crate) mod encrypted_extensions;
 pub(crate) mod extension;
 pub(crate) mod extension_ty;

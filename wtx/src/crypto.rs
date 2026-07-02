@@ -43,7 +43,7 @@ pub use signature::{
     Ed25519Global, P256SignatureGlobal, P384SignatureGlobal, RsaPssRsaeSha256Global,
     RsaPssRsaeSha384Global,
   },
-  signature_ty::SignatureTy,
+  signature_ty::{SignatureSignKey, SignatureSignOutput, SignatureTy},
 };
 
 use crate::rng::CryptoRng;

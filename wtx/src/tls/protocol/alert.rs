@@ -81,7 +81,7 @@ impl Alert {
     [a0, a1]: [u8; 2],
     kss: &mut KeyScheduleState,
   ) -> crate::Result<[u8; 5 + 2 + 1 + 16]> {
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 2];
+    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 19];
     let mut encrypted = [a0, a1, RecordContentType::ApplicationData.into()];
     let nonce = kss.nonce();
     let secret = kss.cipher_key();

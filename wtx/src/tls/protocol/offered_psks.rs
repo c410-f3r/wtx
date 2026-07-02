@@ -28,10 +28,14 @@ where
       while !local_dw.bytes().is_empty() {
         offered_psks.push(OfferedPsk {
           identity: PskIdentity {
-            identity: B::try_from(&[]).map_err(Into::into)?,
-            obfuscated_ticket_age: 0,
+            identity: u16_chunk(local_dw, TlsError::InvalidOfferedPsks, |elem| Ok(elem.bytes()))?
+              .try_into()
+              .map_err(Into::into)?,
+            obfuscated_ticket_age: Decode::<'_, De>::decode(local_dw)?,
           },
-          binder: B::try_from(&[]).map_err(Into::into)?,
+          binder: u16_chunk(local_dw, TlsError::InvalidOfferedPsks, |elem| Ok(elem.bytes()))?
+            .try_into()
+            .map_err(Into::into)?,
         })?;
       }
       Ok(())

@@ -11,7 +11,7 @@ use crate::{
 
 create_enum! {
   /// <https://datatracker.ietf.org/doc/html/rfc8446#appendix-B.3>
-  #[derive(Copy, Clone, Debug)]
+  #[derive(Copy, Clone, Debug, PartialEq)]
   pub(crate) enum HandshakeType<u8> {
     ClientHello = (1),
     ServerHello = (2),

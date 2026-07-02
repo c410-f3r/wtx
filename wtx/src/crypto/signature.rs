@@ -21,7 +21,7 @@ pub trait Signature {
   /// The structure used to sign messages
   type SignKey: SignKey;
   /// The result of a signing operation
-  type SignOutput;
+  type SignOutput: AsRef<[u8]>;
 
   /// Checks if the `signature` derived from `msg` was signed by `pubkey` .
   fn sign<RNG>(
@@ -43,7 +43,7 @@ pub struct SignatureDummy<SK, SO>(PhantomData<(SK, SO)>);
 impl<SK, SO> Signature for SignatureDummy<SK, SO>
 where
   SK: SignKey,
-  SO: DefaultArray,
+  SO: AsRef<[u8]> + DefaultArray,
 {
   type SignKey = SK;
   type SignOutput = SO;
