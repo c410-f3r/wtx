@@ -107,15 +107,13 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     let additional = Self::Len::from_usize(additional_usize)?;
     let new_len = Self::Len::from_usize(new_len_usize)?;
     self.reserve(additional)?;
-    // SAFETY: there are initialized elements until `len`
-    let ptr = unsafe { self.as_ptr_mut().add(len.usize()) };
-    // SAFETY: memory has been allocated
-    unsafe {
-      slice::from_raw_parts_mut(ptr, additional_usize).fill(value);
-    }
-    // SAFETY: elements have been initialized
-    unsafe {
-      self.set_len(new_len);
+    let (_, unfilled) = self.split_at_spare_mut();
+    if let Some(elem) = unfilled.get_mut(..additional_usize) {
+      elem.fill_with(|| MaybeUninit::new(value.clone()));
+      // SAFETY: elements have been initialized
+      unsafe {
+        self.set_len(new_len);
+      }
     }
     Ok(())
   }

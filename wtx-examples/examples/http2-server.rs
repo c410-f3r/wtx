@@ -12,9 +12,9 @@ use wtx::{
   misc::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
   stream::Stream,
-  tls::{TlsAcceptor, TlsConfig},
+  tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -24,14 +24,14 @@ async fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
   let hb = Http2Buffer::new(&mut rng);
   let tls_stream = TlsAcceptor::new(
-    TlsConfig::from_keys_pem(LocalTlsMode::default(), PUBLIC_KEY, SECRET_KEY)?,
+    TlsConfig::from_keys_pem(TlsModeVerified::default(), PUBLIC_KEY, SECRET_KEY)?,
     rng,
     stream,
   )
   .accept()
   .await?
   .rslt()?
-  .stream;
+  .tls_stream;
   let (frame_reader, http2) =
     Http2::accept(hb, HttpRecvParams::with_optioned_params(), tls_stream.into_split()?).await?;
   let _jh = tokio::spawn(frame_reader);

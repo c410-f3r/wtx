@@ -31,7 +31,7 @@ impl Hkdf for HkdfSha256Ring {
 
   #[inline]
   fn expand(&self, info: &[u8], okm: &mut [u8]) -> crate::Result<()> {
-    local_expand(HKDF_SHA256, info, okm, &self.0)
+    local_expand(info, okm, &self.0)
   }
 }
 
@@ -59,8 +59,8 @@ impl Hkdf for HkdfSha384Ring {
 
   #[inline]
   fn expand(&self, info: &[u8], okm: &mut [u8]) -> crate::Result<()> {
-    local_expand(HKDF_SHA384, info, okm, &self.0)
+    local_expand(info, okm, &self.0)
   }
 }
 
-common_hkdf_functions!();
+common_hkdf_functions!(ring);

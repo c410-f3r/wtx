@@ -2,7 +2,7 @@
 
 TLS 1.3 is the only supported version.
 
-Implementation of [RFC8446](https://datatracker.ietf.org/doc/html/rfc8446). Passes a subset of the BoringSSL testsuite.
+Implementation of [RFC-8446](https://datatracker.ietf.org/doc/html/rfc8446). Passes a subset of the BoringSSL testsuite.
 
 Transport Layer Security (TLS) is a cryptographic protocol that provides secure communication over a computer network by encrypting data to ensure confidentiality, integrity, and authentication. It is widely used in applications such as web browsers ensuring that contents transferred between parties can not be intercepted or altered by unauthorized actors. 
 

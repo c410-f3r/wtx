@@ -36,11 +36,11 @@ use wtx::{
   misc::{SecretContext, argon2_pwd},
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::TlsConfig,
+  tls::{TlsConfig, TlsModeVerified},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream, LocalTlsMode>>;
+type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 #[tokio::main]
@@ -48,8 +48,9 @@ async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut server = Http2ServerFramework::new(
     TokioExecutor::default(),
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
-      LocalTlsMode::default(),
+      TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
     )?
@@ -61,7 +62,7 @@ async fn main() -> wtx::Result<()> {
     PostgresRM::new(
       ChaCha20::from_crypto_rng(server.rng_mut())?,
       secret_context.clone(),
-      TlsConfig::from_trust_anchors_pem(LocalTlsMode::default(), [ROOT_CA])?.into(),
+      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?.into(),
       &mut uri,
     )?,
   );
@@ -112,7 +113,7 @@ async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
   serde_json::to_writer(&mut state.req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
   session_manager
-    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_std_random()?, pool)
+    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_getrandom()?, pool)
     .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }

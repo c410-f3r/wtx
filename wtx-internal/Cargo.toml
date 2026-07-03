@@ -51,19 +51,19 @@ required-features = ["x509-limbo"]
 [dependencies]
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
-wtx = { default-features = false, features = ["crypto-ring", "nightly", "optimizations-std", "tokio"], path = "../wtx" }
+tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], optional = true, version = "1.0" }
+wtx = { default-features = false, features = ["nightly", "optimizations-std"], path = "../wtx" }
 
 [features]
-autobahn-client = ["wtx/zlib-rs", "wtx/web-socket-handshake"]
-autobahn-client-concurrent = ["wtx/zlib-rs", "wtx/web-socket-handshake"]
-autobahn-server = ["wtx/zlib-rs", "wtx/web-socket-server-framework"]
-boringssl = ["wtx/tls"]
-boringssl-config = ["serde/derive", "serde_json/std", "wtx/serde"]
-ccadb = ["wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/http2"]
-h2load = ["wtx/http2-server-framework", "wtx/nightly"]
-h2spec-high = ["wtx/http2"]
-h2spec-low = ["wtx/http2"]
+autobahn-client = ["tokio", "wtx/crypto-ring", "wtx/tokio", "wtx/web-socket-handshake", "wtx/zlib-rs"]
+autobahn-client-concurrent = ["tokio", "wtx/crypto-ring", "wtx/tokio", "wtx/web-socket-handshake", "wtx/zlib-rs"]
+autobahn-server = ["tokio", "wtx/tokio", "wtx/crypto-ring", "wtx/web-socket-server-framework", "wtx/zlib-rs"]
+boringssl = ["tokio", "wtx/crypto-ring", "wtx/tokio", "wtx/x509"]
+boringssl-config = ["serde/derive", "serde_json/std", "wtx/hashbrown", "wtx/serde"]
+ccadb = ["tokio", "wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/http2", "wtx/tokio"]
+h2load = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
+h2spec-high = ["tokio", "wtx/crypto-ring", "wtx/http2", "wtx/tokio"]
+h2spec-low = ["tokio", "wtx/crypto-ring", "wtx/http2", "wtx/tokio"]
 x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 
 [package]

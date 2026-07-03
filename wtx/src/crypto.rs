@@ -159,6 +159,9 @@ _create_wrappers!(
   P384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
   X25519Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
   //
+  HkdfSha256Openssl<>([u8; 32]),
+  HkdfSha384Openssl<>([u8; 48]),
+  //
   #[derive(Clone)]
   Sha1HashOpenssl<>(openssl::hash::Hasher),
   #[derive(Clone)]

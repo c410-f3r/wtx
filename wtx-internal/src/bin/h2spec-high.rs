@@ -29,7 +29,7 @@ async fn main() -> wtx::Result<()> {
           .unwrap()
           .rslt()
           .unwrap()
-          .stream;
+          .tls_stream;
         let http2 = Http2::accept(http2_buffer, http2_params, tls_stream.into_split()?).await?;
         let (frame_reader, http2) = http2;
         let _frame_reader_jh = tokio::spawn(frame_reader);

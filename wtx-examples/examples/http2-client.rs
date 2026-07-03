@@ -2,7 +2,6 @@
 
 extern crate tokio;
 extern crate wtx;
-extern crate wtx_examples;
 
 use tokio::net::TcpStream;
 use wtx::{
@@ -24,7 +23,7 @@ async fn main() -> wtx::Result<()> {
   let hrp = HttpRecvParams::with_optioned_params();
   let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
   let tcr = TlsConnector::new(tls_config, rng, stream).connect().await?.rslt()?;
-  let (frame_reader, http2) = Http2::connect(hb, hrp, tcr.stream.into_split()?).await?;
+  let (frame_reader, http2) = Http2::connect(hb, hrp, tcr.tls_stream.into_split()?).await?;
   let _jh = tokio::spawn(frame_reader);
   let res = http2
     .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(uri.to_ref()).into_request())

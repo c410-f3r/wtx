@@ -3,13 +3,14 @@
 use crate::{
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
+  crypto::SignatureTy,
   misc::{
     Lease, SingleTypeStorage,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
   tls::{
-    CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, TlsConfig, TlsError, TlsMode,
+    CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
     misc::{u8_chunk, u16_chunk, u16_list},
     protocol::{
@@ -22,7 +23,7 @@ use crate::{
       named_group::NamedGroupAgreement,
       offered_psks::OfferedPsks,
       protocol_version::ProtocolVersion,
-      protocol_versions::SupportedVersions,
+      protocol_versions::SupportedVersionsClient,
       psk_key_exchange_modes::{PskKeyExchangeMode, PskKeyExchangeModes},
       server_name_list::ServerNameList,
       signature_algorithms::SignatureAlgorithms,
@@ -45,7 +46,7 @@ pub(crate) struct ClientHello<S, TC> {
   psk_key_exchange_modes: Option<PskKeyExchangeModes>,
   random: [u8; 32],
   secrets: S,
-  supported_versions: SupportedVersions,
+  supported_versions: SupportedVersionsClient,
   tls_config: TC,
 }
 
@@ -71,7 +72,7 @@ impl<S, TC> ClientHello<S, TC> {
         array
       },
       secrets,
-      supported_versions: SupportedVersions::new(ArrayVectorCopy::from_array([
+      supported_versions: SupportedVersionsClient::new(ArrayVectorCopy::from_array([
         ProtocolVersion::Tls13,
       ])),
       tls_config,
@@ -91,14 +92,13 @@ impl<'de, TM> Decode<'de, De> for ClientHello<(), TlsConfigInner<&'de [u8], TM>>
 where
   TM: TlsMode,
 {
-  #[expect(clippy::too_many_lines, reason = "enum is big")]
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
+    let err = TlsError::InvalidClientHelloLength;
     let legacy_version = ProtocolVersion::decode(dw)?;
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
-    let legacy_session_id =
-      u8_chunk(dw, TlsError::InvalidLegacySessionId, |el| Ok(el.bytes()))?.try_into()?;
-    let mut alpn = Alpn { protocol_name_list: ArrayVectorCopy::new() };
+    let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
+    let mut alpn = None;
     let mut cipher_suites = ArrayVectorCopy::new();
     let mut client_cert_types = None;
     let mut key_shares = ArrayVectorU8::new();
@@ -114,89 +114,32 @@ where
     let mut supported_versions_opt = None;
     u16_list(&mut cipher_suites, dw, TlsError::InvalidCipherSuite)?;
     let legacy_compression_methods = <[u8; 2] as Decode<'de, De>>::decode(dw)?;
-    u16_chunk(dw, TlsError::InvalidClientHelloLength, |local_dw| {
+    u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
-        let extension_ty = {
-          let tmp_bytes = &mut *local_dw;
-          ExtensionTy::decode(tmp_bytes)?
-        };
+        let extension_ty = ExtensionTy::decode(local_dw)?;
         last_ty = Some(extension_ty);
-        match extension_ty {
-          ExtensionTy::ApplicationLayerProtocolNegotiation => {
-            duplicated_error(!alpn.protocol_name_list.is_empty())?;
-            alpn = Extension::<Alpn>::decode(local_dw)?.into_data();
-          }
-          ExtensionTy::ClientCertificateType => {
-            duplicated_error(client_cert_types.is_some())?;
-            client_cert_types = Some(Extension::<CertTypes>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::MaxFragmentLength => {
-            duplicated_error(max_fragment_length.is_some())?;
-            max_fragment_length =
-              Some(Extension::<MaxFragmentLength>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::KeyShare => {
-            duplicated_error(!key_shares.is_empty())?;
-            key_shares =
-              Extension::<KeyShareClientHello<'_>>::decode(local_dw)?.into_data().client_shares;
-          }
-          ExtensionTy::OidFilters => {
-            return Err(TlsError::MismatchedExtension.into());
-          }
-          ExtensionTy::PskKeyExchangeModes => {
-            duplicated_error(psk_key_exchange_modes.is_some())?;
-            psk_key_exchange_modes =
-              Some(Extension::<PskKeyExchangeModes>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::PreSharedKey => {
-            duplicated_error(!pre_shared_key.offered_psks.is_empty())?;
-            pre_shared_key = Extension::<OfferedPsks<&'de [u8]>>::decode(local_dw)?.into_data();
-          }
-          ExtensionTy::ServerCertificateType => {
-            duplicated_error(server_cert_types.is_some())?;
-            server_cert_types = Some(Extension::<CertTypes>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::ServerName => {
-            duplicated_error(server_name.is_some())?;
-            server_name =
-              Some(Extension::<ServerNameList<&'de [u8]>>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::SignatureAlgorithms => {
-            duplicated_error(!signature_algorithms.is_empty())?;
-            signature_algorithms =
-              Extension::<SignatureAlgorithms>::decode(local_dw)?.into_data().signature_schemes;
-          }
-          ExtensionTy::SignatureAlgorithmsCert => {
-            duplicated_error(!signature_algorithms_cert.is_empty())?;
-            signature_algorithms_cert =
-              Extension::<SignatureAlgorithmsCert>::decode(local_dw)?.into_data().supported_groups;
-          }
-          ExtensionTy::SupportedGroups => {
-            duplicated_error(!named_groups.is_empty())?;
-            named_groups =
-              Extension::<SupportedGroups>::decode(local_dw)?.into_data().supported_groups;
-          }
-          ExtensionTy::SupportedVersions => {
-            duplicated_error(supported_versions_opt.is_some())?;
-            supported_versions_opt =
-              Some(Extension::<SupportedVersions>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::CertificateAuthorities
-          | ExtensionTy::Cookie
-          | ExtensionTy::EarlyData
-          | ExtensionTy::Heartbeat
-          | ExtensionTy::Padding
-          | ExtensionTy::PostHandshakeAuth
-          | ExtensionTy::SignedCertificateTimestamp
-          | ExtensionTy::StatusRequest
-          | ExtensionTy::UseSrtp => {
-            return Err(TlsError::UnsupportedExtension.into());
-          }
-        }
+        u16_chunk(local_dw, err, |local_local_dw| {
+          manage_extension(
+            &mut alpn,
+            &mut client_cert_types,
+            local_local_dw,
+            extension_ty,
+            &mut key_shares,
+            &mut max_fragment_length,
+            &mut named_groups,
+            &mut pre_shared_key,
+            &mut psk_key_exchange_modes,
+            &mut server_cert_types,
+            &mut server_name,
+            &mut signature_algorithms,
+            &mut signature_algorithms_cert,
+            &mut supported_versions_opt,
+          )
+        })?;
       }
       Ok(())
     })?;
-    let has_psk = !pre_shared_key.offered_psks.is_empty() || psk_key_exchange_modes.is_some();
+    let has_psk = !pre_shared_key.offered_psks.is_empty();
     if has_psk && last_ty != Some(ExtensionTy::PreSharedKey) {
       return Err(TlsError::BadPreKeyShare.into());
     }
@@ -242,6 +185,89 @@ where
   }
 }
 
+fn manage_extension<'de>(
+  alpn: &mut Option<Alpn>,
+  client_cert_types: &mut Option<CertTypes>,
+  dw: &mut TlsDecodeWrapper<'de>,
+  extension_ty: ExtensionTy,
+  key_shares: &mut ArrayVectorU8<KeyShareEntry<&'de [u8]>, MAX_KEY_SHARES_LEN>,
+  max_fragment_length: &mut Option<MaxFragmentLength>,
+  named_groups: &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+  pre_shared_key: &mut OfferedPsks<&'de [u8]>,
+  psk_key_exchange_modes: &mut Option<PskKeyExchangeModes>,
+  server_cert_types: &mut Option<CertTypes>,
+  server_name: &mut Option<ServerNameList<&'de [u8]>>,
+  signature_algorithms: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  signature_algorithms_cert: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  supported_versions_opt: &mut Option<SupportedVersionsClient>,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::ApplicationLayerProtocolNegotiation => {
+      duplicated_error(alpn.is_some())?;
+      *alpn = Some(Alpn::decode(dw)?);
+    }
+    ExtensionTy::ClientCertificateType => {
+      duplicated_error(client_cert_types.is_some())?;
+      *client_cert_types = Some(CertTypes::decode(dw)?);
+    }
+    ExtensionTy::MaxFragmentLength => {
+      duplicated_error(max_fragment_length.is_some())?;
+      *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
+    }
+    ExtensionTy::KeyShare => {
+      duplicated_error(!key_shares.is_empty())?;
+      *key_shares = KeyShareClientHello::<'_>::decode(dw)?.client_shares;
+    }
+    ExtensionTy::OidFilters => {
+      return Err(TlsError::MismatchedExtension.into());
+    }
+    ExtensionTy::PskKeyExchangeModes => {
+      duplicated_error(psk_key_exchange_modes.is_some())?;
+      *psk_key_exchange_modes = Some(PskKeyExchangeModes::decode(dw)?);
+    }
+    ExtensionTy::PreSharedKey => {
+      duplicated_error(!pre_shared_key.offered_psks.is_empty())?;
+      *pre_shared_key = OfferedPsks::<&'de [u8]>::decode(dw)?;
+    }
+    ExtensionTy::ServerCertificateType => {
+      duplicated_error(server_cert_types.is_some())?;
+      *server_cert_types = Some(CertTypes::decode(dw)?);
+    }
+    ExtensionTy::ServerName => {
+      duplicated_error(server_name.is_some())?;
+      *server_name = Some(ServerNameList::<&'de [u8]>::decode(dw)?);
+    }
+    ExtensionTy::SignatureAlgorithms => {
+      duplicated_error(!signature_algorithms.is_empty())?;
+      *signature_algorithms = SignatureAlgorithms::decode(dw)?.signature_schemes;
+    }
+    ExtensionTy::SignatureAlgorithmsCert => {
+      duplicated_error(!signature_algorithms_cert.is_empty())?;
+      *signature_algorithms_cert = SignatureAlgorithmsCert::decode(dw)?.supported_groups;
+    }
+    ExtensionTy::SupportedGroups => {
+      duplicated_error(!named_groups.is_empty())?;
+      *named_groups = SupportedGroups::decode(dw)?.supported_groups;
+    }
+    ExtensionTy::SupportedVersions => {
+      duplicated_error(supported_versions_opt.is_some())?;
+      *supported_versions_opt = Some(SupportedVersionsClient::decode(dw)?);
+    }
+    ExtensionTy::CertificateAuthorities
+    | ExtensionTy::Cookie
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::SignedCertificateTimestamp
+    | ExtensionTy::StatusRequest
+    | ExtensionTy::UseSrtp => {
+      return Err(TlsError::UnsupportedExtension.into());
+    }
+  }
+  Ok(())
+}
+
 impl<TC, TM> Encode<De>
   for ClientHello<&'_ ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>, TC>
 where
@@ -252,7 +278,7 @@ where
     let _ = ew.buffer().extend_from_copyable_slices([
       u16::from(self.legacy_version).to_be_bytes().as_slice(),
       &self.random[..],
-      &[32],
+      &[self.legacy_session_id.len()][..],
       &self.legacy_session_id,
       u16::from(self.tls_config.lease().inner.cipher_suites.len().wrapping_mul(2))
         .to_be_bytes()
@@ -268,12 +294,8 @@ where
       &self.legacy_compression_methods,
     ])?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      if !self.tls_config.lease().inner.alpn.protocol_name_list.is_empty() {
-        Extension::new(
-          ExtensionTy::ApplicationLayerProtocolNegotiation,
-          &self.tls_config.lease().inner.alpn,
-        )
-        .encode(local_ew)?;
+      if let Some(elem) = &self.tls_config.lease().inner.alpn {
+        Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, elem).encode(local_ew)?;
       }
       Extension::new(
         ExtensionTy::ClientCertificateType,
@@ -301,8 +323,6 @@ where
       if let Some(max_fragment_length) = self.tls_config.lease().inner.max_fragment_length {
         Extension::new(ExtensionTy::MaxFragmentLength, max_fragment_length).encode(local_ew)?;
       }
-      Extension::new(ExtensionTy::PskKeyExchangeModes, &self.psk_key_exchange_modes)
-        .encode(local_ew)?;
       Extension::new(
         ExtensionTy::ServerCertificateType,
         &self.tls_config.lease().inner.server_cert_types,
@@ -334,8 +354,11 @@ where
       .encode(local_ew)?;
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;
       if !self.tls_config.lease().inner.offered_psks.offered_psks.is_empty() {
-        Extension::new(ExtensionTy::PreSharedKey, &self.tls_config.lease().inner.offered_psks)
-          .encode(local_ew)?;
+        if let Some(modes) = &self.psk_key_exchange_modes {
+          Extension::new(ExtensionTy::PskKeyExchangeModes, modes).encode(local_ew)?;
+        }
+        let data = &self.tls_config.lease().inner.offered_psks;
+        Extension::new(ExtensionTy::PreSharedKey, data).encode(local_ew)?;
       }
       crate::Result::Ok(())
     })?;

@@ -3,7 +3,6 @@
 use crate::{
   codec::{Decode, Encode},
   collections::ArrayVectorCopy,
-  crypto::SignatureTy,
   misc::counter_writer::{CounterWriterBytesTy, u8_write, u16_write},
   tls::{
     TlsError,
@@ -21,7 +20,7 @@ use crate::{
 #[expect(dead_code, reason = "Future-proof mTLS")]
 pub(crate) struct CertificateRequest {
   pub(crate) certificate_request_context: ArrayVectorCopy<u8, 32>,
-  pub(crate) signature_algorithms: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  pub(crate) signature_algorithms: SignatureAlgorithms,
 }
 
 impl<'de> Decode<'de, De> for CertificateRequest {
@@ -29,50 +28,17 @@ impl<'de> Decode<'de, De> for CertificateRequest {
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificateRequest;
     let certificate_request_context = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
-    let mut signature_algorithms = ArrayVectorCopy::new();
+    let mut signature_algorithms = None;
     u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
-        let extension_ty = {
-          let tmp_bytes = &mut *local_dw;
-          ExtensionTy::decode(tmp_bytes)?
-        };
-        match extension_ty {
-          ExtensionTy::SignatureAlgorithms => {
-            duplicated_error(!signature_algorithms.is_empty())?;
-            signature_algorithms =
-              Extension::<SignatureAlgorithms>::decode(local_dw)?.into_data().signature_schemes;
-          }
-          ExtensionTy::CertificateAuthorities
-          | ExtensionTy::OidFilters
-          | ExtensionTy::SignedCertificateTimestamp
-          | ExtensionTy::SignatureAlgorithmsCert
-          | ExtensionTy::StatusRequest => {
-            return Err(TlsError::UnsupportedExtension.into());
-          }
-          ExtensionTy::ApplicationLayerProtocolNegotiation
-          | ExtensionTy::ClientCertificateType
-          | ExtensionTy::Cookie
-          | ExtensionTy::EarlyData
-          | ExtensionTy::Heartbeat
-          | ExtensionTy::KeyShare
-          | ExtensionTy::MaxFragmentLength
-          | ExtensionTy::Padding
-          | ExtensionTy::PostHandshakeAuth
-          | ExtensionTy::PreSharedKey
-          | ExtensionTy::PskKeyExchangeModes
-          | ExtensionTy::ServerCertificateType
-          | ExtensionTy::ServerName
-          | ExtensionTy::SupportedGroups
-          | ExtensionTy::SupportedVersions
-          | ExtensionTy::UseSrtp => {
-            return Err(TlsError::MismatchedExtension.into());
-          }
-        }
+        let extension_ty = ExtensionTy::decode(local_dw)?;
+        u16_chunk(local_dw, err, |local_local_dw| {
+          manage_extension(local_local_dw, extension_ty, &mut signature_algorithms)
+        })?;
       }
       Ok(())
     })?;
-
-    Ok(Self { certificate_request_context, signature_algorithms })
+    Ok(Self { certificate_request_context, signature_algorithms: signature_algorithms.ok_or(err)? })
   }
 }
 
@@ -88,7 +54,7 @@ impl Encode<De> for CertificateRequest {
         ExtensionTy::SignatureAlgorithms,
         SignatureAlgorithms {
           signature_schemes: ArrayVectorCopy::from_iterator(
-            self.signature_algorithms.iter().copied(),
+            self.signature_algorithms.signature_schemes.iter().copied(),
           )?,
         },
       )
@@ -97,4 +63,45 @@ impl Encode<De> for CertificateRequest {
     })?;
     Ok(())
   }
+}
+
+#[expect(dead_code, reason = "Future-proof mTLS")]
+#[inline]
+fn manage_extension(
+  dw: &mut TlsDecodeWrapper<'_>,
+  extension_ty: ExtensionTy,
+  signature_algorithms: &mut Option<SignatureAlgorithms>,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::SignatureAlgorithms => {
+      duplicated_error(signature_algorithms.is_some())?;
+      *signature_algorithms = Some(SignatureAlgorithms::decode(dw)?);
+    }
+    ExtensionTy::CertificateAuthorities
+    | ExtensionTy::OidFilters
+    | ExtensionTy::SignedCertificateTimestamp
+    | ExtensionTy::SignatureAlgorithmsCert
+    | ExtensionTy::StatusRequest => {
+      return Err(TlsError::UnsupportedExtension.into());
+    }
+    ExtensionTy::ApplicationLayerProtocolNegotiation
+    | ExtensionTy::ClientCertificateType
+    | ExtensionTy::Cookie
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::KeyShare
+    | ExtensionTy::MaxFragmentLength
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::PreSharedKey
+    | ExtensionTy::PskKeyExchangeModes
+    | ExtensionTy::ServerCertificateType
+    | ExtensionTy::ServerName
+    | ExtensionTy::SupportedGroups
+    | ExtensionTy::SupportedVersions
+    | ExtensionTy::UseSrtp => {
+      return Err(TlsError::MismatchedExtension.into());
+    }
+  }
+  Ok(())
 }

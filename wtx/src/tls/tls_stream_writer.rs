@@ -7,7 +7,7 @@ use crate::{
     TlsMode, TlsStreamBridgeData,
     key_schedule::KeyScheduleWrite,
     misc::write_data,
-    protocol::{alert::Alert, key_update::KeyUpdate},
+    protocol::{alert::Alert, key_update::KeyUpdate, record_content_type::RecordContentType},
   },
 };
 use core::sync::atomic::Ordering;
@@ -68,6 +68,7 @@ where
     }
     write_data(
       &[bytes],
+      RecordContentType::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length,
       &mut self.stream_writer,
@@ -83,6 +84,7 @@ where
     }
     write_data(
       bytes,
+      RecordContentType::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length,
       &mut self.stream_writer,

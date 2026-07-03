@@ -45,12 +45,13 @@ where
   async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     let uri = UriRef::new(aux);
     let stream = EX::TcpStream::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
-    let tcr = TlsConnector::new(&*self.tls_config, &self.rng, stream)
+    let tls_stream = TlsConnector::new(&*self.tls_config, &self.rng, stream)
       .set_psk(self.psk.as_ref().map(AtomicCell::load))
       .connect()
       .await?
-      .rslt()?;
-    let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tcr.stream.into_split()?).await?;
+      .rslt()?
+      .tls_stream;
+    let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
     Ok(Http2ClientPoolResource { client: tuple.1 })
   }
@@ -75,7 +76,7 @@ where
       .await?
       .rslt()?;
     resource.client.swap_buffers(&mut hb).await;
-    let (frame_reader, http2) = Http2::connect(hb, self.hrp, tcr.stream.into_split()?).await?;
+    let (frame_reader, http2) = Http2::connect(hb, self.hrp, tcr.tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(frame_reader);
     resource.client = http2;
     Ok(())

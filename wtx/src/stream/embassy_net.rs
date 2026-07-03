@@ -1,9 +1,8 @@
-use core::num::NonZeroUsize;
-
 use crate::{
   collections::MaybeUninitSlice,
   stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
 };
+use core::num::NonZeroUsize;
 use embassy_net::tcp::TcpSocket;
 
 impl Stream for TcpSocket<'_> {

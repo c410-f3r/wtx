@@ -41,7 +41,7 @@ macro_rules! common_aead_functions {
 
 #[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
 macro_rules! common_hkdf_functions {
-  () => {
+  ($krate:ident) => {
     #[inline]
     fn local_extract<const N: usize>(
       algorithm_hkdf: hkdf::Algorithm,
@@ -76,14 +76,19 @@ macro_rules! common_hkdf_functions {
     }
 
     #[inline]
-    fn local_expand(
-      algorithm: hkdf::Algorithm,
-      info: &[u8],
-      okm: &mut [u8],
-      value: &Prk,
-    ) -> crate::Result<()> {
-      let mut fun = || value.expand(&[info], algorithm).ok()?.fill(okm).ok();
-      fun().ok_or(CryptoError::HkdfExpandError)?;
+    fn local_expand(info: &[u8], okm: &mut [u8], value: &Prk) -> crate::Result<()> {
+      struct OkmLen(usize);
+      impl $krate::hkdf::KeyType for OkmLen {
+        #[inline]
+        fn len(&self) -> usize {
+          self.0
+        }
+      }
+
+      value
+        .expand(&[info], OkmLen(okm.len()))
+        .and_then(|elem| elem.fill(okm))
+        .map_err(|_err| CryptoError::HkdfExpandError)?;
       Ok(())
     }
   };

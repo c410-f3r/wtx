@@ -25,6 +25,16 @@ mod subject_information_access;
 mod subject_key_identifier;
 mod transparency_information_syntax;
 
+use crate::{
+  asn1::{
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
+    decode_asn1_tlv,
+  },
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  collections::Vector,
+  misc::Lease,
+  x509::{Extension, X509Error},
+};
 pub use authority_information_access::AuthorityInformationAccess;
 pub use authority_key_identifier::AuthorityKeyIdentifier;
 pub use basic_constraints::BasicConstraints;
@@ -49,17 +59,6 @@ pub use subject_directory_attributes::SubjectDirectoryAttributes;
 pub use subject_information_access::SubjectInformationAccess;
 pub use subject_key_identifier::SubjectKeyIdentifier;
 pub use transparency_information_syntax::TransparencyInformationSyntax;
-
-use crate::{
-  asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
-    decode_asn1_tlv,
-  },
-  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
-  misc::Lease,
-  x509::{Extension, X509Error},
-};
 
 /// List of extensions
 #[derive(Clone, Debug, PartialEq)]

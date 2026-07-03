@@ -10,12 +10,11 @@ use crate::{
     MaxFragmentLength, NamedGroup, Psk, TlsBuffer, TlsConfig, TlsError, TlsMode, TlsServerEndPoint,
     TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, server_sig_msg, write_data},
+    misc::{fetch_rec_from_stream, server_sig_msg},
     protocol::{
       alert::Alert,
       certificate::Certificate,
       certificate_verify::CertificateVerify,
-      change_cipher_spec::ChangeCipherSpec,
       client_hello::ClientHello,
       encrypted_extensions::EncryptedExtensions,
       finished::Finished,
@@ -41,7 +40,7 @@ use core::{
 #[derive(Debug, PartialEq)]
 pub enum ManageClientRecordsState {
   /// Finished processing client records
-  Terminated(ArrayVectorCopy<u8, 70>),
+  Terminated(ArrayVectorCopy<u8, 74>),
 }
 
 /// Required by [`TlsConnector::manage_remaining_server_records`].
@@ -189,7 +188,7 @@ where
         named_group: self.named_group,
         rng: self.rng,
         server_end_point: TlsServerEndPoint::new(),
-        stream: TlsStream::new(
+        tls_stream: TlsStream::new(
           self.buffer,
           self.key_schedule,
           self.max_fragment_length,
@@ -201,7 +200,7 @@ where
 
     let secrets = self.write_client_hello()?;
     self.stream.write_all(&self.buffer.writer_buffer).await?;
-    let Some(first_rri) = self.fetch_rec_from_stream(false).await?.opt() else {
+    let Some(first_rri) = self.fetch_rec_from_stream::<false>(false).await?.opt() else {
       return Ok(StreamReadItem::empty_cold());
     };
     let mut mrsri = match self.manage_initial_server_record(&first_rri, secrets)? {
@@ -211,29 +210,28 @@ where
         return Err(TlsError::AbortedHandshake.into());
       }
     };
+
+    let Some(mut rri) = self.fetch_rec_from_stream::<true>(true).await?.opt() else {
+      return Ok(StreamReadItem::empty_cold());
+    };
     loop {
-      let Some(rri) = self.fetch_rec_from_stream(true).await?.opt() else {
-        return Ok(StreamReadItem::empty_cold());
-      };
       match self.manage_remaining_server_records(&mut mrsri, &rri)? {
         ManageRemainingServerRecordsState::Alert(alert) => {
           self.write_alert(alert).await?;
           return Err(TlsError::AbortedHandshake.into());
         }
-        ManageRemainingServerRecordsState::NeedsMoreData => {}
+        ManageRemainingServerRecordsState::NeedsMoreData => {
+          let Some(local_rri) = self.fetch_rec_from_stream::<false>(true).await?.opt() else {
+            return Ok(StreamReadItem::empty_cold());
+          };
+          rri = local_rri;
+        }
         ManageRemainingServerRecordsState::Terminated => break,
       }
     }
     match self.manage_client_records()? {
       ManageClientRecordsState::Terminated(data) => {
-        write_data(
-          &[&data],
-          self.key_schedule.write_mut(),
-          self.max_fragment_length,
-          &mut self.stream,
-          &mut self.buffer.writer_buffer,
-        )
-        .await?;
+        self.stream.write_all(&data).await?;
       }
     }
     Ok(StreamReadItem::from_item(TlsConnectRslt {
@@ -241,7 +239,7 @@ where
       named_group: self.named_group,
       rng: self.rng,
       server_end_point: mrsri.tls_server_end_point,
-      stream: TlsStream::new(
+      tls_stream: TlsStream::new(
         self.buffer,
         self.key_schedule,
         self.max_fragment_length,
@@ -261,7 +259,7 @@ where
       .state_mut()
       .create_finished_verify_data(self.transcript_hash.clone().finalize().lease())?;
     let finished = Finished::record_bytes(&verify_data, ksw.state_mut())?;
-    self.key_schedule.master_secret(&self.transcript_hash.clone().finalize())?;
+    self.key_schedule.master_secret::<true>(&self.transcript_hash.clone().finalize())?;
     Ok(ManageClientRecordsState::Terminated(finished))
   }
 
@@ -274,9 +272,12 @@ where
     rri: &ReadRecordInfo,
     secrets: ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>,
   ) -> crate::Result<ControlFlow<[u8; 2], ManageRemainingServerRecordsInput>> {
+    let current = self.buffer.reader_buffer.current();
+    let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
+
     match rri.outer_ty {
       RecordContentType::Alert => {
-        let dw = &mut TlsDecodeWrapper::from_bytes(self.buffer.reader_buffer.current());
+        let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
         return Ok(ControlFlow::Break(Alert::decode(dw)?.data_bytes()));
       }
       RecordContentType::Handshake => {}
@@ -284,8 +285,8 @@ where
         return Err(TlsError::InvalidHandshake.into());
       }
     }
-    let current = self.buffer.reader_buffer.current();
-    let dw = &mut TlsDecodeWrapper::from_bytes(current);
+
+    let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
     let server_hello = Handshake::<ServerHello<'_>>::decode(dw)?;
     let secret = secrets
       .into_iter()
@@ -298,11 +299,11 @@ where
     }
     self.transcript_hash = self.key_schedule.cipher_suite().hash_new();
     self.transcript_hash.update(self.buffer.writer_buffer.get(5..).unwrap_or_default());
-    self.transcript_hash.update(current);
+    self.transcript_hash.update(plaintext);
     let shared_secret = secret.diffie_hellman(server_hello.data.key_share().opaque)?;
     self
       .key_schedule
-      .handshake_secret(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
+      .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
     Ok(ControlFlow::Continue(ManageRemainingServerRecordsInput {
       spki_range: 0..0,
       tls_server_end_point: TlsServerEndPoint::new(),
@@ -319,33 +320,32 @@ where
     mrsri: &mut ManageRemainingServerRecordsInput,
     rri: &ReadRecordInfo,
   ) -> crate::Result<ManageRemainingServerRecordsState> {
+    let current = self.buffer.reader_buffer.current();
+    let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
     match rri.outer_ty {
       RecordContentType::Alert => {
-        let dw = &mut TlsDecodeWrapper::from_bytes(self.buffer.reader_buffer.current());
+        let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
         return Ok(ManageRemainingServerRecordsState::Alert(Alert::decode(dw)?.data_bytes()));
       }
       RecordContentType::ApplicationData => {}
       RecordContentType::ChangeCipherSpec => {
-        let dw = &mut TlsDecodeWrapper::from_bytes(self.buffer.reader_buffer.current());
-        let _ = ChangeCipherSpec::decode(dw)?;
         return Ok(ManageRemainingServerRecordsState::NeedsMoreData);
       }
       RecordContentType::Handshake => return Err(TlsError::InvalidHandshake.into()),
     }
 
     let antecedent = self.buffer.reader_buffer.antecedent();
-    let current = self.buffer.reader_buffer.current();
-    let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
     self.transcript_hash.update(plaintext);
     let mut remote_dw = TlsDecodeWrapper::from_bytes(plaintext);
     let hs = Handshake::<&[u8]>::decode(&mut remote_dw)?;
     *remote_dw.bytes_mut() = hs.data;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
-        let encrypted_extensions = EncryptedExtensions::decode(&mut remote_dw)?;
+        let encrypted_extensions = EncryptedExtensions::<&[u8]>::decode(&mut remote_dw)?;
         if let Some(el) = encrypted_extensions.max_fragment_length() {
           self.max_fragment_length = el.num();
         }
+        drop(encrypted_extensions);
         *self.buffer.reader_buffer.forbid_clear_mut() = true;
       }
       HandshakeType::CertificateRequest => {
@@ -387,6 +387,7 @@ where
     }
     Ok(ManageRemainingServerRecordsState::NeedsMoreData)
   }
+
   /// Low level operation responsible for informing the local parameters to the remote server. No other method should
   /// be called before it.
   ///
@@ -406,10 +407,10 @@ where
     for key_share in &self.config.lease().inner.key_shares {
       secrets.push(key_share.group.agreement(&mut self.rng)?)?;
     }
-    let handshake = Handshake {
-      data: ClientHello::new(&mut self.rng, &secrets, self.config.lease()),
-      msg_type: HandshakeType::ClientHello,
-    };
+    let handshake = Handshake::new(
+      HandshakeType::ClientHello,
+      ClientHello::new(&mut self.rng, &secrets, self.config.lease()),
+    );
     let record = Record::new(RecordContentType::Handshake, &handshake);
     self.buffer.writer_buffer.clear();
     record.encode(&mut TlsEncodeWrapper::from_buffer(&mut self.buffer.writer_buffer))?;
@@ -431,11 +432,11 @@ where
   }
 
   #[inline]
-  async fn fetch_rec_from_stream(
+  async fn fetch_rec_from_stream<const CHECK_CCS: bool>(
     &mut self,
     decrypt: bool,
   ) -> crate::Result<StreamReadItem<ReadRecordInfo>> {
-    fetch_rec_from_stream(
+    fetch_rec_from_stream::<_, CHECK_CCS>(
       decrypt.then(|| self.key_schedule.read_mut().state_mut()),
       self.max_fragment_length,
       &mut self.buffer.reader_buffer,
@@ -482,12 +483,15 @@ where
         };
         cv_intermediates.push(cv_intermediate)?;
       }
+      mrsri.transcript_digest = transcript_hash.clone().finalize();
+      if TM::TY.is_unverified() {
+        return Ok(());
+      }
       drop(cv_end_entity.validate_chain(
         cv_intermediates.as_slice(),
         config.cv_policy(),
         config.trust_anchors(),
       )?);
-      mrsri.transcript_digest = transcript_hash.clone().finalize();
     }
     Ok(())
   }
@@ -499,6 +503,9 @@ where
   ) -> crate::Result<()> {
     let certificate_verify = CertificateVerify::decode(remote_dw)?;
     let msg = server_sig_msg(mrsri.transcript_digest.lease())?;
+    if TM::TY.is_unverified() {
+      return Ok(());
+    }
     validate_signature(
       &msg,
       certificate_verify.signature(),
@@ -530,7 +537,7 @@ pub struct TlsConnectRslt<RNG, S, TM> {
   /// See [`TlsServerEndPoint`]
   pub server_end_point: TlsServerEndPoint,
   /// See [`TlsStream`]
-  pub stream: TlsStream<S, TM, true>,
+  pub tls_stream: TlsStream<S, TM, true>,
 }
 
 // TLS header + Handshake type

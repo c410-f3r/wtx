@@ -600,7 +600,7 @@ async fn exec_tests<const IS_CLIENT: bool>(
       let mut rslt =
         TlsConnector::new(&tls_config, rng, stream).connect().await.unwrap().rslt().unwrap();
       check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
-      manage_after_handshake(&options, false, &mut rslt.stream).await;
+      manage_after_handshake(&options, false, &mut rslt.tls_stream).await;
     } else {
       let listener = TcpListener::bind(addr).await.unwrap();
       let mut stream = listener.accept().await.unwrap();
@@ -608,7 +608,7 @@ async fn exec_tests<const IS_CLIENT: bool>(
       let mut rslt =
         TlsAcceptor::new(&tls_config, rng, stream.0).accept().await.unwrap().rslt().unwrap();
       check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
-      manage_after_handshake(&options, false, &mut rslt.stream).await;
+      manage_after_handshake(&options, false, &mut rslt.tls_stream).await;
     }
     if options.resume_with_tickets_disabled {
       options.tickets = false;
@@ -719,7 +719,12 @@ fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
   // cfg.enable_sni = options.use_sni;
   *cfg.max_fragment_length_mut() = options.max_fragment;
   for protocol in &options.protocols {
-    cfg.alpn_mut().push(protocol.as_bytes().try_into().unwrap()).unwrap();
+    cfg
+      .alpn_mut()
+      .get_or_insert_default()
+      .protocol_name_list
+      .push(protocol.as_bytes().try_into().unwrap())
+      .unwrap();
   }
   cfg
 }
@@ -735,10 +740,20 @@ fn make_server_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
   }
   *cfg.max_fragment_length_mut() = options.max_fragment;
   for protocol in &options.protocols {
-    cfg.alpn_mut().push(protocol.as_bytes().try_into().unwrap()).unwrap();
+    cfg
+      .alpn_mut()
+      .get_or_insert_default()
+      .protocol_name_list
+      .push(protocol.as_bytes().try_into().unwrap())
+      .unwrap();
   }
   if options.reject_alpn {
-    cfg.alpn_mut().push("invalid".as_bytes().try_into().unwrap()).unwrap();
+    cfg
+      .alpn_mut()
+      .get_or_insert_default()
+      .protocol_name_list
+      .push("invalid".as_bytes().try_into().unwrap())
+      .unwrap();
   }
   cfg
 }

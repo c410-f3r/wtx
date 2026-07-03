@@ -9,7 +9,7 @@ use crate::{
   },
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct SignatureAlgorithms {
   pub(crate) signature_schemes: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
 }

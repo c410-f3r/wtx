@@ -1,4 +1,4 @@
-# HTTP Client Pool
+# HTTP/2 Client Pool
 
 High-level pool of HTTP clients where multiple connections that can be referenced in concurrent scenarios.
 

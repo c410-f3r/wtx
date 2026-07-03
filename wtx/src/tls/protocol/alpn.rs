@@ -10,10 +10,13 @@ use crate::{
   },
 };
 
-/// Application-Layer Protocol Negotiation
+/// Application-Layer Protocol Negotiation Extension
+///
+/// <https://datatracker.ietf.org/doc/html/rfc7301>
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Alpn {
-  pub(crate) protocol_name_list: ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN>,
+pub struct Alpn {
+  /// List of names
+  pub protocol_name_list: ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN>,
 }
 
 impl<'de> Decode<'de, De> for Alpn {

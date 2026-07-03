@@ -14,10 +14,11 @@ use wtx::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, State, post},
   },
-  tls::TlsConfig,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{
-  LocalTlsMode, PUBLIC_KEY, SECRET_KEY,
+  PUBLIC_KEY, SECRET_KEY,
   grpc_bindings::wtx::{GenericRequest, GenericResponse},
   host_from_args,
 };
@@ -30,8 +31,9 @@ async fn main() -> wtx::Result<()> {
   )?;
   Http2ServerFramework::new(
     TokioExecutor::default(),
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
-      LocalTlsMode::default(),
+      TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
     )?

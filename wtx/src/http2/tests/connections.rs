@@ -37,7 +37,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
       .unwrap()
       .rslt()
       .unwrap()
-      .stream;
+      .tls_stream;
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
     HttpRecvParams::with_optioned_params(),
@@ -86,7 +86,7 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
           .unwrap()
           .rslt()
           .unwrap()
-          .stream;
+          .tls_stream;
       let (frame_header, mut http2) = Http2::accept(
         Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
         HttpRecvParams::with_optioned_params(),

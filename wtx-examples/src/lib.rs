@@ -30,31 +30,27 @@ pub static SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
-/// Illustrates how a tls stream can be converted into a plain-text stream for testing purposes.
-///
-/// All certificates and other TLS structures will be ignored if plain-text is enabled.
-pub type LocalTlsMode = cfg_select! {
-  test => wtx::tls::TlsModePlainText,
-  _ => wtx::tls::TlsModeVerified,
-};
-
 /// Generic Postgres client
 #[cfg(feature = "postgres")]
 #[inline]
 pub async fn postgres_client(
   uri_str: &str,
 ) -> wtx::Result<
-  wtx::database::client::postgres::PostgresClient<wtx::Error, tokio::net::TcpStream, LocalTlsMode>,
+  wtx::database::client::postgres::PostgresClient<
+    wtx::Error,
+    tokio::net::TcpStream,
+    wtx::tls::TlsModeVerified,
+  >,
 > {
   use tokio::net::TcpStream;
   use wtx::{
     database::client::postgres::{ClientBuffer, Config, PostgresClient},
     rng::{ChaCha20, CryptoSeedableRng as _},
-    tls::{TlsConfig, TlsConnector},
+    tls::{TlsConfig, TlsConnector, TlsModeVerified},
   };
   let uri = wtx::misc::Uri::new(uri_str);
   let mut tls_connector = TlsConnector::new(
-    TlsConfig::from_trust_anchors_pem(LocalTlsMode::default(), [ROOT_CA])?,
+    TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
     ChaCha20::from_getrandom()?,
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
   );

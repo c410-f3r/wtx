@@ -9,19 +9,21 @@ use wtx::{
   collections::Vector,
   executor::TokioExecutor,
   http::WebSocketServerFramework,
-  tls::TlsConfig,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsConfig, TlsModeVerified},
   web_socket::{OpCode, WebSocket, WebSocketPayloadOrigin},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
-type LocalWebSocket = WebSocket<(), TcpStream, LocalTlsMode, false>;
+type LocalWebSocket = WebSocket<(), TcpStream, TlsModeVerified, false>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   WebSocketServerFramework::new(
     TokioExecutor::default(),
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
-      LocalTlsMode::default(),
+      TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
     )?

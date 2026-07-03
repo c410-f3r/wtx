@@ -1,9 +1,8 @@
-use core::marker::PhantomData;
-
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1Error, decode_asn1_tlv},
   codec::{Decode, DecodeWrapper, GenericCodec},
 };
+use core::marker::PhantomData;
 
 /// Helper that streams decoded elements to `C`
 #[derive(Debug, PartialEq)]

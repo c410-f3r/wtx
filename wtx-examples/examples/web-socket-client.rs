@@ -9,10 +9,10 @@ use wtx::{
   collections::Vector,
   misc::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsConnector},
+  tls::{TlsConfig, TlsConnector, TlsModeVerified},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
-use wtx_examples::{LocalTlsMode, ROOT_CA, uri_from_args};
+use wtx_examples::{ROOT_CA, uri_from_args};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -21,7 +21,7 @@ async fn main() -> wtx::Result<()> {
   let mut ws = WebSocketConnector::default()
     .connect(
       TlsConnector::new(
-        TlsConfig::from_trust_anchors_pem(LocalTlsMode::default(), [ROOT_CA])?,
+        TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
         ChaCha20::from_getrandom()?,
         stream,
       ),

@@ -5,7 +5,7 @@ use crate::{
   executor::{Executor, Runtime as _, TcpListener},
   http::Router,
   misc::{TcpParams, Uri},
-  rng::{ChaCha20, CryptoRng, CryptoSeedableRng},
+  rng::{CryptoRng, CryptoSeedableRng},
   stream::{StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -34,13 +34,13 @@ pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, TM>
+impl<EX, RNG, TM>
   WebSocketServerFramework<
     (),
     fn(crate::Error),
     EX,
     fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
-    ChaCha20,
+    RNG,
     TM,
   >
 where
@@ -48,7 +48,7 @@ where
 {
   /// Taking aside the provided parameters, everything else is set to default values.
   #[inline]
-  pub fn new(executor: EX, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
     Ok(Self {
@@ -57,7 +57,7 @@ where
       executor,
       local_runtime_cb,
       local_runtimes: None,
-      rng: ChaCha20::from_std_random()?,
+      rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })
@@ -168,6 +168,7 @@ where
   ///
   /// You must call this method from within an existing async environment. Preferably, a
   /// multi-thread environment.
+  #[cfg(feature = "nightly")]
   #[inline]
   pub async fn run<WSR>(mut self, addr: &str, wsr: WSR) -> Result<(), ER>
   where

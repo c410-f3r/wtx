@@ -57,44 +57,21 @@ where
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
+    let err = TlsError::InvalidNewSessionTicket;
     let ticket_lifetime: u32 = Decode::<'_, De>::decode(dw)?;
     let ticket_age_add: u32 = Decode::<'_, De>::decode(dw)?;
-    let ticket_nonce =
-      u8_chunk(dw, TlsError::InvalidNewSessionTicket, |el| Ok(el.bytes()))?.try_into()?;
+    let ticket_nonce = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let len: u16 = Decode::<'_, De>::decode(dw)?;
     let Some((opaque, rest)) = dw.bytes().split_at_checked(len.into()) else {
       return Err(TlsError::InvalidServerName.into());
     };
     *dw.bytes_mut() = rest;
-    u16_chunk(dw, TlsError::InvalidNewSessionTicket, |local_dw| {
-      let extension_ty = {
-        let tmp_bytes = &mut *local_dw;
-        ExtensionTy::decode(tmp_bytes)?
-      };
-      match extension_ty {
-        ExtensionTy::EarlyData => Err(TlsError::UnsupportedExtension.into()),
-        ExtensionTy::ApplicationLayerProtocolNegotiation
-        | ExtensionTy::CertificateAuthorities
-        | ExtensionTy::ClientCertificateType
-        | ExtensionTy::Cookie
-        | ExtensionTy::Heartbeat
-        | ExtensionTy::KeyShare
-        | ExtensionTy::MaxFragmentLength
-        | ExtensionTy::OidFilters
-        | ExtensionTy::Padding
-        | ExtensionTy::PostHandshakeAuth
-        | ExtensionTy::PreSharedKey
-        | ExtensionTy::PskKeyExchangeModes
-        | ExtensionTy::ServerCertificateType
-        | ExtensionTy::ServerName
-        | ExtensionTy::SignatureAlgorithms
-        | ExtensionTy::SignatureAlgorithmsCert
-        | ExtensionTy::SignedCertificateTimestamp
-        | ExtensionTy::StatusRequest
-        | ExtensionTy::SupportedGroups
-        | ExtensionTy::SupportedVersions
-        | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
+    u16_chunk(dw, err, |local_dw| {
+      while !local_dw.bytes().is_empty() {
+        let extension_ty = ExtensionTy::decode(local_dw)?;
+        u16_chunk(local_dw, err, |local_local_dw| manage_extension(local_local_dw, extension_ty))?;
       }
+      Ok(())
     })?;
     Ok(Self {
       ticket_lifetime,
@@ -122,5 +99,36 @@ where
       crate::Result::Ok(())
     })?;
     Ok(())
+  }
+}
+
+#[inline]
+fn manage_extension(
+  _dw: &mut TlsDecodeWrapper<'_>,
+  extension_ty: ExtensionTy,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::EarlyData => Err(TlsError::UnsupportedExtension.into()),
+    ExtensionTy::ApplicationLayerProtocolNegotiation
+    | ExtensionTy::CertificateAuthorities
+    | ExtensionTy::ClientCertificateType
+    | ExtensionTy::Cookie
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::KeyShare
+    | ExtensionTy::MaxFragmentLength
+    | ExtensionTy::OidFilters
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::PreSharedKey
+    | ExtensionTy::PskKeyExchangeModes
+    | ExtensionTy::ServerCertificateType
+    | ExtensionTy::ServerName
+    | ExtensionTy::SignatureAlgorithms
+    | ExtensionTy::SignatureAlgorithmsCert
+    | ExtensionTy::SignedCertificateTimestamp
+    | ExtensionTy::StatusRequest
+    | ExtensionTy::SupportedGroups
+    | ExtensionTy::SupportedVersions
+    | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
   }
 }

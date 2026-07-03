@@ -33,6 +33,8 @@ mod protocol;
 mod psk;
 mod psk_ty;
 mod read_record_info;
+#[cfg(test)]
+mod tests;
 mod tls_acceptor;
 mod tls_buffer;
 mod tls_certificate;
@@ -61,6 +63,7 @@ pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
 pub use protocol::{
+  alpn::Alpn,
   cipher_suite::CipherSuite,
   max_fragment_length::MaxFragmentLength,
   named_group::{NamedGroup, NamedGroupParam},

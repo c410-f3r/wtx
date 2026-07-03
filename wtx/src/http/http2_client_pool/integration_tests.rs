@@ -3,6 +3,7 @@ use crate::{
   executor::{StdExecutor, StdRuntime},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
 };
 
@@ -20,6 +21,7 @@ async fn send_recv(uri: UriRef<'_>) {
   let client = Http2ClientPoolBuilder::new(
     StdExecutor::default(),
     1,
+    ChaCha20::from_std_random().unwrap(),
     TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap().into(),
   )
   .unwrap()

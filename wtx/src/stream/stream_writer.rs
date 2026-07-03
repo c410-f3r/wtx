@@ -1,6 +1,5 @@
-use core::future;
-
 use crate::stream::StreamCommon;
+use core::future;
 
 /// A stream of values written asynchronously.
 pub trait StreamWriter: StreamCommon {

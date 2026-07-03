@@ -4,6 +4,7 @@ use crate::{
   tls::{TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper},
 };
 
+#[derive(Debug)]
 pub(crate) struct U24(u32);
 
 impl<'de> Decode<'de, De> for U24 {
@@ -14,7 +15,7 @@ impl<'de> Decode<'de, De> for U24 {
       return Err(TlsError::InvalidU16Prefix.into());
     };
     *dw.bytes_mut() = rest;
-    Ok(Self(u32::from_be_bytes([*b0, *b1, *b2, 0])))
+    Ok(Self(u32::from_be_bytes([0, *b0, *b1, *b2])))
   }
 }
 

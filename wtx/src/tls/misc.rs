@@ -1,5 +1,3 @@
-use core::{hint::cold_path, num::NonZeroUsize};
-
 use crate::{
   codec::Decode,
   collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, Vector},
@@ -23,6 +21,7 @@ use crate::{
     tls_decode_wrapper::TlsDecodeWrapper,
   },
 };
+use core::{hint::cold_path, num::NonZeroUsize};
 
 pub(crate) fn build_header(ty: RecordContentType, len: u16) -> [u8; 5] {
   let [b0, n1] = len.to_be_bytes();
@@ -36,7 +35,7 @@ pub(crate) fn duplicated_error(is_some: bool) -> crate::Result<()> {
   Ok(())
 }
 
-pub(crate) async fn fetch_rec_from_stream<SR>(
+pub(crate) async fn fetch_rec_from_stream<SR, const CHECK_CCS: bool>(
   kss: Option<&mut KeyScheduleState>,
   max_fragment_length: u16,
   reader_buffer: &mut BufStreamReader,
@@ -48,6 +47,16 @@ where
   let Some(header) = reader_buffer.read_header::<_, 5>(stream_reader).await?.opt() else {
     return Ok(StreamReadItem::empty_cold());
   };
+  if CHECK_CCS && header == [RecordContentType::ChangeCipherSpec.into(), 3, 3, 0, 1] {
+    if reader_buffer.read_payload(1, stream_reader).await?.is_closed() {
+      return Ok(StreamReadItem::empty_cold());
+    }
+    return Ok(StreamReadItem::from_item(ReadRecordInfo {
+      inner_ty: RecordContentType::ChangeCipherSpec,
+      outer_ty: RecordContentType::ChangeCipherSpec,
+      plaintext_len: 1,
+    }));
+  }
   let [b0, b1, b2, b3, b4] = header;
   let outer_ty = RecordContentType::try_from(b0)?;
   let protocol_version = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
@@ -64,12 +73,12 @@ where
   }
   let mut trails: u16 = 0;
   let inner_ty = if let Some(elem) = kss {
-    elem.increment_counter();
     let nonce = elem.nonce();
     let secret = elem.cipher_key();
     let record = reader_buffer.current_mut();
     let _ = elem.cipher_suite().aes_decrypt(&header, record, nonce, secret)?;
-    let [plaintext @ .., maybe_ty, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] = record else {
+    elem.increment_counter();
+    let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
       return Err(crate::crypto::CryptoError::InvalidAesData.into());
     };
     trails = 17;
@@ -123,7 +132,7 @@ where
     ));
   }
   loop {
-    let Some(rri) = fetch_rec_from_stream(
+    let Some(rri) = fetch_rec_from_stream::<_, false>(
       Some(ksr.state_mut()),
       max_fragment_length,
       reader_buffer,
@@ -137,7 +146,7 @@ where
       cold_path();
       return Err(TlsError::UnexpectedAfterHandshakeOuterRecord.into());
     };
-    let plaintext = reader_buffer.current().get(..*plaintext_len).unwrap_or_default();
+    let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
     match rri.inner_ty {
       RecordContentType::Alert => {
         cold_path();
@@ -172,7 +181,7 @@ where
             if !IS_CLIENT {
               return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
             }
-            let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
+            let dw = &mut TlsDecodeWrapper::from_bytes(hs.data);
             *new_session_ticket = Some(NewSessionTicket::decode(dw)?);
           }
           HandshakeType::Certificate
@@ -311,6 +320,7 @@ where
 #[inline]
 pub(crate) async fn write_data<SW>(
   bytes: &[&[u8]],
+  inner_ty: RecordContentType,
   ksw: &mut KeyScheduleWrite,
   max_fragment_length: u16,
   stream_writer: &mut SW,
@@ -328,7 +338,7 @@ where
       let _ = writer_buffer.extend_from_copyable_slices([
         header.as_slice(),
         chunk,
-        &[RecordContentType::ApplicationData.into()],
+        &[inner_ty.into()],
         &[0; AEAD_TAG_LEN],
       ])?;
       let plaintext_len = chunk.len().wrapping_add(1);
@@ -366,8 +376,5 @@ where
   *dw.bytes_mut() = before;
   let rslt = cb(dw)?;
   *dw.bytes_mut() = after;
-  if !before.is_empty() {
-    return Err(err.into());
-  }
   Ok(rslt)
 }

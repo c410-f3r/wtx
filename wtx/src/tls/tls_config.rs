@@ -5,7 +5,7 @@ use crate::{
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
   tls::{
-    CipherSuite, MAX_ALPN_LEN, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsCertificateTy,
+    CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsCertificateTy,
     TlsModePlainText,
     protocol::{
       alpn::Alpn, cert_types::CertTypes, key_share_entry::KeyShareEntry, offered_psks::OfferedPsks,
@@ -81,18 +81,16 @@ impl<TM> TlsConfig<TM> {
     Ok(this)
   }
 
-  /// Application-Layer Protocol Negotiation Extension
-  ///
-  /// <https://datatracker.ietf.org/doc/html/rfc7301>
+  /// See [`Alpn`].
   #[inline]
-  pub const fn alpn(&self) -> &ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN> {
-    &self.inner.alpn.protocol_name_list
+  pub const fn alpn(&self) -> &Option<Alpn> {
+    &self.inner.alpn
   }
 
   /// Mutable version of [`Self::alpn`].
   #[inline]
-  pub const fn alpn_mut(&mut self) -> &mut ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN> {
-    &mut self.inner.alpn.protocol_name_list
+  pub const fn alpn_mut(&mut self) -> &mut Option<Alpn> {
+    &mut self.inner.alpn
   }
 
   /// See [`CvPolicy`].
@@ -212,7 +210,7 @@ impl<TM> Debug for TlsConfig<TM> {
 
 #[derive(Clone)]
 pub(crate) struct TlsConfigInner<B, TM> {
-  pub(crate) alpn: Alpn,
+  pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::len() }>,
   pub(crate) client_cert_types: CertTypes,
   pub(crate) cv_policy: CvPolicy<B>,
@@ -237,7 +235,7 @@ where
   #[inline]
   fn new(mode: TM) -> Self {
     Self {
-      alpn: Alpn { protocol_name_list: ArrayVectorCopy::new() },
+      alpn: None,
       client_cert_types: CertTypes::default(),
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::all()),
       cv_policy: CvPolicy::new(),

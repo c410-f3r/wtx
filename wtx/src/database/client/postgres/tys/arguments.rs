@@ -1,5 +1,3 @@
-use core::fmt::{Arguments, Write as _};
-
 use crate::{
   codec::Encode,
   database::{
@@ -7,6 +5,7 @@ use crate::{
     client::postgres::{Postgres, PostgresEncodeWrapper, Ty},
   },
 };
+use core::fmt::{Arguments, Write as _};
 
 impl<E> Encode<Postgres<E>> for Arguments<'_>
 where

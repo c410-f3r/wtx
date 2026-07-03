@@ -4,6 +4,8 @@ use core::marker::PhantomData;
 #[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
 pub(crate) mod global;
+#[cfg(feature = "crypto-openssl")]
+mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 

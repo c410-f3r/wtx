@@ -1,7 +1,6 @@
+use crate::SendError;
 #[cfg(feature = "crossbeam-channel")]
 pub use crossbeam::*;
-
-use crate::SendError;
 
 /// Multi-producer multi-consumer channel.
 pub trait Mpmc<T> {

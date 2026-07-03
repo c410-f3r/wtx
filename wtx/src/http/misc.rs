@@ -14,11 +14,6 @@ pub fn is_web_socket_handshake(
 }
 
 #[cfg(any(feature = "http2-client-pool", feature = "http2-server-framework"))]
-pub(crate) fn push_h2_alpn(
-  alpn: &mut crate::collections::ArrayVectorCopy<
-    crate::collections::ArrayVectorCopy<u8, 8>,
-    { crate::tls::MAX_ALPN_LEN },
-  >,
-) -> crate::Result<()> {
-  alpn.push("h2".as_bytes().try_into()?)
+pub(crate) fn push_h2_alpn(alpn: &mut Option<crate::tls::Alpn>) -> crate::Result<()> {
+  alpn.get_or_insert_default().protocol_name_list.push("h2".as_bytes().try_into()?)
 }

@@ -16,10 +16,6 @@ impl<T> Extension<T> {
   pub(crate) fn new(extension_ty: ExtensionTy, data: T) -> Self {
     Self { data, extension_ty }
   }
-
-  pub(crate) fn into_data(self) -> T {
-    self.data
-  }
 }
 
 impl<'de, T> Decode<'de, De> for Extension<T>

@@ -56,7 +56,7 @@ where
     TM: TlsMode,
   {
     self.wsb.clear();
-    let mut tls_stream = tls_acceptor.accept().await?.rslt()?.stream;
+    let mut tls_stream = tls_acceptor.accept().await?.rslt()?.tls_stream;
     let nb = &mut self.wsb.network_buffer;
     loop {
       let _ = nb.read_arbitrary(READ_INCREMENT, &mut tls_stream).await?.rslt()?;
@@ -146,12 +146,12 @@ where
         &mut tls_stream.rng,
         uri,
       )?;
-      tls_stream.stream.write_all(sw.curr()).await?;
+      tls_stream.tls_stream.write_all(sw.curr()).await?;
       key
     };
     let (nc, len) = loop {
       let nb = &mut self.wsb.network_buffer;
-      let _ = nb.read_arbitrary(READ_INCREMENT, &mut tls_stream.stream).await?.rslt()?;
+      let _ = nb.read_arbitrary(READ_INCREMENT, &mut tls_stream.tls_stream).await?.rslt()?;
       let mut httparse_headers = [EMPTY_HEADER; MAX_HEADERS];
       let mut res = Response::new(&mut httparse_headers);
       let buffer = nb.current();
@@ -176,7 +176,7 @@ where
     };
     self.wsb.network_buffer.set_indices(len, len);
     let rng = Xorshift64::from_simple_seed()?;
-    Ok(WebSocket::new(nc, self.no_masking, rng, tls_stream.stream, self.wsb))
+    Ok(WebSocket::new(nc, self.no_masking, rng, tls_stream.tls_stream, self.wsb))
   }
 }
 
