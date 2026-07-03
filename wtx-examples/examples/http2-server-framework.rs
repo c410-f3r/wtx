@@ -23,19 +23,20 @@ use wtx::{
   misc::SecretContext,
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::TlsConfig,
+  tls::{TlsConfig, TlsModeVerified},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream, LocalTlsMode>>;
+type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut server = Http2ServerFramework::new(
     TokioExecutor::default(),
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
-      LocalTlsMode::default(),
+      TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
     )?
@@ -46,7 +47,7 @@ async fn main() -> wtx::Result<()> {
     PostgresRM::new(
       ChaCha20::from_crypto_rng(server.rng_mut())?,
       SecretContext::new(server.rng_mut())?,
-      TlsConfig::from_trust_anchors_pem(LocalTlsMode::default(), [ROOT_CA])?.into(),
+      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?.into(),
       &mut uri,
     )?,
   );
@@ -88,7 +89,7 @@ async fn hello() -> &'static str {
 }
 
 async fn stream(
-  mut manual_stream: ManualStream<LocalPool, ServerStream<OwnedWriteHalf, LocalTlsMode>>,
+  mut manual_stream: ManualStream<LocalPool, ServerStream<OwnedWriteHalf, TlsModeVerified>>,
 ) -> wtx::Result<()> {
   manual_stream.stream.common().send_go_away(Http2ErrorCode::NoError).await;
   Ok(())

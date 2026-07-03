@@ -11,7 +11,7 @@ use crate::{
     misc::{u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
-      protocol_version::ProtocolVersion, protocol_versions::SupportedVersions,
+      protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
     },
     tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
@@ -28,7 +28,7 @@ pub(crate) struct ServerHello<'any> {
   legacy_version: ProtocolVersion,
   random: [u8; 32],
   selected_identity: Option<u16>,
-  supported_versions: SupportedVersions,
+  supported_versions: SupportedVersionsServer,
 }
 
 impl<'any> ServerHello<'any> {
@@ -59,9 +59,7 @@ impl<'any> ServerHello<'any> {
       legacy_version: ProtocolVersion::Tls12,
       random,
       selected_identity,
-      supported_versions: SupportedVersions::new(ArrayVectorCopy::from_array([
-        ProtocolVersion::Tls13,
-      ])),
+      supported_versions: SupportedVersionsServer::new(ProtocolVersion::Tls13),
     }
   }
 
@@ -77,77 +75,38 @@ impl<'any> ServerHello<'any> {
 impl<'de> Decode<'de, De> for ServerHello<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
+    let err = TlsError::InvalidServerHello;
     let legacy_version = ProtocolVersion::decode(dw)?;
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
     let is_hello_retry_request = random == HELLO_RETRY_REQUEST;
-    let legacy_session_id_echo =
-      u8_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(el.bytes()))?.try_into()?;
+    let legacy_session_id_echo = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
     let mut key_share_opt = None;
-    let mut selected_identity_opt = None;
+    let mut selected_identity = None;
     let mut supported_versions_opt = None;
-    u16_chunk(dw, TlsError::InvalidServerHelloLen, |local_dw| {
+    u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
-        let extension_ty = {
-          let begin_bytes = local_dw.bytes();
-          let extension_ty = ExtensionTy::decode(local_dw)?;
-          *local_dw.bytes_mut() = begin_bytes;
-          extension_ty
-        };
-        match extension_ty {
-          ExtensionTy::Cookie => {
-            if is_hello_retry_request {
-              return Err(TlsError::UnsupportedExtension.into());
-            }
-            return Err(TlsError::MismatchedExtension.into());
-          }
-          ExtensionTy::KeyShare => {
-            *local_dw.is_hello_retry_request_mut() = is_hello_retry_request;
-            let rslt = KeyShareEntry::decode(local_dw);
-            *local_dw.is_hello_retry_request_mut() = false;
-            key_share_opt = Some(rslt?);
-          }
-          ExtensionTy::PreSharedKey => {
-            if is_hello_retry_request {
-              return Err(TlsError::MismatchedExtension.into());
-            }
-            selected_identity_opt = Some(Extension::<u16>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::SupportedVersions => {
-            supported_versions_opt =
-              Some(Extension::<SupportedVersions>::decode(local_dw)?.into_data());
-          }
-          ExtensionTy::ApplicationLayerProtocolNegotiation
-          | ExtensionTy::CertificateAuthorities
-          | ExtensionTy::ClientCertificateType
-          | ExtensionTy::EarlyData
-          | ExtensionTy::Heartbeat
-          | ExtensionTy::MaxFragmentLength
-          | ExtensionTy::OidFilters
-          | ExtensionTy::Padding
-          | ExtensionTy::PostHandshakeAuth
-          | ExtensionTy::PskKeyExchangeModes
-          | ExtensionTy::ServerCertificateType
-          | ExtensionTy::ServerName
-          | ExtensionTy::SignatureAlgorithms
-          | ExtensionTy::SignatureAlgorithmsCert
-          | ExtensionTy::SignedCertificateTimestamp
-          | ExtensionTy::StatusRequest
-          | ExtensionTy::SupportedGroups
-          | ExtensionTy::UseSrtp => {
-            return Err(TlsError::MismatchedExtension.into());
-          }
-        }
+        let extension_ty = ExtensionTy::decode(local_dw)?;
+        u16_chunk(local_dw, err, |local_local_dw| {
+          manage_extension(
+            local_local_dw,
+            extension_ty,
+            is_hello_retry_request,
+            &mut key_share_opt,
+            &mut selected_identity,
+            &mut supported_versions_opt,
+          )
+        })?;
       }
       Ok(())
     })?;
     let Some(supported_versions) = supported_versions_opt else {
       return Err(TlsError::MissingSupportedVersions.into());
     };
-    let [ProtocolVersion::Tls13] = supported_versions.versions.as_slice() else {
+    if supported_versions.selected_version != ProtocolVersion::Tls13 {
       return Err(TlsError::UnsupportedTlsVersion.into());
-    };
+    }
     Ok(Self {
       cipher_suite,
       is_hello_retry_request,
@@ -156,7 +115,7 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
       legacy_session_id_echo,
       legacy_version,
       random,
-      selected_identity: selected_identity_opt,
+      selected_identity,
       supported_versions,
     })
   }
@@ -174,8 +133,10 @@ impl Encode<De> for ServerHello<'_> {
     self.cipher_suite.encode(ew)?;
     ew.buffer().push(self.legacy_compression_method)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      if !self.is_hello_retry_request {
-        Extension::new(ExtensionTy::PreSharedKey, self.selected_identity).encode(local_ew)?;
+      if !self.is_hello_retry_request
+        && let Some(identity) = self.selected_identity
+      {
+        Extension::new(ExtensionTy::PreSharedKey, identity).encode(local_ew)?;
       }
       {
         *local_ew.is_hello_retry_request_mut() = self.is_hello_retry_request;
@@ -187,4 +148,59 @@ impl Encode<De> for ServerHello<'_> {
       Ok(())
     })
   }
+}
+
+#[inline]
+fn manage_extension<'de>(
+  dw: &mut TlsDecodeWrapper<'de>,
+  extension_ty: ExtensionTy,
+  is_hello_retry_request: bool,
+  key_share_opt: &mut Option<KeyShareEntry<&'de [u8]>>,
+  selected_identity_opt: &mut Option<u16>,
+  supported_versions_opt: &mut Option<SupportedVersionsServer>,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::Cookie => {
+      if is_hello_retry_request {
+        return Err(TlsError::UnsupportedExtension.into());
+      }
+      return Err(TlsError::MismatchedExtension.into());
+    }
+    ExtensionTy::KeyShare => {
+      *dw.is_hello_retry_request_mut() = is_hello_retry_request;
+      let rslt = KeyShareEntry::decode(dw);
+      *dw.is_hello_retry_request_mut() = false;
+      *key_share_opt = Some(rslt?);
+    }
+    ExtensionTy::PreSharedKey => {
+      if is_hello_retry_request {
+        return Err(TlsError::MismatchedExtension.into());
+      }
+      *selected_identity_opt = Some(<u16 as Decode<'_, De>>::decode(dw)?);
+    }
+    ExtensionTy::SupportedVersions => {
+      *supported_versions_opt = Some(SupportedVersionsServer::decode(dw)?);
+    }
+    ExtensionTy::ApplicationLayerProtocolNegotiation
+    | ExtensionTy::CertificateAuthorities
+    | ExtensionTy::ClientCertificateType
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::MaxFragmentLength
+    | ExtensionTy::OidFilters
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::PskKeyExchangeModes
+    | ExtensionTy::ServerCertificateType
+    | ExtensionTy::ServerName
+    | ExtensionTy::SignatureAlgorithms
+    | ExtensionTy::SignatureAlgorithmsCert
+    | ExtensionTy::SignedCertificateTimestamp
+    | ExtensionTy::StatusRequest
+    | ExtensionTy::SupportedGroups
+    | ExtensionTy::UseSrtp => {
+      return Err(TlsError::MismatchedExtension.into());
+    }
+  }
+  Ok(())
 }

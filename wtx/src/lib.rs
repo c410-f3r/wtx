@@ -6,6 +6,8 @@
 #![no_std]
 
 extern crate alloc;
+#[cfg(test)]
+extern crate self as wtx;
 #[cfg(feature = "std")]
 extern crate std;
 #[allow(unused_extern_crates, reason = "selection of features")]

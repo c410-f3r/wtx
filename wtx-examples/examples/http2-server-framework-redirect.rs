@@ -6,16 +6,18 @@ use wtx::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, Redirect, StateClean, get},
   },
-  tls::TlsConfig,
+  rng::{ChaCha20, CryptoSeedableRng as _},
+  tls::{TlsConfig, TlsModeVerified},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   Http2ServerFramework::new(
     TokioExecutor::default(),
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
-      LocalTlsMode::default(),
+      TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
     )?

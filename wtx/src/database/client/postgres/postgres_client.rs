@@ -59,7 +59,7 @@ where
         client_buffer,
         config,
         &mut rslt.rng,
-        rslt.stream,
+        rslt.tls_stream,
         rslt.server_end_point,
       )
       .await;
@@ -79,7 +79,7 @@ where
       client_buffer,
       config,
       &mut rslt.rng,
-      rslt.stream,
+      rslt.tls_stream,
       rslt.server_end_point,
     )
     .await;

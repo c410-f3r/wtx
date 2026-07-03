@@ -6,7 +6,7 @@ use crate::{
   },
   misc::TcpParams,
   pool::{ResourceManager, SimplePool},
-  rng::{ChaCha20, CryptoSeedableRng as _},
+  rng::ChaCha20,
   sync::{Arc, AtomicCell},
   tls::{Psk, TlsConfig},
 };
@@ -28,14 +28,19 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
-  pub fn new(executor: EX, len: usize, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(
+    executor: EX,
+    len: usize,
+    rng: ChaCha20,
+    mut tls_config: TlsConfig<TM>,
+  ) -> crate::Result<Self> {
     push_h2_alpn(tls_config.alpn_mut())?;
     Ok(Self {
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
       len,
       psk: None,
-      rng: ChaCha20::from_std_random()?,
+      rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })

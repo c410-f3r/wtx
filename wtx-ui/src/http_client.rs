@@ -8,6 +8,7 @@ use wtx::{
     http2_client_pool::Http2ClientPoolBuilder,
   },
   misc::{AsciiGeneric, from_utf8_basic, into_rslt, str_split_once1, tracing_tree_init},
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
 };
 
@@ -38,6 +39,7 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
   let client = Http2ClientPoolBuilder::new(
     TokioExecutor::default(),
     1,
+    ChaCha20::from_std_random()?,
     TlsConfig::from_ccadb(TlsModeVerified::default())?,
   )?
   .build();

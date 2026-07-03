@@ -1,4 +1,4 @@
-# HTTP Server Framework
+# HTTP/2 Server Framework
 
 A small and fast to compile framework that can interact with many built-in features.
 

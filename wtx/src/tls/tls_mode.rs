@@ -9,6 +9,13 @@ pub trait TlsMode: Clone + Default {
 /// Data is treated as plaintext bytes. Useful for tests or local connections.
 #[derive(Clone, Debug, Default)]
 pub struct TlsModePlainText {}
+impl TlsModePlainText {
+  /// New instance
+  #[inline]
+  pub const fn new() -> Self {
+    Self {}
+  }
+}
 impl TlsMode for TlsModePlainText {
   const TY: TlsModeTy = TlsModeTy::PlainText;
 }
@@ -18,6 +25,13 @@ impl TlsMode for TlsModePlainText {
 /// Data is encrypted but certificates are **NOT** verified.
 #[derive(Clone, Debug, Default)]
 pub struct TlsModeUnverified {}
+impl TlsModeUnverified {
+  /// New instance
+  #[inline]
+  pub const fn new() -> Self {
+    Self {}
+  }
+}
 impl TlsMode for TlsModeUnverified {
   const TY: TlsModeTy = TlsModeTy::Unverified;
 }
@@ -27,6 +41,13 @@ impl TlsMode for TlsModeUnverified {
 /// Data is encrypted and certificates are verified.
 #[derive(Clone, Debug, Default)]
 pub struct TlsModeVerified {}
+impl TlsModeVerified {
+  /// New instance
+  #[inline]
+  pub const fn new() -> Self {
+    Self {}
+  }
+}
 impl TlsMode for TlsModeVerified {
   const TY: TlsModeTy = TlsModeTy::Verified;
 }
@@ -37,6 +58,13 @@ impl TlsMode for TlsModeVerified {
 /// [`TlsModeVerified`] in that some valid but lenient certificates might fail.
 #[derive(Clone, Debug, Default)]
 pub struct TlsModeStrict {}
+impl TlsModeStrict {
+  /// New instance
+  #[inline]
+  pub const fn new() -> Self {
+    Self {}
+  }
+}
 impl TlsMode for TlsModeStrict {
   const TY: TlsModeTy = TlsModeTy::Strict;
 }
@@ -60,6 +88,12 @@ impl TlsModeTy {
   #[inline]
   pub const fn is_plain_text(&self) -> bool {
     matches!(self, Self::PlainText)
+  }
+
+  /// Returns `true` if this instance is [`TlsModeTy::Unverified`].
+  #[inline]
+  pub const fn is_unverified(&self) -> bool {
+    matches!(self, Self::Unverified)
   }
 
   /// Everything but [`TlsModeTy::PlainText`] and [`TlsModeTy::Unverified`] requires a one or more

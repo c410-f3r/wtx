@@ -2,9 +2,9 @@
 
 use crate::{
   codec::{Decode, Encode},
-  misc::counter_writer::{CounterWriterBytesTy, u16_write},
+  misc::counter_writer::{CounterWriterBytesTy, u24_write},
   tls::{
-    TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
+    TlsError, de::De, misc::u24_chunk, tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -32,6 +32,13 @@ pub(crate) struct Handshake<T> {
   pub(crate) data: T,
 }
 
+impl<T> Handshake<T> {
+  #[inline]
+  pub(crate) const fn new(msg_type: HandshakeType, data: T) -> Self {
+    Self { msg_type, data }
+  }
+}
+
 impl<'de, T> Decode<'de, De> for Handshake<T>
 where
   T: Decode<'de, De>,
@@ -39,7 +46,7 @@ where
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let msg_type = HandshakeType::try_from(<u8 as Decode<De>>::decode(dw)?)?;
-    let data = u16_chunk(dw, TlsError::InvalidHandshake, |local_dw| T::decode(local_dw))?;
+    let data = u24_chunk(dw, TlsError::InvalidHandshake, |local_dw| T::decode(local_dw))?;
     Ok(Self { msg_type, data })
   }
 }
@@ -51,6 +58,6 @@ where
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().push(u8::from(self.msg_type))?;
-    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| self.data.encode(local_ew))
+    u24_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| self.data.encode(local_ew))
   }
 }

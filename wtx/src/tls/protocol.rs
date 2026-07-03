@@ -5,7 +5,6 @@ pub(crate) mod cert_types;
 pub(crate) mod certificate;
 pub(crate) mod certificate_request;
 pub(crate) mod certificate_verify;
-pub(crate) mod change_cipher_spec;
 pub(crate) mod cipher_suite;
 pub(crate) mod client_hello;
 pub(crate) mod cookie;

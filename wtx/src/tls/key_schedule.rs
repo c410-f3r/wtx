@@ -66,12 +66,8 @@ impl KeySchedule {
       };
       let mut context_buffer = ArrayVectorCopy::<_, MAX_HASH_LEN>::new();
       context_buffer.extend_from_copyable_slice(self.cipher_suite.hash_digest([]).lease())?;
-      let binder_key = derive_secret(
-        self.cipher_suite,
-        Some(context_buffer.as_slice()),
-        label,
-        &self.common_hkdf,
-      )?;
+      let context = Some(&*context_buffer);
+      let binder_key = derive_secret(self.cipher_suite, context, label, &self.common_hkdf)?;
       self.write.binder_key = self.cipher_suite.hkdf_from_prk(&binder_key)?;
     } else {
       self.hkdf_extract(&self.cipher_suite.zeroed_hash());
@@ -81,13 +77,18 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn handshake_secret(
+  pub(crate) fn handshake_secret<const IS_CLIENT: bool>(
     &mut self,
     ikm: &[u8],
     transcript_hash: &TlsDigest,
   ) -> crate::Result<()> {
+    let tuple = if IS_CLIENT {
+      ("c hs traffic".as_bytes(), "s hs traffic".as_bytes())
+    } else {
+      ("s hs traffic".as_bytes(), "c hs traffic".as_bytes())
+    };
     self.hkdf_extract(ikm);
-    self.calculate_traffic_secrets(b"c hs traffic", b"s hs traffic", transcript_hash)?;
+    self.calculate_traffic_secrets(tuple, transcript_hash)?;
     self.common_secret = derive_secret_derived(self.cipher_suite, &self.common_hkdf)?;
     Ok(())
   }
@@ -98,9 +99,17 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn master_secret(&mut self, transcript_hash: &TlsDigest) -> crate::Result<()> {
+  pub(crate) fn master_secret<const IS_CLIENT: bool>(
+    &mut self,
+    transcript_hash: &TlsDigest,
+  ) -> crate::Result<()> {
+    let tuple = if IS_CLIENT {
+      ("c ap traffic".as_bytes(), "s ap traffic".as_bytes())
+    } else {
+      ("s ap traffic".as_bytes(), "c ap traffic".as_bytes())
+    };
     self.hkdf_extract(&self.cipher_suite.zeroed_hash());
-    self.calculate_traffic_secrets(b"c ap traffic", b"s ap traffic", transcript_hash)?;
+    self.calculate_traffic_secrets(tuple, transcript_hash)?;
     Ok(())
   }
 
@@ -111,9 +120,13 @@ impl KeySchedule {
 
   #[inline]
   pub(crate) fn set_cipher_suite(&mut self, cipher_suite: CipherSuite) {
-    self.cipher_suite = cipher_suite;
-    self.read.state.cipher_suite = cipher_suite;
-    self.write.state.cipher_suite = cipher_suite;
+    if self.cipher_suite == cipher_suite {
+      self.cipher_suite = cipher_suite;
+      self.read.state.cipher_suite = cipher_suite;
+      self.write.state.cipher_suite = cipher_suite;
+    } else {
+      *self = Self::from_cipher_suite(cipher_suite);
+    }
   }
 
   #[inline]
@@ -129,18 +142,17 @@ impl KeySchedule {
   #[inline]
   fn calculate_traffic_secrets(
     &mut self,
-    client_label: &'static [u8],
-    server_label: &'static [u8],
+    (lhs, rhs): (&'static [u8], &'static [u8]),
     transcript_hash: &TlsDigest,
   ) -> crate::Result<()> {
-    self.read.state.update(Some(&self.common_hkdf), server_label, Some(transcript_hash))?;
-    self.write.state.update(Some(&self.common_hkdf), client_label, Some(transcript_hash))?;
+    self.read.state.update(Some(&self.common_hkdf), rhs, Some(transcript_hash))?;
+    self.write.state.update(Some(&self.common_hkdf), lhs, Some(transcript_hash))?;
     Ok(())
   }
 
   #[inline]
   fn hkdf_extract(&mut self, ikm: &[u8]) {
-    let hkdf = self.cipher_suite.hkdf_extract(Some(self.common_secret.as_ref()), ikm);
+    let hkdf = self.cipher_suite.hkdf_extract(Some(&self.common_secret), ikm);
     self.common_hkdf = hkdf;
   }
 }

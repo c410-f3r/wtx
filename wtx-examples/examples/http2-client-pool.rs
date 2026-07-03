@@ -1,16 +1,14 @@
 //! Fetches and prints the response body of a provided URI.
-//!
-//! Currently, only HTTP/2 is supported.
 
 extern crate tokio;
 extern crate wtx;
-extern crate wtx_examples;
 
 use wtx::{
   collections::Vector,
   executor::TokioExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::{Uri, from_utf8_basic},
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
 };
 
@@ -20,6 +18,7 @@ async fn main() -> wtx::Result<()> {
   let res = Http2ClientPoolBuilder::new(
     TokioExecutor::default(),
     1,
+    ChaCha20::from_getrandom()?,
     TlsConfig::from_ccadb(TlsModeVerified::default())?.into(),
   )?
   .build()

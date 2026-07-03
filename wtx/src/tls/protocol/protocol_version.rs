@@ -8,9 +8,9 @@ create_enum! {
   /// TLS version
   pub enum ProtocolVersion<u16> {
     /// TLS 1.2
-    Tls12 = (0x0303),
+    Tls12 = (771),
     /// TLS 1.3
-    Tls13 = (0x0304)
+    Tls13 = (772)
   }
 }
 

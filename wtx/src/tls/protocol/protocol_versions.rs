@@ -9,17 +9,17 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct SupportedVersions {
+pub(crate) struct SupportedVersionsClient {
   pub(crate) versions: ArrayVectorCopy<ProtocolVersion, 1>,
 }
 
-impl SupportedVersions {
+impl SupportedVersionsClient {
   pub(crate) fn new(versions: ArrayVectorCopy<ProtocolVersion, 1>) -> Self {
     Self { versions }
   }
 }
 
-impl<'de> Decode<'de, De> for SupportedVersions {
+impl<'de> Decode<'de, De> for SupportedVersionsClient {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut versions = ArrayVectorCopy::new();
@@ -28,7 +28,7 @@ impl<'de> Decode<'de, De> for SupportedVersions {
   }
 }
 
-impl Encode<De> for SupportedVersions {
+impl Encode<De> for SupportedVersionsClient {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u8_write_iter(
@@ -42,5 +42,30 @@ impl Encode<De> for SupportedVersions {
       },
     )?;
     Ok(())
+  }
+}
+
+#[derive(Debug)]
+pub(crate) struct SupportedVersionsServer {
+  pub(crate) selected_version: ProtocolVersion,
+}
+
+impl SupportedVersionsServer {
+  pub(crate) fn new(selected_version: ProtocolVersion) -> Self {
+    Self { selected_version }
+  }
+}
+
+impl<'de> Decode<'de, De> for SupportedVersionsServer {
+  #[inline]
+  fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
+    Ok(Self { selected_version: ProtocolVersion::decode(dw)? })
+  }
+}
+
+impl Encode<De> for SupportedVersionsServer {
+  #[inline]
+  fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
+    self.selected_version.encode(ew)
   }
 }

@@ -1,9 +1,8 @@
-use core::{future, num::NonZeroUsize};
-
 use crate::{
   collections::MaybeUninitSlice,
   stream::{StreamCommon, StreamReadItem},
 };
+use core::{future, num::NonZeroUsize};
 
 /// A stream of values sent asynchronously.
 pub trait StreamReader: StreamCommon {

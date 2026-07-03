@@ -31,6 +31,8 @@ pub enum TlsError {
   InvalidClientHelloLength,
   /// Invalid cookie
   InvalidCookie,
+  /// Invalid Encrypted Extensions
+  InvalidEncryptedExtensions,
   /// Invalid client hello
   InvalidExtension,
   /// Invalid Finished Record
@@ -65,8 +67,8 @@ pub enum TlsError {
   InvalidSupportedGroups,
   /// Invalid Supported Versions Of Client Hello
   InvalidSupportedVersions,
-  /// Invalid server hello length
-  InvalidServerHelloLen,
+  /// Invalid server hello
+  InvalidServerHello,
   /// Invalid Legacy Session Id Echo
   InvalidLegacySessionIdEcho,
   /// Invalid Raw Public Key

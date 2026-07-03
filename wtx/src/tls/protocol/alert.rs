@@ -92,6 +92,7 @@ impl Alert {
     if let Some(elem) = rslt.last_chunk_mut::<AEAD_TAG_LEN>() {
       elem.copy_from_slice(&tag);
     }
+    kss.increment_counter();
     Ok(rslt)
   }
 }

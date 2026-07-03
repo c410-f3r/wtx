@@ -15,7 +15,7 @@ async fn main() -> wtx::Result<()> {
   let stream = TcpStream::connect("github.com:443").await?;
   let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
   let tls_connector = TlsConnector::new(tls_config, ChaCha20::from_getrandom()?, stream);
-  let mut tls_stream = tls_connector.connect().await?.rslt()?.stream;
+  let mut tls_stream = tls_connector.connect().await?.rslt()?.tls_stream;
   let request = b"GET /c410-f3r/wtx HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n";
   tls_stream.write_all(request).await?;
   loop {

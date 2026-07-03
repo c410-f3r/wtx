@@ -11,10 +11,11 @@ use wtx::{
   executor::TokioExecutor,
   grpc::GrpcClient,
   http::{MsgBufferStr, http2_client_pool::Http2ClientPoolBuilder},
-  tls::TlsConfig,
+  rng::{ChaCha20, CryptoSeedableRng as _},
+  tls::{TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{
-  LocalTlsMode, ROOT_CA,
+  ROOT_CA,
   grpc_bindings::wtx::{GenericRequest, GenericResponse},
 };
 
@@ -25,7 +26,8 @@ async fn main() -> wtx::Result<()> {
     Http2ClientPoolBuilder::new(
       TokioExecutor::default(),
       1,
-      TlsConfig::from_trust_anchors_pem(LocalTlsMode::default(), [ROOT_CA])?.into(),
+      ChaCha20::from_getrandom()?,
+      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?.into(),
     )?
     .build(),
     QuickProtobuf,

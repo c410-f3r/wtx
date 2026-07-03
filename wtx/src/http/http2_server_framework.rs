@@ -33,7 +33,7 @@ use crate::{
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
   misc::{TcpParams, Uri},
-  rng::{ChaCha20, CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
+  rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
   stream::{Stream, StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -86,13 +86,13 @@ pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, TM>
+impl<EX, RNG, TM>
   Http2ServerFramework<
     (),
     fn(crate::Error),
     EX,
     fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
-    ChaCha20,
+    RNG,
     TM,
   >
 where
@@ -102,7 +102,7 @@ where
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
-  pub fn new(executor: EX, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     push_h2_alpn(tls_config.alpn_mut())?;
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
@@ -113,7 +113,7 @@ where
       hrc: HttpRecvParams::with_optioned_params(),
       local_runtime_cb,
       local_runtimes: None,
-      rng: ChaCha20::from_std_random()?,
+      rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })
@@ -228,6 +228,7 @@ where
   ///
   /// You must call this method from within an existing async environment. Preferably, a
   /// multi-thread environment.
+  #[cfg(feature = "nightly")]
   #[inline]
   pub async fn run<EN, M>(
     mut self,
@@ -576,8 +577,9 @@ where
   TM: TlsMode,
 {
   let ip = stream.peer_addr()?.ip();
-  let tsr = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?.rslt()?;
-  let tuple = Http2::accept(Http2Buffer::new(&mut xorshift), hrc, tsr.stream.into_split()?).await?;
+  let tar = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?.rslt()?;
+  let split = tar.tls_stream.into_split()?;
+  let tuple = Http2::accept(Http2Buffer::new(&mut xorshift), hrc, split).await?;
   Ok((tuple.0, tuple.1, ip))
 }
 

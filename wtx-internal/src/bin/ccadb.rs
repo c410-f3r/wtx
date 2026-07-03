@@ -12,6 +12,7 @@ use wtx::{
   executor::TokioExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
@@ -26,6 +27,7 @@ async fn main() {
     Http2ClientPoolBuilder::new(
       TokioExecutor::default(),
       1,
+      ChaCha20::from_std_random().unwrap(),
       TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap(),
     )
     .unwrap()

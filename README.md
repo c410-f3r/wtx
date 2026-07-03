@@ -7,7 +7,7 @@
 [![rustc](https://img.shields.io/badge/rustc-1.96-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.96.0.html)
 [![tests](https://img.shields.io/github/actions/workflow/status/c410-f3r/wtx/tests.yaml?label=tests)](https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml)
 
-Written by humans. `WTX` is a collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of +8 IETF RFCs along side other elements.
+`WTX` is a human-written collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of +10 IETF RFCs along side other elements.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
@@ -60,7 +60,7 @@ Taking aside very few exceptions, `WTX` does not have built-in cryptographic alg
 
 Calling methods will halt/panic the application if no backend is selected. These panicking branches will hopefully be erased by dead code analysis if the `crypto` feature is somehow active but never actually used.
 
-In practice many things require cryptography algorithms. For example, `PostgreSQL` uses `HMAC` and secure `HTTP` cookies use `AEAD`.
+In practice many things require cryptography algorithms. For example, `PostgreSQL` uses `HMAC` and secure `HTTP` cookie uses `AEAD`.
 
 ## Examples
 

@@ -1,10 +1,9 @@
-use core::marker::PhantomData;
-
 use crate::{
   codec::{CodecController, Decode, DecodeSeq, Encode},
   collections::Vector,
   misc::Lease,
 };
+use core::marker::PhantomData;
 
 /// Generic `D`ecoder/`E`ncoder
 #[derive(Debug)]

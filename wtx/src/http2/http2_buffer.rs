@@ -1,5 +1,3 @@
-use core::task::Waker;
-
 use crate::{
   collections::Deque,
   http2::{
@@ -9,6 +7,7 @@ use crate::{
   rng::{Rng, Xorshift64, simple_seed},
   stream::BufStreamReader,
 };
+use core::task::Waker;
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.

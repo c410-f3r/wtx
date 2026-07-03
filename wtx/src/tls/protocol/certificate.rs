@@ -86,35 +86,14 @@ impl<'any> CertificateEntry<'any> {
 impl<'de> Decode<'de, De> for CertificateEntry<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let certificate_bytes =
-      u24_chunk(dw, TlsError::InvalidCertificate, |local_dw| Ok(local_dw.bytes()))?;
-    u16_chunk(dw, TlsError::InvalidCertificate, |local_dw| {
-      let extension_ty = ExtensionTy::decode(local_dw)?;
-      match extension_ty {
-        ExtensionTy::SignedCertificateTimestamp | ExtensionTy::StatusRequest => {
-          Err(TlsError::UnsupportedExtension.into())
-        }
-        ExtensionTy::ApplicationLayerProtocolNegotiation
-        | ExtensionTy::CertificateAuthorities
-        | ExtensionTy::ClientCertificateType
-        | ExtensionTy::Cookie
-        | ExtensionTy::EarlyData
-        | ExtensionTy::Heartbeat
-        | ExtensionTy::KeyShare
-        | ExtensionTy::MaxFragmentLength
-        | ExtensionTy::OidFilters
-        | ExtensionTy::Padding
-        | ExtensionTy::PostHandshakeAuth
-        | ExtensionTy::PreSharedKey
-        | ExtensionTy::PskKeyExchangeModes
-        | ExtensionTy::ServerCertificateType
-        | ExtensionTy::ServerName
-        | ExtensionTy::SignatureAlgorithms
-        | ExtensionTy::SignatureAlgorithmsCert
-        | ExtensionTy::SupportedGroups
-        | ExtensionTy::SupportedVersions
-        | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
+    let err = TlsError::InvalidCertificate;
+    let certificate_bytes = u24_chunk(dw, err, |local_dw| Ok(local_dw.bytes()))?;
+    u16_chunk(dw, err, |local_dw| {
+      while !local_dw.bytes().is_empty() {
+        let extension_ty = ExtensionTy::decode(local_dw)?;
+        u16_chunk(local_dw, err, |local_local_dw| manage_extension(local_local_dw, extension_ty))?;
       }
+      Ok(())
     })?;
     Ok(Self { certificate_bytes })
   }
@@ -128,5 +107,37 @@ impl Encode<De> for CertificateEntry<'_> {
       crate::Result::Ok(())
     })?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |_| Ok(()))
+  }
+}
+
+#[inline]
+fn manage_extension(
+  _dw: &mut TlsDecodeWrapper<'_>,
+  extension_ty: ExtensionTy,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::SignedCertificateTimestamp | ExtensionTy::StatusRequest => {
+      Err(TlsError::UnsupportedExtension.into())
+    }
+    ExtensionTy::ApplicationLayerProtocolNegotiation
+    | ExtensionTy::CertificateAuthorities
+    | ExtensionTy::ClientCertificateType
+    | ExtensionTy::Cookie
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::KeyShare
+    | ExtensionTy::MaxFragmentLength
+    | ExtensionTy::OidFilters
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::PreSharedKey
+    | ExtensionTy::PskKeyExchangeModes
+    | ExtensionTy::ServerCertificateType
+    | ExtensionTy::ServerName
+    | ExtensionTy::SignatureAlgorithms
+    | ExtensionTy::SignatureAlgorithmsCert
+    | ExtensionTy::SupportedGroups
+    | ExtensionTy::SupportedVersions
+    | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
   }
 }

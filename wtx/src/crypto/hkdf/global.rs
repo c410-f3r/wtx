@@ -3,11 +3,13 @@ use crate::crypto::Hkdf;
 type HkdfSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha256Ring,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha256AwsLcRs,
+  feature = "crypto-openssl" => crate::crypto::HkdfSha256Openssl,
   _ => crate::crypto::HkdfDummy::<[u8; 32]>
 };
 type HkdfSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha384Ring,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha384AwsLcRs,
+  feature = "crypto-openssl" => crate::crypto::HkdfSha384Openssl,
   _ => crate::crypto::HkdfDummy::<[u8; 48]>
 };
 

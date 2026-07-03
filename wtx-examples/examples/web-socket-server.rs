@@ -8,10 +8,10 @@ use tokio::net::TcpListener;
 use wtx::{
   collections::Vector,
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsAcceptor, TlsConfig},
+  tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
   web_socket::{OpCode, WebSocketAcceptor, WebSocketPayloadOrigin},
 };
-use wtx_examples::{LocalTlsMode, PUBLIC_KEY, SECRET_KEY, host_from_args};
+use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -25,7 +25,7 @@ async fn main() -> wtx::Result<()> {
         let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default()
           .accept(TlsAcceptor::new(
-            TlsConfig::from_keys_pem(LocalTlsMode::default(), PUBLIC_KEY, SECRET_KEY)?,
+            TlsConfig::from_keys_pem(TlsModeVerified::default(), PUBLIC_KEY, SECRET_KEY)?,
             conn_rng,
             stream,
           ))

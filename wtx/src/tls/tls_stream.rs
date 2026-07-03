@@ -1,5 +1,3 @@
-use core::num::NonZeroUsize;
-
 use crate::{
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   misc::ConnectionState,
@@ -13,9 +11,11 @@ use crate::{
       alert::{Alert, AlertDescription, AlertLevel},
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
+      record_content_type::RecordContentType,
     },
   },
 };
+use core::num::NonZeroUsize;
 
 /// Transport Layer Security (TLS)
 ///
@@ -167,6 +167,9 @@ where
     &mut self,
     bytes: MaybeUninitSlice<'_, u8>,
   ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+    if self.connection_state.is_closed() {
+      return Ok(StreamReadItem::empty_cold());
+    }
     let (ksr, ksw) = self.key_schedule.split_mut();
     read_after_handshake_data::<_, _, TM, IS_CLIENT>(
       (&mut self.connection_state, ksw),
@@ -197,6 +200,7 @@ where
     }
     write_data(
       &[bytes],
+      RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
       &mut self.stream,
@@ -212,6 +216,7 @@ where
     }
     write_data(
       bytes,
+      RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
       &mut self.stream,

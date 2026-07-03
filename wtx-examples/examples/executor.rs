@@ -1,7 +1,6 @@
 //! The `executor` feature allows the execution of asynchronous operations
 
 extern crate wtx;
-extern crate wtx_examples;
 
 #[wtx::main]
 async fn main() {

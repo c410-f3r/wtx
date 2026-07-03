@@ -69,6 +69,27 @@ samply record ./target/x86_64-unknown-linux-gnu/profiling/h2load
 valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/x86_64-unknown-linux-gnu/profiling/h2load
 ```
 
+## RFCs
+
+List of implemented RFCs.
+
+| Specification            | URL                                             |
+| ------------------------ | ------------------------------------------------|
+| `ALPN`                   | <https://datatracker.ietf.org/doc/html/rfc7301> |
+| `ChaCha20`               | <https://datatracker.ietf.org/doc/html/rfc7539> |
+| `CSV`                    | <https://datatracker.ietf.org/doc/html/rfc4180> |
+| `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541> |
+| `HTTP Cookies`           | <https://datatracker.ietf.org/doc/html/rfc6265> |
+| `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113> |
+| `PEM`                    | <https://datatracker.ietf.org/doc/html/rfc7468> |
+| `Raw Public Keys in TLS` | <https://datatracker.ietf.org/doc/html/rfc7250> |
+| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc8446> |
+| `URI`                    | <https://datatracker.ietf.org/doc/html/rfc3986> |
+| `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455> |
+| `WebSocket Compression`  | <https://datatracker.ietf.org/doc/html/rfc7692> |
+| `WebSocket Over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441> |
+| `X.509`                  | <https://datatracker.ietf.org/doc/html/rfc5280> |
+
 ## Compiler flags
 
 Some non-standard options that will influence the final binary. Only use them if you know what you are doing.
