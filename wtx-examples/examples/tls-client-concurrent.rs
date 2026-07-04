@@ -11,6 +11,7 @@ extern crate wtx;
 
 use tokio::{net::TcpStream, sync::mpsc::unbounded_channel};
 use wtx::{
+  calendar::Instant,
   collections::ArrayVectorCopy,
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{Stream, StreamReader, StreamWriter},
@@ -20,7 +21,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let stream = TcpStream::connect("github.com:443").await?;
-  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
+  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0)?)?;
   let tls_connector = TlsConnector::new(tls_config, ChaCha20::from_getrandom()?, stream);
   let tls_stream = tls_connector.connect().await?.rslt()?.tls_stream;
   let (stream_bridge, mut stream_reader, mut stream_writer) = tls_stream.into_split()?;

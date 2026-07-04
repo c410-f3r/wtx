@@ -16,7 +16,7 @@ async fn main() -> wtx::Result<()> {
   Http2ServerFramework::new(
     TokioExecutor::default(),
     ChaCha20::from_std_random()?,
-    TlsConfig::empty(),
+    TlsConfig::plaintext(),
   )?
   .set_http_recv_params(HttpRecvParams::with_permissive_params())
   .run("127.0.0.1:9000", router)

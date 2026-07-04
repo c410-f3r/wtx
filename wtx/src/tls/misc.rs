@@ -149,7 +149,6 @@ where
     let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
     match rri.inner_ty {
       RecordContentType::Alert => {
-        cold_path();
         let alert = Alert::decode(&mut TlsDecodeWrapper::from_bytes(plaintext))?;
         alert_cb.call((&mut aux, alert, stream_reader)).await?;
         return Ok(StreamReadItem::empty_cold());
@@ -318,21 +317,21 @@ where
 }
 
 #[inline]
-pub(crate) async fn write_data<SW>(
-  bytes: &[&[u8]],
+pub(crate) async fn write_payloads<SW>(
   inner_ty: RecordContentType,
   ksw: &mut KeyScheduleWrite,
   max_fragment_length: u16,
+  payloads: &[&[u8]],
   stream_writer: &mut SW,
   writer_buffer: &mut Vector<u8>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
 {
-  let idx = writer_buffer.len();
-  for data in bytes {
-    for chunk in data.chunks(max_fragment_length.into()) {
-      let len = chunk.len().try_into().unwrap_or_default();
+  for payload in payloads {
+    for chunk in payload.chunks(max_fragment_length.into()) {
+      let len_usize = chunk.len().wrapping_add(1).wrapping_add(AEAD_TAG_LEN);
+      let len = len_usize.try_into().unwrap_or_default();
       let header = build_header(RecordContentType::ApplicationData, len);
       let plaintext_begin_idx = writer_buffer.len().wrapping_add(header.len());
       let _ = writer_buffer.extend_from_copyable_slices([
@@ -355,7 +354,7 @@ where
       ksw_state.increment_counter();
     }
   }
-  stream_writer.write_all(writer_buffer.get(idx..).unwrap_or_default()).await?;
+  stream_writer.write_all(writer_buffer).await?;
   writer_buffer.clear();
   Ok(())
 }

@@ -19,6 +19,10 @@ pub enum CryptoError {
   InvalidAes256GcmData,
   /// Opaque error originated from `Chacha20Poly1305` operations
   InvalidChacha20Poly1305Data,
+  /// Invalid Hash Length
+  InvalidHashLength,
+  /// Large HKDF Output
+  LargeHkdfOutput,
   /// Public Key Agreement Error
   PublicKeyAgreementError,
   /// Sig Key Error

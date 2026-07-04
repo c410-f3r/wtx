@@ -6,6 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpListener;
 use wtx::{
+  calendar::Instant,
   collections::Vector,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
@@ -25,7 +26,12 @@ async fn main() -> wtx::Result<()> {
         let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default()
           .accept(TlsAcceptor::new(
-            TlsConfig::from_keys_pem(TlsModeVerified::default(), PUBLIC_KEY, SECRET_KEY)?,
+            TlsConfig::from_keys_pem(
+              TlsModeVerified::default(),
+              PUBLIC_KEY,
+              SECRET_KEY,
+              Instant::now_date_time(0)?,
+            )?,
             conn_rng,
             stream,
           ))

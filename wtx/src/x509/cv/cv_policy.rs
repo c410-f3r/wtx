@@ -27,7 +27,7 @@ impl<B> CvPolicy<B> {
   //
   // FIXME(STABLE): Use `::default()`
   #[inline]
-  pub const fn new() -> Self {
+  pub const fn new(validation_time: DateTime<Utc>) -> Self {
     Self {
       cep: CvCrlExpiration::Enforce,
       crls: Vector::new(),
@@ -35,7 +35,7 @@ impl<B> CvPolicy<B> {
       extended_key_usage: ExtendedKeyUsage::EMPTY,
       key_usage: KeyUsage::new((0, 0)),
       mode: CvPolicyMode::Strict,
-      validation_time: DateTime::EPOCH,
+      validation_time: validation_time.trunc_to_sec(),
     }
   }
 
@@ -111,7 +111,7 @@ impl<B> CvPolicy<B> {
     &mut self.mode
   }
 
-  /// Mutable version of [`Self::validation_time`].
+  /// Overwrites the validation time.
   #[inline]
   pub const fn set_validation_time(&mut self, value: DateTime<Utc>) {
     self.validation_time = value.trunc_to_sec();
@@ -121,18 +121,5 @@ impl<B> CvPolicy<B> {
   #[inline]
   pub const fn validation_time(&self) -> &DateTime<Utc> {
     &self.validation_time
-  }
-
-  /// Mutable version of [`Self::validation_time`].
-  #[inline]
-  pub const fn validation_time_mut(&mut self) -> &mut DateTime<Utc> {
-    &mut self.validation_time
-  }
-}
-
-impl<B> Default for CvPolicy<B> {
-  #[inline]
-  fn default() -> Self {
-    Self::new()
   }
 }

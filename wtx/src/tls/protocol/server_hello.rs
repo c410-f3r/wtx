@@ -70,6 +70,10 @@ impl<'any> ServerHello<'any> {
   pub(crate) fn key_share(&self) -> &KeyShareEntry<&'any [u8]> {
     &self.key_share
   }
+
+  pub(crate) fn selected_identity(&self) -> Option<u16> {
+    self.selected_identity
+  }
 }
 
 impl<'de> Decode<'de, De> for ServerHello<'de> {

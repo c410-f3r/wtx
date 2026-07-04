@@ -6,6 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpStream;
 use wtx::{
+  calendar::Instant,
   collections::Vector,
   executor::TokioExecutor,
   http::WebSocketServerFramework,
@@ -26,6 +27,7 @@ async fn main() -> wtx::Result<()> {
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
+      Instant::now_date_time(0)?,
     )?
     .into(),
   )?

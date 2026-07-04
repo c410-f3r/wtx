@@ -7,7 +7,7 @@ mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
-use crate::{crypto::dummy_impl_call, rng::CryptoRng};
+use crate::{crypto::dummy_crypto_call, rng::CryptoRng};
 
 /// A cryptographic secret usually composed by a secret key and a public key.
 pub trait SignKey: Sized {
@@ -22,12 +22,12 @@ pub trait SignKey: Sized {
 
 /// Dummy [`SignKey`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct SignKeyDummy;
+pub struct SignKeyDummy {}
 
 impl SignKey for SignKeyDummy {
   #[inline]
   fn from_pkcs8(_: &[u8]) -> crate::Result<Self> {
-    dummy_impl_call();
+    Ok(Self {})
   }
 
   #[inline]
@@ -35,6 +35,6 @@ impl SignKey for SignKeyDummy {
   where
     RNG: CryptoRng,
   {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }

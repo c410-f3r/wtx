@@ -31,7 +31,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
     "postgres" | "postgresql" => {
       let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
       let mut tls_connector =
-        TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream);
+        TlsConnector::new(TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream);
       let executor = PostgresClient::<wtx::Error, _, _>::connect(
         ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),
         &Config::from_uri(&uri)?,

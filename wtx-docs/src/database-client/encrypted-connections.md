@@ -85,13 +85,18 @@ pub async fn postgres_client(
 >> {
   use std::net::TcpStream;
   use wtx::{
+    calendar::Instant,
     database::client::postgres::{ClientBuffer, Config, PostgresClient},
     rng::{ChaCha20, CryptoSeedableRng},
     tls::{TlsConfig, TlsConnector},
   };
   let uri = wtx::misc::Uri::new(uri_str);
   let mut tls_connector = TlsConnector::new(
-    TlsConfig::from_trust_anchors_pem(wtx::tls::TlsModeVerified::default(), [root_ca])?,
+    TlsConfig::from_trust_anchors_pem(
+      wtx::tls::TlsModeVerified::default(),
+      [root_ca],
+      Instant::now_date_time(0)?
+    )?,
     ChaCha20::from_getrandom()?,
     TcpStream::connect(uri.hostname_with_implied_port())?,
   );

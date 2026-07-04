@@ -13,7 +13,7 @@ use crate::{
     Base64Alphabet, base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
   collections::{ExpansionTy, Vector},
-  crypto::{AEAD_NONCE_LEN, AEAD_TAG_LEN, CryptoError, dummy_impl_call},
+  crypto::{AEAD_NONCE_LEN, AEAD_TAG_LEN, CryptoError, dummy_crypto_call},
   misc::SensitiveBytes,
 };
 use core::marker::PhantomData;
@@ -160,7 +160,7 @@ impl<S> Aead for AeadDummy<S> {
     _: [u8; AEAD_NONCE_LEN],
     _: &Self::Secret,
   ) -> crate::Result<&'data mut [u8]> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
@@ -170,7 +170,7 @@ impl<S> Aead for AeadDummy<S> {
     _: &mut [u8],
     _: &Self::Secret,
   ) -> crate::Result<[u8; AEAD_TAG_LEN]> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }
 

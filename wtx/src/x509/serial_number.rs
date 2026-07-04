@@ -59,7 +59,7 @@ impl TryFrom<&[u8]> for SerialNumber {
 
   #[inline]
   fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-    if value.len() > MAX_LEN {
+    if value == [0] || value.len() > MAX_LEN {
       return Err(X509Error::InvalidSerialNumberBytes.into());
     }
     Ok(Self(ArrayVectorU8::try_from(value)?))

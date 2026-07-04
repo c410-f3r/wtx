@@ -1,6 +1,7 @@
 //! The `CorsMiddleware` middleware inserts permissive CORS headers in every response.
 
 use wtx::{
+  calendar::Instant,
   executor::TokioExecutor,
   http::http2_server_framework::{CorsMiddleware, Http2ServerFramework, HttpRouter, get},
   rng::{ChaCha20, CryptoSeedableRng},
@@ -17,6 +18,7 @@ async fn main() -> wtx::Result<()> {
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
+      Instant::now_date_time(0)?,
     )?
     .into(),
   )?

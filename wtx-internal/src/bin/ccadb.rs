@@ -28,7 +28,8 @@ async fn main() {
       TokioExecutor::default(),
       1,
       ChaCha20::from_std_random().unwrap(),
-      TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap(),
+      TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0).unwrap())
+        .unwrap(),
     )
     .unwrap()
     .build()

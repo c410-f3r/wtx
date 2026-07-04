@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{SignKey, dummy_impl_call},
+  crypto::{SignKey, dummy_crypto_call},
   misc::DefaultArray,
   rng::CryptoRng,
 };
@@ -53,11 +53,11 @@ where
   where
     RNG: CryptoRng,
   {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
   fn validate(_: &[u8], _: &[u8], _: &[u8]) -> crate::Result<()> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }

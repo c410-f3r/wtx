@@ -32,6 +32,7 @@ use crate::{
   x509::{CvEndEntity, CvIntermediate, SubjectPublicKeyInfo, validate_signature},
 };
 use core::{
+  hint::cold_path,
   mem,
   ops::{ControlFlow, Range},
 };
@@ -46,6 +47,7 @@ pub enum ManageClientRecordsState {
 /// Required by [`TlsConnector::manage_remaining_server_records`].
 #[derive(Debug)]
 pub struct ManageRemainingServerRecordsInput {
+  selected_identity: Option<u16>,
   spki_range: Range<usize>,
   tls_server_end_point: TlsServerEndPoint,
   transcript_digest: TlsDigest,
@@ -55,7 +57,7 @@ pub struct ManageRemainingServerRecordsInput {
 #[derive(Debug, PartialEq)]
 pub enum ManageRemainingServerRecordsState {
   /// Received an alert that requires a connection termination.
-  Alert([u8; 2]),
+  Alert(Alert),
   /// It is necessary to fetch more external data
   NeedsMoreData,
   /// Finished processing server records
@@ -70,7 +72,6 @@ pub struct TlsConnector<RNG, S, TC> {
   buffer: TlsBuffer,
   config: TC,
   handshake_path: HandshakePath,
-  has_psk: bool,
   key_schedule: KeySchedule,
   max_fragment_length: u16,
   named_group: NamedGroup,
@@ -97,7 +98,6 @@ where
       buffer: TlsBuffer::new(),
       config,
       handshake_path: HandshakePath::Full,
-      has_psk: false,
       key_schedule,
       max_fragment_length,
       named_group: named_group.unwrap_or(NamedGroup::default()),
@@ -141,20 +141,9 @@ where
   /// Changes the internal value. See [`Psk`].
   #[inline]
   #[must_use]
-  pub fn set_psk(self, value: Option<Psk>) -> TlsConnector<RNG, S, TC> {
-    TlsConnector {
-      buffer: self.buffer,
-      config: self.config,
-      handshake_path: self.handshake_path,
-      has_psk: value.is_some(),
-      key_schedule: self.key_schedule,
-      max_fragment_length: self.max_fragment_length,
-      named_group: self.named_group,
-      psk: value,
-      rng: self.rng,
-      stream: self.stream,
-      transcript_hash: self.transcript_hash,
-    }
+  pub fn set_psk(mut self, value: Option<Psk>) -> TlsConnector<RNG, S, TC> {
+    self.psk = value;
+    self
   }
 
   /// Underlying stream
@@ -181,9 +170,9 @@ where
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn connect(mut self) -> crate::Result<StreamReadItem<TlsConnectRslt<RNG, S, TM>>> {
+  pub async fn connect(mut self) -> crate::Result<StreamReadItem<TlsConnectOutput<RNG, S, TM>>> {
     if TM::TY.is_plain_text() {
-      return Ok(StreamReadItem::from_item(TlsConnectRslt {
+      return Ok(StreamReadItem::from_item(TlsConnectOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
         rng: self.rng,
@@ -197,7 +186,6 @@ where
         ),
       }));
     }
-
     let secrets = self.write_client_hello()?;
     self.stream.write_all(&self.buffer.writer_buffer).await?;
     let Some(first_rri) = self.fetch_rec_from_stream::<false>(false).await?.opt() else {
@@ -207,10 +195,10 @@ where
       ControlFlow::Continue(mrsri) => mrsri,
       ControlFlow::Break(alert) => {
         self.write_alert(alert).await?;
-        return Err(TlsError::AbortedHandshake.into());
+        return Err(TlsError::AbortedHandshake(alert).into());
       }
     };
-
+    self.buffer.writer_buffer.clear();
     let Some(mut rri) = self.fetch_rec_from_stream::<true>(true).await?.opt() else {
       return Ok(StreamReadItem::empty_cold());
     };
@@ -218,7 +206,7 @@ where
       match self.manage_remaining_server_records(&mut mrsri, &rri)? {
         ManageRemainingServerRecordsState::Alert(alert) => {
           self.write_alert(alert).await?;
-          return Err(TlsError::AbortedHandshake.into());
+          return Err(TlsError::AbortedHandshake(alert).into());
         }
         ManageRemainingServerRecordsState::NeedsMoreData => {
           let Some(local_rri) = self.fetch_rec_from_stream::<false>(true).await?.opt() else {
@@ -234,7 +222,7 @@ where
         self.stream.write_all(&data).await?;
       }
     }
-    Ok(StreamReadItem::from_item(TlsConnectRslt {
+    Ok(StreamReadItem::from_item(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
       rng: self.rng,
@@ -271,21 +259,19 @@ where
     &mut self,
     rri: &ReadRecordInfo,
     secrets: ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>,
-  ) -> crate::Result<ControlFlow<[u8; 2], ManageRemainingServerRecordsInput>> {
+  ) -> crate::Result<ControlFlow<Alert, ManageRemainingServerRecordsInput>> {
     let current = self.buffer.reader_buffer.current();
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
-
     match rri.outer_ty {
       RecordContentType::Alert => {
         let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
-        return Ok(ControlFlow::Break(Alert::decode(dw)?.data_bytes()));
+        return Ok(ControlFlow::Break(Alert::decode(dw)?));
       }
       RecordContentType::Handshake => {}
       RecordContentType::ApplicationData | RecordContentType::ChangeCipherSpec => {
         return Err(TlsError::InvalidHandshake.into());
       }
     }
-
     let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
     let server_hello = Handshake::<ServerHello<'_>>::decode(dw)?;
     let secret = secrets
@@ -293,7 +279,7 @@ where
       .find(|el| el.named_group() == server_hello.data.key_share().group)
       .ok_or(TlsError::SecretMismatch)?;
     self.named_group = secret.named_group();
-    if !self.has_psk {
+    if server_hello.data.selected_identity().is_none() {
       self.key_schedule.set_cipher_suite(server_hello.data.cipher_suite());
       self.key_schedule.early_secret(None)?;
     }
@@ -305,6 +291,7 @@ where
       .key_schedule
       .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
     Ok(ControlFlow::Continue(ManageRemainingServerRecordsInput {
+      selected_identity: server_hello.data.selected_identity(),
       spki_range: 0..0,
       tls_server_end_point: TlsServerEndPoint::new(),
       transcript_digest: TlsDigest::default(),
@@ -325,7 +312,7 @@ where
     match rri.outer_ty {
       RecordContentType::Alert => {
         let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
-        return Ok(ManageRemainingServerRecordsState::Alert(Alert::decode(dw)?.data_bytes()));
+        return Ok(ManageRemainingServerRecordsState::Alert(Alert::decode(dw)?));
       }
       RecordContentType::ApplicationData => {}
       RecordContentType::ChangeCipherSpec => {
@@ -341,7 +328,7 @@ where
     *remote_dw.bytes_mut() = hs.data;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
-        let encrypted_extensions = EncryptedExtensions::<&[u8]>::decode(&mut remote_dw)?;
+        let encrypted_extensions = EncryptedExtensions::decode(&mut remote_dw)?;
         if let Some(el) = encrypted_extensions.max_fragment_length() {
           self.max_fragment_length = el.num();
         }
@@ -352,6 +339,10 @@ where
         return Err(TlsError::UnsupportedMtls.into());
       }
       HandshakeType::Certificate => {
+        if mrsri.selected_identity.is_some() {
+          cold_path();
+          return Err(TlsError::CertRecordInAcceptedPsk.into());
+        }
         Self::manage_certificate(
           self.config.lease(),
           &self.key_schedule,
@@ -361,6 +352,10 @@ where
         )?;
       }
       HandshakeType::CertificateVerify => {
+        if mrsri.selected_identity.is_some() {
+          cold_path();
+          return Err(TlsError::CertRecordInAcceptedPsk.into());
+        }
         Self::manage_certificate_verify(antecedent, mrsri, &mut remote_dw)?;
         *self.buffer.reader_buffer.forbid_clear_mut() = false;
         mrsri.transcript_digest = self.transcript_hash.clone().finalize();
@@ -400,7 +395,6 @@ where
       let mut key_schedule = KeySchedule::from_cipher_suite(*cipher_suite);
       key_schedule.early_secret(Some((data.lease(), *ty)))?;
       self.handshake_path = HandshakePath::Resumed;
-      self.has_psk = true;
       self.key_schedule = key_schedule;
     }
     let mut secrets = ArrayVectorU8::new();
@@ -452,6 +446,9 @@ where
     remote_dw: &mut TlsDecodeWrapper<'_>,
     transcript_hash: &TlsHash,
   ) -> crate::Result<()> {
+    if TM::TY.is_unverified() {
+      return Ok(());
+    }
     let certificate = Certificate::decode(remote_dw)?;
     if let [end_entity, intermediates @ ..] = certificate.certificate_list().as_slice() {
       mrsri.tls_server_end_point.extend_from_copyable_slice(
@@ -484,9 +481,6 @@ where
         cv_intermediates.push(cv_intermediate)?;
       }
       mrsri.transcript_digest = transcript_hash.clone().finalize();
-      if TM::TY.is_unverified() {
-        return Ok(());
-      }
       drop(cv_end_entity.validate_chain(
         cv_intermediates.as_slice(),
         config.cv_policy(),
@@ -501,11 +495,11 @@ where
     mrsri: &mut ManageRemainingServerRecordsInput,
     remote_dw: &mut TlsDecodeWrapper<'_>,
   ) -> crate::Result<()> {
-    let certificate_verify = CertificateVerify::decode(remote_dw)?;
-    let msg = server_sig_msg(mrsri.transcript_digest.lease())?;
     if TM::TY.is_unverified() {
       return Ok(());
     }
+    let certificate_verify = CertificateVerify::decode(remote_dw)?;
+    let msg = server_sig_msg(mrsri.transcript_digest.lease())?;
     validate_signature(
       &msg,
       certificate_verify.signature(),
@@ -518,16 +512,24 @@ where
   }
 
   #[inline]
-  async fn write_alert(&mut self, alert: [u8; 2]) -> crate::Result<()> {
+  async fn write_alert(&mut self, alert: Alert) -> crate::Result<()> {
+    if !alert.description().is_warning() {
+      return Ok(());
+    }
     let kss = self.key_schedule.write_mut().state_mut();
-    self.stream.write_all(&Alert::record_bytes(alert, kss)?).await?;
+    if kss.cipher_key().is_empty() {
+      let [level, description] = alert.data_bytes();
+      self.stream.write_all(&[21, 3, 3, 0, 2, level, description]).await?;
+    } else {
+      self.stream.write_all(&Alert::record_bytes(alert.data_bytes(), kss)?).await?;
+    }
     Ok(())
   }
 }
 
 /// Returned by [`TlsConnector::connect`].
 #[derive(Debug)]
-pub struct TlsConnectRslt<RNG, S, TM> {
+pub struct TlsConnectOutput<RNG, S, TM> {
   /// See [`HandshakePath`].
   pub handshake_path: HandshakePath,
   /// See [`NamedGroup`].
@@ -540,7 +542,6 @@ pub struct TlsConnectRslt<RNG, S, TM> {
   pub tls_stream: TlsStream<S, TM, true>,
 }
 
-// TLS header + Handshake type
 fn spki_offset() -> usize {
-  6
+  11
 }

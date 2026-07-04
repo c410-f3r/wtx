@@ -3,9 +3,10 @@ use crate::{
   http::{
     HttpRecvParams,
     http2_client_pool::{Http2ClientPoolResource, Http2Resource},
+    push_server_name,
   },
   http2::{Http2, Http2Buffer},
-  misc::{TcpParams, UriRef},
+  misc::{Lease as _, TcpParams, UriRef},
   pool::ResourceManager,
   rng::ChaCha20,
   stream::{Stream, StreamReader, StreamWriter},
@@ -45,7 +46,9 @@ where
   async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     let uri = UriRef::new(aux);
     let stream = EX::TcpStream::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
-    let tls_stream = TlsConnector::new(&*self.tls_config, &self.rng, stream)
+    let mut tc = self.tls_config.lease().clone();
+    push_server_name(&mut tc, &uri)?;
+    let tls_stream = TlsConnector::new(&tc, &self.rng, stream)
       .set_psk(self.psk.as_ref().map(AtomicCell::load))
       .connect()
       .await?
@@ -70,7 +73,9 @@ where
     let uri = UriRef::new(aux);
     let stream = EX::TcpStream::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let mut hb = Http2Buffer::default();
-    let tcr = TlsConnector::new(&*self.tls_config, &self.rng, stream)
+    let mut tc = self.tls_config.lease().clone();
+    push_server_name(&mut tc, &uri)?;
+    let tcr = TlsConnector::new(&tc, &self.rng, stream)
       .set_psk(self.psk.as_ref().map(AtomicCell::load))
       .connect()
       .await?
