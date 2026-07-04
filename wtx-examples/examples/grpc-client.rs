@@ -7,6 +7,7 @@ extern crate wtx_examples;
 
 use std::borrow::Cow;
 use wtx::{
+  calendar::Instant,
   codec::format::QuickProtobuf,
   executor::TokioExecutor,
   grpc::GrpcClient,
@@ -27,7 +28,12 @@ async fn main() -> wtx::Result<()> {
       TokioExecutor::default(),
       1,
       ChaCha20::from_getrandom()?,
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?.into(),
+      TlsConfig::from_trust_anchors_pem(
+        TlsModeVerified::default(),
+        [ROOT_CA],
+        Instant::now_date_time(0)?,
+      )?
+      .into(),
     )?
     .build(),
     QuickProtobuf,

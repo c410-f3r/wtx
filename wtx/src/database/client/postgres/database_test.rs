@@ -39,7 +39,7 @@ where
 
     let orig_db = String::from(config.db());
     let mut rng = ChaCha20::from_getrandom()?;
-    let tls_config = TlsConfig::empty();
+    let tls_config = TlsConfig::plaintext();
 
     {
       let mut client = PostgresClient::<_, _, _>::connect(

@@ -342,7 +342,7 @@ fn evaluate_test_case<'bytes>(
     return;
   };
 
-  let mut cvp = CvPolicy::default();
+  let mut cvp = CvPolicy::new(Instant::now_date_time(0).unwrap());
   mem::swap(cvp.crls_mut(), crls);
   fill_cvp(&mut cvp, ExtendedKeyUsage::default(), testcase);
 

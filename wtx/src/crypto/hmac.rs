@@ -1,4 +1,4 @@
-use crate::{crypto::dummy_impl_call, misc::DefaultArray};
+use crate::{crypto::dummy_crypto_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
@@ -41,12 +41,12 @@ where
 
   #[inline]
   fn from_key(_: &[u8]) -> crate::Result<Self> {
-    dummy_impl_call();
+    Ok(Self(PhantomData))
   }
 
   #[inline]
   fn finalize(self) -> Self::Digest {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
@@ -54,6 +54,6 @@ where
 
   #[inline]
   fn verify(self, _: &[u8]) -> crate::Result<()> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }

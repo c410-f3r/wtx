@@ -397,7 +397,7 @@ fn serde_json() {
 async fn executor() -> PostgresClient<crate::Error, TcpStream, TlsModePlainText> {
   let uri = UriRef::new(_vars().database_uri_postgres.as_str());
   let mut tls_connector = TlsConnector::new(
-    TlsConfig::empty(),
+    TlsConfig::plaintext(),
     ChaCha20::from_std_random().unwrap(),
     TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
   );

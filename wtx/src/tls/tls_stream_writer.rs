@@ -6,7 +6,7 @@ use crate::{
   tls::{
     TlsMode, TlsStreamBridgeData,
     key_schedule::KeyScheduleWrite,
-    misc::write_data,
+    misc::write_payloads,
     protocol::{alert::Alert, key_update::KeyUpdate, record_content_type::RecordContentType},
   },
 };
@@ -66,11 +66,11 @@ where
     if TM::TY.is_plain_text() {
       return self.stream_writer.write_all(bytes).await;
     }
-    write_data(
-      &[bytes],
+    write_payloads(
       RecordContentType::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length,
+      &[bytes],
       &mut self.stream_writer,
       &mut self.writer_buffer,
     )
@@ -82,11 +82,11 @@ where
     if TM::TY.is_plain_text() {
       return self.stream_writer.write_all_vectored(bytes).await;
     }
-    write_data(
-      bytes,
+    write_payloads(
       RecordContentType::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length,
+      bytes,
       &mut self.stream_writer,
       &mut self.writer_buffer,
     )

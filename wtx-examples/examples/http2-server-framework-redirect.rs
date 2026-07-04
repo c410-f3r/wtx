@@ -1,6 +1,7 @@
 //! Different types of redirects.
 
 use wtx::{
+  calendar::Instant,
   executor::TokioExecutor,
   http::{
     StatusCode,
@@ -20,6 +21,7 @@ async fn main() -> wtx::Result<()> {
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
+      Instant::now_date_time(0)?,
     )?
     .into(),
   )?

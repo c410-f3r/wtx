@@ -15,6 +15,7 @@ mod hmac;
 mod sign_key;
 mod signature;
 
+use crate::rng::CryptoRng;
 pub use aead::{
   Aead, AeadDummy,
   global::{Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305Global},
@@ -45,8 +46,6 @@ pub use signature::{
   },
   signature_ty::{SignatureSignKey, SignatureSignOutput, SignatureTy},
 };
-
-use crate::rng::CryptoRng;
 
 /// AEAD nonce prefix
 pub const AEAD_NONCE_LEN: usize = 12;
@@ -128,10 +127,8 @@ _create_wrappers!(
   #[derive(Clone)]
   Sha384HashGraviola<>(<graviola::hashing::Sha384 as graviola::hashing::Hash>::Context),
   //
-  #[derive(Default)]
-  HkdfSha256Graviola<>(),
-  #[derive(Default)]
-  HkdfSha384Graviola<>(),
+  HkdfSha256Graviola<>(GraviolaPrk<graviola::hashing::Sha256>),
+  HkdfSha384Graviola<>(GraviolaPrk<graviola::hashing::Sha384>),
   //
   HmacSha256Graviola<>(graviola::hashing::hmac::Hmac<graviola::hashing::Sha256>),
   HmacSha384Graviola<>(graviola::hashing::hmac::Hmac<graviola::hashing::Sha384>),
@@ -259,8 +256,91 @@ where
   [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]
 }
 
+/// HDKF implementation for Graviola
+#[cfg(feature = "crypto-graviola")]
+#[derive(Debug)]
+pub struct GraviolaPrk<H> {
+  output: graviola::hashing::HashOutput,
+  phantom: core::marker::PhantomData<H>,
+}
+
+#[cfg(feature = "crypto-graviola")]
+impl<H> GraviolaPrk<H>
+where
+  H: Clone + graviola::hashing::Hash,
+{
+  #[inline]
+  fn extract(salt: Option<&[u8]>, ikm: &[u8]) -> (graviola::hashing::HashOutput, GraviolaPrk<H>) {
+    let mut hmac = match salt {
+      Some(elem) => graviola::hashing::hmac::Hmac::<H>::new(elem),
+      None => graviola::hashing::hmac::Hmac::<H>::new(H::zeroed_output()),
+    };
+    hmac.update(ikm);
+    let output = hmac.finish();
+    (output.clone(), Self { output, phantom: core::marker::PhantomData })
+  }
+
+  #[inline]
+  fn new(slice: &[u8]) -> crate::Result<Self> {
+    let mut output = H::zeroed_output();
+    let Some(elem) = output.as_mut().get_mut(..slice.len()) else {
+      return Err(CryptoError::InvalidHashLength.into());
+    };
+    elem.copy_from_slice(slice);
+    Ok(GraviolaPrk { output, phantom: core::marker::PhantomData })
+  }
+
+  #[inline]
+  fn compute<'data>(
+    data: impl IntoIterator<Item = &'data [u8]>,
+    key: &[u8],
+  ) -> graviola::hashing::HashOutput {
+    let mut hmac = graviola::hashing::hmac::Hmac::<H>::new(key);
+    for chunk in data {
+      hmac.update(chunk);
+    }
+    hmac.finish()
+  }
+
+  #[inline]
+  fn expand(&self, info: &[u8], mut okm: &mut [u8]) -> crate::Result<()> {
+    let len = okm.len();
+    let hash_len = H::zeroed_output().as_ref().len();
+    if len > hash_len.wrapping_mul(255) {
+      return Err(CryptoError::LargeHkdfOutput.into());
+    }
+    #[expect(
+      clippy::as_conversions,
+      clippy::cast_possible_truncation,
+      reason = "l <= 255 * hash_len <=> l / hash_len <= 255"
+    )]
+    let num = len.div_ceil(hash_len) as u8;
+    let hmac_key = graviola::hashing::hmac::Hmac::<H>::new(&self.output);
+    let mut hmac = hmac_key.clone();
+    for idx in 1..=num {
+      hmac.update(info);
+      hmac.update([idx]);
+      let hash = hmac.finish();
+      let hash_slice = hash.as_ref();
+      let min_len = okm.len().min(hash_slice.len());
+      let (chunk, rest) = okm.split_at_mut(min_len);
+      if let Some(elem) = hash_slice.get(..min_len) {
+        chunk.copy_from_slice(elem);
+      }
+      okm = rest;
+      if okm.is_empty() {
+        return Ok(());
+      }
+      hmac = hmac_key.clone();
+      hmac.update(hash_slice);
+    }
+    Ok(())
+  }
+}
+
+/// Constructors shouldn't call this method because of scenarios where plaintext is used.
 #[expect(clippy::panic, reason = "dummy structures should not be called")]
-fn dummy_impl_call() -> ! {
+fn dummy_crypto_call() -> ! {
   panic!(
     "An operation required a crypto algorithm but no crypto backend was selected! You can, for example, enable the `crypto-ring` feature."
   );

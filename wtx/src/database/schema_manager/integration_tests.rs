@@ -48,7 +48,7 @@ macro_rules! create_integration_tests {
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut tls_connector = crate::tls::TlsConnector::new(
-            crate::tls::TlsConfig::empty(),
+            crate::tls::TlsConfig::plaintext(),
             crate::rng::ChaCha20::from_std_random().unwrap(),
             stream
           );

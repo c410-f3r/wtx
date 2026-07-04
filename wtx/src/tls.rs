@@ -63,23 +63,26 @@ pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
 pub use protocol::{
+  alert::Alert,
   alpn::Alpn,
   cipher_suite::CipherSuite,
   max_fragment_length::MaxFragmentLength,
   named_group::{NamedGroup, NamedGroupParam},
   new_session_ticket::NewSessionTicket,
   protocol_version::ProtocolVersion,
+  server_name::ServerName,
+  server_name_list::ServerNameList,
 };
 pub use psk::Psk;
 pub use psk_ty::PskTy;
 pub use read_record_info::ReadRecordInfo;
-pub use tls_acceptor::{TlsAcceptor, TlsAcceptorRslt};
+pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};
 pub use tls_buffer::TlsBuffer;
 pub use tls_certificate::TlsCertificateTy;
 pub use tls_config::TlsConfig;
 pub use tls_connector::{
   ManageClientRecordsState, ManageRemainingServerRecordsInput, ManageRemainingServerRecordsState,
-  TlsConnectRslt, TlsConnector,
+  TlsConnectOutput, TlsConnector,
 };
 pub use tls_error::TlsError;
 pub use tls_mode::*;

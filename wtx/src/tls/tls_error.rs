@@ -1,8 +1,10 @@
+use crate::tls::Alert;
+
 /// TLS errror
 #[derive(Clone, Copy, Debug)]
 pub enum TlsError {
   /// Received an alert record in teh handshake phase
-  AbortedHandshake,
+  AbortedHandshake(Alert),
   /// Bad Pre Key Share
   BadPreKeyShare,
   /// Diffie–Hellman error
@@ -101,6 +103,8 @@ pub enum TlsError {
   UnknownWebpkiSignatureScheme,
   /// mTLS is not supported
   UnsupportedMtls,
+  /// Can not receive certificate records once a PSK was accepted
+  CertRecordInAcceptedPsk,
   /// Secret mismatch
   SecretMismatch,
   /// The server has a set of suites that the client don't support

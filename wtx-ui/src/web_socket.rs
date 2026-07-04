@@ -3,6 +3,7 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
+  calendar::Instant,
   collections::Vector,
   misc::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
@@ -16,7 +17,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let mut ws = WebSocketConnector::default()
     .connect(
       TlsConnector::new(
-        TlsConfig::from_ccadb(TlsModeVerified::default())?,
+        TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0)?)?,
         ChaCha20::from_std_random()?,
         stream,
       ),
@@ -59,7 +60,7 @@ pub(crate) async fn serve(
       let fun = async move {
         let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default()
-          .accept(TlsAcceptor::new(&TlsConfig::empty(), ChaCha20::from_std_random()?, stream))
+          .accept(TlsAcceptor::new(&TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream))
           .await?;
         loop {
           let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await?;

@@ -1,6 +1,7 @@
 // https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2
 
 use crate::{
+  calendar::DateTime,
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
   crypto::SignatureTy,
@@ -166,15 +167,15 @@ where
       tls_config: TlsConfigInner {
         alpn,
         cipher_suites,
-        client_cert_types: client_cert_types.unwrap_or_default(),
-        cv_policy: CvPolicy::default(),
+        client_cert_types,
+        cv_policy: CvPolicy::new(DateTime::default()),
         key_shares,
         max_fragment_length,
         named_groups,
         offered_psks: pre_shared_key,
         public_key: TlsCertificate::default(),
         secret_key: &[],
-        server_cert_types: server_cert_types.unwrap_or_default(),
+        server_cert_types,
         server_name,
         signature_algorithms,
         signature_algorithms_cert,
@@ -183,89 +184,6 @@ where
       },
     })
   }
-}
-
-fn manage_extension<'de>(
-  alpn: &mut Option<Alpn>,
-  client_cert_types: &mut Option<CertTypes>,
-  dw: &mut TlsDecodeWrapper<'de>,
-  extension_ty: ExtensionTy,
-  key_shares: &mut ArrayVectorU8<KeyShareEntry<&'de [u8]>, MAX_KEY_SHARES_LEN>,
-  max_fragment_length: &mut Option<MaxFragmentLength>,
-  named_groups: &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
-  pre_shared_key: &mut OfferedPsks<&'de [u8]>,
-  psk_key_exchange_modes: &mut Option<PskKeyExchangeModes>,
-  server_cert_types: &mut Option<CertTypes>,
-  server_name: &mut Option<ServerNameList<&'de [u8]>>,
-  signature_algorithms: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
-  signature_algorithms_cert: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
-  supported_versions_opt: &mut Option<SupportedVersionsClient>,
-) -> crate::Result<()> {
-  match extension_ty {
-    ExtensionTy::ApplicationLayerProtocolNegotiation => {
-      duplicated_error(alpn.is_some())?;
-      *alpn = Some(Alpn::decode(dw)?);
-    }
-    ExtensionTy::ClientCertificateType => {
-      duplicated_error(client_cert_types.is_some())?;
-      *client_cert_types = Some(CertTypes::decode(dw)?);
-    }
-    ExtensionTy::MaxFragmentLength => {
-      duplicated_error(max_fragment_length.is_some())?;
-      *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
-    }
-    ExtensionTy::KeyShare => {
-      duplicated_error(!key_shares.is_empty())?;
-      *key_shares = KeyShareClientHello::<'_>::decode(dw)?.client_shares;
-    }
-    ExtensionTy::OidFilters => {
-      return Err(TlsError::MismatchedExtension.into());
-    }
-    ExtensionTy::PskKeyExchangeModes => {
-      duplicated_error(psk_key_exchange_modes.is_some())?;
-      *psk_key_exchange_modes = Some(PskKeyExchangeModes::decode(dw)?);
-    }
-    ExtensionTy::PreSharedKey => {
-      duplicated_error(!pre_shared_key.offered_psks.is_empty())?;
-      *pre_shared_key = OfferedPsks::<&'de [u8]>::decode(dw)?;
-    }
-    ExtensionTy::ServerCertificateType => {
-      duplicated_error(server_cert_types.is_some())?;
-      *server_cert_types = Some(CertTypes::decode(dw)?);
-    }
-    ExtensionTy::ServerName => {
-      duplicated_error(server_name.is_some())?;
-      *server_name = Some(ServerNameList::<&'de [u8]>::decode(dw)?);
-    }
-    ExtensionTy::SignatureAlgorithms => {
-      duplicated_error(!signature_algorithms.is_empty())?;
-      *signature_algorithms = SignatureAlgorithms::decode(dw)?.signature_schemes;
-    }
-    ExtensionTy::SignatureAlgorithmsCert => {
-      duplicated_error(!signature_algorithms_cert.is_empty())?;
-      *signature_algorithms_cert = SignatureAlgorithmsCert::decode(dw)?.supported_groups;
-    }
-    ExtensionTy::SupportedGroups => {
-      duplicated_error(!named_groups.is_empty())?;
-      *named_groups = SupportedGroups::decode(dw)?.supported_groups;
-    }
-    ExtensionTy::SupportedVersions => {
-      duplicated_error(supported_versions_opt.is_some())?;
-      *supported_versions_opt = Some(SupportedVersionsClient::decode(dw)?);
-    }
-    ExtensionTy::CertificateAuthorities
-    | ExtensionTy::Cookie
-    | ExtensionTy::EarlyData
-    | ExtensionTy::Heartbeat
-    | ExtensionTy::Padding
-    | ExtensionTy::PostHandshakeAuth
-    | ExtensionTy::SignedCertificateTimestamp
-    | ExtensionTy::StatusRequest
-    | ExtensionTy::UseSrtp => {
-      return Err(TlsError::UnsupportedExtension.into());
-    }
-  }
-  Ok(())
 }
 
 impl<TC, TM> Encode<De>
@@ -297,11 +215,9 @@ where
       if let Some(elem) = &self.tls_config.lease().inner.alpn {
         Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, elem).encode(local_ew)?;
       }
-      Extension::new(
-        ExtensionTy::ClientCertificateType,
-        &self.tls_config.lease().inner.client_cert_types,
-      )
-      .encode(local_ew)?;
+      if let Some(elem) = &self.tls_config.lease().inner.client_cert_types {
+        Extension::new(ExtensionTy::ClientCertificateType, elem).encode(local_ew)?;
+      }
       {
         let mut client_shares = ArrayVectorU8::<_, MAX_KEY_SHARES_LEN>::new();
         for (key_share, secret) in self.tls_config.lease().inner.key_shares.iter().zip(self.secrets)
@@ -323,11 +239,9 @@ where
       if let Some(max_fragment_length) = self.tls_config.lease().inner.max_fragment_length {
         Extension::new(ExtensionTy::MaxFragmentLength, max_fragment_length).encode(local_ew)?;
       }
-      Extension::new(
-        ExtensionTy::ServerCertificateType,
-        &self.tls_config.lease().inner.server_cert_types,
-      )
-      .encode(local_ew)?;
+      if let Some(elem) = &self.tls_config.lease().inner.server_cert_types {
+        Extension::new(ExtensionTy::ServerCertificateType, elem).encode(local_ew)?;
+      }
       if let Some(name) = self.tls_config.lease().inner.server_name.as_ref() {
         Extension::new(ExtensionTy::ServerName, name).encode(local_ew)?;
       }
@@ -369,6 +283,89 @@ where
 fn duplicated_error(is_some: bool) -> crate::Result<()> {
   if is_some {
     return Err(TlsError::DuplicatedClientHelloParameters.into());
+  }
+  Ok(())
+}
+
+fn manage_extension<'de>(
+  alpn: &mut Option<Alpn>,
+  client_cert_types: &mut Option<CertTypes>,
+  dw: &mut TlsDecodeWrapper<'de>,
+  extension_ty: ExtensionTy,
+  key_shares: &mut ArrayVectorU8<KeyShareEntry<&'de [u8]>, MAX_KEY_SHARES_LEN>,
+  max_fragment_length: &mut Option<MaxFragmentLength>,
+  named_groups: &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+  pre_shared_key: &mut OfferedPsks<&'de [u8]>,
+  psk_key_exchange_modes: &mut Option<PskKeyExchangeModes>,
+  server_cert_types: &mut Option<CertTypes>,
+  server_name: &mut Option<ServerNameList>,
+  signature_algorithms: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  signature_algorithms_cert: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  supported_versions_opt: &mut Option<SupportedVersionsClient>,
+) -> crate::Result<()> {
+  match extension_ty {
+    ExtensionTy::ApplicationLayerProtocolNegotiation => {
+      duplicated_error(alpn.is_some())?;
+      *alpn = Some(Alpn::decode(dw)?);
+    }
+    ExtensionTy::ClientCertificateType => {
+      duplicated_error(client_cert_types.is_some())?;
+      *client_cert_types = Some(CertTypes::decode(dw)?);
+    }
+    ExtensionTy::MaxFragmentLength => {
+      duplicated_error(max_fragment_length.is_some())?;
+      *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
+    }
+    ExtensionTy::KeyShare => {
+      duplicated_error(!key_shares.is_empty())?;
+      *key_shares = KeyShareClientHello::<'_>::decode(dw)?.client_shares;
+    }
+    ExtensionTy::OidFilters => {
+      return Err(TlsError::MismatchedExtension.into());
+    }
+    ExtensionTy::PskKeyExchangeModes => {
+      duplicated_error(psk_key_exchange_modes.is_some())?;
+      *psk_key_exchange_modes = Some(PskKeyExchangeModes::decode(dw)?);
+    }
+    ExtensionTy::PreSharedKey => {
+      duplicated_error(!pre_shared_key.offered_psks.is_empty())?;
+      *pre_shared_key = OfferedPsks::<&'de [u8]>::decode(dw)?;
+    }
+    ExtensionTy::ServerCertificateType => {
+      duplicated_error(server_cert_types.is_some())?;
+      *server_cert_types = Some(CertTypes::decode(dw)?);
+    }
+    ExtensionTy::ServerName => {
+      duplicated_error(server_name.is_some())?;
+      *server_name = Some(ServerNameList::decode(dw)?);
+    }
+    ExtensionTy::SignatureAlgorithms => {
+      duplicated_error(!signature_algorithms.is_empty())?;
+      *signature_algorithms = SignatureAlgorithms::decode(dw)?.signature_schemes;
+    }
+    ExtensionTy::SignatureAlgorithmsCert => {
+      duplicated_error(!signature_algorithms_cert.is_empty())?;
+      *signature_algorithms_cert = SignatureAlgorithmsCert::decode(dw)?.supported_groups;
+    }
+    ExtensionTy::SupportedGroups => {
+      duplicated_error(!named_groups.is_empty())?;
+      *named_groups = SupportedGroups::decode(dw)?.supported_groups;
+    }
+    ExtensionTy::SupportedVersions => {
+      duplicated_error(supported_versions_opt.is_some())?;
+      *supported_versions_opt = Some(SupportedVersionsClient::decode(dw)?);
+    }
+    ExtensionTy::CertificateAuthorities
+    | ExtensionTy::Cookie
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::Padding
+    | ExtensionTy::PostHandshakeAuth
+    | ExtensionTy::SignedCertificateTimestamp
+    | ExtensionTy::StatusRequest
+    | ExtensionTy::UseSrtp => {
+      return Err(TlsError::UnsupportedExtension.into());
+    }
   }
   Ok(())
 }

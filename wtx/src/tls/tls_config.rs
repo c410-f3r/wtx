@@ -1,16 +1,14 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
+  calendar::{DateTime, Utc},
   codec::{Decode as _, DecodeWrapper},
   collections::{ArrayVector, ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
   tls::{
-    CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsCertificateTy,
-    TlsModePlainText,
-    protocol::{
-      alpn::Alpn, cert_types::CertTypes, key_share_entry::KeyShareEntry, offered_psks::OfferedPsks,
-      server_name_list::ServerNameList,
-    },
+    Alpn, CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, ServerNameList,
+    TlsCertificateTy, TlsModePlainText,
+    protocol::{cert_types::CertTypes, key_share_entry::KeyShareEntry, offered_psks::OfferedPsks},
     tls_certificate::TlsCertificate,
   },
   x509::{Certificate, CvPolicy, CvTrustAnchor},
@@ -20,15 +18,16 @@ use core::fmt::Debug;
 /// TLS Configuration
 ///
 /// The is a non-trivial structure that should be constructed only once in your application.
+#[derive(Clone)]
 pub struct TlsConfig<TM> {
   pub(crate) inner: TlsConfigInner<ShortBoxSliceU16<u8>, TM>,
 }
 
 impl TlsConfig<TlsModePlainText> {
-  /// New instance that can't incorporate any certificate.
+  /// Placeholder used in locals where data is expected to be unencrypted.
   #[inline]
-  pub fn empty() -> Self {
-    Self::new(TlsModePlainText::default())
+  pub fn plaintext() -> Self {
+    Self::new(TlsModePlainText::default(), DateTime::default())
   }
 }
 
@@ -36,27 +35,32 @@ impl<TM> TlsConfig<TM> {
   /// New instance that doesn't incorporate any initial certificate, which will likely make
   /// connections fail. However, it is still possible to add certificates using mutable methods.
   #[inline]
-  pub fn new(mode: TM) -> Self {
-    Self { inner: TlsConfigInner::new(mode) }
+  pub fn new(mode: TM, validation_time: DateTime<Utc>) -> Self {
+    Self { inner: TlsConfigInner::new(mode, validation_time) }
   }
 
   /// Set of filtered certificates from CCADB generally suitable for web scenarios.
   #[cfg(feature = "ccadb")]
   #[inline]
-  pub fn from_ccadb(mode: TM) -> crate::Result<Self> {
+  pub fn from_ccadb(mode: TM, validation_time: DateTime<Utc>) -> crate::Result<Self> {
     let mut trust_anchors = Vector::new();
     for elem in crate::x509::CCADB {
       trust_anchors.push(CvTrustAnchor::_from_raw(*elem)?)?;
     }
-    let mut this = Self::new(mode);
+    let mut this = Self::new(mode, validation_time);
     this.inner.trust_anchors = trust_anchors;
     Ok(this)
   }
 
   /// New instance from full X.509 public and secret keys in PEM format. Mostly used by servers.
   #[inline]
-  pub fn from_keys_pem(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
-    let mut this = Self::new(mode);
+  pub fn from_keys_pem(
+    mode: TM,
+    public_key: &[u8],
+    secret_key: &[u8],
+    validation_time: DateTime<Utc>,
+  ) -> crate::Result<Self> {
+    let mut this = Self::new(mode, validation_time);
     let mut buffer = Vector::new();
     this.inner.public_key = tls_certificate(&mut buffer, public_key)?;
     buffer.clear();
@@ -69,6 +73,7 @@ impl<TM> TlsConfig<TM> {
   pub fn from_trust_anchors_pem<'bytes>(
     mode: TM,
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
+    validation_time: DateTime<Utc>,
   ) -> crate::Result<Self> {
     let mut buffer = Vector::new();
     let mut vector = Vector::new();
@@ -76,7 +81,7 @@ impl<TM> TlsConfig<TM> {
       let certificate = Certificate::<&[u8]>::from_pem(&mut buffer, trust_anchor)?.0;
       vector.push(CvTrustAnchor::from_certificate_ref(&certificate)?)?;
     }
-    let mut this = Self::new(mode);
+    let mut this = Self::new(mode, validation_time);
     this.inner.trust_anchors = vector;
     Ok(this)
   }
@@ -121,6 +126,12 @@ impl<TM> TlsConfig<TM> {
     &self.inner.mode
   }
 
+  /// See [`ServerNameList`].
+  #[inline]
+  pub fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
+    &mut self.inner.server_name
+  }
+
   /// **For clients**: Tells the server which types of certificates it can send.
   /// **For servers**: The types of certificates it can receive, aborting the handshake if there
   ///                  isn't a match with clients. Picks the first compatible type.
@@ -129,33 +140,8 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   #[must_use]
   pub fn set_client_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
-    self.inner.client_cert_types = CertTypes(value);
+    self.inner.client_cert_types = Some(CertTypes(value));
     self
-  }
-
-  /// See [`crate::tls::TlsMode`].
-  #[inline]
-  pub fn set_mode<_TM>(self, value: _TM) -> TlsConfig<_TM> {
-    TlsConfig {
-      inner: TlsConfigInner {
-        alpn: self.inner.alpn,
-        cipher_suites: self.inner.cipher_suites,
-        client_cert_types: self.inner.client_cert_types,
-        cv_policy: self.inner.cv_policy,
-        key_shares: self.inner.key_shares,
-        max_fragment_length: self.inner.max_fragment_length,
-        named_groups: self.inner.named_groups,
-        offered_psks: self.inner.offered_psks,
-        public_key: self.inner.public_key,
-        secret_key: self.inner.secret_key,
-        server_cert_types: self.inner.server_cert_types,
-        server_name: self.inner.server_name,
-        signature_algorithms_cert: self.inner.signature_algorithms_cert,
-        signature_algorithms: self.inner.signature_algorithms,
-        trust_anchors: self.inner.trust_anchors,
-        mode: value,
-      },
-    }
   }
 
   /// **For clients**: Tells the server which types of certificates it can receive.
@@ -166,7 +152,7 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   #[must_use]
   pub fn set_server_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
-    self.inner.server_cert_types = CertTypes(value);
+    self.inner.server_cert_types = Some(CertTypes(value));
     self
   }
 
@@ -212,7 +198,7 @@ impl<TM> Debug for TlsConfig<TM> {
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::len() }>,
-  pub(crate) client_cert_types: CertTypes,
+  pub(crate) client_cert_types: Option<CertTypes>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<B>, MAX_KEY_SHARES_LEN>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
@@ -220,8 +206,8 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) offered_psks: OfferedPsks<B>,
   pub(crate) public_key: TlsCertificate<B>,
   pub(crate) secret_key: B,
-  pub(crate) server_cert_types: CertTypes,
-  pub(crate) server_name: Option<ServerNameList<B>>,
+  pub(crate) server_cert_types: Option<CertTypes>,
+  pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms_cert: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
   pub(crate) signature_algorithms: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
   pub(crate) trust_anchors: Vector<CvTrustAnchor<B>>,
@@ -233,12 +219,12 @@ where
   B: Default,
 {
   #[inline]
-  fn new(mode: TM) -> Self {
+  fn new(mode: TM, validation_time: DateTime<Utc>) -> Self {
     Self {
       alpn: None,
-      client_cert_types: CertTypes::default(),
+      client_cert_types: None,
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::all()),
-      cv_policy: CvPolicy::new(),
+      cv_policy: CvPolicy::new(validation_time),
       key_shares: ArrayVector::from_array([
         KeyShareEntry { group: NamedGroup::X25519, opaque: B::default() },
         KeyShareEntry { group: NamedGroup::Secp256r1, opaque: B::default() },
@@ -248,7 +234,7 @@ where
       offered_psks: OfferedPsks { offered_psks: ArrayVectorU8::new() },
       public_key: TlsCertificate::default(),
       secret_key: B::default(),
-      server_cert_types: CertTypes::default(),
+      server_cert_types: None,
       server_name: None,
       signature_algorithms: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
       signature_algorithms_cert: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),

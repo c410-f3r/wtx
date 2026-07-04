@@ -6,6 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpStream;
 use wtx::{
+  calendar::Instant,
   collections::Vector,
   misc::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
@@ -21,7 +22,11 @@ async fn main() -> wtx::Result<()> {
   let mut ws = WebSocketConnector::default()
     .connect(
       TlsConnector::new(
-        TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
+        TlsConfig::from_trust_anchors_pem(
+          TlsModeVerified::default(),
+          [ROOT_CA],
+          Instant::now_date_time(0)?,
+        )?,
         ChaCha20::from_getrandom()?,
         stream,
       ),

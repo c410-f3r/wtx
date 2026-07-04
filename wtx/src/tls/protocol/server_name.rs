@@ -1,7 +1,8 @@
 use crate::{
   codec::{Decode, Encode},
+  collections::ArrayStringU8,
   misc::{
-    Lease,
+    Lease as _,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   tls::{
@@ -10,17 +11,28 @@ use crate::{
   },
 };
 
+/// Server name
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct ServerName<B> {
+pub struct ServerName {
   pub(crate) name_type: NameType,
-  pub(crate) name: B,
+  pub(crate) name: ArrayStringU8<14>,
 }
 
-impl<'de, B> Decode<'de, De> for ServerName<B>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
+impl ServerName {
+  /// From arbitrary name
+  #[inline]
+  pub const fn from_name(name: ArrayStringU8<14>) -> Self {
+    Self { name_type: NameType::HostName, name }
+  }
+
+  /// Name
+  #[inline]
+  pub const fn name(&self) -> &ArrayStringU8<14> {
+    &self.name
+  }
+}
+
+impl<'de> Decode<'de, De> for ServerName {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let name_type = NameType::decode(dw)?;
@@ -29,14 +41,11 @@ where
       return Err(TlsError::InvalidServerName.into());
     };
     *dw.bytes_mut() = rest;
-    Ok(Self { name_type, name: name.try_into().map_err(Into::into)? })
+    Ok(Self { name_type, name: name.try_into()? })
   }
 }
 
-impl<B> Encode<De> for ServerName<B>
-where
-  B: Lease<[u8]>,
-{
+impl Encode<De> for ServerName {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.name_type.encode(ew)?;

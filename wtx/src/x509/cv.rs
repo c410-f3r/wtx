@@ -85,6 +85,7 @@ where
     &cert.authority_key_identifier,
     cv_policy,
     cert.has_unknown_critical_extension,
+    cert.is_self_signed,
     last_err,
     &cert.subject_key_identifier,
     &cert.validity,
@@ -113,6 +114,7 @@ where
       trust_anchor.authority_key_identifier(),
       cv_policy,
       trust_anchor.has_unknown_critical_extension(),
+      trust_anchor.is_self_signed(),
       last_err,
       trust_anchor.subject_key_identifier(),
       trust_anchor.validity(),
@@ -655,6 +657,7 @@ fn validate_ica_dyn<B>(
   aki_opt: &Option<AuthorityKeyIdentifier>,
   cv_policy: &CvPolicy<B>,
   has_unknown_critical_extension: bool,
+  is_self_signed: bool,
   last_err: &mut Option<X509CvError>,
   ski_opt: &Option<FlaggedExtension<SubjectKeyIdentifier>>,
   validity: &Validity,
@@ -696,7 +699,7 @@ where
           *last_err = Some(X509CvError::RootCasMustHaveKeyIdentifiers);
           return false;
         };
-        if ki.bytes() != ski.extension().key_identifier.bytes() {
+        if is_self_signed && ki.bytes() != ski.extension().key_identifier.bytes() {
           *last_err = Some(X509CvError::RootCasMustHaveMatchingAkiAndSki);
           return false;
         }

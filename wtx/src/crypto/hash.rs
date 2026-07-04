@@ -1,4 +1,4 @@
-use crate::{crypto::dummy_impl_call, misc::DefaultArray};
+use crate::{crypto::dummy_crypto_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
@@ -42,7 +42,7 @@ where
 
   #[inline]
   fn digest<'data>(_: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
@@ -52,7 +52,7 @@ where
 
   #[inline]
   fn finalize(self) -> Self::Digest {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]

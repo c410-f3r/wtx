@@ -103,7 +103,7 @@ where
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
   pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
-    push_h2_alpn(tls_config.alpn_mut())?;
+    push_h2_alpn(&mut tls_config)?;
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
     Ok(Self {
@@ -202,14 +202,6 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   pub fn set_tcp_params(mut self, value: TcpParams) -> Self {
     self.tcp_params = value;
     self
-  }
-
-  /// The "h2" ALPN will always be pushed into the TLS configuration.
-  #[inline]
-  pub fn set_tls_config(mut self, mut value: TlsConfig<TM>) -> crate::Result<Self> {
-    push_h2_alpn(value.alpn_mut())?;
-    self.tls_config = value.into();
-    Ok(self)
   }
 }
 

@@ -1,4 +1,5 @@
 use crate::{
+  calendar::Instant,
   executor::StdRuntime,
   rng::{ChaCha20, CryptoSeedableRng},
   stream::{StreamReader, StreamWriter},
@@ -9,10 +10,11 @@ use std::net::{TcpListener, TcpStream};
 
 const TM: TlsModeUnverified = TlsModeUnverified::new();
 
-#[ignore]
+#[cfg_attr(miri, ignore)]
 #[wtx::test]
 async fn simple_connection(runtime: &StdRuntime) {
   let uri = _uri();
+  let now = Instant::now_date_time(0).unwrap();
   let mut client_rng = ChaCha20::from_std_random().unwrap();
   let mut server_rng = ChaCha20::from_crypto_rng(&mut client_rng).unwrap();
 
@@ -21,7 +23,7 @@ async fn simple_connection(runtime: &StdRuntime) {
   let _client_jh = runtime
     .spawn(async move {
       let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-      let mut tls_stream = TlsConnector::new(TlsConfig::new(TM), &mut client_rng, stream)
+      let mut tls_stream = TlsConnector::new(TlsConfig::new(TM, now), &mut client_rng, stream)
         .connect()
         .await
         .unwrap()
@@ -34,7 +36,7 @@ async fn simple_connection(runtime: &StdRuntime) {
     .unwrap();
 
   let stream = listener.accept().unwrap().0;
-  let mut tls_stream = TlsAcceptor::new(TlsConfig::new(TM), &mut server_rng, stream)
+  let mut tls_stream = TlsAcceptor::new(TlsConfig::new(TM, now), &mut server_rng, stream)
     .accept()
     .await
     .unwrap()

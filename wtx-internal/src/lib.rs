@@ -26,7 +26,7 @@ pub async fn autobahn_case_conn(
     .set_compression(ZlibRs::default())
     .set_no_masking(false)
     .connect(
-      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      TlsConnector::new(TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream),
       &ArrayStringU8::<128>::try_from(format_args!("http://{host}/runCase?case={case}&agent=wtx"))?
         .as_str()
         .into(),
@@ -42,7 +42,7 @@ pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
   let stream = TcpStream::connect(host).await?;
   WebSocketConnector::default()
     .connect(
-      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      TlsConnector::new(TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream),
       &ArrayStringU8::<128>::try_from(url)?.as_str().into(),
     )
     .await?
@@ -58,7 +58,7 @@ pub async fn autobahn_get_case_count(buffer: &mut Vector<u8>, host: &str) -> wtx
   let fmt = format_args!("http://{host}/getCaseCount");
   let mut ws = WebSocketConnector::default()
     .connect(
-      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      TlsConnector::new(TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream),
       &ArrayStringU8::<128>::try_from(fmt)?.as_str().into(),
     )
     .await?;

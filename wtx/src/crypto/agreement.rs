@@ -8,7 +8,7 @@ mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
-use crate::{crypto::dummy_impl_call, misc::DefaultArray, rng::CryptoRng};
+use crate::{crypto::dummy_crypto_call, misc::DefaultArray, rng::CryptoRng};
 use core::marker::PhantomData;
 
 /// Temporary single-use secret key.
@@ -47,16 +47,16 @@ where
   where
     RNG: CryptoRng,
   {
-    dummy_impl_call();
+    Ok(Self(PhantomData))
   }
 
   #[inline]
   fn diffie_hellman(self, _: &[u8]) -> crate::Result<Self::SharedSecret> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
   fn public_key(&self) -> crate::Result<Self::PublicKey> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }

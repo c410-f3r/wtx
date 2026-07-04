@@ -142,6 +142,7 @@ impl<'cert> CvCertificateExtensions<&'cert [u8]> {
     let mut has_unknown_critical_extension = false;
     let mut key_usage = None;
     let mut name_constraints = None;
+    let mut _policy_constraints: Option<()> = None;
     let mut subject_alt_name = None;
     let mut subject_key_identifier = None;
 
@@ -150,7 +151,6 @@ impl<'cert> CvCertificateExtensions<&'cert [u8]> {
       for extension in &extensions.entries {
         let decode_aux = Asn1DecodeWrapperAux::default();
         let mut dw = DecodeWrapper::new(extension.extn_value.bytes(), decode_aux);
-        let mut _policy_constraints: Option<()> = None;
         match extension.extn_id {
           el if el == OID_X509_EXT_AUTHORITY_KEY_IDENTIFIER => {
             check_duplicated!(has_duplicated, authority_key_identifier);

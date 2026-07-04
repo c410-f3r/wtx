@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  misc::Lease,
+  misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
     MaxFragmentLength, TlsCertificateTy, TlsError,
     de::De,
@@ -17,22 +17,22 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct EncryptedExtensions<B> {
+pub(crate) struct EncryptedExtensions {
   alpn: Option<Alpn>,
   client_cert_type: Option<TlsCertificateTy>,
   max_fragment_length: Option<MaxFragmentLength>,
   server_cert_type: Option<TlsCertificateTy>,
-  server_name: Option<ServerNameList<B>>,
+  server_name: Option<ServerNameList>,
   supported_groups: Option<SupportedGroups>,
 }
 
-impl<B> EncryptedExtensions<B> {
+impl EncryptedExtensions {
   pub(crate) fn new(
     alpn: Option<Alpn>,
     client_cert_type: Option<TlsCertificateTy>,
     max_fragment_length: Option<MaxFragmentLength>,
     server_cert_type: Option<TlsCertificateTy>,
-    server_name: Option<ServerNameList<B>>,
+    server_name: Option<ServerNameList>,
     supported_groups: Option<SupportedGroups>,
   ) -> Self {
     Self {
@@ -50,11 +50,7 @@ impl<B> EncryptedExtensions<B> {
   }
 }
 
-impl<'de, B> Decode<'de, De> for EncryptedExtensions<B>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
+impl<'de> Decode<'de, De> for EncryptedExtensions {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidEncryptedExtensions;
@@ -93,10 +89,7 @@ where
   }
 }
 
-impl<B> Encode<De> for EncryptedExtensions<B>
-where
-  B: Lease<[u8]>,
-{
+impl Encode<De> for EncryptedExtensions {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     let Self {
@@ -107,41 +100,41 @@ where
       server_name,
       supported_groups,
     } = self;
-    Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, alpn).encode(ew)?;
-    if let Some(el) = client_cert_type {
-      Extension::new(ExtensionTy::ClientCertificateType, CertType(*el)).encode(ew)?;
-    }
-    if let Some(el) = max_fragment_length {
-      Extension::new(ExtensionTy::MaxFragmentLength, el).encode(ew)?;
-    }
-    if let Some(el) = server_cert_type {
-      Extension::new(ExtensionTy::ServerCertificateType, CertType(*el)).encode(ew)?;
-    }
-    if let Some(el) = server_name {
-      Extension::new(ExtensionTy::ServerName, el).encode(ew)?;
-    }
-    if let Some(el) = supported_groups {
-      Extension::new(ExtensionTy::SupportedGroups, el).encode(ew)?;
-    }
-    Ok(())
+    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
+      if let Some(el) = alpn {
+        Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, el).encode(local_ew)?;
+      }
+      if let Some(el) = client_cert_type {
+        Extension::new(ExtensionTy::ClientCertificateType, CertType(*el)).encode(local_ew)?;
+      }
+      if let Some(el) = max_fragment_length {
+        Extension::new(ExtensionTy::MaxFragmentLength, el).encode(local_ew)?;
+      }
+      if let Some(el) = server_cert_type {
+        Extension::new(ExtensionTy::ServerCertificateType, CertType(*el)).encode(local_ew)?;
+      }
+      if let Some(el) = server_name {
+        Extension::new(ExtensionTy::ServerName, el).encode(local_ew)?;
+      }
+      if let Some(el) = supported_groups {
+        Extension::new(ExtensionTy::SupportedGroups, el).encode(local_ew)?;
+      }
+      Ok(())
+    })
   }
 }
 
 #[inline]
-fn manage_extension<'de, B>(
+fn manage_extension(
   alpn: &mut Option<Alpn>,
   client_cert_type: &mut Option<TlsCertificateTy>,
-  dw: &mut TlsDecodeWrapper<'de>,
+  dw: &mut TlsDecodeWrapper<'_>,
   extension_ty: ExtensionTy,
   max_fragment_length: &mut Option<MaxFragmentLength>,
   server_cert_type: &mut Option<TlsCertificateTy>,
-  server_name: &mut Option<ServerNameList<B>>,
+  server_name: &mut Option<ServerNameList>,
   supported_groups: &mut Option<SupportedGroups>,
-) -> crate::Result<()>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
+) -> crate::Result<()> {
   match extension_ty {
     ExtensionTy::ApplicationLayerProtocolNegotiation => {
       duplicated_error(alpn.is_some())?;
@@ -161,7 +154,7 @@ where
     }
     ExtensionTy::ServerName => {
       duplicated_error(server_name.is_some())?;
-      *server_name = Some(ServerNameList::<B>::decode(dw)?);
+      *server_name = Some(ServerNameList::decode(dw)?);
     }
     ExtensionTy::SupportedGroups => {
       duplicated_error(supported_groups.is_some())?;

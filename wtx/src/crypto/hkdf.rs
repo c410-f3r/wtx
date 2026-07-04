@@ -1,9 +1,11 @@
-use crate::{crypto::dummy_impl_call, misc::DefaultArray};
+use crate::{crypto::dummy_crypto_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
 pub(crate) mod global;
+#[cfg(feature = "crypto-graviola")]
+mod graviola;
 #[cfg(feature = "crypto-openssl")]
 mod openssl;
 #[cfg(feature = "crypto-ring")]
@@ -42,12 +44,12 @@ where
 
   #[inline]
   fn extract(_: Option<&[u8]>, _: &[u8]) -> (Self::Digest, Self) {
-    dummy_impl_call();
+    (D::default_array(), Self(PhantomData))
   }
 
   #[inline]
   fn from_prk(_: &[u8]) -> crate::Result<Self> {
-    dummy_impl_call();
+    Ok(Self(PhantomData))
   }
 
   #[inline]
@@ -55,11 +57,11 @@ where
     _: impl IntoIterator<Item = &'data [u8]>,
     _: &[u8],
   ) -> crate::Result<Self::Digest> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 
   #[inline]
   fn expand(&self, _: &[u8], _: &mut [u8]) -> crate::Result<()> {
-    dummy_impl_call();
+    dummy_crypto_call();
   }
 }

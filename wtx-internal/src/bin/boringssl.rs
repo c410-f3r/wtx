@@ -16,6 +16,7 @@ use core::fmt::Debug;
 use std::{env, process};
 use tokio::net::{TcpListener, TcpStream};
 use wtx::{
+  calendar::Instant,
   codec::{Base64Alphabet, base64_decode, base64_decoded_len_ub, hex_decode},
   collections::{ShortBoxSliceU8, Vector},
   crypto::SignatureTy,
@@ -708,7 +709,7 @@ async fn manage_after_handshake<const IS_CLIENT: bool>(
 }
 
 fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
-  let mut cfg = TlsConfig::new(TlsModeVerified::default());
+  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time(0).unwrap());
   if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
     let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
     cfg
@@ -730,7 +731,7 @@ fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
 }
 
 fn make_server_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
-  let mut cfg = TlsConfig::new(TlsModeVerified::default());
+  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time(0).unwrap());
   if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
     let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
     cfg

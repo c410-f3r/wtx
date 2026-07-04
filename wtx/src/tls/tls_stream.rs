@@ -6,7 +6,7 @@ use crate::{
   tls::{
     TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
-    misc::{read_after_handshake_data, write_data},
+    misc::{read_after_handshake_data, write_payloads},
     protocol::{
       alert::{Alert, AlertDescription, AlertLevel},
       key_update::{KeyUpdate, KeyUpdateRequest},
@@ -198,11 +198,11 @@ where
     if TM::TY.is_plain_text() {
       return self.stream.write_all(bytes).await;
     }
-    write_data(
-      &[bytes],
+    write_payloads(
       RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
+      &[bytes],
       &mut self.stream,
       &mut self.buffer.writer_buffer,
     )
@@ -214,11 +214,11 @@ where
     if TM::TY.is_plain_text() {
       return self.stream.write_all_vectored(bytes).await;
     }
-    write_data(
-      bytes,
+    write_payloads(
       RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
+      bytes,
       &mut self.stream,
       &mut self.buffer.writer_buffer,
     )

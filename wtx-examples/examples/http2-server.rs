@@ -6,6 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpListener;
 use wtx::{
+  calendar::Instant,
   collections::Vector,
   http::{HttpRecvParams, Response, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
@@ -24,7 +25,12 @@ async fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
   let hb = Http2Buffer::new(&mut rng);
   let tls_stream = TlsAcceptor::new(
-    TlsConfig::from_keys_pem(TlsModeVerified::default(), PUBLIC_KEY, SECRET_KEY)?,
+    TlsConfig::from_keys_pem(
+      TlsModeVerified::default(),
+      PUBLIC_KEY,
+      SECRET_KEY,
+      Instant::now_date_time(0)?,
+    )?,
     rng,
     stream,
   )

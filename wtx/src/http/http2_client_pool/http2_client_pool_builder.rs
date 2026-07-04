@@ -34,7 +34,7 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
     rng: ChaCha20,
     mut tls_config: TlsConfig<TM>,
   ) -> crate::Result<Self> {
-    push_h2_alpn(tls_config.alpn_mut())?;
+    push_h2_alpn(&mut tls_config)?;
     Ok(Self {
       executor,
       hrp: HttpRecvParams::with_optioned_params(),

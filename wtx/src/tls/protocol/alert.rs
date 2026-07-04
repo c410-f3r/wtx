@@ -9,7 +9,7 @@ use crate::{
 };
 
 create_enum! {
-  #[derive(Clone, Copy, Debug)]
+  #[derive(Clone, Copy, Debug, PartialEq)]
   pub(crate) enum AlertDescription<u8> {
     CloseNotify = (0), // Warning
     UnexpectedMessage = (10),
@@ -50,7 +50,7 @@ impl AlertDescription {
 }
 
 create_enum! {
-  #[derive(Debug, Clone, Copy)]
+  #[derive(Debug, Clone, Copy, PartialEq)]
   pub(crate) enum AlertLevel<u8> {
     Warning = (1),
     Fatal = (2),
@@ -58,8 +58,8 @@ create_enum! {
 }
 
 /// Closure information and errors.
-#[derive(Debug)]
-pub(crate) struct Alert {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Alert {
   level: AlertLevel,
   description: AlertDescription,
 }
@@ -69,11 +69,11 @@ impl Alert {
     Self { level, description }
   }
 
-  pub(crate) fn data_bytes(&self) -> [u8; 2] {
+  pub(crate) fn data_bytes(self) -> [u8; 2] {
     [u8::from(self.level), u8::from(self.description)]
   }
 
-  pub(crate) fn description(&self) -> AlertDescription {
+  pub(crate) fn description(self) -> AlertDescription {
     self.description
   }
 
@@ -82,7 +82,7 @@ impl Alert {
     kss: &mut KeyScheduleState,
   ) -> crate::Result<[u8; 5 + 2 + 1 + 16]> {
     let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 19];
-    let mut encrypted = [a0, a1, RecordContentType::ApplicationData.into()];
+    let mut encrypted = [a0, a1, RecordContentType::Alert.into()];
     let nonce = kss.nonce();
     let secret = kss.cipher_key();
     let tag = kss.cipher_suite().aes_encrypt(&header, &mut encrypted, nonce, secret)?;

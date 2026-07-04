@@ -86,7 +86,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
         .set_compression(server_compression)
         .set_no_masking(server_no_masking)
         .accept(TlsAcceptor::new(
-          &TlsConfig::empty(),
+          &TlsConfig::plaintext(),
           &mut ChaCha20::from_std_random().unwrap(),
           stream,
         ))
@@ -111,7 +111,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
     .set_compression(client_compression)
     .set_no_masking(client_no_masking)
     .connect(
-      TlsConnector::new(&TlsConfig::empty(), &mut ChaCha20::from_std_random().unwrap(), stream),
+      TlsConnector::new(&TlsConfig::plaintext(), &mut ChaCha20::from_std_random().unwrap(), stream),
       &uri.to_ref(),
     )
     .await

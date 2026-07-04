@@ -1,43 +1,43 @@
 use crate::{
   codec::{Decode, Encode},
   collections::ArrayVectorU8,
-  misc::{
-    Lease,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
     TlsError, de::De, misc::u16_list, protocol::server_name::ServerName,
     tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ServerNameList<B> {
-  pub(crate) names: ArrayVectorU8<ServerName<B>, 1>,
+/// A mechanism for a client to tell a server the name of the server it is contacting.
+///
+/// <https://www.rfc-editor.org/info/rfc6066/#section-3>
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ServerNameList {
+  /// See [`ServerName`].
+  pub server_name_list: ArrayVectorU8<ServerName, 1>,
 }
 
-impl<'de, B> Decode<'de, De> for ServerNameList<B>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
+impl<'de> Decode<'de, De> for ServerNameList {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let mut names = ArrayVectorU8::new();
-    u16_list(&mut names, dw, TlsError::InvalidServerNameList)?;
-    Ok(Self { names })
+    if dw.bytes().is_empty() {
+      return Ok(Self { server_name_list: ArrayVectorU8::new() });
+    }
+    let mut server_name_list = ArrayVectorU8::new();
+    u16_list(&mut server_name_list, dw, TlsError::InvalidServerNameList)?;
+    Ok(Self { server_name_list })
   }
 }
 
-impl<B> Encode<De> for ServerNameList<B>
-where
-  B: Lease<[u8]>,
-{
+impl Encode<De> for ServerNameList {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
+    if self.server_name_list.is_empty() {
+      return crate::Result::Ok(());
+    }
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
-      &self.names,
+      &self.server_name_list,
       None,
       ew,
       |elem, local_ew| {

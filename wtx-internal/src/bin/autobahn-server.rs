@@ -20,7 +20,7 @@ async fn main() -> wtx::Result<()> {
   WebSocketServerFramework::new(
     TokioExecutor::default(),
     ChaCha20::from_std_random()?,
-    TlsConfig::empty().into(),
+    TlsConfig::plaintext().into(),
   )?
   .set_compression(ZlibRs::default())
   .set_error_cb(|error| eprintln!("{error}"))

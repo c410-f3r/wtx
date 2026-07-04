@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode as _, Encode as _},
-  collections::ArrayVectorU8,
+  collections::{ArrayVectorCopy, ArrayVectorU8},
   crypto::SignatureTy,
   misc::{Lease, SingleTypeStorage},
   rng::CryptoRng,
@@ -10,8 +10,9 @@ use crate::{
     CipherSuite, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MaxFragmentLength, NamedGroup, Psks,
     TlsBuffer, TlsCertificateTy, TlsConfig, TlsError, TlsMode, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, server_sig_msg, write_data},
+    misc::{fetch_rec_from_stream, server_sig_msg, write_payloads},
     protocol::{
+      cert_types::CertTypes,
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
       client_hello::ClientHello,
@@ -125,9 +126,9 @@ where
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn accept(mut self) -> crate::Result<StreamReadItem<TlsAcceptorRslt<RNG, S, TM>>> {
+  pub async fn accept(mut self) -> crate::Result<StreamReadItem<TlsAcceptOutput<RNG, S, TM>>> {
     if TM::TY.is_plain_text() {
-      return Ok(StreamReadItem::from_item(TlsAcceptorRslt {
+      return Ok(StreamReadItem::from_item(TlsAcceptOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
         rng: self.rng,
@@ -145,26 +146,33 @@ where
     };
     let indices = self.manage_initial_client_record(&rri0)?;
     let buffer = self.buffer.reader_buffer.buffer_mut();
-    write_data(
-      &[
-        buffer.get(indices[0]..indices[1]).unwrap_or_default(),
-        buffer.get(indices[1]..indices[2]).unwrap_or_default(),
-        buffer.get(indices[2]..indices[3]).unwrap_or_default(),
-        buffer.get(indices[3]..).unwrap_or_default(),
+    let payloads = match indices.as_slice() {
+      [idx0, idx1] => {
+        &[buffer.get(*idx0..*idx1).unwrap_or_default(), buffer.get(*idx1..).unwrap_or_default()][..]
+      }
+      [idx0, idx1, idx2, idx3] => &[
+        buffer.get(*idx0..*idx1).unwrap_or_default(),
+        buffer.get(*idx1..*idx2).unwrap_or_default(),
+        buffer.get(*idx2..*idx3).unwrap_or_default(),
+        buffer.get(*idx3..).unwrap_or_default(),
       ],
-      RecordContentType::Handshake,
+      _ => &[],
+    };
+    write_payloads(
+      RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
+      payloads,
       &mut self.stream,
       &mut self.buffer.writer_buffer,
     )
     .await?;
-    buffer.truncate(indices[0]);
+    buffer.truncate(indices.first().copied().unwrap_or_default());
     let Some(rri1) = self.fetch_rec_from_stream(true).await?.opt() else {
       return Ok(StreamReadItem::empty_cold());
     };
     self.manage_final_client_record(&rri1)?;
-    Ok(StreamReadItem::from_item(TlsAcceptorRslt {
+    Ok(StreamReadItem::from_item(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
       rng: self.rng,
@@ -186,55 +194,65 @@ where
   pub fn manage_initial_client_record(
     &mut self,
     rri: &ReadRecordInfo,
-  ) -> crate::Result<[usize; 4]> {
+  ) -> crate::Result<ArrayVectorCopy<usize, 4>> {
     let RecordContentType::Handshake = rri.outer_ty else {
       return Err(TlsError::InvalidHandshake.into());
     };
-    let (client_cert_type, max_fragment_length, server_cert_type, sign_ty) = self.negotiate(rri)?;
+    let output = self.negotiate(rri)?;
     self.buffer.reader_buffer.clear_if_exhausted();
     let reader_buffer = self.buffer.reader_buffer.buffer_mut();
     let mut curr_idx = reader_buffer.len();
-    let mut indices = [0usize; 4];
+    let mut indices = ArrayVectorCopy::new();
     let encrypted_extensions = Handshake::new(
       HandshakeType::EncryptedExtensions,
-      EncryptedExtensions::<&[u8]>::new(
+      EncryptedExtensions::new(
         self.config.lease().inner.alpn.clone(),
-        Some(client_cert_type),
-        max_fragment_length,
-        Some(server_cert_type),
+        None,
+        output.max_fragment_length,
+        Some(output.server_cert_type),
         None,
         None,
       ),
     );
     encrypted_extensions.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
     self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
-    indices[0] = curr_idx;
+    drop(indices.push(curr_idx));
     curr_idx = reader_buffer.len();
-    indices[1] = curr_idx;
-
+    drop(indices.push(curr_idx));
     let mut cert_list = ArrayVectorU8::new();
-    cert_list.push(CertificateEntry::new(match client_cert_type {
-      TlsCertificateTy::X509 => &self.config.lease().inner.public_key.x509,
-      TlsCertificateTy::RawPublicKey => &self.config.lease().inner.public_key.raw_public_key,
-    }))?;
-    let certificate = Handshake::new(HandshakeType::Certificate, Certificate::new(cert_list, &[]));
-    certificate.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
-    self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
-    curr_idx = reader_buffer.len();
-    indices[2] = curr_idx;
-
-    let mut sign_key = sign_ty.sign_key_from_pkcs8(&self.config.lease().inner.secret_key)?;
-    let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
-    let signature = sign_key.sign(&mut self.rng, &msg)?;
-    let certificate_verify = Handshake::new(
-      HandshakeType::CertificateVerify,
-      CertificateVerify::new(sign_ty, signature.as_ref()),
-    );
-    certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
-    self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
-    curr_idx = reader_buffer.len();
-    indices[3] = curr_idx;
-
+    if !TM::TY.is_unverified() {
+      cert_list.push(CertificateEntry::new(match output.client_cert_type {
+        TlsCertificateTy::X509 => &self.config.lease().inner.public_key.x509,
+        TlsCertificateTy::RawPublicKey => &self.config.lease().inner.public_key.raw_public_key,
+      }))?;
+    }
+    if output.selected_identity.is_none() {
+      let ty = HandshakeType::Certificate;
+      let certificate = Handshake::new(ty, Certificate::new(cert_list, &[]));
+      certificate.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
+      self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
+      curr_idx = reader_buffer.len();
+      let _rslt = indices.push(curr_idx);
+    }
+    let signature;
+    let mut signature_slice = &[][..];
+    if !TM::TY.is_unverified() {
+      let secret_key = &self.config.lease().inner.secret_key;
+      let mut sign_key = output.signature_ty.sign_key_from_pkcs8(secret_key)?;
+      let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
+      signature = sign_key.sign(&mut self.rng, &msg)?;
+      signature_slice = signature.as_ref();
+    }
+    if output.selected_identity.is_none() {
+      let certificate_verify = Handshake::new(
+        HandshakeType::CertificateVerify,
+        CertificateVerify::new(output.signature_ty, signature_slice),
+      );
+      certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
+      self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
+      curr_idx = reader_buffer.len();
+      let _rslt = indices.push(curr_idx);
+    }
     let verify_data = self
       .key_schedule
       .write_mut()
@@ -269,7 +287,6 @@ where
       self.transcript_hash.clone().finalize().lease(),
       finished.verify_data(),
     )?;
-    self.transcript_hash.update(plaintext);
     self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
     Ok(())
   }
@@ -289,10 +306,7 @@ where
   }
 
   #[inline]
-  fn negotiate(
-    &mut self,
-    rri: &ReadRecordInfo,
-  ) -> crate::Result<(TlsCertificateTy, Option<MaxFragmentLength>, TlsCertificateTy, SignatureTy)>
+  fn negotiate(&mut self, rri: &ReadRecordInfo) -> crate::Result<NegotiateOutput>
   where
     TM: TlsMode,
   {
@@ -308,24 +322,24 @@ where
     self.key_schedule.set_cipher_suite(cipher_suite);
     self.transcript_hash = cipher_suite.hash_new();
     self.transcript_hash.update(client_hello_bytes);
-    let client_cert_type = seek_cert_ty(
-      &client_hello.data.tls_config().client_cert_types.0,
-      &self.config.lease().inner.client_cert_types.0,
+    let client_cert_type = seek_tls_cert_ty(
+      &client_hello.data.tls_config().client_cert_types,
+      &self.config.lease().inner.client_cert_types,
     )?;
     let (client_opaque, server_kse) = seek_key_share(
       &client_hello.data.tls_config().key_shares,
       &self.config.lease().inner.key_shares,
     )?;
-    let server_cert_type = seek_cert_ty(
-      &client_hello.data.tls_config().server_cert_types.0,
-      &self.config.lease().inner.server_cert_types.0,
+    let server_cert_type = seek_tls_cert_ty(
+      &client_hello.data.tls_config().server_cert_types,
+      &self.config.lease().inner.server_cert_types,
     )?;
     self.named_group = server_kse.group;
     let max_fragment_length = client_hello.data.tls_config().max_fragment_length;
     if let Some(elem) = max_fragment_length {
       self.max_fragment_length = elem.num();
     }
-    let sign_ty = seek_signature_algorithm_cert(
+    let signature_ty = seek_signature_algorithm_cert(
       &client_hello.data.tls_config().signature_algorithms_cert,
       &self.config.lease().inner.signature_algorithms_cert,
     )?;
@@ -368,13 +382,19 @@ where
     self
       .key_schedule
       .handshake_secret::<false>(secret.as_ref(), &self.transcript_hash.clone().finalize())?;
-    Ok((client_cert_type, max_fragment_length, server_cert_type, sign_ty))
+    Ok(NegotiateOutput {
+      client_cert_type,
+      max_fragment_length,
+      selected_identity,
+      server_cert_type,
+      signature_ty,
+    })
   }
 }
 
 /// Returned by [`TlsAcceptor::accept`].
 #[derive(Debug)]
-pub struct TlsAcceptorRslt<RNG, S, TM> {
+pub struct TlsAcceptOutput<RNG, S, TM> {
   /// See [`HandshakePath`].
   pub handshake_path: HandshakePath,
   /// See [`NamedGroup`].
@@ -385,14 +405,31 @@ pub struct TlsAcceptorRslt<RNG, S, TM> {
   pub tls_stream: TlsStream<S, TM, false>,
 }
 
-fn seek_cert_ty(
-  client_hello: &[TlsCertificateTy],
-  supported: &[TlsCertificateTy],
+#[derive(Debug)]
+struct NegotiateOutput {
+  client_cert_type: TlsCertificateTy,
+  max_fragment_length: Option<MaxFragmentLength>,
+  selected_identity: Option<u16>,
+  server_cert_type: TlsCertificateTy,
+  signature_ty: SignatureTy,
+}
+
+fn seek_tls_cert_ty(
+  client_opt: &Option<CertTypes>,
+  server_opt: &Option<CertTypes>,
 ) -> crate::Result<TlsCertificateTy> {
-  for lhs in supported {
-    for rhs in client_hello {
-      if lhs == rhs {
-        return Ok(*lhs);
+  let Some(client) = client_opt else {
+    // Client did not request this extension
+    return Ok(TlsCertificateTy::X509);
+  };
+  let Some(server) = server_opt else {
+    // Server did not want to support this extension
+    return Err(TlsError::IncompatibleCertificateTypes.into());
+  };
+  for server_el in &server.0 {
+    for client_el in &client.0 {
+      if server_el == client_el {
+        return Ok(*server_el);
       }
     }
   }

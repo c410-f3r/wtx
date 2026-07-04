@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
         let rng = &mut ChaCha20::from_std_random().unwrap();
         let http2_params = HttpRecvParams::with_default_params();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from_std_random()?);
-        let tls_stream = TlsAcceptor::new(&TlsConfig::empty(), rng, stream)
+        let tls_stream = TlsAcceptor::new(&TlsConfig::plaintext(), rng, stream)
           .accept()
           .await
           .unwrap()

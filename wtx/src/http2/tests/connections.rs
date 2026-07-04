@@ -31,7 +31,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
   msg_buffer.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let tls_stream =
-    TlsConnector::new(&TlsConfig::empty(), ChaCha20::from_std_random().unwrap(), stream)
+    TlsConnector::new(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap(), stream)
       .connect()
       .await
       .unwrap()
@@ -80,7 +80,7 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
     .spawn(async move {
       let (stream, _) = listener.accept().unwrap();
       let tls_stream =
-        TlsAcceptor::new(&TlsConfig::empty(), ChaCha20::from_std_random().unwrap(), stream)
+        TlsAcceptor::new(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap(), stream)
           .accept()
           .await
           .unwrap()

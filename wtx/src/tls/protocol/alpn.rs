@@ -3,9 +3,12 @@
 use crate::{
   codec::{Decode, Encode},
   collections::ArrayVectorCopy,
-  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write_iter},
   tls::{
-    MAX_ALPN_LEN, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
+    MAX_ALPN_LEN, TlsError,
+    de::De,
+    misc::{u8_chunk, u16_chunk},
+    tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -22,10 +25,14 @@ pub struct Alpn {
 impl<'de> Decode<'de, De> for Alpn {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
+    let err = TlsError::InvalidOfferedPsks;
     let mut protocol_name_list = ArrayVectorCopy::new();
-    u16_chunk(dw, TlsError::InvalidOfferedPsks, |local_dw| {
+    u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
-        protocol_name_list.push(local_dw.bytes().try_into()?)?;
+        u8_chunk(local_dw, err, |local_local_dw| {
+          protocol_name_list.push(local_local_dw.bytes().try_into()?)?;
+          Ok(())
+        })?;
       }
       Ok(())
     })?;
@@ -42,7 +49,7 @@ impl Encode<De> for Alpn {
       None,
       ew,
       |elem, local_ew| {
-        u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_ew| {
+        u8_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_ew| {
           local_local_ew.buffer().extend_from_copyable_slice(elem)?;
           crate::Result::Ok(())
         })
