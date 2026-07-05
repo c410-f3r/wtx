@@ -42,6 +42,8 @@ macro_rules! create_atomic_primitive {
 }
 
 create_atomic_primitive!(LocalAtomicBool, AtomicBool, bool);
+create_atomic_primitive!(LocalAtomicU8, AtomicU8, u8);
+create_atomic_primitive!(LocalAtomicU16, AtomicU16, u16);
 create_atomic_primitive!(LocalAtomicU32, AtomicU32, u32);
 create_atomic_primitive!(LocalAtomicU64, AtomicU64, u64);
 create_atomic_primitive!(LocalAtomicUsize, AtomicUsize, usize);

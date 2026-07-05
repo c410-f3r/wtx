@@ -1,6 +1,6 @@
 use crate::{
   collections::{MaybeUninitSlice, Vector},
-  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::{cmp::Ordering, num::NonZeroUsize};
 
@@ -40,30 +40,30 @@ impl StreamReader for BytesStream {
   async fn read(
     &mut self,
     mut bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  ) -> crate::Result<Option<NonZeroUsize>> {
     let initialized = bytes.initialize_all_bytes();
     let working_buffer = self.buffer.get(self.idx..).unwrap_or_default();
     let working_buffer_len = working_buffer.len();
-    Ok(match working_buffer_len.cmp(&initialized.len()) {
+    Ok(NonZeroUsize::new(match working_buffer_len.cmp(&initialized.len()) {
       Ordering::Less => {
         initialized
           .get_mut(..working_buffer_len)
           .unwrap_or_default()
           .copy_from_slice(working_buffer);
         self.clear();
-        StreamReadItem::from_opt(NonZeroUsize::new(working_buffer_len))
+        working_buffer_len
       }
       Ordering::Equal => {
         initialized.copy_from_slice(working_buffer);
         self.clear();
-        StreamReadItem::from_opt(NonZeroUsize::new(working_buffer_len))
+        working_buffer_len
       }
       Ordering::Greater => {
         initialized.copy_from_slice(working_buffer.get(..initialized.len()).unwrap_or_default());
         self.idx = self.idx.wrapping_add(initialized.len());
-        StreamReadItem::from_opt(NonZeroUsize::new(initialized.len()))
+        initialized.len()
       }
-    })
+    }))
   }
 }
 

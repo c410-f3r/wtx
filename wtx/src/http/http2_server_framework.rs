@@ -120,6 +120,24 @@ where
   }
 }
 
+#[cfg(feature = "tokio")]
+impl<RNG, TM>
+  Http2ServerFramework<
+    (),
+    fn(crate::Error),
+    crate::executor::TokioExecutor,
+    fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
+    RNG,
+    TM,
+  >
+{
+  /// Calls [`Self::new`] using the elements provided by the tokio project
+  #[inline]
+  pub fn tokio(rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+    Self::new(crate::executor::TokioExecutor::default(), rng, tls_config)
+  }
+}
+
 impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   /// Mutable Random Number Generator.
   #[inline]
@@ -569,7 +587,7 @@ where
   TM: TlsMode,
 {
   let ip = stream.peer_addr()?.ip();
-  let tar = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?.rslt()?;
+  let tar = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?;
   let split = tar.tls_stream.into_split()?;
   let tuple = Http2::accept(Http2Buffer::new(&mut xorshift), hrc, split).await?;
   Ok((tuple.0, tuple.1, ip))

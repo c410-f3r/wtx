@@ -1,5 +1,4 @@
 use crate::{
-  calendar::Instant,
   collections::Vector,
   executor::{StdExecutor, StdRuntime},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
@@ -22,9 +21,7 @@ async fn send_recv(uri: UriRef<'_>) {
     StdExecutor::default(),
     1,
     ChaCha20::from_std_random().unwrap(),
-    TlsConfig::from_ccadb(TlsModeUnverified::default(), Instant::now_date_time(0).unwrap())
-      .unwrap()
-      .into(),
+    TlsConfig::from_ccadb(TlsModeUnverified::default()).unwrap().into(),
   )
   .unwrap()
   .build();

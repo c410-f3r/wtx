@@ -15,7 +15,7 @@ use crate::{
     window_update_frame::WindowUpdateFrame,
   },
   stream::{BufStreamReader, StreamReader},
-  sync::{AtomicBool, AtomicWaker},
+  sync::{AtomicU8, AtomicWaker},
 };
 use core::task::Waker;
 
@@ -26,7 +26,7 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, SR> {
   pub(crate) hp: &'instance mut HttpRecvParams,
   pub(crate) hpack_dec: &'instance mut HpackDecoder,
   pub(crate) hps: &'instance mut HttpSendParams,
-  pub(crate) is_conn_open: &'instance AtomicBool,
+  pub(crate) is_conn_open: &'instance AtomicU8,
   pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) nrb: &'instance mut BufStreamReader,
   pub(crate) read_frame_waker: &'instance AtomicWaker,

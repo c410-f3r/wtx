@@ -5,7 +5,8 @@ use crate::{
     statement_builder::StatementBuilder,
     statements_misc::StatementsMisc,
   },
-  misc::{FnMutFut, random_state},
+  futures::FnMutFut,
+  misc::random_state,
   rng::Rng,
 };
 use foldhash::fast::FixedState;

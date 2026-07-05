@@ -3,6 +3,8 @@ use crate::collections::ShortStrU8;
 /// Database Error
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DatabaseError {
+  /// Database closed the connection in a live session
+  AbruptDisconnect,
   /// Query returned more than one record
   ExpectedAtMostOneRecord,
   /// The method `expand` of `StatementBuilder` must be called only once.

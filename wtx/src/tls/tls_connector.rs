@@ -4,7 +4,7 @@ use crate::{
   collections::{ArrayVectorCopy, ArrayVectorU8},
   misc::{Lease, SingleTypeStorage},
   rng::CryptoRng,
-  stream::{Stream, StreamReadItem},
+  stream::Stream,
   tls::{
     DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MAX_CERTIFICATES, MAX_KEY_SHARES_LEN,
     MaxFragmentLength, NamedGroup, Psk, TlsBuffer, TlsConfig, TlsError, TlsMode, TlsServerEndPoint,
@@ -170,9 +170,9 @@ where
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn connect(mut self) -> crate::Result<StreamReadItem<TlsConnectOutput<RNG, S, TM>>> {
+  pub async fn connect(mut self) -> crate::Result<TlsConnectOutput<RNG, S, TM>> {
     if TM::TY.is_plain_text() {
-      return Ok(StreamReadItem::from_item(TlsConnectOutput {
+      return Ok(TlsConnectOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
         rng: self.rng,
@@ -184,13 +184,11 @@ where
           self.stream,
           self.config.lease().mode().clone(),
         ),
-      }));
+      });
     }
     let secrets = self.write_client_hello()?;
     self.stream.write_all(&self.buffer.writer_buffer).await?;
-    let Some(first_rri) = self.fetch_rec_from_stream::<false>(false).await?.opt() else {
-      return Ok(StreamReadItem::empty_cold());
-    };
+    let first_rri = self.fetch_rec_from_stream::<false>(false).await?;
     let mut mrsri = match self.manage_initial_server_record(&first_rri, secrets)? {
       ControlFlow::Continue(mrsri) => mrsri,
       ControlFlow::Break(alert) => {
@@ -199,9 +197,7 @@ where
       }
     };
     self.buffer.writer_buffer.clear();
-    let Some(mut rri) = self.fetch_rec_from_stream::<true>(true).await?.opt() else {
-      return Ok(StreamReadItem::empty_cold());
-    };
+    let mut rri = self.fetch_rec_from_stream::<true>(true).await?;
     loop {
       match self.manage_remaining_server_records(&mut mrsri, &rri)? {
         ManageRemainingServerRecordsState::Alert(alert) => {
@@ -209,10 +205,7 @@ where
           return Err(TlsError::AbortedHandshake(alert).into());
         }
         ManageRemainingServerRecordsState::NeedsMoreData => {
-          let Some(local_rri) = self.fetch_rec_from_stream::<false>(true).await?.opt() else {
-            return Ok(StreamReadItem::empty_cold());
-          };
-          rri = local_rri;
+          rri = self.fetch_rec_from_stream::<false>(true).await?;
         }
         ManageRemainingServerRecordsState::Terminated => break,
       }
@@ -222,7 +215,7 @@ where
         self.stream.write_all(&data).await?;
       }
     }
-    Ok(StreamReadItem::from_item(TlsConnectOutput {
+    Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
       rng: self.rng,
@@ -234,7 +227,7 @@ where
         self.stream,
         self.config.lease().mode().clone(),
       ),
-    }))
+    })
   }
 
   /// Low level operation that must be called after [`Self::manage_remaining_server_records`].
@@ -429,14 +422,17 @@ where
   async fn fetch_rec_from_stream<const CHECK_CCS: bool>(
     &mut self,
     decrypt: bool,
-  ) -> crate::Result<StreamReadItem<ReadRecordInfo>> {
-    fetch_rec_from_stream::<_, CHECK_CCS>(
-      decrypt.then(|| self.key_schedule.read_mut().state_mut()),
-      self.max_fragment_length,
-      &mut self.buffer.reader_buffer,
-      &mut self.stream,
+  ) -> crate::Result<ReadRecordInfo> {
+    Ok(
+      fetch_rec_from_stream::<_, CHECK_CCS>(
+        decrypt.then(|| self.key_schedule.read_mut().state_mut()),
+        self.max_fragment_length,
+        &mut self.buffer.reader_buffer,
+        &mut self.stream,
+      )
+      .await?
+      .ok_or(TlsError::AbruptDisconnect)?,
     )
-    .await
   }
 
   fn manage_certificate(
@@ -513,7 +509,7 @@ where
 
   #[inline]
   async fn write_alert(&mut self, alert: Alert) -> crate::Result<()> {
-    if !alert.description().is_warning() {
+    if !alert.is_close_notify() {
       return Ok(());
     }
     let kss = self.key_schedule.write_mut().state_mut();

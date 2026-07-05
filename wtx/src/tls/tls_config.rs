@@ -1,6 +1,6 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
-  calendar::{DateTime, Utc},
+  calendar::{DateTime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper},
   collections::{ArrayVector, ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
@@ -40,27 +40,26 @@ impl<TM> TlsConfig<TM> {
   }
 
   /// Set of filtered certificates from CCADB generally suitable for web scenarios.
+  ///
+  /// Fetches the current timestamp to verify certificates
   #[cfg(feature = "ccadb")]
   #[inline]
-  pub fn from_ccadb(mode: TM, validation_time: DateTime<Utc>) -> crate::Result<Self> {
+  pub fn from_ccadb(mode: TM) -> crate::Result<Self> {
     let mut trust_anchors = Vector::new();
     for elem in crate::x509::CCADB {
       trust_anchors.push(CvTrustAnchor::_from_raw(*elem)?)?;
     }
-    let mut this = Self::new(mode, validation_time);
+    let mut this = Self::new(mode, Instant::now_date_time()?);
     this.inner.trust_anchors = trust_anchors;
     Ok(this)
   }
 
   /// New instance from full X.509 public and secret keys in PEM format. Mostly used by servers.
+  ///
+  /// Fetches the current timestamp to verify certificates
   #[inline]
-  pub fn from_keys_pem(
-    mode: TM,
-    public_key: &[u8],
-    secret_key: &[u8],
-    validation_time: DateTime<Utc>,
-  ) -> crate::Result<Self> {
-    let mut this = Self::new(mode, validation_time);
+  pub fn from_keys_pem(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
+    let mut this = Self::new(mode, Instant::now_date_time()?);
     let mut buffer = Vector::new();
     this.inner.public_key = tls_certificate(&mut buffer, public_key)?;
     buffer.clear();
@@ -69,11 +68,12 @@ impl<TM> TlsConfig<TM> {
   }
 
   /// New instance from the given full X.509 trust anchors in PEM format. Mostly used by clients.
+  ///
+  /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_trust_anchors_pem<'bytes>(
     mode: TM,
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
-    validation_time: DateTime<Utc>,
   ) -> crate::Result<Self> {
     let mut buffer = Vector::new();
     let mut vector = Vector::new();
@@ -81,7 +81,7 @@ impl<TM> TlsConfig<TM> {
       let certificate = Certificate::<&[u8]>::from_pem(&mut buffer, trust_anchor)?.0;
       vector.push(CvTrustAnchor::from_certificate_ref(&certificate)?)?;
     }
-    let mut this = Self::new(mode, validation_time);
+    let mut this = Self::new(mode, Instant::now_date_time()?);
     this.inner.trust_anchors = vector;
     Ok(this)
   }
@@ -102,6 +102,12 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub const fn cv_policy(&self) -> &CvPolicy<ShortBoxSliceU16<u8>> {
     &self.inner.cv_policy
+  }
+
+  /// Mutable version of [`Self::cv_policy`].
+  #[inline]
+  pub const fn cv_policy_mut(&mut self) -> &mut CvPolicy<ShortBoxSliceU16<u8>> {
+    &mut self.inner.cv_policy
   }
 
   /// Maximum size of a TLS record

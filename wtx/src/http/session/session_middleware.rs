@@ -97,7 +97,7 @@ where
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     if let Some(session_state) = data.lease() {
       if let Some(elem) = &session_state.expires_at
-        && *elem < Instant::now_date_time(0)?.trunc_to_us()
+        && *elem < Instant::now_date_time()?.trunc_to_us()
       {
         self.delete_session_cookie(data, req).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());

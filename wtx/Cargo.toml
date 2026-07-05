@@ -13,6 +13,7 @@ matchit = { default-features = false, optional = true, version = "0.9" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 openssl = { default-features = false, optional = true, version = "0.10" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
+pin-project-lite = { default-features = false, optional = true, version = "0.2" }
 portable-atomic = { default-features = false, optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
@@ -80,6 +81,7 @@ nightly = []
 optimizations = ["memchr", "simdutf8"]
 optimizations-std = ["optimizations", "socket2", "std"]
 parking_lot = ["dep:parking_lot"]
+pin-project-lite = ["dep:pin-project-lite"]
 portable-atomic = ["dep:portable-atomic", "portable-atomic?/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
 postgres = ["crypto", "database", "foldhash", "hashbrown", "tls"]
@@ -97,7 +99,7 @@ simdutf8 = ["dep:simdutf8"]
 socket2 = ["dep:socket2", "socket2?/all", "std"]
 std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "wtx-macros?/std", "zlib-rs?/std"]
 tls = ["x509"]
-tokio = ["dep:tokio", "tokio?/io-util", "tokio?/net", "tokio?/rt", "std", "tokio?/sync", "tokio?/time"]
+tokio = ["pin-project-lite", "dep:tokio", "tokio?/io-util", "tokio?/net", "tokio?/rt", "std", "tokio?/sync", "tokio?/time"]
 tracing = ["dep:tracing", "tracing?/attributes"]
 tracing-subscriber = ["dep:tracing-subscriber", "tracing-subscriber?/env-filter", "tracing-subscriber?/fmt"]
 tracing-tree = ["std", "dep:tracing-tree"]

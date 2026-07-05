@@ -23,7 +23,7 @@ pub fn simple_seed() -> u64 {
   seed = mix(seed, Usize::from_usize(ptr::addr_of!(heap).addr()).into_u64());
   seed = mix(seed, location.column().into());
   seed = mix(seed, location.line().into());
-  if let Ok(timestamp) = Instant::now_timestamp(0).map(|dur| dur.as_nanos()) {
+  if let Ok(timestamp) = Instant::now_timestamp().map(|dur| dur.as_nanos()) {
     let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15] =
       timestamp.to_le_bytes();
     let lo = u64::from_le_bytes([b0, b1, b2, b3, b4, b5, b6, b7]);

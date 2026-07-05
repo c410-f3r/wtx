@@ -27,6 +27,29 @@ Many things that generally improve performance are used in the project, to name 
 3. **Fewer Dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases the compilation time of full builds. For example, you can see the mere 7 dependencies required by the PostgreSQL client using `cargo tree -e normal --features crypto-ring,postgres`.
 4. **Vectored and Buffered IO**: Instead of writing a single chunk of data and waiting for it to be sent, multiple chunks are gathered and transmitted in a single operation whenever possible.
 
+## Connection Management
+
+All protocols are expected to end an connection with a signal that allows a graceful stop. For example, when WebSocket sends a Close frame.
+
+### Sequential code
+
+* `Local termination`: Sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
+* `Remote termination`: Receives a termination signal that halts the reading of further data. Immediately sends a terminal signal and closes the connection. Internal state jumps from `Open` to `Closed`.
+
+### Concurrent code
+
+* `Local termination`: Sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
+* `Remote termination`: Receives a termination signal that halts the reading of further data. Local system **will certainly** send a termination signal in a posterior step. Internal state jumps from `Open` to `ReadClosed`.
+
+Internal state is expected to jump from `ReadClosed` or `WriteClosed` to `Closed` once the termination cycle is fulfilled.
+
+### Protocols
+
+Methods associated to external reads return optional elements to reflect that a connection can be closed anytime locally or by the peer. However, there are 2 exceptions to this rule.
+
+* `Handshakes`: Graceful stops are not expected in initial handshakes.
+* `PostgreSQL`: Clients expect that a connection will never be closed by the database.
+
 ## Profiling
 
 Uses the `h2load` benchmarking tool (<https://nghttp2.org/documentation/h2load-howto.htm>l) and the `h2load` internal binary (<https://github.com/c410-f3r/wtx/blob/main/wtx-internal/src/bin/h2load.rs>) for illustration purposes.

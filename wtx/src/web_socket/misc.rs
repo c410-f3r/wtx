@@ -1,73 +1,14 @@
 use crate::{
   collections::ArrayVectorCopy,
-  misc::{ConnectionState, FnMutFut, from_utf8_basic},
+  futures::FnMutFut,
+  misc::from_utf8_basic,
   rng::Rng,
   stream::StreamWriter,
   web_socket::{
     CloseCode, Frame, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OP_CODE_MASK, OpCode,
-    WebSocketError, web_socket_writer::manage_normal_frame,
+    WebSocketError, write_frame::mask_frame,
   },
 };
-
-/// Copies `frame_code` and `frame_payload` into `buffer`.
-#[inline]
-pub fn fill_buffer_with_close_frame(
-  buffer: &mut [u8],
-  frame_code: CloseCode,
-  frame_payload: &[u8],
-) -> crate::Result<()> {
-  let rest = fill_buffer_with_close_code(buffer, frame_code);
-  let Some(slice) = rest.and_then(|el| el.get_mut(..frame_payload.len())) else {
-    return Err(WebSocketError::InvalidCloseFrameParams.into());
-  };
-  slice.copy_from_slice(frame_payload);
-  Ok(())
-}
-
-/// The first two bytes of `buffer` are filled with `code`. Does nothing if `buffer` is
-/// less than 2 bytes.
-#[inline]
-pub fn fill_buffer_with_close_code(buffer: &mut [u8], code: CloseCode) -> Option<&mut [u8]> {
-  let [b1, b2, rest @ ..] = buffer else {
-    return None;
-  };
-  let [b3, b4] = u16::from(code).to_be_bytes();
-  *b1 = b3;
-  *b2 = b4;
-  Some(rest)
-}
-
-/// Returns `true` if `payload` is greater than the maximum allowed length.
-#[inline]
-pub(crate) fn check_read_close_frame(
-  connection_state: &mut ConnectionState,
-  payload: &[u8],
-) -> crate::Result<bool> {
-  if connection_state.is_closed() {
-    return Err(crate::Error::ClosedWebSocketConnection);
-  }
-  *connection_state = ConnectionState::Closed;
-  match payload {
-    [] => Ok(false),
-    [_] => Err(WebSocketError::InvalidCloseFrame.into()),
-    [b1, b2, rest @ ..] => {
-      let _str_validation = from_utf8_basic(rest)?;
-      let close_code = CloseCode::try_from(u16::from_be_bytes([*b1, *b2]))?;
-      if !close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
-        Ok(true)
-      } else {
-        Ok(false)
-      }
-    }
-  }
-}
-
-pub(crate) fn control_frame_payload(data: &[u8]) -> ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN> {
-  let len = data.len().min(MAX_CONTROL_PAYLOAD_LEN);
-  let mut array = ArrayVectorCopy::new();
-  let _rslt = array.extend_from_copyable_slice(data.get(..len).unwrap_or_default());
-  array
-}
 
 pub(crate) fn header_from_params(
   fin: bool,
@@ -120,13 +61,36 @@ pub(crate) const fn has_masked_frame(second_header_byte: u8) -> bool {
   second_header_byte & MASK_MASK != 0
 }
 
+/// Returns `true` if `payload` is greater than the maximum allowed length.
+#[inline]
+pub(crate) fn manage_read_close_frame(
+  close_code: CloseCode,
+  payload: &mut [u8],
+) -> crate::Result<bool> {
+  match payload {
+    [] => Ok(false),
+    [_] => Err(WebSocketError::InvalidCloseFrame.into()),
+    [b1, b2, rest @ ..] => {
+      let _str_validation = from_utf8_basic(rest)?;
+      let read_close_code = CloseCode::try_from(u16::from_be_bytes([*b1, *b2]))?;
+      if !read_close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
+        let [b3, b4] = close_code.bytes();
+        *b1 = b3;
+        *b2 = b4;
+        Ok(true)
+      } else {
+        Ok(false)
+      }
+    }
+  }
+}
+
 pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
   OpCode::try_from(first_header_byte & OP_CODE_MASK)
 }
 
 pub(crate) async fn write_control_frame<A, RNG, const IS_CLIENT: bool>(
   aux: A,
-  connection_state: &mut ConnectionState,
   no_masking: bool,
   op_code: OpCode,
   payload: &mut [u8],
@@ -137,7 +101,7 @@ where
   RNG: Rng,
 {
   let mut frame = Frame::new(true, op_code, payload, 0);
-  manage_normal_frame::<_, _, IS_CLIENT>(connection_state, &mut frame, no_masking, rng);
+  mask_frame::<_, _, IS_CLIENT>(&mut frame, no_masking, rng);
   wsc_cb.call((aux, frame.header(), frame.payload())).await?;
   Ok(())
 }

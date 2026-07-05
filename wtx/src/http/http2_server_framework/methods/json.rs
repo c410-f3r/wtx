@@ -1,11 +1,11 @@
 use crate::{
   collections::{ArrayVectorCopy, Vector},
+  futures::FnFut,
   http::{
     AutoStream, Headers, HttpError, KnownHeaderName, ManualStream, Method, Mime, OperationMode,
     StatusCode,
     http2_server_framework::{Endpoint, EndpointNode, RouteMatch},
   },
-  misc::FnFut,
 };
 
 /// Requires a JSON request as well as an associated method.

@@ -1,7 +1,6 @@
 use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write as _};
 use wtx::{
-  calendar::Instant,
   collections::Vector,
   executor::TokioExecutor,
   http::{
@@ -41,7 +40,7 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
     TokioExecutor::default(),
     1,
     ChaCha20::from_std_random()?,
-    TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0)?)?,
+    TlsConfig::from_ccadb(TlsModeVerified::default())?,
   )?
   .build();
   let res = client

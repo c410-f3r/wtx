@@ -258,7 +258,7 @@ macro_rules! impl_tuples {
         collections::Vector,
         executor::Executor,
         http::{Router, WebSocketRouter},
-        misc::FnFut,
+        futures::FnFut,
         web_socket::{WebSocket, WsCompression},
       };
 

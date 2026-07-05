@@ -8,6 +8,7 @@ mod handshake;
 mod is_in_continuation_frame;
 mod misc;
 mod op_code;
+pub(crate) mod read_frame;
 pub(crate) mod read_frame_info;
 mod unmask;
 #[cfg(feature = "web-socket-handshake")]
@@ -18,10 +19,10 @@ pub mod web_socket_compression;
 #[cfg(feature = "web-socket-handshake")]
 mod web_socket_connector;
 mod web_socket_error;
-mod web_socket_parts;
+pub(crate) mod web_socket_mut;
+pub(crate) mod web_socket_owned;
 mod web_socket_payload_origin;
-pub(crate) mod web_socket_reader;
-pub(crate) mod web_socket_writer;
+pub(crate) mod write_frame;
 
 use crate::{
   _MAX_PAYLOAD_LEN,
@@ -29,7 +30,6 @@ use crate::{
   misc::{ConnectionState, LeaseMut},
   rng::{SeedableRng as _, Xorshift64},
   stream::Stream,
-  sync::{Arc, AtomicBool},
   tls::{TlsMode, TlsStream, TlsStreamBridge},
   web_socket::web_socket_compression::NegotiatedWsCompression,
 };
@@ -38,7 +38,6 @@ use core::marker::PhantomData;
 pub use frame::{
   Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut, FrameVectorRef,
 };
-pub use misc::{fill_buffer_with_close_code, fill_buffer_with_close_frame};
 pub use op_code::OpCode;
 #[cfg(feature = "web-socket-handshake")]
 pub use web_socket_acceptor::WebSocketAcceptor;
@@ -48,10 +47,8 @@ pub use web_socket_compression::{DeflateConfig, WsCompression};
 #[cfg(feature = "web-socket-handshake")]
 pub use web_socket_connector::WebSocketConnector;
 pub use web_socket_error::WebSocketError;
-pub use web_socket_parts::{
-  web_socket_mut::{WebSocketCommonMut, WebSocketReaderMut, WebSocketWriterMut},
-  web_socket_owned::{WebSocketReaderOwned, WebSocketWriterOwned},
-};
+pub use web_socket_mut::{WebSocketCommonMut, WebSocketReaderMut, WebSocketWriterMut};
+pub use web_socket_owned::{WebSocketReaderOwned, WebSocketWriterOwned};
 pub use web_socket_payload_origin::WebSocketPayloadOrigin;
 
 const FIN_MASK: u8 = 0b1000_0000;
@@ -85,7 +82,6 @@ type IntoSplitTy<NC, S, TM, const IS_CLIENT: bool> = (
 /// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
 pub struct WebSocket<NC, S, TM, const IS_CLIENT: bool> {
-  connection_state: ConnectionState,
   is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
   nc: NC,
@@ -122,7 +118,6 @@ where
   ) -> Self {
     let nc_rsv1 = nc.rsv1();
     Self {
-      connection_state: ConnectionState::Open,
       is_in_continuation_frame: None,
       max_payload_len: _MAX_PAYLOAD_LEN,
       nc,
@@ -149,7 +144,6 @@ where
     'this: 'frame,
   {
     let WebSocket {
-      connection_state,
       is_in_continuation_frame,
       max_payload_len,
       nc,
@@ -160,8 +154,7 @@ where
       wsb,
     } = self;
     let WebSocketBuffer { network_buffer, reader_buffer, .. } = wsb;
-    web_socket_reader::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
-      connection_state,
+    read_frame::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       is_in_continuation_frame,
       *max_payload_len,
       nc,
@@ -174,6 +167,7 @@ where
       stream,
       &WebSocketBridge::new(TlsStreamBridge::new()),
       buffer,
+      |el| el.connection_state = ConnectionState::Closed,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -190,7 +184,6 @@ where
     WebSocketWriterMut<'_, NC, S, TM, IS_CLIENT>,
   ) {
     let WebSocket {
-      connection_state,
       is_in_continuation_frame,
       nc,
       nc_rsv1,
@@ -202,24 +195,16 @@ where
     } = self;
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
     (
-      WebSocketCommonMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
+      WebSocketCommonMut { nc, nc_rsv1: *nc_rsv1, rng, stream },
       WebSocketReaderMut {
         is_in_continuation_frame,
+        max_payload_len: *max_payload_len,
+        network_buffer,
+        no_masking: *no_masking,
         phantom: PhantomData,
-        wsrp: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
-          max_payload_len: *max_payload_len,
-          network_buffer,
-          no_masking: *no_masking,
-          reader_buffer,
-        },
+        reader_buffer,
       },
-      WebSocketWriterMut {
-        phantom: PhantomData,
-        wswp: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
-          no_masking: *no_masking,
-          writer_buffer,
-        },
-      },
+      WebSocketWriterMut { no_masking: *no_masking, phantom: PhantomData, writer_buffer },
     )
   }
 
@@ -229,20 +214,17 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    let WebSocket { connection_state, nc, nc_rsv1, no_masking, rng, stream, wsb, .. } = self;
-    let WebSocketBuffer { writer_buffer, .. } = wsb;
-    web_socket_writer::write_frame::<_, _, _, _, IS_CLIENT>(
-      connection_state,
+    write_frame::write_frame::<_, _, _, _, IS_CLIENT>(
       frame,
-      *no_masking,
-      nc,
-      *nc_rsv1,
-      rng,
-      stream,
-      writer_buffer,
+      self.no_masking,
+      &mut self.nc,
+      self.nc_rsv1,
+      &mut self.rng,
+      &mut self.stream,
+      &mut self.wsb.writer_buffer,
+      |el| el.connection_state = ConnectionState::WriteClosed,
     )
-    .await?;
-    Ok(())
+    .await
   }
 }
 
@@ -256,7 +238,6 @@ where
   #[inline]
   pub fn into_split(self) -> crate::Result<IntoSplitTy<NC, S, TM, IS_CLIENT>> {
     let WebSocket {
-      connection_state,
       is_in_continuation_frame,
       nc,
       nc_rsv1,
@@ -269,36 +250,29 @@ where
     let (compression, decompression) = nc.into_split();
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
     let (stream_bridge_tls, stream_reader, stream_writer) = stream.into_split()?;
-    let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
     let stream_bridge_ws = WebSocketBridge::new(stream_bridge_tls);
     Ok((
       stream_bridge_ws.clone(),
       WebSocketReaderOwned {
-        connection_state: local_connection_state.clone(),
         is_in_continuation_frame,
-        phantom: PhantomData,
+        max_payload_len,
         nc: decompression,
         nc_rsv1,
-        reader_part: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
-          max_payload_len,
-          network_buffer,
-          no_masking,
-          reader_buffer,
-        },
-        stream_bridge: stream_bridge_ws,
+        network_buffer,
+        no_masking,
+        phantom: PhantomData,
+        reader_buffer,
         rng: Xorshift64::from_rng(&mut rng)?,
+        stream_bridge: stream_bridge_ws,
         stream_reader,
       },
       WebSocketWriterOwned {
-        connection_state: local_connection_state,
         nc: compression,
         nc_rsv1,
+        no_masking,
         rng,
         stream_writer,
-        writer_part: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
-          no_masking,
-          writer_buffer,
-        },
+        writer_buffer,
       },
     ))
   }

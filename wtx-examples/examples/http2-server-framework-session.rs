@@ -24,10 +24,8 @@
 
 use tokio::net::TcpStream;
 use wtx::{
-  calendar::Instant,
   collections::Vector,
   database::{DbClient, Record},
-  executor::TokioExecutor,
   http::{
     MsgData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     http2_server_framework::{
@@ -46,18 +44,14 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let now = Instant::now_date_time(0)?;
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut server = Http2ServerFramework::new(
-    TokioExecutor::default(),
+  let mut server = Http2ServerFramework::tokio(
     ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
-      now,
-    )?
-    .into(),
+    )?,
   )?;
   let secret_context = SecretContext::new(server.rng_mut())?;
   let pool = DbPool::new(
@@ -65,7 +59,7 @@ async fn main() -> wtx::Result<()> {
     PostgresRM::new(
       ChaCha20::from_crypto_rng(server.rng_mut())?,
       secret_context.clone(),
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA], now)?.into(),
+      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
       &mut uri,
     )?,
   );

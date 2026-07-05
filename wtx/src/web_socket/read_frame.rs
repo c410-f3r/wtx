@@ -7,22 +7,20 @@
 // |Single      |(NB -> UB)¹             |(NB)¹                  |
 // |Continuation|(NB -> CB)¹⁺ (CB -> UB)¹|(NB -> UB)¹⁺           |
 
+use core::hint::cold_path;
+
 use crate::{
   codec::DecompressionFlush,
-  collections::Vector,
-  misc::{
-    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, from_utf8_basic,
-    from_utf8_ext,
-  },
+  collections::{ArrayVectorCopy, Vector},
+  futures::FnMutFut,
+  misc::{CompletionErr, ExtUtf8Error, IncompleteUtf8Char, from_utf8_basic, from_utf8_ext},
   rng::Rng,
   stream::{BufStreamReader, StreamReader, StreamWriter},
   web_socket::{
-    CloseCode, Frame, FrameMut, OpCode, WebSocketError, WebSocketPayloadOrigin,
-    fill_buffer_with_close_code,
+    CloseCode, Frame, FrameMut, MAX_CONTROL_PAYLOAD_LEN, OpCode, WebSocketError,
+    WebSocketPayloadOrigin,
     is_in_continuation_frame::IsInContinuationFrame,
-    misc::{
-      check_read_close_frame, control_frame_payload, write_control_frame, write_control_frame_cb,
-    },
+    misc::{manage_read_close_frame, write_control_frame, write_control_frame_cb},
     read_frame_info::ReadFrameInfo,
     unmask::unmask,
     web_socket_bridge::WebSocketBridge,
@@ -35,7 +33,6 @@ const DECOMPRESSION_SUFFIX: [u8; 4] = [0, 0, 255, 255];
 /// Returns `true` if a control frame was received.
 pub(crate) async fn manage_auto_reply<A, RNG, const HAS_AUTO_REPLY: bool, const IS_CLIENT: bool>(
   aux: A,
-  connection_state: &mut ConnectionState,
   no_masking: bool,
   op_code: OpCode,
   payload: &mut [u8],
@@ -51,49 +48,39 @@ where
 {
   match op_code {
     OpCode::Close => {
-      let is_invalid = check_read_close_frame(connection_state, payload)?;
-      let mut local_payload = control_frame_payload(payload);
-      let rslt = if is_invalid {
-        let _ = fill_buffer_with_close_code(&mut local_payload, CloseCode::Protocol);
-        crate::Result::Err(WebSocketError::InvalidCloseFrame.into())
-      } else {
-        Ok(())
-      };
+      let mut control_payload = ArrayVectorCopy::<_, MAX_CONTROL_PAYLOAD_LEN>::try_from(&*payload)?;
+      if manage_read_close_frame(CloseCode::Protocol, &mut control_payload)? {
+        return Err(WebSocketError::InvalidCloseFrame.into());
+      }
       if HAS_AUTO_REPLY {
         write_control_frame::<_, _, IS_CLIENT>(
           aux,
-          connection_state,
           no_masking,
           OpCode::Close,
-          &mut local_payload,
+          &mut control_payload,
           rng,
           write_control_frame_cb,
         )
         .await?;
-        rslt?;
       } else {
-        let _rslt =
-          stream_bridge.data().update(|element| (element.0, Some((OpCode::Close, local_payload))));
-        stream_bridge.waker().wake();
+        stream_bridge.update((OpCode::Close, control_payload));
       }
       Ok(true)
     }
     OpCode::Ping => {
-      let mut local_payload = control_frame_payload(payload);
+      let mut control_payload = ArrayVectorCopy::<_, MAX_CONTROL_PAYLOAD_LEN>::try_from(&*payload)?;
       if HAS_AUTO_REPLY {
         write_control_frame::<_, _, IS_CLIENT>(
           aux,
-          connection_state,
           no_masking,
           OpCode::Pong,
-          &mut local_payload,
+          &mut control_payload,
           rng,
           write_control_frame_cb,
         )
         .await?;
       } else {
-        let _rslt = stream_bridge.data().update(|el| (el.0, Some((OpCode::Pong, local_payload))));
-        stream_bridge.waker().wake();
+        stream_bridge.update((OpCode::Pong, control_payload));
       }
       Ok(true)
     }
@@ -213,7 +200,6 @@ pub(crate) async fn read_frame<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
-  connection_state: &mut ConnectionState,
   is_in_continuation_frame_opt: &mut Option<IsInContinuationFrame>,
   max_payload_len: usize,
   nc: &mut D,
@@ -226,8 +212,9 @@ pub(crate) async fn read_frame<
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
   user_buffer: &'ub mut Vector<u8>,
-  mut stream_reader: impl FnMut(&mut S) -> &mut SR,
-  mut stream_writer: impl FnMut(&mut S) -> &mut SW,
+  mut closed_conn_cb: impl FnMut(&mut S),
+  mut stream_reader_cb: impl FnMut(&mut S) -> &mut SR,
+  mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<FrameMut<'frame>>
 where
   'nb: 'frame,
@@ -246,12 +233,15 @@ where
       nc_rsv1,
       network_buffer,
       no_masking,
-      stream_reader(&mut *stream),
+      stream_reader_cb(&mut *stream),
     )
     .await?;
     if first_rfi.fin {
-      return manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
-        connection_state,
+      if first_rfi.op_code.is_close() {
+        cold_path();
+        closed_conn_cb(stream);
+      }
+      let rslt = manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
         nc,
         nc_rsv1,
         network_buffer,
@@ -260,10 +250,11 @@ where
         &first_rfi,
         rng,
         stream_bridge,
-        stream_writer(&mut *stream),
+        stream_writer_cb(&mut *stream),
         user_buffer,
       )
       .await;
+      return rslt;
     }
     let buffer = if !D::IS_NOOP && first_rfi.should_decompress {
       reader_buffer.clear();
@@ -281,7 +272,6 @@ where
   };
   let control_frame = if !D::IS_NOOP && is_in_continuation_frame.should_decompress {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
-      connection_state,
       &mut *reader_buffer,
       &mut *user_buffer,
       is_in_continuation_frame,
@@ -295,13 +285,12 @@ where
       stream_bridge,
       &mut copy_from_compressed_rb1_to_rb2,
       &mut |_, _| Ok(()),
-      &mut stream_reader,
-      &mut stream_writer,
+      &mut stream_reader_cb,
+      &mut stream_writer_cb,
     )
     .await?
   } else {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
-      connection_state,
       user_buffer,
       &mut Vector::new(),
       is_in_continuation_frame,
@@ -315,12 +304,16 @@ where
       stream_bridge,
       &mut |_, _, _, _| Ok(()),
       &mut manage_text_of_recurrent_continuation_frames,
-      &mut stream_reader,
-      &mut stream_writer,
+      &mut stream_reader_cb,
+      &mut stream_writer_cb,
     )
     .await?
   };
   let (op_code, payload) = if let Some(op_code) = control_frame {
+    if op_code.is_close() {
+      cold_path();
+      closed_conn_cb(stream);
+    }
     (op_code, payload_origin.manage_payload(network_buffer.current_mut(), user_buffer)?)
   } else {
     reader_buffer.clear();
@@ -417,7 +410,7 @@ where
     stream_reader,
   )
   .await?;
-  network_buffer.read_payload(rfi.payload_len, stream_reader).await?.rslt()?;
+  network_buffer.read_payload(rfi.payload_len, stream_reader).await?;
   Ok(rfi)
 }
 
@@ -431,7 +424,6 @@ async fn manage_first_finished_frame<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
-  connection_state: &mut ConnectionState,
   nc: &mut D,
   nc_rsv1: u8,
   network_buffer: &'nb mut BufStreamReader,
@@ -466,7 +458,6 @@ where
   };
   let _is_control_frame = manage_auto_reply::<_, _, HAS_AUTO_REPLY, IS_CLIENT>(
     stream_writer,
-    connection_state,
     no_masking,
     rfi.op_code,
     payload,
@@ -515,7 +506,6 @@ async fn read_continuation_frames<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
-  connection_state: &mut ConnectionState,
   continuation_buffer: &mut Vector<u8>,
   final_buffer: &mut Vector<u8>,
   is_in_continuation_frame: &mut IsInContinuationFrame,
@@ -557,7 +547,6 @@ where
     unmask_nb::<IS_CLIENT>(rfi.mask, payload, no_masking)?;
     let is_control_frame = manage_auto_reply::<_, _, HAS_AUTO_REPLY, IS_CLIENT>(
       stream_writer(stream),
-      connection_state,
       no_masking,
       rfi.op_code,
       payload,

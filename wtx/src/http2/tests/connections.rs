@@ -35,8 +35,6 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
       .connect()
       .await
       .unwrap()
-      .rslt()
-      .unwrap()
       .tls_stream;
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
@@ -70,7 +68,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
 
   http2.send_go_away(Http2ErrorCode::NoError).await;
 
-  crate::misc::sleep(Duration::from_millis(100)).await.unwrap();
+  crate::futures::Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
 }
 
 fn server(uri: &UriString, runtime: &StdRuntime) {
@@ -83,8 +81,6 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
         TlsAcceptor::new(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap(), stream)
           .accept()
           .await
-          .unwrap()
-          .rslt()
           .unwrap()
           .tls_stream;
       let (frame_header, mut http2) = Http2::accept(

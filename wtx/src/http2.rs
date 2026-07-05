@@ -54,7 +54,7 @@ use crate::{
   http2::settings_frame::SettingsFrame,
   misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AsyncMutex, AtomicBool, AtomicWaker},
+  sync::{Arc, AsyncMutex, AtomicU8, AtomicWaker},
   tls::{TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
 };
 pub use client_stream::ClientStream;
@@ -115,7 +115,7 @@ where
   where
     SR: StreamReader,
   {
-    let is_conn_open = AtomicBool::new(true);
+    let is_conn_open = AtomicU8::new(ConnectionState::Open.into());
     let sf = SettingsFrame::from_hrp(hrp);
     let sf_buffer = &mut [0; 45];
     let sf_bytes = sf.bytes(sf_buffer);
@@ -323,7 +323,7 @@ impl<SW, TM, const IS_CLIENT: bool> Clone for Http2<SW, TM, IS_CLIENT> {
 #[derive(Debug)]
 pub(crate) struct Http2Inner<SW, TM, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
-  pub(crate) is_conn_open: AtomicBool,
+  pub(crate) is_conn_open: AtomicU8,
   pub(crate) read_frame_waker: AtomicWaker,
   pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TM, IS_CLIENT>>,
 }

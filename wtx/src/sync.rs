@@ -3,6 +3,9 @@
 //! Some of the `no_std` structures located in this module were copied from the
 //! <https://github.com/crossbeam-rs/crossbeam> project and modified to fit into `wtx`. On the
 //! other hand, some structures are just wrappers or facades of third-parties.
+//!
+//! This module is only intended for internal usage. Please use other crates if a feature
+//! is not available here.
 
 mod arc;
 mod async_mutex;

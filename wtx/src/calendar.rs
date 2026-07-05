@@ -14,6 +14,8 @@ mod date_time;
 mod day;
 mod day_of_year;
 mod duration;
+#[cfg(feature = "embassy-time")]
+mod epoch_offset;
 mod format;
 mod hour;
 mod microsecond;
@@ -71,12 +73,22 @@ pub(crate) static DAYS_OF_MONTHS: [[u16; 12]; 2] = [
   [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
   [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
 ];
+#[cfg(feature = "embassy-time")]
+pub(crate) static EPOCH_OFFSET: epoch_offset::EpochOffset = epoch_offset::EpochOffset::new();
+
+/// Used by embedded devices in `no_std` scenarios where the timer only provides the elapsed
+/// time since boot.
+#[cfg(feature = "embassy-time")]
+#[inline]
+pub fn set_epoch_offset(ntp_seconds: u64) {
+  EPOCH_OFFSET.set(ntp_seconds);
+}
 
 /// The current time in according to `cb` as a string.
 #[inline]
 pub fn timestamp_str(
   cb: impl FnOnce(core::time::Duration) -> u128,
 ) -> crate::Result<(u64, U64String)> {
-  let number = Instant::now_timestamp(0).map(cb)?.try_into()?;
+  let number = Instant::now_timestamp().map(cb)?.try_into()?;
   Ok((number, u64_string(number)))
 }

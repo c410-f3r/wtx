@@ -84,7 +84,7 @@ where
         elem
       }
       (Some(_) | None, Some(max_age)) => {
-        let expires_at = Instant::now_date_time(0)?
+        let expires_at = Instant::now_date_time()?
           .add(max_age.try_into()?)
           .map_err(crate::Error::from)?
           .trunc_to_us();

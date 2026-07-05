@@ -28,8 +28,7 @@ async fn main() {
       TokioExecutor::default(),
       1,
       ChaCha20::from_std_random().unwrap(),
-      TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0).unwrap())
-        .unwrap(),
+      TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap(),
     )
     .unwrap()
     .build()
@@ -188,7 +187,7 @@ impl<'any> CertificateMetadata<'any> {
       return true;
     };
     let days = Duration::from_days(398).unwrap();
-    Instant::now_date_time(0).unwrap() < distrust_for_tls_after_date.add(days).unwrap()
+    Instant::now_date_time().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
   }
 
   fn trust_bits(&self) -> ArrayVectorCopy<TrustBits, 4> {

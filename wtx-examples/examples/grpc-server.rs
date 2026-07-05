@@ -7,9 +7,7 @@ extern crate wtx_examples;
 
 use std::borrow::Cow;
 use wtx::{
-  calendar::Instant,
   codec::format::QuickProtobuf,
-  executor::TokioExecutor,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
     StatusCode,
@@ -30,16 +28,13 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  Http2ServerFramework::new(
-    TokioExecutor::default(),
+  Http2ServerFramework::tokio(
     ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
-      Instant::now_date_time(0)?,
-    )?
-    .into(),
+    )?,
   )?
   .set_data(GrpcManager::from_drsr(QuickProtobuf))
   .run(&host_from_args(), router)

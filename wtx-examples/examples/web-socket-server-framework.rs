@@ -6,9 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpStream;
 use wtx::{
-  calendar::Instant,
   collections::Vector,
-  executor::TokioExecutor,
   http::WebSocketServerFramework,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsConfig, TlsModeVerified},
@@ -20,16 +18,13 @@ type LocalWebSocket = WebSocket<(), TcpStream, TlsModeVerified, false>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  WebSocketServerFramework::new(
-    TokioExecutor::default(),
+  WebSocketServerFramework::tokio(
     ChaCha20::from_getrandom()?,
     TlsConfig::from_keys_pem(
       TlsModeVerified::default(),
       PUBLIC_KEY.try_into()?,
       SECRET_KEY.try_into()?,
-      Instant::now_date_time(0)?,
-    )?
-    .into(),
+    )?,
   )?
   .run(&host_from_args(), (("/echo", echo),))
   .await

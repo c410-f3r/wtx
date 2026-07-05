@@ -5,6 +5,8 @@ use crate::tls::Alert;
 pub enum TlsError {
   /// Received an alert record in teh handshake phase
   AbortedHandshake(Alert),
+  /// Peer closed the connection without a graceful stop
+  AbruptDisconnect,
   /// Bad Pre Key Share
   BadPreKeyShare,
   /// Diffie–Hellman error

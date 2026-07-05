@@ -1,21 +1,20 @@
 use crate::{
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   misc::ConnectionState,
-  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
   tls::{
     TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
     misc::{read_after_handshake_data, write_payloads},
     protocol::{
-      alert::{Alert, AlertDescription, AlertLevel},
+      alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
       record_content_type::RecordContentType,
     },
   },
 };
-use core::num::NonZeroUsize;
+use core::{hint::cold_path, num::NonZeroUsize};
 
 /// Transport Layer Security (TLS)
 ///
@@ -84,18 +83,17 @@ where
     Ok(())
   }
 
-  /// Sends a warning alert of type `AlertDescription::CloseNotify`, closing the connection.
+  /// Sends a warning alert of type `CloseNotify`, closing the connection.
   #[inline]
   pub async fn send_close_notify(&mut self) -> crate::Result<()> {
-    let alert = Alert::new(AlertLevel::Warning, AlertDescription::CloseNotify);
     self
       .stream
       .write_all(&Alert::record_bytes(
-        alert.data_bytes(),
+        Alert::close_notify().data_bytes(),
         self.key_schedule.write_mut().state_mut(),
       )?)
       .await?;
-    self.connection_state = ConnectionState::Closed;
+    self.connection_state = ConnectionState::WriteClosed;
     Ok(())
   }
 
@@ -126,7 +124,6 @@ where
     self,
   ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
     let stream_bridge = TlsStreamBridge::new();
-    let connection_state = Arc::new(AtomicBool::new(self.connection_state.into()));
     let (ksr, ksw) = self.key_schedule.into_split();
     let (_, stream_reader, stream_writer) = self.stream.into_split()?;
     Ok((
@@ -135,7 +132,7 @@ where
         stream_bridge,
         ksr,
         stream_reader,
-        connection_state: connection_state.clone(),
+        connection_state: self.connection_state,
         max_fragment_length: self.max_fragment_length,
         new_session_ticket: self.new_session_ticket,
         plaintext_consumed: self.plaintext_consumed,
@@ -144,7 +141,7 @@ where
         _tm: self._tm.clone(),
       },
       TlsStreamWriter {
-        connection_state,
+        connection_state: self.connection_state,
         ksw,
         max_fragment_length: self.max_fragment_length,
         stream_writer,
@@ -163,15 +160,16 @@ where
   TM: TlsMode,
 {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
-    if self.connection_state.is_closed() {
-      return Ok(StreamReadItem::empty_cold());
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
+    if TM::TY.is_plain_text() {
+      return self.stream.read(bytes).await;
+    }
+    if self.connection_state.cannot_read() {
+      cold_path();
+      return Ok(None);
     }
     let (ksr, ksw) = self.key_schedule.split_mut();
-    read_after_handshake_data::<_, _, TM, IS_CLIENT>(
+    read_after_handshake_data::<_, _, IS_CLIENT>(
       (&mut self.connection_state, ksw),
       bytes,
       ksr,
@@ -182,6 +180,7 @@ where
       &mut self.buffer.reader_buffer,
       &mut self.stream,
       alert_cb,
+      closed_conn_cb,
       key_update_cb,
     )
     .await
@@ -198,6 +197,10 @@ where
     if TM::TY.is_plain_text() {
       return self.stream.write_all(bytes).await;
     }
+    if self.connection_state.cannot_write() {
+      cold_path();
+      return Ok(());
+    }
     write_payloads(
       RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
@@ -213,6 +216,10 @@ where
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     if TM::TY.is_plain_text() {
       return self.stream.write_all_vectored(bytes).await;
+    }
+    if self.connection_state.cannot_write() {
+      cold_path();
+      return Ok(());
     }
     write_payloads(
       RecordContentType::ApplicationData,
@@ -234,11 +241,15 @@ async fn alert_cb<S>(
 where
   S: Stream,
 {
-  *aux.0 = ConnectionState::Closed;
-  if alert.description().is_warning() {
+  if alert.is_close_notify() {
     stream.write_all(&Alert::record_bytes(alert.data_bytes(), aux.1.state_mut())?).await?;
   }
+  *aux.0 = ConnectionState::Closed;
   Ok(())
+}
+
+fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite)) {
+  *aux.0 = ConnectionState::Closed;
 }
 
 async fn key_update_cb<S>(

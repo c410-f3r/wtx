@@ -56,10 +56,14 @@ where
     TM: TlsMode,
   {
     self.wsb.clear();
-    let mut tls_stream = tls_acceptor.accept().await?.rslt()?.tls_stream;
+    let mut tls_stream = tls_acceptor.accept().await?.tls_stream;
     let nb = &mut self.wsb.network_buffer;
     loop {
-      let _ = nb.read_arbitrary(READ_INCREMENT, &mut tls_stream).await?.rslt()?;
+      let _ = nb
+        .read_arbitrary(READ_INCREMENT, &mut tls_stream)
+        .await?
+        .ok_or(WebSocketError::ClosedConnection)
+        .map_err(crate::Error::from)?;
       let mut req_buffer = [EMPTY_HEADER; MAX_HEADERS];
       let mut req = Request::new(&mut req_buffer);
       let buffer = nb.current();
@@ -133,7 +137,7 @@ where
     TM: TlsMode,
   {
     self.wsb.clear();
-    let mut tls_stream = tls_connector.connect().await?.rslt()?;
+    let mut tls_stream = tls_connector.connect().await?;
     let key_buffer = &mut [0; 26];
     let key = {
       let mut sw = self.wsb.network_buffer.suffix_pusher();
@@ -151,7 +155,11 @@ where
     };
     let (nc, len) = loop {
       let nb = &mut self.wsb.network_buffer;
-      let _ = nb.read_arbitrary(READ_INCREMENT, &mut tls_stream.tls_stream).await?.rslt()?;
+      let _ = nb
+        .read_arbitrary(READ_INCREMENT, &mut tls_stream.tls_stream)
+        .await?
+        .ok_or(WebSocketError::ClosedConnection)
+        .map_err(crate::Error::from)?;
       let mut httparse_headers = [EMPTY_HEADER; MAX_HEADERS];
       let mut res = Response::new(&mut httparse_headers);
       let buffer = nb.current();

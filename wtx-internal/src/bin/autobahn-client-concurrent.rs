@@ -3,7 +3,7 @@
 use core::pin::pin;
 use wtx::{
   collections::Vector,
-  misc::PollOnce,
+  futures::PollOnce,
   web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
 use wtx_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};

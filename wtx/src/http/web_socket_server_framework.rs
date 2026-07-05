@@ -64,6 +64,24 @@ where
   }
 }
 
+#[cfg(feature = "tokio")]
+impl<RNG, TM>
+  WebSocketServerFramework<
+    (),
+    fn(crate::Error),
+    crate::executor::TokioExecutor,
+    fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
+    RNG,
+    TM,
+  >
+{
+  /// Calls [`Self::new`] using the elements provided by the tokio project
+  #[inline]
+  pub fn tokio(rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+    Self::new(crate::executor::TokioExecutor::default(), rng, tls_config)
+  }
+}
+
 impl<CO, EC, EX, RC, RNG, TM> WebSocketServerFramework<CO, EC, EX, RC, RNG, TM> {
   /// Sets the compression algorithm.
   #[inline]

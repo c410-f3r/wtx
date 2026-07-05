@@ -2,10 +2,11 @@ use crate::{
   codec::Decode,
   collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, Vector},
   crypto::AEAD_TAG_LEN,
-  misc::{FnMutFut, TryArithmetic as _, unlikely_elem},
-  stream::{BufStreamReader, StreamReadItem, StreamReader, StreamWriter},
+  futures::FnMutFut,
+  misc::{TryArithmetic as _, unlikely_elem},
+  stream::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
-    SERVER_SIG_CTX, TlsError, TlsMode,
+    SERVER_SIG_CTX, TlsError,
     de::De,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
@@ -40,18 +41,16 @@ pub(crate) async fn fetch_rec_from_stream<SR, const CHECK_CCS: bool>(
   max_fragment_length: u16,
   reader_buffer: &mut BufStreamReader,
   stream_reader: &mut SR,
-) -> crate::Result<StreamReadItem<ReadRecordInfo>>
+) -> crate::Result<Option<ReadRecordInfo>>
 where
   SR: StreamReader,
 {
-  let Some(header) = reader_buffer.read_header::<_, 5>(stream_reader).await?.opt() else {
-    return Ok(StreamReadItem::empty_cold());
+  let Some(header) = reader_buffer.read_header::<_, 5>(stream_reader).await? else {
+    return Ok(None);
   };
   if CHECK_CCS && header == [RecordContentType::ChangeCipherSpec.into(), 3, 3, 0, 1] {
-    if reader_buffer.read_payload(1, stream_reader).await?.is_closed() {
-      return Ok(StreamReadItem::empty_cold());
-    }
-    return Ok(StreamReadItem::from_item(ReadRecordInfo {
+    reader_buffer.read_payload(1, stream_reader).await?;
+    return Ok(Some(ReadRecordInfo {
       inner_ty: RecordContentType::ChangeCipherSpec,
       outer_ty: RecordContentType::ChangeCipherSpec,
       plaintext_len: 1,
@@ -68,9 +67,7 @@ where
     cold_path();
     return Err(TlsError::ReceivedRecordIsTooLarge.into());
   }
-  if reader_buffer.read_payload(len.into(), stream_reader).await?.is_closed() {
-    return Ok(StreamReadItem::empty_cold());
-  }
+  reader_buffer.read_payload(len.into(), stream_reader).await?;
   let mut trails: u16 = 0;
   let inner_ty = if let Some(elem) = kss {
     let nonce = elem.nonce();
@@ -97,11 +94,11 @@ where
     outer_ty
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
-  Ok(StreamReadItem::from_item(ReadRecordInfo { inner_ty, outer_ty, plaintext_len }))
+  Ok(Some(ReadRecordInfo { inner_ty, outer_ty, plaintext_len }))
 }
 
 #[inline]
-pub(crate) async fn read_after_handshake_data<A, SR, TM, const IS_CLIENT: bool>(
+pub(crate) async fn read_after_handshake_data<A, SR, const IS_CLIENT: bool>(
   mut aux: A,
   mut bytes: MaybeUninitSlice<'_, u8>,
   ksr: &mut KeyScheduleRead,
@@ -112,18 +109,15 @@ pub(crate) async fn read_after_handshake_data<A, SR, TM, const IS_CLIENT: bool>(
   reader_buffer: &mut BufStreamReader,
   stream_reader: &mut SR,
   mut alert_cb: impl for<'any> FnMutFut<(&'any mut A, Alert, &'any mut SR), Result = crate::Result<()>>,
+  closed_conn_cb: impl FnOnce(&mut A),
   mut key_update_cb: impl for<'any> FnMutFut<
     (&'any mut A, KeyUpdate, &'any mut SR),
     Result = crate::Result<()>,
   >,
-) -> crate::Result<StreamReadItem<NonZeroUsize>>
+) -> crate::Result<Option<NonZeroUsize>>
 where
   SR: StreamReader,
-  TM: TlsMode,
 {
-  if TM::TY.is_plain_text() {
-    return stream_reader.read(bytes).await;
-  }
   if let Some(1..=usize::MAX) = plaintext_len.checked_sub(*plaintext_consumed) {
     return Ok(transfer_after_handshake_data(
       &mut bytes,
@@ -139,8 +133,10 @@ where
       stream_reader,
     )
     .await?
-    .opt() else {
-      return Ok(StreamReadItem::empty_cold());
+    else {
+      cold_path();
+      closed_conn_cb(&mut aux);
+      return Ok(None);
     };
     let RecordContentType::ApplicationData = rri.outer_ty else {
       cold_path();
@@ -149,9 +145,10 @@ where
     let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
     match rri.inner_ty {
       RecordContentType::Alert => {
+        cold_path();
         let alert = Alert::decode(&mut TlsDecodeWrapper::from_bytes(plaintext))?;
         alert_cb.call((&mut aux, alert, stream_reader)).await?;
-        return Ok(StreamReadItem::empty_cold());
+        return Ok(None);
       }
       RecordContentType::ApplicationData => {
         *plaintext_len = rri.plaintext_len;
@@ -171,9 +168,8 @@ where
             let remote_key_update = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs.data))?;
             ksr.state_mut().rotate()?;
             if matches!(remote_key_update.request_update, KeyUpdateRequest::UpdateRequested) {
-              let local_key_update =
-                KeyUpdate { request_update: KeyUpdateRequest::UpdateNotRequested };
-              key_update_cb.call((&mut aux, local_key_update, stream_reader)).await?;
+              let key_update = KeyUpdate { request_update: KeyUpdateRequest::UpdateNotRequested };
+              key_update_cb.call((&mut aux, key_update, stream_reader)).await?;
             }
           }
           HandshakeType::NewSessionTicket => {
@@ -211,7 +207,7 @@ fn transfer_after_handshake_data(
   bytes: &mut MaybeUninitSlice<'_, u8>,
   plaintext: &[u8],
   non_empty_cb: impl FnOnce(NonZeroUsize),
-) -> StreamReadItem<NonZeroUsize> {
+) -> Option<NonZeroUsize> {
   let all_mut = bytes.all_mut();
   let all_mut_len = all_mut.len();
   let plaintext_len = plaintext.len();
@@ -220,16 +216,16 @@ fn transfer_after_handshake_data(
     // SAFETY: `plaintext` is always is a non-empty slice
     let len = unsafe { NonZeroUsize::new_unchecked(plaintext_len) };
     non_empty_cb(len);
-    return StreamReadItem::from_item(len);
+    return Some(len);
   }
   if let Some(plaintext_partial @ [_not_empty, ..]) = plaintext.get(..all_mut_len) {
     let _ = all_mut.write_copy_of_slice(plaintext_partial);
     // SAFETY: The above check just confirmed that plaintext_len is greater than zero
     let len = unsafe { NonZeroUsize::new_unchecked(plaintext_len) };
     non_empty_cb(len);
-    return StreamReadItem::from_item(len);
+    return Some(len);
   }
-  StreamReadItem::empty_cold()
+  None
 }
 
 #[inline]

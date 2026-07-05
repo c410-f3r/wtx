@@ -81,24 +81,41 @@ impl ReadFrameInfo {
     D: WebSocketDecompression,
     SR: StreamReader,
   {
-    let first_two = network_buffer.read_header::<_, 2>(stream).await?.rslt()?;
+    let first_two =
+      network_buffer.read_header::<_, 2>(stream).await?.ok_or(WebSocketError::ClosedConnection)?;
     let tuple = Self::manage_first_two_bytes::<D>(first_two, nc_rsv1)?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let mut mask = None;
     let payload_len = match length_code {
       126 => {
-        let payload_len = network_buffer.read_header::<_, 2>(stream).await?.rslt()?;
+        let payload_len = network_buffer
+          .read_header::<_, 2>(stream)
+          .await?
+          .ok_or(WebSocketError::ClosedConnection)?;
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(network_buffer.read_header::<_, 4>(stream).await?.rslt()?);
+          mask = Some(
+            network_buffer
+              .read_header::<_, 4>(stream)
+              .await?
+              .ok_or(WebSocketError::ClosedConnection)?,
+          );
           u16::from_be_bytes(payload_len).into()
         } else {
           u16::from_be_bytes(payload_len).into()
         }
       }
       127 => {
-        let payload_len = network_buffer.read_header::<_, 8>(stream).await?.rslt()?;
+        let payload_len = network_buffer
+          .read_header::<_, 8>(stream)
+          .await?
+          .ok_or(WebSocketError::ClosedConnection)?;
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(network_buffer.read_header::<_, 4>(stream).await?.rslt()?);
+          mask = Some(
+            network_buffer
+              .read_header::<_, 4>(stream)
+              .await?
+              .ok_or(WebSocketError::ClosedConnection)?,
+          );
           u64::from_be_bytes(payload_len).try_into()?
         } else {
           u64::from_be_bytes(payload_len).try_into()?
@@ -106,7 +123,12 @@ impl ReadFrameInfo {
       }
       _ => {
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(network_buffer.read_header::<_, 4>(stream).await?.rslt()?);
+          mask = Some(
+            network_buffer
+              .read_header::<_, 4>(stream)
+              .await?
+              .ok_or(WebSocketError::ClosedConnection)?,
+          );
           length_code.into()
         } else {
           length_code.into()

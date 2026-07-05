@@ -4,7 +4,7 @@ use crate::{
   crypto::SignatureTy,
   misc::{Lease, SingleTypeStorage},
   rng::CryptoRng,
-  stream::{Stream, StreamReadItem},
+  stream::Stream,
   sync::{Arc, SyncMutex},
   tls::{
     CipherSuite, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MaxFragmentLength, NamedGroup, Psks,
@@ -126,9 +126,9 @@ where
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn accept(mut self) -> crate::Result<StreamReadItem<TlsAcceptOutput<RNG, S, TM>>> {
+  pub async fn accept(mut self) -> crate::Result<TlsAcceptOutput<RNG, S, TM>> {
     if TM::TY.is_plain_text() {
-      return Ok(StreamReadItem::from_item(TlsAcceptOutput {
+      return Ok(TlsAcceptOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
         rng: self.rng,
@@ -139,12 +139,10 @@ where
           self.stream,
           self.config.lease().mode().clone(),
         ),
-      }));
+      });
     }
-    let Some(rri0) = self.fetch_rec_from_stream(false).await?.opt() else {
-      return Ok(StreamReadItem::empty_cold());
-    };
-    let indices = self.manage_initial_client_record(&rri0)?;
+    let first_rri = self.fetch_rec_from_stream(false).await?;
+    let indices = self.manage_initial_client_record(&first_rri)?;
     let buffer = self.buffer.reader_buffer.buffer_mut();
     let payloads = match indices.as_slice() {
       [idx0, idx1] => {
@@ -168,11 +166,9 @@ where
     )
     .await?;
     buffer.truncate(indices.first().copied().unwrap_or_default());
-    let Some(rri1) = self.fetch_rec_from_stream(true).await?.opt() else {
-      return Ok(StreamReadItem::empty_cold());
-    };
-    self.manage_final_client_record(&rri1)?;
-    Ok(StreamReadItem::from_item(TlsAcceptOutput {
+    let last_rri = self.fetch_rec_from_stream(true).await?;
+    self.manage_final_client_record(&last_rri)?;
+    Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
       rng: self.rng,
@@ -183,7 +179,7 @@ where
         self.stream,
         self.config.lease().mode().clone(),
       ),
-    }))
+    })
   }
 
   /// Low level operation responsible for processing data sent by clients. No other method should
@@ -292,17 +288,17 @@ where
   }
 
   #[inline]
-  async fn fetch_rec_from_stream(
-    &mut self,
-    decrypt: bool,
-  ) -> crate::Result<StreamReadItem<ReadRecordInfo>> {
-    fetch_rec_from_stream::<_, false>(
-      decrypt.then(|| self.key_schedule.read_mut().state_mut()),
-      self.max_fragment_length,
-      &mut self.buffer.reader_buffer,
-      &mut self.stream,
+  async fn fetch_rec_from_stream(&mut self, decrypt: bool) -> crate::Result<ReadRecordInfo> {
+    Ok(
+      fetch_rec_from_stream::<_, false>(
+        decrypt.then(|| self.key_schedule.read_mut().state_mut()),
+        self.max_fragment_length,
+        &mut self.buffer.reader_buffer,
+        &mut self.stream,
+      )
+      .await?
+      .ok_or(TlsError::AbruptDisconnect)?,
     )
-    .await
   }
 
   #[inline]

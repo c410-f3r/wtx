@@ -1,10 +1,9 @@
+use crate::collections::ArrayVectorU8;
 use core::{
   mem,
   pin::Pin,
   task::{Context, Poll},
 };
-
-use crate::collections::ArrayVectorU8;
 
 /// Joins the result of a dynamic array of futures, waiting for them all to complete.
 ///
@@ -149,7 +148,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::ArrayVectorU8, misc::join_array_vector::JoinArrayVector};
+  use crate::{collections::ArrayVectorU8, futures::JoinArrayVector};
   use core::{
     pin::Pin,
     task::{Context, Poll},

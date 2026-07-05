@@ -3,12 +3,11 @@ use crate::{
   misc::{ConnectionState, LeaseMut},
   rng::Xorshift64,
   stream::{BufStreamReader, Stream},
-  tls::{TlsMode, TlsStream},
+  tls::{TlsMode, TlsStream, TlsStreamBridge},
   web_socket::{
-    Frame, FrameMut, WebSocketPayloadOrigin,
-    is_in_continuation_frame::IsInContinuationFrame,
-    web_socket_compression::NegotiatedWsCompression,
-    web_socket_parts::web_socket_generic::{WebSocketReaderGeneric, WebSocketWriterGeneric},
+    Frame, FrameMut, WebSocketBridge, WebSocketPayloadOrigin,
+    is_in_continuation_frame::IsInContinuationFrame, read_frame::read_frame,
+    web_socket_compression::NegotiatedWsCompression, write_frame::write_frame,
   },
 };
 use core::marker::PhantomData;
@@ -16,7 +15,6 @@ use core::marker::PhantomData;
 /// Auxiliary common structure used by [`WebSocketReaderMut`] and [`WebSocketWriterMut`]
 #[derive(Debug)]
 pub struct WebSocketCommonMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
-  pub(crate) connection_state: &'instance mut ConnectionState,
   pub(crate) nc: &'instance mut NC,
   pub(crate) nc_rsv1: u8,
   pub(crate) rng: &'instance mut Xorshift64,
@@ -28,9 +26,11 @@ pub struct WebSocketCommonMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
 #[derive(Debug)]
 pub struct WebSocketReaderMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
   pub(crate) is_in_continuation_frame: &'instance mut Option<IsInContinuationFrame>,
+  pub(crate) max_payload_len: usize,
+  pub(crate) network_buffer: &'instance mut BufStreamReader,
+  pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S, TM)>,
-  pub(crate) wsrp:
-    WebSocketReaderGeneric<&'instance mut BufStreamReader, &'instance mut Vector<u8>, IS_CLIENT>,
+  pub(crate) reader_buffer: &'instance mut Vector<u8>,
 }
 
 impl<'instance, NC, S, TM, const IS_CLIENT: bool>
@@ -55,19 +55,24 @@ where
     'buffer: 'frame,
     'this: 'frame,
   {
-    self
-      .wsrp
-      .read_frame_mut(
-        common.connection_state,
-        self.is_in_continuation_frame,
-        common.nc,
-        common.nc_rsv1,
-        payload_origin,
-        common.rng,
-        common.stream,
-        buffer,
-      )
-      .await
+    read_frame::<_, _, _, _, _, true, IS_CLIENT>(
+      self.is_in_continuation_frame,
+      self.max_payload_len,
+      common.nc,
+      common.nc_rsv1,
+      self.network_buffer.lease_mut(),
+      self.no_masking,
+      payload_origin,
+      self.reader_buffer.lease_mut(),
+      common.rng,
+      common.stream,
+      &WebSocketBridge::new(TlsStreamBridge::new()),
+      buffer,
+      |el| el.connection_state = ConnectionState::Closed,
+      |local_stream| local_stream,
+      |local_stream| local_stream,
+    )
+    .await
   }
 }
 
@@ -75,8 +80,9 @@ where
 /// to the same instance.
 #[derive(Debug)]
 pub struct WebSocketWriterMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
+  pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S, TM)>,
-  pub(crate) wswp: WebSocketWriterGeneric<&'instance mut Vector<u8>, IS_CLIENT>,
+  pub(crate) writer_buffer: &'instance mut Vector<u8>,
 }
 
 impl<'instance, NC, S, TM, const IS_CLIENT: bool>
@@ -96,16 +102,16 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    self
-      .wswp
-      .write_frame(
-        common.connection_state,
-        frame,
-        common.nc,
-        common.nc_rsv1,
-        common.rng,
-        common.stream,
-      )
-      .await
+    write_frame::<_, _, _, _, IS_CLIENT>(
+      frame,
+      self.no_masking,
+      common.nc,
+      common.nc_rsv1,
+      common.rng,
+      common.stream,
+      self.writer_buffer,
+      |el| el.connection_state = ConnectionState::WriteClosed,
+    )
+    .await
   }
 }

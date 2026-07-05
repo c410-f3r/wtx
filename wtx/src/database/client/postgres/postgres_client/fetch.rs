@@ -1,7 +1,10 @@
 use crate::{
-  database::client::postgres::{
-    PostgresClient,
-    message::{Message, MessageTy},
+  database::{
+    DatabaseError,
+    client::postgres::{
+      PostgresClient,
+      message::{Message, MessageTy},
+    },
   },
   misc::{ConnectionState, Usize},
   stream::{BufStreamReader, Stream},
@@ -41,9 +44,10 @@ where
     read_buffer: &mut BufStreamReader,
     stream: &mut TlsStream<S, TM, true>,
   ) -> crate::Result<u8> {
-    let [b0, b1, b2, b3, b4] = read_buffer.read_header::<_, 5>(stream).await?.rslt()?;
+    let [b0, b1, b2, b3, b4] =
+      read_buffer.read_header::<_, 5>(stream).await?.ok_or(DatabaseError::AbruptDisconnect)?;
     let len = Usize::from(u32::from_be_bytes([b1, b2, b3, b4])).into_usize().wrapping_sub(4);
-    read_buffer.read_payload(len, stream).await?.rslt()?;
+    read_buffer.read_payload(len, stream).await?;
     Ok(b0)
   }
 }

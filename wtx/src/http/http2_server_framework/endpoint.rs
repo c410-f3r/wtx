@@ -1,9 +1,9 @@
 use crate::{
+  futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode,
     http2_server_framework::{Http2ServerFrameworkError, ResFinalizer, RouteMatch},
   },
-  misc::{FnFut, FnFutWrapper},
 };
 
 /// Endpoint that generates a response.
