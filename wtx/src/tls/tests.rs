@@ -14,7 +14,7 @@ const TM: TlsModeUnverified = TlsModeUnverified::new();
 #[wtx::test]
 async fn simple_connection(runtime: &StdRuntime) {
   let uri = _uri();
-  let now = Instant::now_date_time(0).unwrap();
+  let now = Instant::now_date_time().unwrap();
   let mut client_rng = ChaCha20::from_std_random().unwrap();
   let mut server_rng = ChaCha20::from_crypto_rng(&mut client_rng).unwrap();
 
@@ -27,8 +27,6 @@ async fn simple_connection(runtime: &StdRuntime) {
         .connect()
         .await
         .unwrap()
-        .rslt()
-        .unwrap()
         .tls_stream;
       tls_stream.write_all(b"hello").await.unwrap();
       tls_stream.send_close_notify().await.unwrap();
@@ -40,12 +38,10 @@ async fn simple_connection(runtime: &StdRuntime) {
     .accept()
     .await
     .unwrap()
-    .rslt()
-    .unwrap()
     .tls_stream;
   let mut buffer = [0; 128];
   loop {
-    let Some(read) = tls_stream.read(buffer.as_mut_slice().into()).await.unwrap().opt() else {
+    let Some(read) = tls_stream.read(buffer.as_mut_slice().into()).await.unwrap() else {
       break;
     };
     let slice = buffer.get(..read.get()).unwrap();

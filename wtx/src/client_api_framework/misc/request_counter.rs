@@ -1,4 +1,4 @@
-use crate::{calendar::Instant, client_api_framework::misc::RequestLimit, misc::sleep};
+use crate::{calendar::Instant, client_api_framework::misc::RequestLimit, futures::Sleep};
 
 /// Tracks how many requests were performed in a time interval.
 #[derive(Clone, Copy, Debug)]
@@ -12,7 +12,7 @@ impl RequestCounter {
   /// Instance with valid initial values
   #[inline]
   pub fn new(rl: RequestLimit) -> Self {
-    Self { counter: 0, instant: Instant::now(), rl }
+    Self { counter: 0, instant: Instant::new(), rl }
   }
 
   /// How many requests within the current time-slot are still available for usage.
@@ -25,7 +25,7 @@ impl RequestCounter {
   /// of [`RequestCounter`], then return `T`. Otherwise, awaits until [`RequestCounter`] is updated.
   #[inline]
   pub async fn update_params(&mut self) -> crate::Result<()> {
-    let now = Instant::now();
+    let now = Instant::new();
     let duration = *self.rl.duration();
     let elapsed = now.duration_since(self.instant)?;
     if elapsed > duration || self.counter == 0 {
@@ -37,9 +37,9 @@ impl RequestCounter {
     if self.counter >= self.rl.limit() {
       if let Some(diff) = duration.checked_sub(elapsed) {
         _debug!("Call needs to wait {}ms", diff.as_millis());
-        sleep(diff).await?;
+        Sleep::new(diff)?.await?;
       }
-      self.instant = Instant::now();
+      self.instant = Instant::new();
       self.counter = 1;
     } else {
       self.counter = self.counter.wrapping_add(1);
@@ -54,7 +54,7 @@ mod tests {
   use crate::{
     client_api_framework::misc::{RequestCounter, RequestLimit},
     executor::StdRuntime,
-    misc::sleep,
+    futures::Sleep,
   };
   use core::time::Duration;
   use std::time::Instant;
@@ -97,7 +97,7 @@ mod tests {
       assert_eq!(rc.counter, 1);
       rc.update_params().await.unwrap();
       assert_eq!(rc.counter, 2);
-      sleep(Duration::from_millis(150)).await.unwrap();
+      Sleep::new(Duration::from_millis(150)).unwrap().await.unwrap();
       rc.update_params().await.unwrap();
       assert_eq!(rc.counter, 1);
     });
@@ -116,19 +116,19 @@ mod tests {
       }
 
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
       test(&mut rc).await;
-      sleep(Duration::from_millis(100)).await.unwrap();
+      Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
     });
   }
 
@@ -189,7 +189,7 @@ mod tests {
       let rl = RequestLimit::new(2, DURATION);
       let mut rc = RequestCounter::new(rl);
 
-      sleep(Duration::from_millis(150)).await.unwrap();
+      Sleep::new(Duration::from_millis(150)).unwrap().await.unwrap();
 
       rc.update_params().await.unwrap();
       rc.update_params().await.unwrap();

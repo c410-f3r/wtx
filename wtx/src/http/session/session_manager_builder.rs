@@ -1,12 +1,13 @@
 use crate::{
   calendar::{DateTime, Utc},
   collections::Vector,
+  futures::Sleep,
   http::{
     SessionError, SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
     session::SessionManagerInner,
   },
-  misc::{Secret, SecretContext, sleep},
+  misc::{Secret, SecretContext},
   rng::CryptoRng,
   sync::{Arc, AsyncMutex},
 };
@@ -97,7 +98,7 @@ impl SessionManagerBuilder {
       async move {
         loop {
           session_store.delete_expired().await?;
-          sleep(inspection_interval).await?;
+          Sleep::new(inspection_interval)?.await?;
         }
       },
       SessionManager {

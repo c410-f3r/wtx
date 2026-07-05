@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::num::NonZeroUsize;
 use std::{
@@ -31,11 +31,8 @@ impl StreamReader for TcpStream {
   async fn read(
     &mut self,
     mut bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
-    Ok(StreamReadItem::from_opt(NonZeroUsize::new(<Self as Read>::read(
-      self,
-      bytes.initialize_all_bytes(),
-    )?)))
+  ) -> crate::Result<Option<NonZeroUsize>> {
+    Ok(NonZeroUsize::new(<Self as Read>::read(self, bytes.initialize_all_bytes())?))
   }
 }
 
@@ -45,11 +42,8 @@ impl StreamReader for std::os::unix::net::UnixStream {
   async fn read(
     &mut self,
     mut bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
-    Ok(StreamReadItem::from_opt(NonZeroUsize::new(<Self as Read>::read(
-      self,
-      bytes.initialize_all_bytes(),
-    )?)))
+  ) -> crate::Result<Option<NonZeroUsize>> {
+    Ok(NonZeroUsize::new(<Self as Read>::read(self, bytes.initialize_all_bytes())?))
   }
 }
 

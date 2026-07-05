@@ -7,7 +7,7 @@ use crate::{
 use core::{future::poll_fn, pin::pin, task::Poll};
 
 type WsTy =
-  (AtomicCell<(bool, Option<(OpCode, ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN>)>)>, AtomicWaker);
+  (AtomicCell<Option<(OpCode, ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN>)>>, AtomicWaker);
 
 /// The RFC requires all parties (Client or Server) to send back some types of frames.
 ///
@@ -30,7 +30,7 @@ pub struct WebSocketBridge<const IS_CLIENT: bool> {
 
 impl<const IS_CLIENT: bool> WebSocketBridge<IS_CLIENT> {
   pub(crate) fn new(tls: TlsStreamBridge<IS_CLIENT>) -> Self {
-    Self { tls, ws: Arc::new((AtomicCell::new((false, None)), AtomicWaker::new())) }
+    Self { tls, ws: Arc::new((AtomicCell::new(None), AtomicWaker::new())) }
   }
 
   /// Awaits special frames sent by the concurrent reader part. It should probably be
@@ -66,29 +66,22 @@ impl<const IS_CLIENT: bool> WebSocketBridge<IS_CLIENT> {
     .await
   }
 
-  pub(crate) fn data(
-    &self,
-  ) -> &AtomicCell<(bool, Option<(OpCode, ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN>)>)> {
-    &self.ws.0
+  pub(crate) fn update(&self, data: (OpCode, ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN>)) {
+    let _ = self.ws.0.update(|_prev| Some(data));
+    self.ws.1.wake();
   }
 
   async fn do_listen(&self) -> Option<FrameControlArray> {
     poll_fn(|cx| {
       self.ws.1.register(cx.waker());
-      let (is_conn_closed, frame) = self.ws.0.update(|el| (el.0, None));
+      let frame = self.ws.0.update(|_curr| None);
       if let Some((op_code, payload)) = frame {
         Poll::Ready(Some(FrameControlArray::new(true, op_code, payload, 0)))
-      } else if is_conn_closed {
-        Poll::Ready(None)
       } else {
         Poll::Pending
       }
     })
     .await
-  }
-
-  pub(crate) fn waker(&self) -> &AtomicWaker {
-    &self.ws.1
   }
 }
 

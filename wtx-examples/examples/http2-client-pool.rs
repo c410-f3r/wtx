@@ -4,7 +4,6 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  calendar::Instant,
   collections::Vector,
   executor::TokioExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
@@ -20,7 +19,7 @@ async fn main() -> wtx::Result<()> {
     TokioExecutor::default(),
     1,
     ChaCha20::from_getrandom()?,
-    TlsConfig::from_ccadb(TlsModeVerified::default(), Instant::now_date_time(0)?)?.into(),
+    TlsConfig::from_ccadb(TlsModeVerified::default())?,
   )?
   .build()
   .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(uri.to_ref()).into_request())

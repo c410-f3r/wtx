@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::num::NonZeroUsize;
 use embassy_net::tcp::TcpSocket;
@@ -25,10 +25,8 @@ impl StreamReader for TcpSocket<'_> {
   async fn read(
     &mut self,
     mut bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
-    Ok(StreamReadItem::from_opt(NonZeroUsize::new(
-      (*self).read(bytes.initialize_all_bytes()).await?,
-    )))
+  ) -> crate::Result<Option<NonZeroUsize>> {
+    Ok(NonZeroUsize::new((*self).read(bytes.initialize_all_bytes()).await?))
   }
 }
 

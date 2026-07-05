@@ -41,14 +41,6 @@ create_enum! {
   }
 }
 
-impl AlertDescription {
-  /// Returns `true` if the instance is [`Self::CloseNotify`] or [`Self::UserCanceled`].
-  #[must_use]
-  pub(crate) const fn is_warning(self) -> bool {
-    matches!(self, Self::CloseNotify | Self::UserCanceled)
-  }
-}
-
 create_enum! {
   #[derive(Debug, Clone, Copy, PartialEq)]
   pub(crate) enum AlertLevel<u8> {
@@ -65,16 +57,23 @@ pub struct Alert {
 }
 
 impl Alert {
-  pub(crate) fn new(level: AlertLevel, description: AlertDescription) -> Self {
-    Self { level, description }
+  pub(crate) const fn close_notify() -> Self {
+    Self { level: AlertLevel::Warning, description: AlertDescription::CloseNotify }
   }
 
   pub(crate) fn data_bytes(self) -> [u8; 2] {
     [u8::from(self.level), u8::from(self.description)]
   }
 
-  pub(crate) fn description(self) -> AlertDescription {
-    self.description
+  /// <https://datatracker.ietf.org/doc/html/rfc8446#section-6.1>
+  ///
+  /// `user_canceled` is a nice-to-have but optional thing that this implementation chose to
+  /// ignore. All parties must send a `close_notify`, regardless if `user_canceled` was or was
+  /// not sent before.
+  ///
+  /// Besides, `user_canceled` doesn't require it to be replied back to the sender.
+  pub(crate) fn is_close_notify(self) -> bool {
+    matches!((self.description, self.level), (AlertDescription::CloseNotify, AlertLevel::Warning))
   }
 
   pub(crate) fn record_bytes(

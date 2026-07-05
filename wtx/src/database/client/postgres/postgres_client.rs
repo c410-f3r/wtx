@@ -54,13 +54,13 @@ where
     client_buffer.clear();
     let ClientBuffer { common, conn_params: _ } = &mut client_buffer;
     if TM::TY.is_plain_text() {
-      let mut rslt = tls_connector.connect().await?.rslt()?;
+      let mut output = tls_connector.connect().await?;
       return Self::do_connect(
         client_buffer,
         config,
-        &mut rslt.rng,
-        rslt.tls_stream,
-        rslt.server_end_point,
+        &mut output.rng,
+        output.tls_stream,
+        output.server_end_point,
       )
       .await;
     }
@@ -70,17 +70,17 @@ where
       tls_connector.stream_mut().write_all(sw.curr()).await?;
     }
     let mut buf = [0];
-    let _read = tls_connector.stream_mut().read(buf.as_mut_slice().into()).await?.rslt()?;
+    let _read = tls_connector.stream_mut().read(buf.as_mut_slice().into()).await?;
     if buf != *b"S" {
       return Err(PostgresError::ServerDoesNotSupportEncryption.into());
     }
-    let mut rslt = tls_connector.connect().await?.rslt()?;
+    let mut output = tls_connector.connect().await?;
     return Self::do_connect(
       client_buffer,
       config,
-      &mut rslt.rng,
-      rslt.tls_stream,
-      rslt.server_end_point,
+      &mut output.rng,
+      output.tls_stream,
+      output.server_end_point,
     )
     .await;
   }

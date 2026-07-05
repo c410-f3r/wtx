@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::{
   num::NonZeroUsize,
@@ -44,10 +44,7 @@ impl<T> StreamCommon for WriteHalf<T> where T: AsyncWrite {}
 
 impl StreamReader for OwnedReadHalf {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     ReadFut::new(bytes.into_tokio_read_buf(), self).await
   }
 }
@@ -57,20 +54,14 @@ where
   T: AsyncRead,
 {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     ReadFut::new(bytes.into_tokio_read_buf(), self).await
   }
 }
 
 impl StreamReader for TcpStream {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     ReadFut::new(bytes.into_tokio_read_buf(), self).await
   }
 }
@@ -78,10 +69,7 @@ impl StreamReader for TcpStream {
 #[cfg(unix)]
 impl StreamReader for tokio::net::UnixStream {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     ReadFut::new(bytes.into_tokio_read_buf(), self).await
   }
 }
@@ -162,11 +150,11 @@ impl<R> Future for ReadFut<'_, R>
 where
   R: AsyncRead + Unpin + ?Sized,
 {
-  type Output = crate::Result<StreamReadItem<NonZeroUsize>>;
+  type Output = crate::Result<Option<NonZeroUsize>>;
 
   fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     let Self { read_buf, reader } = &mut *self;
     ready!(Pin::new(reader).poll_read(cx, read_buf))?;
-    Poll::Ready(Ok(StreamReadItem::from_opt(NonZeroUsize::new(read_buf.filled().len()))))
+    Poll::Ready(Ok(NonZeroUsize::new(read_buf.filled().len())))
   }
 }

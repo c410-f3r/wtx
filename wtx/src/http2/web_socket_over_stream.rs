@@ -2,24 +2,24 @@
 
 use crate::{
   collections::{ArrayVectorU8, Vector},
+  futures::JoinArrayVector,
   http::{Headers, StatusCode},
   http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
-  misc::{ConnectionState, JoinArrayVector, LeaseMut, SingleTypeStorage},
+  misc::{LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
   tls::TlsStreamBridge,
   web_socket::{
     Frame, FrameMut, OpCode, WebSocketBridge,
+    read_frame::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
     read_frame_info::ReadFrameInfo,
-    web_socket_reader::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
-    web_socket_writer::manage_normal_frame,
+    write_frame::mask_frame,
   },
 };
 
 /// WebSocket tunneling
 #[derive(Debug)]
 pub struct WebSocketOverStream<S> {
-  connection_state: ConnectionState,
   no_masking: bool,
   rng: Xorshift64,
   stream: S,
@@ -46,7 +46,7 @@ where
     if hss.is_closed() {
       return Err(crate::Error::ClosedHttpConnection);
     }
-    Ok(Self { connection_state: ConnectionState::Open, no_masking, rng, stream })
+    Ok(Self { no_masking, rng, stream })
   }
 
   /// Closes the stream as well as the WebSocket connection.
@@ -71,7 +71,6 @@ where
     if rfi.fin {
       let _is_control_frame = manage_auto_reply::<_, _, true, false>(
         self.stream.lease_mut(),
-        &mut self.connection_state,
         self.no_masking,
         rfi.op_code,
         buffer,
@@ -95,12 +94,7 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    manage_normal_frame::<_, _, false>(
-      &mut self.connection_state,
-      frame,
-      self.no_masking,
-      &mut self.rng,
-    );
+    mask_frame::<_, _, false>(frame, self.no_masking, &mut self.rng);
     let (header, payload) = frame.header_and_payload();
     let common_stream = self.stream.lease_mut().common();
     let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([

@@ -1,6 +1,8 @@
 /// WebSocket Error
 #[derive(Clone, Copy, Debug)]
 pub enum WebSocketError {
+  /// Peer closed the connection with or without a graceful stop
+  ClosedConnection,
   /// User manually closed the handshake process midway.
   ClosedHandshake,
   /// HTTP headers must be unique.

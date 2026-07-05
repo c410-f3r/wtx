@@ -3,56 +3,17 @@
 use crate::{
   codec::CompressionFlush,
   collections::Vector,
-  misc::{ConnectionState, Lease, LeaseMut},
+  misc::{Lease, LeaseMut},
   rng::Rng,
   stream::StreamWriter,
   web_socket::{
-    Frame, FrameMut, OpCode, misc::has_masked_frame, unmask::unmask,
+    Frame, FrameMut, misc::has_masked_frame, unmask::unmask,
     web_socket_compression::WebSocketCompression,
   },
 };
+use core::hint::cold_path;
 
-pub(crate) fn manage_compression<C, P>(frame: &mut Frame<P>, nc_rsv1: u8) -> bool
-where
-  C: WebSocketCompression,
-  P: Lease<[u8]>,
-{
-  if C::IS_NOOP {
-    return false;
-  }
-  let mut should_compress = false;
-  if !frame.op_code().is_control() {
-    let [first, _] = frame.header_first_two_mut();
-    should_compress = nc_rsv1 != 0;
-    *first |= nc_rsv1;
-  }
-  should_compress
-}
-
-pub(crate) fn manage_frame_compression<'cb, C, P, R, const IS_CLIENT: bool>(
-  connection_state: &mut ConnectionState,
-  nc: &mut C,
-  nc_rsv1: u8,
-  frame: &mut Frame<P>,
-  no_masking: bool,
-  rng: &mut R,
-  writer_buffer: &'cb mut Vector<u8>,
-) -> crate::Result<FrameMut<'cb>>
-where
-  C: WebSocketCompression,
-  P: LeaseMut<[u8]>,
-  R: Rng,
-{
-  if frame.op_code() == OpCode::Close {
-    *connection_state = ConnectionState::Closed;
-  }
-  let mut compressed_frame = compress_frame(frame, nc, nc_rsv1, writer_buffer)?;
-  mask_frame::<_, _, IS_CLIENT>(&mut compressed_frame, no_masking, rng);
-  Ok(compressed_frame)
-}
-
-pub(crate) fn manage_normal_frame<P, R, const IS_CLIENT: bool>(
-  connection_state: &mut ConnectionState,
+pub(crate) fn mask_frame<P, R, const IS_CLIENT: bool>(
   frame: &mut Frame<P>,
   no_masking: bool,
   rng: &mut R,
@@ -60,14 +21,14 @@ pub(crate) fn manage_normal_frame<P, R, const IS_CLIENT: bool>(
   P: LeaseMut<[u8]>,
   R: Rng,
 {
-  if frame.op_code() == OpCode::Close {
-    *connection_state = ConnectionState::Closed;
+  if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
+    let mask: [u8; 4] = rng.u8_4();
+    frame.set_mask(mask);
+    unmask(frame.payload_mut().lease_mut(), mask);
   }
-  mask_frame::<_, _, IS_CLIENT>(frame, no_masking, rng);
 }
 
 pub(crate) async fn write_frame<C, P, R, SW, const IS_CLIENT: bool>(
-  connection_state: &mut ConnectionState,
   frame: &mut Frame<P>,
   no_masking: bool,
   nc: &mut C,
@@ -75,6 +36,7 @@ pub(crate) async fn write_frame<C, P, R, SW, const IS_CLIENT: bool>(
   rng: &mut R,
   stream_writer: &mut SW,
   writer_buffer: &mut Vector<u8>,
+  closed_conn_cb: impl FnOnce(&mut SW),
 ) -> crate::Result<()>
 where
   C: WebSocketCompression,
@@ -84,7 +46,6 @@ where
 {
   if manage_compression::<C, _>(frame, nc_rsv1) {
     let fr = manage_frame_compression::<_, _, _, IS_CLIENT>(
-      connection_state,
       nc,
       nc_rsv1,
       frame,
@@ -94,9 +55,13 @@ where
     )?;
     stream_writer.write_all_vectored(&[fr.header(), fr.payload()]).await?;
   } else {
-    manage_normal_frame::<_, _, IS_CLIENT>(connection_state, frame, no_masking, rng);
+    mask_frame::<_, _, IS_CLIENT>(frame, no_masking, rng);
     let (header, payload) = frame.header_and_payload_mut();
     stream_writer.write_all_vectored(&[header, payload.lease()]).await?;
+  }
+  if frame.op_code().is_close() {
+    cold_path();
+    closed_conn_cb(stream_writer);
   }
   Ok(())
 }
@@ -128,14 +93,37 @@ where
   ))
 }
 
-fn mask_frame<P, R, const IS_CLIENT: bool>(frame: &mut Frame<P>, no_masking: bool, rng: &mut R)
+fn manage_compression<C, P>(frame: &mut Frame<P>, nc_rsv1: u8) -> bool
 where
+  C: WebSocketCompression,
+  P: Lease<[u8]>,
+{
+  if C::IS_NOOP {
+    return false;
+  }
+  let mut should_compress = false;
+  if !frame.op_code().is_control() {
+    let [first, _] = frame.header_first_two_mut();
+    should_compress = nc_rsv1 != 0;
+    *first |= nc_rsv1;
+  }
+  should_compress
+}
+
+fn manage_frame_compression<'cb, C, P, R, const IS_CLIENT: bool>(
+  nc: &mut C,
+  nc_rsv1: u8,
+  frame: &mut Frame<P>,
+  no_masking: bool,
+  rng: &mut R,
+  writer_buffer: &'cb mut Vector<u8>,
+) -> crate::Result<FrameMut<'cb>>
+where
+  C: WebSocketCompression,
   P: LeaseMut<[u8]>,
   R: Rng,
 {
-  if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
-    let mask: [u8; 4] = rng.u8_4();
-    frame.set_mask(mask);
-    unmask(frame.payload_mut().lease_mut(), mask);
-  }
+  let mut compressed_frame = compress_frame(frame, nc, nc_rsv1, writer_buffer)?;
+  mask_frame::<_, _, IS_CLIENT>(&mut compressed_frame, no_masking, rng);
+  Ok(compressed_frame)
 }

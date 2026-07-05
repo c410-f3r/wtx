@@ -5,7 +5,6 @@
 use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
-  executor::TokioExecutor,
   http::WebSocketServerFramework,
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModePlainText},
@@ -17,15 +16,11 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  WebSocketServerFramework::new(
-    TokioExecutor::default(),
-    ChaCha20::from_std_random()?,
-    TlsConfig::plaintext().into(),
-  )?
-  .set_compression(ZlibRs::default())
-  .set_error_cb(|error| eprintln!("{error}"))
-  .run("127.0.0.1:9070", (("/", echo),))
-  .await
+  WebSocketServerFramework::tokio(ChaCha20::from_std_random()?, TlsConfig::plaintext().into())?
+    .set_compression(ZlibRs::default())
+    .set_error_cb(|error| eprintln!("{error}"))
+    .run("127.0.0.1:9070", (("/", echo),))
+    .await
 }
 
 async fn echo(

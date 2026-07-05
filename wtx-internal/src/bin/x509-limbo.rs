@@ -342,7 +342,7 @@ fn evaluate_test_case<'bytes>(
     return;
   };
 
-  let mut cvp = CvPolicy::new(Instant::now_date_time(0).unwrap());
+  let mut cvp = CvPolicy::new(Instant::now_date_time().unwrap());
   mem::swap(cvp.crls_mut(), crls);
   fill_cvp(&mut cvp, ExtendedKeyUsage::default(), testcase);
 
@@ -522,6 +522,6 @@ fn fill_cvp(cvp: &mut CvPolicy<&[u8]>, mut eku: ExtendedKeyUsage, testcase: &Tes
   *cvp.key_usage_mut() = ku;
   *cvp.extended_key_usage_mut() = eku;
   cvp.set_validation_time(
-    testcase.validation_time.unwrap_or_else(|| Instant::now_date_time(0).unwrap()),
+    testcase.validation_time.unwrap_or_else(|| Instant::now_date_time().unwrap()),
   );
 }

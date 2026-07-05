@@ -43,7 +43,7 @@ use crate::{
   },
   misc::Usize,
   stream::StreamWriter,
-  sync::AtomicBool,
+  sync::AtomicU8,
 };
 use core::{
   future::poll_fn,
@@ -293,7 +293,7 @@ where
 pub(crate) async fn write_frames<SW>(
   (header, data): (&[u8], &[u8]),
   frames: &ArrayVectorU8<FrameParams, 4>,
-  is_conn_open: &AtomicBool,
+  is_conn_open: &AtomicU8,
   stream_writer: &mut SW,
 ) -> crate::Result<()>
 where

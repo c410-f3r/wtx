@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+  stream::{StreamCommon, StreamReader, StreamWriter},
 };
 use core::{future, num::NonZeroUsize};
 use std::os::unix::prelude::{AsRawFd, RawFd};
@@ -20,10 +20,7 @@ where
   IO: AsRawFd + StreamReader,
 {
   #[inline]
-  async fn read(
-    &mut self,
-    bytes: MaybeUninitSlice<'_, u8>,
-  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+  async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     self.io.read(bytes).await
   }
 }

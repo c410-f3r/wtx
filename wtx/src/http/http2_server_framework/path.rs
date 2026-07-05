@@ -1,9 +1,10 @@
 use crate::{
+  futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, HttpError, StatusCode,
     http2_server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
   },
-  misc::{FnFut, FnFutWrapper, UriString, bytes_split1},
+  misc::{UriString, bytes_split1},
 };
 use core::str::FromStr;
 

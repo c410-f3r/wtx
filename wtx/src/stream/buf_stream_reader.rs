@@ -8,8 +8,8 @@ use core::{fmt::Debug, hint::cold_path, mem::MaybeUninit};
 /// Buffered stream reader error
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BufStreamReaderError {
-  /// A connection was unexpectedly closed by an external actor.
-  ClosedConnection,
+  /// Connections should gracefully stop but the peer unexpectedly closed by stream.
+  AbruptDisconnect,
   /// External actor sent a payload greater than the maximum capacity
   CapacityOverflow,
   /// The instance is configured to prevent the removal of contents
@@ -141,36 +141,42 @@ impl BufStreamReader {
   /// Reads `LEN` buffer that are intended to form the header of a protocol message.
   ///
   /// Also removes the references that compose the current readable region.
+  ///
+  /// Returns `None` if the peer closed the connection or timeout was triggered.
   #[inline]
   pub async fn read_header<SR, const LEN: usize>(
     &mut self,
     stream_reader: &mut SR,
-  ) -> crate::Result<StreamReadItem<[u8; LEN]>>
+  ) -> crate::Result<Option<[u8; LEN]>>
   where
     SR: StreamReader,
   {
     self.manage_capacity(LEN)?;
-    let current_end_idx = self.current_end_idx;
-    loop {
-      let (init, uninit) = self.split_at_spare_mut();
-      // SAFETY: All methods ensure that `current_end_idx` will never be greater than the
-      //         buffer's length
-      let following = unsafe { init.get(current_end_idx..).unwrap_unchecked() };
-      if let Some(slice) = following.get(..LEN) {
-        let rslt = slice.try_into().unwrap_or([0; LEN]);
-        self.remove_current(LEN);
-        return Ok(StreamReadItem::from_item(rslt));
+    let Self { antecedent_end_idx, buffer, current_end_idx, .. } = self;
+    let read_fut = async move {
+      let local_current_end_idx = *current_end_idx;
+      loop {
+        let (init, uninit) = buffer.split_at_spare_mut();
+        // SAFETY: All methods ensure that `current_end_idx` will never be greater than the
+        //         buffer's length
+        let following = unsafe { init.get(local_current_end_idx..).unwrap_unchecked() };
+        if let Some(slice) = following.get(..LEN) {
+          let rslt = slice.try_into().unwrap_or([0; LEN]);
+          Self::remove_current(antecedent_end_idx, current_end_idx, LEN);
+          return Ok(Some(rslt));
+        }
+        let Some(len) = stream_reader.read(uninit.into()).await? else {
+          cold_path();
+          return Ok(None);
+        };
+        let new_len = init.len().wrapping_add(len.get());
+        // SAFETY: `stream_reader.read` just initialized `len` buffer
+        unsafe {
+          buffer.set_len(new_len);
+        }
       }
-      let Some(len) = stream_reader.read(uninit.into()).await?.opt() else {
-        cold_path();
-        return Ok(StreamReadItem::empty_cold());
-      };
-      let new_len = init.len().wrapping_add(len.get());
-      // SAFETY: `stream_reader.read` just initialized `len` buffer
-      unsafe {
-        self.buffer.set_len(new_len);
-      }
-    }
+    };
+    read_fut.await
   }
 
   /// Reads `payload_len` buffer that are intended to form the body of a protocol message. Should
@@ -182,7 +188,7 @@ impl BufStreamReader {
     &mut self,
     payload_len: usize,
     stream_reader: &mut SR,
-  ) -> crate::Result<StreamReadItem<()>>
+  ) -> crate::Result<()>
   where
     SR: StreamReader,
   {
@@ -193,11 +199,13 @@ impl BufStreamReader {
       let following_len = init.len().wrapping_sub(current_end_idx);
       if following_len >= payload_len {
         self.current_end_idx = current_end_idx.wrapping_add(payload_len);
-        return Ok(StreamReadItem::from_item(()));
+        return Ok(());
       }
-      let Some(len) = stream_reader.read(uninit.into()).await?.opt() else {
+      let Some(len) = stream_reader.read(uninit.into()).await? else {
+        // Headers with 0-length payloads can't enter here and because of that, this branch only
+        // happens when the peer closed the connection without a graceful stop, which is an error!
         cold_path();
-        return Ok(StreamReadItem::empty_cold());
+        return Err(BufStreamReaderError::AbruptDisconnect.into());
       };
       let new_len = init.len().wrapping_add(len.get());
       // SAFETY: `stream_reader.read` just initialized `len` buffer
@@ -248,15 +256,15 @@ impl BufStreamReader {
     &mut self,
     reserve_len: usize,
     stream_reader: &mut SR,
-  ) -> crate::Result<StreamReadItem<core::num::NonZeroUsize>>
+  ) -> crate::Result<Option<core::num::NonZeroUsize>>
   where
     SR: StreamReader,
   {
     self.manage_capacity(reserve_len)?;
-    let (init, uninit) = self.split_at_spare_mut();
-    let Some(len) = stream_reader.read(uninit.into()).await?.opt() else {
+    let (init, uninit) = self.buffer.split_at_spare_mut();
+    let Some(len) = stream_reader.read(uninit.into()).await? else {
       cold_path();
-      return Ok(StreamReadItem::empty_cold());
+      return Ok(None);
     };
     let new_len = init.len().wrapping_add(len.get());
     // SAFETY: `stream_reader.read` just initialized `len` buffer
@@ -264,7 +272,7 @@ impl BufStreamReader {
       self.buffer.set_len(new_len);
     }
     self.current_end_idx = new_len;
-    Ok(StreamReadItem::from_item(len))
+    Ok(Some(len))
   }
 
   /// Both indices will be capped to avoid data corruption.
@@ -311,19 +319,19 @@ impl BufStreamReader {
     if self.forbid_clear {
       return Err(BufStreamReaderError::ForbiddenClear.into());
     }
+    self.antecedent_end_idx = 0;
+    self.current_end_idx = 0;
     self.buffer.copy_within(current_end_idx.., 0);
     self.buffer.truncate(following_len);
     self.buffer.reserve(additional.wrapping_sub(following_len))?;
-    self.antecedent_end_idx = 0;
-    self.current_end_idx = 0;
     Ok(())
   }
 
   #[inline]
-  fn remove_current(&mut self, offset: usize) {
-    let idx = self.current_end_idx.wrapping_add(offset);
-    self.antecedent_end_idx = idx;
-    self.current_end_idx = idx;
+  fn remove_current(antecedent_end_idx: &mut usize, current_end_idx: &mut usize, offset: usize) {
+    let idx = current_end_idx.wrapping_add(offset);
+    *antecedent_end_idx = idx;
+    *current_end_idx = idx;
   }
 }
 
@@ -355,94 +363,6 @@ impl Default for BufStreamReader {
   }
 }
 
-/// A remote actor can always stop the exchange of data to allow a graceful stop, moreover, in
-/// `WTX` a closed stream is not considered an error.
-///
-/// That is why all places where data is externally fetched a [`StreamReadItem`] is returned: to
-/// signal if the current connection is still alive.
-#[derive(Debug, Default)]
-#[must_use = "You must handle potential connection closures. Use `.is_closed()`, `.opt()` or `.rslt()` to gracefully stop or abort execution."]
-pub struct StreamReadItem<T>(Option<T>);
-
-impl<T> StreamReadItem<T> {
-  /// New empty instance.
-  #[inline]
-  pub const fn empty() -> Self {
-    Self(None)
-  }
-
-  /// New empty instance that hints a cold path.
-  #[cold]
-  #[inline]
-  pub const fn empty_cold() -> Self {
-    Self(None)
-  }
-
-  /// New instance from an existent element.
-  #[inline]
-  pub const fn from_item(item: T) -> Self {
-    Self(Some(item))
-  }
-
-  /// New instance from an optional element.
-  #[inline]
-  pub const fn from_opt(item: Option<T>) -> Self {
-    Self(item)
-  }
-
-  /// If the current connection is still active.
-  #[inline]
-  pub const fn is_alive(&self) -> bool {
-    self.0.is_some()
-  }
-
-  /// If the current connection is closed
-  #[inline]
-  pub const fn is_closed(&self) -> bool {
-    self.0.is_none()
-  }
-
-  /// Converts itself into an option
-  ///
-  /// Returns `None` if the connection is closed.
-  #[inline]
-  pub fn opt(self) -> Option<T> {
-    self.0
-  }
-
-  /// Converts itself into a result.
-  ///
-  /// Returns `Err` if the connection is closed.
-  #[inline]
-  pub fn rslt(self) -> crate::Result<T> {
-    match self.0 {
-      None => Err(BufStreamReaderError::ClosedConnection.into()),
-      Some(elem) => Ok(elem),
-    }
-  }
-}
-
-impl<T, E> From<Result<T, E>> for StreamReadItem<T> {
-  #[inline]
-  fn from(value: Result<T, E>) -> Self {
-    Self(value.ok())
-  }
-}
-
-impl<T> From<Option<T>> for StreamReadItem<T> {
-  #[inline]
-  fn from(value: Option<T>) -> Self {
-    Self(value)
-  }
-}
-
-impl<T> From<T> for StreamReadItem<T> {
-  #[inline]
-  fn from(value: T) -> Self {
-    Self(Some(value))
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use crate::stream::{BufStreamReader, BytesStream, StreamWriter};
@@ -452,9 +372,24 @@ mod tests {
     let mut stream = BytesStream::default();
     stream.write_all(&[0, 2, 1, 2]).await.unwrap();
     let mut nrb = BufStreamReader::default();
-    let header = nrb.read_header::<_, 2>(&mut stream).await.unwrap().rslt().unwrap();
+    let header = nrb.read_header::<_, 2>(&mut stream).await.unwrap().unwrap();
     let len = u16::from_be_bytes(header);
-    nrb.read_payload(len.into(), &mut stream).await.unwrap().rslt().unwrap();
-    assert_eq!(nrb.current_mut(), [1, 2]);
+    nrb.read_payload(len.into(), &mut stream).await.unwrap();
+    assert_eq!(nrb.current(), &[1, 2][..]);
+  }
+
+  #[wtx::test]
+  async fn zero_payload() {
+    let mut stream = BytesStream::default();
+    stream.write_all(&[0, 0]).await.unwrap();
+    let mut nrb = BufStreamReader::default();
+    let header = nrb.read_header::<_, 2>(&mut stream).await.unwrap().unwrap();
+    let len = u16::from_be_bytes(header);
+    nrb.read_payload(len.into(), &mut stream).await.unwrap();
+    assert!(nrb.current().is_empty());
   }
 }
+
+// PSN: `BufStreamReader` is the result of **years** of research, empirical approaches and
+//      headaches. It wouldn't exist without my persistence and ignorance, as such, let us
+//      celebrate the struggle and the fallibility of human nature.

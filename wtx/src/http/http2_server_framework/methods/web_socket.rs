@@ -1,11 +1,11 @@
 use crate::{
   collections::{ArrayVectorCopy, Vector},
+  futures::FnFut,
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode,
     http2_server_framework::{Endpoint, EndpointNode, Http2ServerFrameworkError, RouteMatch},
     is_web_socket_handshake,
   },
-  misc::FnFut,
 };
 
 /// Requires a WebSocket tunneling.

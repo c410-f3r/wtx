@@ -52,7 +52,6 @@ where
       .set_psk(self.psk.as_ref().map(AtomicCell::load))
       .connect()
       .await?
-      .rslt()?
       .tls_stream;
     let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
@@ -75,13 +74,12 @@ where
     let mut hb = Http2Buffer::default();
     let mut tc = self.tls_config.lease().clone();
     push_server_name(&mut tc, &uri)?;
-    let tcr = TlsConnector::new(&tc, &self.rng, stream)
+    let tco = TlsConnector::new(&tc, &self.rng, stream)
       .set_psk(self.psk.as_ref().map(AtomicCell::load))
       .connect()
-      .await?
-      .rslt()?;
+      .await?;
     resource.client.swap_buffers(&mut hb).await;
-    let (frame_reader, http2) = Http2::connect(hb, self.hrp, tcr.tls_stream.into_split()?).await?;
+    let (frame_reader, http2) = Http2::connect(hb, self.hrp, tco.tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(frame_reader);
     resource.client = http2;
     Ok(())

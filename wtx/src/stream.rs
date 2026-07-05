@@ -46,7 +46,7 @@ mod stream_writer;
 #[cfg(feature = "tokio")]
 mod tokio;
 
-pub use buf_stream_reader::{BufStreamReader, BufStreamReaderError, StreamReadItem};
+pub use buf_stream_reader::{BufStreamReader, BufStreamReaderError};
 pub use bytes_stream::BytesStream;
 pub use stream_common::StreamCommon;
 pub use stream_reader::StreamReader;

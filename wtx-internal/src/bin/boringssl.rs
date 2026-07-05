@@ -598,16 +598,14 @@ async fn exec_tests<const IS_CLIENT: bool>(
     if IS_CLIENT {
       let mut stream = TcpStream::connect(addr).await.unwrap();
       stream.write_all(&options.shim_id.to_le_bytes()).await.unwrap();
-      let mut rslt =
-        TlsConnector::new(&tls_config, rng, stream).connect().await.unwrap().rslt().unwrap();
+      let mut rslt = TlsConnector::new(&tls_config, rng, stream).connect().await.unwrap();
       check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
       manage_after_handshake(&options, false, &mut rslt.tls_stream).await;
     } else {
       let listener = TcpListener::bind(addr).await.unwrap();
       let mut stream = listener.accept().await.unwrap();
       stream.0.write_all(&options.shim_id.to_le_bytes()).await.unwrap();
-      let mut rslt =
-        TlsAcceptor::new(&tls_config, rng, stream.0).accept().await.unwrap().rslt().unwrap();
+      let mut rslt = TlsAcceptor::new(&tls_config, rng, stream.0).accept().await.unwrap();
       check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
       manage_after_handshake(&options, false, &mut rslt.tls_stream).await;
     }
@@ -663,31 +661,25 @@ async fn manage_after_handshake<const IS_CLIENT: bool>(
 
   loop {
     let mut buf = [0u8; 1024];
-    let len = match tls_stream
-      .stream_mut()
-      .read(buf.get_mut(..options.read_size).unwrap().into())
-      .await
-      .unwrap()
-      .rslt()
-      .map(|el| el.get())
-    {
-      Ok(0) => {
-        if options.check_close_notify {
-          println!("close notify ok");
+    let len =
+      match tls_stream.stream_mut().read(buf.get_mut(..options.read_size).unwrap().into()).await {
+        Ok(None) => {
+          if options.check_close_notify {
+            println!("close notify ok");
+          }
+          println!("EOF (tls)");
+          return;
         }
-        println!("EOF (tls)");
-        return;
-      }
-      Ok(len) => len,
-      //Err(err) if err.kind() == io::ErrorKind::WouldBlock => 0,
-      //Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => {
-      //  if options.check_close_notify {
-      //    quit_err(":CLOSE_WITHOUT_CLOSE_NOTIFY:");
-      //  }
-      //  return;
-      //}
-      Err(err) => panic!("unhandled read error {err:?}"),
-    };
+        Ok(Some(len)) => len.get(),
+        //Err(err) if err.kind() == io::ErrorKind::WouldBlock => 0,
+        //Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => {
+        //  if options.check_close_notify {
+        //    quit_err(":CLOSE_WITHOUT_CLOSE_NOTIFY:");
+        //  }
+        //  return;
+        //}
+        Err(err) => panic!("unhandled read error {err:?}"),
+      };
 
     if options.shut_down_after_handshake && !sent_shutdown {
       tls_stream.send_close_notify().await.unwrap();
@@ -709,7 +701,7 @@ async fn manage_after_handshake<const IS_CLIENT: bool>(
 }
 
 fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
-  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time(0).unwrap());
+  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time().unwrap());
   if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
     let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
     cfg
@@ -731,7 +723,7 @@ fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
 }
 
 fn make_server_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
-  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time(0).unwrap());
+  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time().unwrap());
   if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
     let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
     cfg

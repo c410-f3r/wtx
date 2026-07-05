@@ -2,7 +2,7 @@ macro_rules! call_tests {
   (($method:ident, $ws:expr), $($struct:ident),+ $(,)?) => {
     $(
       $struct::$method($ws).await;
-      sleep(Duration::from_millis(200)).await.unwrap();
+      Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
     )+
   };
 }
@@ -10,15 +10,14 @@ macro_rules! call_tests {
 use crate::{
   collections::Vector,
   executor::StdRuntime,
-  misc::sleep,
+  futures::Sleep,
   rng::{ChaCha20, CryptoSeedableRng},
   sync::{Arc, AtomicBool},
   tests::_uri,
   tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModePlainText},
   web_socket::{
-    CloseCode, Frame, OpCode, WebSocket, WebSocketAcceptor, WebSocketConnector,
-    WebSocketPayloadOrigin, WsCompression, fill_buffer_with_close_code,
-    web_socket_compression::NegotiatedWsCompression,
+    Frame, OpCode, WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin,
+    WsCompression, web_socket_compression::NegotiatedWsCompression,
   },
 };
 use core::{sync::atomic::Ordering, time::Duration};
@@ -39,9 +38,9 @@ fn compressed() {
   runtime.block_on(async {
     use crate::web_socket::web_socket_compression::ZlibRs;
     do_test_client_and_server_frames(((), false), (ZlibRs::default(), false), runtime_fut0).await;
-    sleep(Duration::from_millis(200)).await.unwrap();
+    Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
     do_test_client_and_server_frames((ZlibRs::default(), false), ((), false), runtime_fut1).await;
-    sleep(Duration::from_millis(200)).await.unwrap();
+    Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
     do_test_client_and_server_frames(
       (ZlibRs::default(), false),
       (ZlibRs::default(), false),
@@ -134,7 +133,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
       has_server_finished = local_has_server_finished;
       break;
     }
-    sleep(Duration::from_millis(200)).await.unwrap();
+    Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
   }
   if !has_server_finished {
     panic!("Server didn't finish");
@@ -193,8 +192,7 @@ where
       ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap().payload(),
       b"Goodbye!"
     );
-    let mut ps = *b"__PS: s2";
-    let _ = fill_buffer_with_close_code(&mut ps, CloseCode::Normal);
+    let ps = [3, 232, 80, 83, 58, 32, 115, 50];
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, ps).unwrap()).await.unwrap();
   }
 }

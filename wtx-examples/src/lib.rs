@@ -44,18 +44,13 @@ pub async fn postgres_client(
 > {
   use tokio::net::TcpStream;
   use wtx::{
-    calendar::Instant,
     database::client::postgres::{ClientBuffer, Config, PostgresClient},
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{TlsConfig, TlsConnector, TlsModeVerified},
   };
   let uri = wtx::misc::Uri::new(uri_str);
   let mut tls_connector = TlsConnector::new(
-    TlsConfig::from_trust_anchors_pem(
-      TlsModeVerified::default(),
-      [ROOT_CA],
-      Instant::now_date_time(0)?,
-    )?,
+    TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
     ChaCha20::from_getrandom()?,
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
   );

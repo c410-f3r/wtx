@@ -1,10 +1,10 @@
 use crate::{
   collections::{ArrayVectorCopy, Vector},
+  futures::FnFut,
   http::{
     AutoStream, ManualStream, Method, OperationMode, StatusCode,
     http2_server_framework::{Endpoint, EndpointNode, RouteMatch, methods::check_method},
   },
-  misc::FnFut,
 };
 
 /// Requires a request of type `GET`.

@@ -299,7 +299,7 @@ fn wake(state: &AtomicUsize, mut waiters: SyncMutexGuard<'_, Waiters>) {
 mod tests {
   use crate::{
     executor::StdRuntime,
-    misc::PollOnce,
+    futures::PollOnce,
     sync::{
       Arc, AsyncMutex,
       async_mutex::{has_waiters, is_locked},

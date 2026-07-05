@@ -15,17 +15,14 @@ mod either;
 mod enum_var_strings;
 mod env_vars;
 mod error_info;
-mod fn_fut;
 mod from_vars;
 mod incomplete_utf8_char;
 pub(crate) mod int_conv;
 mod interspace;
-mod join_array_vector;
 mod lease;
 mod mem;
 mod optimizations;
 mod pem;
-mod poll_once;
 mod ppm;
 mod role;
 #[cfg(feature = "secret")]
@@ -43,23 +40,20 @@ mod wrapper;
 use crate::collections::ShortStrU8;
 pub use ascii::*;
 pub use connection_state::ConnectionState;
-use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
+use core::any::type_name;
 pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
 pub use error_info::ErrorInfo;
-pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use from_vars::FromVars;
 pub use hints::*;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
-pub use join_array_vector::{JoinArrayVector, TryJoinArrayVector};
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
 pub use pem::Pem;
-pub use poll_once::PollOnce;
 pub use ppm::Ppm;
 pub use role::{Client, Role, RoleTy, Server};
 #[cfg(feature = "secret")]
@@ -299,51 +293,6 @@ where
   sq.end()
 }
 
-/// Sleeps for the specified amount of time.
-///
-/// Defaults to the selected runtime's reactor, for example, `tokio`. Fallbacks to a naive
-/// spin-like approach if no runtime is selected.
-#[inline]
-pub async fn sleep(duration: Duration) -> crate::Result<()> {
-  cfg_select! {
-    feature = "embassy-time" => embassy_time::Timer::after(duration.try_into()?).await,
-    feature = "tokio" => tokio::time::sleep(duration).await,
-    _ => {
-      let now = crate::calendar::Instant::now();
-      poll_fn(|cx| {
-        if now.elapsed()? >= duration {
-          return Poll::Ready(crate::Result::Ok(()));
-        }
-        cx.waker().wake_by_ref();
-        Poll::Pending
-      })
-      .await?;
-    }
-  }
-  Ok(())
-}
-
-/// Requires a `Future` to complete within the specified `duration`.
-#[inline]
-pub async fn timeout<F>(fut: F, duration: Duration) -> crate::Result<F::Output>
-where
-  F: Future,
-{
-  let mut fut_pin = pin!(fut);
-  let mut timeout_pin = pin!(sleep(duration));
-  poll_fn(|cx| {
-    if let Poll::Ready(output) = fut_pin.as_mut().poll(cx) {
-      return Poll::Ready(Ok(output));
-    }
-    match timeout_pin.as_mut().poll(cx) {
-      Poll::Ready(Ok(_)) => Poll::Ready(Err(crate::Error::ExpiredFuture)),
-      Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
-      Poll::Pending => Poll::Pending,
-    }
-  })
-  .await
-}
-
 /// A tracing register with optioned parameters.
 #[cfg(feature = "_tracing-tree")]
 #[inline]
@@ -414,26 +363,4 @@ pub(crate) fn strip_new_line(bytes: &[u8]) -> (u8, &[u8]) {
 #[cfg(feature = "postgres")]
 pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::ops::Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
-}
-
-#[cfg(all(not(feature = "tokio"), test))]
-mod tests {
-  use crate::misc::sleep;
-  use core::time::Duration;
-
-  #[wtx::test]
-  async fn timeout() {
-    assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
-    assert!(
-      crate::misc::timeout(
-        async {
-          sleep(Duration::from_millis(20)).await.unwrap();
-          1
-        },
-        Duration::from_millis(10)
-      )
-      .await
-      .is_err()
-    )
-  }
 }

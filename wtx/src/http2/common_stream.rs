@@ -1,5 +1,7 @@
 use crate::{
+  _AFTER_CLOSE_TIMEOUT_MS,
   collections::{ArrayVectorU8, Vector},
+  futures::TryJoinArrayVector,
   http::{Headers, StatusCode, u31::U31},
   http2::{
     Http2Error, Http2Inner, Http2RecvStatus, Http2SendStatus,
@@ -11,7 +13,7 @@ use crate::{
     window::WindowsPair,
     write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },
-  misc::{TryJoinArrayVector, Usize, span::Span},
+  misc::{Usize, span::Span},
   stream::StreamWriter,
   sync::Arc,
 };
@@ -36,7 +38,8 @@ where
   pub async fn clear(&self) -> crate::Result<()> {
     let Self { inner, linger, span: _, stream_id } = self;
     if *linger {
-      crate::misc::sleep(core::time::Duration::from_millis(50)).await?;
+      crate::futures::Sleep::new(core::time::Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?
+        .await?;
     }
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();

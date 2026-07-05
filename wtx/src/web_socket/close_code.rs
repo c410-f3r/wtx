@@ -40,6 +40,12 @@ pub enum CloseCode {
 }
 
 impl CloseCode {
+  /// Raw wire bytes
+  #[inline]
+  pub fn bytes(self) -> [u8; 2] {
+    u16::from(self).to_be_bytes()
+  }
+
   /// Checks if this instances is allowed.
   #[inline]
   pub const fn is_allowed(self) -> bool {
