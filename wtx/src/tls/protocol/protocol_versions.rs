@@ -10,11 +10,11 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct SupportedVersionsClient {
-  pub(crate) versions: ArrayVectorCopy<ProtocolVersion, 1>,
+  pub(crate) versions: ArrayVectorCopy<ProtocolVersion, 8>,
 }
 
 impl SupportedVersionsClient {
-  pub(crate) fn new(versions: ArrayVectorCopy<ProtocolVersion, 1>) -> Self {
+  pub(crate) fn new(versions: ArrayVectorCopy<ProtocolVersion, 8>) -> Self {
     Self { versions }
   }
 }

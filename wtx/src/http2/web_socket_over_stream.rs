@@ -8,7 +8,7 @@ use crate::{
   misc::{LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
-  tls::TlsStreamBridge,
+  tls::{TlsMode, TlsStreamBridge},
   web_socket::{
     Frame, FrameMut, OpCode, WebSocketBridge,
     read_frame::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
@@ -29,6 +29,7 @@ impl<S, SW, TM> WebSocketOverStream<S>
 where
   S: LeaseMut<ServerStream<SW, TM>> + SingleTypeStorage<Item = (SW, TM)>,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// Creates a new instance sending an `Ok` status codes that confirms the WebSocket handshake.
   #[inline]
@@ -129,6 +130,7 @@ async fn recv_data<SW, TM>(
 ) -> crate::Result<(ReadFrameInfo, bool)>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   let (before, is_eos, rfi) = match stream
     .common()
@@ -155,6 +157,7 @@ async fn write_control_frame_cb<SW, TM>(
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   let common_stream = stream.common();
   let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([

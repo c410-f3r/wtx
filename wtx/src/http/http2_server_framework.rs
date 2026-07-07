@@ -632,6 +632,7 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TM>(
   ER: From<crate::Error>,
   EX: Executor,
   M: Middleware<DA, ER>,
+  TM: TlsMode,
 {
   let stream_fun = async {
     if let Some(local_rrb) = opt {

@@ -16,6 +16,7 @@ use crate::{
   misc::{Usize, span::Span},
   stream::StreamWriter,
   sync::Arc,
+  tls::TlsMode,
 };
 use core::{future::poll_fn, mem, pin::pin, task::Poll};
 
@@ -32,6 +33,7 @@ pub struct CommonStream<'instance, SW, TM, const IS_CLIENT: bool> {
 impl<SW, TM, const IS_CLIENT: bool> CommonStream<'_, SW, TM, IS_CLIENT>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// Removes internal elements that are no longer necessary after the end of the stream.
   #[inline]
@@ -133,7 +135,7 @@ where
       let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
       wp.withdrawn_recv(hdpm.hp, *stream_id, U31::from_u32(value))?
     };
-    write_array([&frame], &inner.is_conn_open, &mut inner.wd.lock().await.stream_writer).await?;
+    write_array([&frame], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
     Ok(())
   }
 
@@ -197,13 +199,7 @@ where
       if let Some(el) = opt {
         return Ok(el);
       }
-      write_frames(
-        (&[], data),
-        &frames,
-        &inner.is_conn_open,
-        &mut inner.wd.lock().await.stream_writer,
-      )
-      .await?;
+      write_frames((&[], data), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
       if *Usize::from(data_idx) >= data.len() {
         return Ok(Http2SendStatus::Ok);
       }
@@ -312,13 +308,8 @@ where
       max_frame_len,
       *stream_id,
     )?;
-    write_frames(
-      (enc_buffer, &[]),
-      &frames,
-      &inner.is_conn_open,
-      &mut inner.wd.lock().await.stream_writer,
-    )
-    .await?;
+    write_frames((enc_buffer, &[]), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await)
+      .await?;
     Ok(Http2SendStatus::Ok)
   }
 
@@ -362,13 +353,8 @@ where
         *stream_id,
       )?;
     }
-    write_frames(
-      (enc_buffer, &[]),
-      &frames,
-      &inner.is_conn_open,
-      &mut inner.wd.lock().await.stream_writer,
-    )
-    .await?;
+    write_frames((enc_buffer, &[]), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await)
+      .await?;
     Ok(Http2SendStatus::Ok)
   }
 

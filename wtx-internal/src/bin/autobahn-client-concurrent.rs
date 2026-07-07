@@ -28,11 +28,10 @@ async fn main() {
           }
           Ok(elem) => elem,
         };
-      if let Some(option) = PollOnce::new(&mut bridge_frame).await {
-        let Some(el) = option else {
+      if let Some(el) = PollOnce::new(&mut bridge_frame).await {
+        if stream_writer.manage_bridge_data(el).await.unwrap() {
           break;
-        };
-        stream_writer.manage_brige_data(el).await.unwrap();
+        }
         bridge_frame.set(stream_bridge.listen());
       }
       match frame.op_code() {

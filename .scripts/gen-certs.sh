@@ -18,9 +18,10 @@ db_file_init() {
     echo "echo \"$(cat $CERTS_DIR/key.pem)\" > \$DATA_DIR/key.pem" >> $local_file
 }
 
-openssl req -newkey rsa:2048 -nodes -subj "/C=FI/CN=vahid" -keyout $CERTS_DIR/key.pem -out $CERTS_DIR/key.csr
-openssl x509 -signkey $CERTS_DIR/key.pem -in $CERTS_DIR/key.csr -req -days 1825 -out $CERTS_DIR/cert.pem
-openssl req -x509 -sha256 -nodes -subj "/C=FI/CN=vahid" -days 1825 -newkey rsa:2048 -keyout $CERTS_DIR/root-ca.key -out $CERTS_DIR/root-ca.crt
+openssl genpkey -algorithm ed25519 -out $CERTS_DIR/key.pem
+openssl req -new -key $CERTS_DIR/key.pem -subj "/C=FI/CN=vahid" -out $CERTS_DIR/key.csr
+openssl genpkey -algorithm ed25519 -out $CERTS_DIR/root-ca.key
+openssl req -x509 -sha256 -days 1825 -subj "/C=FI/CN=vahid" -key $CERTS_DIR/root-ca.key -out $CERTS_DIR/root-ca.crt
 cat <<'EOF' >> $CERTS_DIR/localhost.ext
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -57,7 +58,7 @@ EOF
 
 psql -v ON_ERROR_STOP=1 --username "\$POSTGRES_USER" <<-EOF
     SET password_encryption TO 'scram-sha-256';
-    CREATE ROLE wtx_scram PASSWORD 'wtx' LOGIN;
+    CREATE ROLE wtx_scram PASSWORD 'wtx' CREATEDB LOGIN;
     GRANT ALL ON DATABASE wtx TO wtx_scram;
     ALTER DATABASE wtx OWNER TO wtx_scram;
 EOF" >> $POSTGRES_LOCAL_FILE

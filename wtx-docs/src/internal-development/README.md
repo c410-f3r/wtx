@@ -105,6 +105,7 @@ List of implemented RFCs.
 | `HTTP Cookies`           | <https://datatracker.ietf.org/doc/html/rfc6265> |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113> |
 | `PEM`                    | <https://datatracker.ietf.org/doc/html/rfc7468> |
+| `PKCS#8`                 | <https://datatracker.ietf.org/doc/html/rfc5208> |
 | `Raw Public Keys in TLS` | <https://datatracker.ietf.org/doc/html/rfc7250> |
 | `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc8446> |
 | `URI`                    | <https://datatracker.ietf.org/doc/html/rfc3986> |

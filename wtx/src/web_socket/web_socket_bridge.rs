@@ -36,29 +36,17 @@ impl<const IS_CLIENT: bool> WebSocketBridge<IS_CLIENT> {
   /// Awaits special frames sent by the concurrent reader part. It should probably be
   /// called within a loop.
   ///
-  /// Returns `None` when the reader part is dropped.
-  ///
   /// The future returned by this method is cancel-safe in the sense that it does not owns
   /// temporary internal data.
   #[inline]
-  pub async fn listen(&self) -> Option<WebSocketBridgeData> {
+  pub async fn listen(&self) -> WebSocketBridgeData {
     let mut tls_fut = pin!(self.tls.listen());
     let mut ws_fut = pin!(self.do_listen());
     poll_fn(|cx| {
       let data = match (tls_fut.as_mut().poll(cx), ws_fut.as_mut().poll(cx)) {
-        (Poll::Ready(tls), Poll::Ready(ws)) => {
-          if tls.is_none() && ws.is_none() {
-            None
-          } else {
-            Some(WebSocketBridgeData { tls, ws })
-          }
-        }
-        (Poll::Ready(tls), Poll::Pending) => {
-          tls.map(|el| WebSocketBridgeData { tls: Some(el), ws: None })
-        }
-        (Poll::Pending, Poll::Ready(ws)) => {
-          ws.map(|el| WebSocketBridgeData { tls: None, ws: Some(el) })
-        }
+        (Poll::Ready(tls), Poll::Ready(ws)) => WebSocketBridgeData { tls: Some(tls), ws: Some(ws) },
+        (Poll::Ready(tls), Poll::Pending) => WebSocketBridgeData { tls: Some(tls), ws: None },
+        (Poll::Pending, Poll::Ready(ws)) => WebSocketBridgeData { tls: None, ws: Some(ws) },
         (Poll::Pending, Poll::Pending) => return Poll::Pending,
       };
       Poll::Ready(data)
@@ -71,12 +59,12 @@ impl<const IS_CLIENT: bool> WebSocketBridge<IS_CLIENT> {
     self.ws.1.wake();
   }
 
-  async fn do_listen(&self) -> Option<FrameControlArray> {
+  async fn do_listen(&self) -> FrameControlArray {
     poll_fn(|cx| {
       self.ws.1.register(cx.waker());
       let frame = self.ws.0.update(|_curr| None);
       if let Some((op_code, payload)) = frame {
-        Poll::Ready(Some(FrameControlArray::new(true, op_code, payload, 0)))
+        Poll::Ready(FrameControlArray::new(true, op_code, payload, 0))
       } else {
         Poll::Pending
       }

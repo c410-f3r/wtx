@@ -13,6 +13,7 @@ use crate::{
   misc::{Lease, span::Span},
   stream::StreamWriter,
   sync::Arc,
+  tls::TlsMode,
 };
 use core::{future::poll_fn, pin::pin, task::Waker};
 
@@ -41,6 +42,7 @@ impl<SW, TM> ClientStream<SW, TM> {
 impl<SW, TM> ClientStream<SW, TM>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// See [`CommonStream`].
   #[inline]

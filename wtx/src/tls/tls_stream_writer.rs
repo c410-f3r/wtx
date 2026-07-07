@@ -35,22 +35,25 @@ where
     self.connection_state
   }
 
-  /// See [`ConnectionState`].
+  /// Writes the reply frame returned by `TlsStreamBridge::listen`. Returns `true` if the
+  /// connection has been closed.
   #[inline]
-  pub async fn manage_bridge_data(&mut self, data: TlsStreamBridgeData) -> crate::Result<()> {
+  pub async fn manage_bridge_data(&mut self, data: TlsStreamBridgeData) -> crate::Result<bool> {
     let kss = self.ksw.state_mut();
-    match data.frame() {
+    let should_close = match data.frame() {
       Either::Left(elem) => {
         self.stream_writer.write_all(&Alert::record_bytes(elem, kss)?).await?;
         self.connection_state = ConnectionState::Closed;
+        true
       }
       Either::Right(elem) => {
         self.stream_writer.write_all(&KeyUpdate::record_bytes(elem, kss)?).await?;
         kss.rotate()?;
+        false
       }
-    }
+    };
     kss.increment_counter();
-    Ok(())
+    Ok(should_close)
   }
 }
 

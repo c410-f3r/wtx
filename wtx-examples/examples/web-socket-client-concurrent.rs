@@ -40,8 +40,11 @@ async fn main() -> wtx::Result<()> {
   let stream_writer_writer = stream_writer_bridge.clone();
 
   let bridge_fut = async {
-    while let Some(data) = stream_bridge.listen().await {
-      stream_writer_bridge.lock().await.manage_brige_data(data).await?;
+    loop {
+      let data = stream_bridge.listen().await;
+      if stream_writer_bridge.lock().await.manage_bridge_data(data).await? {
+        break;
+      }
     }
     wtx::Result::Ok(())
   };

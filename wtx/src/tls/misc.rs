@@ -152,9 +152,10 @@ where
       }
       RecordContentType::ApplicationData => {
         *plaintext_len = rri.plaintext_len;
-        return Ok(transfer_after_handshake_data(&mut bytes, plaintext, |len| {
+        let written = transfer_after_handshake_data(&mut bytes, plaintext, |len| {
           *plaintext_consumed = len.get();
-        }));
+        });
+        return Ok(written);
       }
       RecordContentType::ChangeCipherSpec => {
         cold_path();
@@ -162,33 +163,38 @@ where
       }
       RecordContentType::Handshake => {
         cold_path();
-        let hs = Handshake::<&[u8]>::decode(&mut TlsDecodeWrapper::from_bytes(plaintext))?;
-        match hs.msg_type {
-          HandshakeType::KeyUpdate => {
-            let remote_key_update = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs.data))?;
-            ksr.state_mut().rotate()?;
-            if matches!(remote_key_update.request_update, KeyUpdateRequest::UpdateRequested) {
-              let key_update = KeyUpdate { request_update: KeyUpdateRequest::UpdateNotRequested };
-              key_update_cb.call((&mut aux, key_update, stream_reader)).await?;
+        let mut maybe_handshakes = plaintext;
+        while !maybe_handshakes.is_empty() {
+          let mut dw = TlsDecodeWrapper::from_bytes(maybe_handshakes);
+          let hs = Handshake::<&[u8]>::decode(&mut dw)?;
+          maybe_handshakes = dw.bytes();
+          match hs.msg_type {
+            HandshakeType::KeyUpdate => {
+              let remote_ku = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs.data))?;
+              ksr.state_mut().rotate()?;
+              if matches!(remote_ku.request_update, KeyUpdateRequest::UpdateRequested) {
+                let local_ku = KeyUpdate { request_update: KeyUpdateRequest::UpdateNotRequested };
+                key_update_cb.call((&mut aux, local_ku, stream_reader)).await?;
+              }
             }
-          }
-          HandshakeType::NewSessionTicket => {
-            if !IS_CLIENT {
+            HandshakeType::NewSessionTicket => {
+              if !IS_CLIENT {
+                return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
+              }
+              let local_dw = &mut TlsDecodeWrapper::from_bytes(hs.data);
+              *new_session_ticket = Some(NewSessionTicket::decode(local_dw)?);
+            }
+            HandshakeType::Certificate
+            | HandshakeType::CertificateRequest
+            | HandshakeType::CertificateVerify
+            | HandshakeType::ClientHello
+            | HandshakeType::EncryptedExtensions
+            | HandshakeType::EndOfEarlyData
+            | HandshakeType::Finished
+            | HandshakeType::MessageHash
+            | HandshakeType::ServerHello => {
               return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
             }
-            let dw = &mut TlsDecodeWrapper::from_bytes(hs.data);
-            *new_session_ticket = Some(NewSessionTicket::decode(dw)?);
-          }
-          HandshakeType::Certificate
-          | HandshakeType::CertificateRequest
-          | HandshakeType::CertificateVerify
-          | HandshakeType::ClientHello
-          | HandshakeType::EncryptedExtensions
-          | HandshakeType::EndOfEarlyData
-          | HandshakeType::Finished
-          | HandshakeType::MessageHash
-          | HandshakeType::ServerHello => {
-            return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
           }
         }
       }
@@ -208,7 +214,8 @@ fn transfer_after_handshake_data(
   plaintext: &[u8],
   non_empty_cb: impl FnOnce(NonZeroUsize),
 ) -> Option<NonZeroUsize> {
-  let all_mut = bytes.all_mut();
+  // SAFETY: No data is uninitialized, quite the opposite.
+  let all_mut = unsafe { bytes.all_mut() };
   let all_mut_len = all_mut.len();
   let plaintext_len = plaintext.len();
   if let Some(all_mut_partial) = all_mut.get_mut(..plaintext_len) {
@@ -220,8 +227,8 @@ fn transfer_after_handshake_data(
   }
   if let Some(plaintext_partial @ [_not_empty, ..]) = plaintext.get(..all_mut_len) {
     let _ = all_mut.write_copy_of_slice(plaintext_partial);
-    // SAFETY: The above check just confirmed that plaintext_len is greater than zero
-    let len = unsafe { NonZeroUsize::new_unchecked(plaintext_len) };
+    // SAFETY: The above check just confirmed that all_mut_len is greater than zero
+    let len = unsafe { NonZeroUsize::new_unchecked(all_mut_len) };
     non_empty_cb(len);
     return Some(len);
   }
@@ -324,31 +331,46 @@ pub(crate) async fn write_payloads<SW>(
 where
   SW: StreamWriter,
 {
-  for payload in payloads {
-    for chunk in payload.chunks(max_fragment_length.into()) {
-      let len_usize = chunk.len().wrapping_add(1).wrapping_add(AEAD_TAG_LEN);
-      let len = len_usize.try_into().unwrap_or_default();
-      let header = build_header(RecordContentType::ApplicationData, len);
-      let plaintext_begin_idx = writer_buffer.len().wrapping_add(header.len());
-      let _ = writer_buffer.extend_from_copyable_slices([
-        header.as_slice(),
-        chunk,
-        &[inner_ty.into()],
-        &[0; AEAD_TAG_LEN],
-      ])?;
-      let plaintext_len = chunk.len().wrapping_add(1);
-      let plaintext = writer_buffer
-        .get_mut(plaintext_begin_idx..plaintext_begin_idx.wrapping_add(plaintext_len))
-        .unwrap_or_default();
-      let ksw_state = ksw.state_mut();
-      let nonce = ksw_state.nonce();
-      let secret = ksw_state.cipher_key();
-      let tag = ksw_state.cipher_suite().aes_encrypt(&header, plaintext, nonce, secret)?;
-      if let Some(buffer_tag) = writer_buffer.last_chunk_mut::<AEAD_TAG_LEN>() {
-        buffer_tag.copy_from_slice(&tag);
+  let total_len: usize = payloads.iter().map(|slice| slice.len()).sum();
+  let mut total_unwritten = total_len;
+  writer_buffer.reserve(total_len)?;
+  let mut payloads_iter = payloads.iter().copied();
+  let mut current_slice = payloads_iter.next().unwrap_or_default();
+  while total_unwritten > 0 {
+    let record_data_len = total_unwritten.min(max_fragment_length.into());
+    total_unwritten = total_unwritten.wrapping_sub(record_data_len);
+    let len_usize = record_data_len.wrapping_add(1).wrapping_add(AEAD_TAG_LEN);
+    let len = len_usize.try_into().unwrap_or_default();
+    let header = build_header(RecordContentType::ApplicationData, len);
+    let plaintext_begin_idx = writer_buffer.len().wrapping_add(header.len());
+    writer_buffer.extend_from_copyable_slice(header.as_slice())?;
+    let mut needed = record_data_len;
+    while needed > 0 {
+      if current_slice.is_empty() {
+        current_slice = payloads_iter.next().unwrap_or_default();
       }
-      ksw_state.increment_counter();
+      let take = needed.min(current_slice.len());
+      let Some((data, rest)) = current_slice.split_at_checked(take) else {
+        break;
+      };
+      writer_buffer.extend_from_copyable_slice(data)?;
+      current_slice = rest;
+      needed = needed.wrapping_sub(take);
     }
+    let array = [&[inner_ty.into()][..], &[0; AEAD_TAG_LEN]];
+    let _ = writer_buffer.extend_from_copyable_slices(array)?;
+    let plaintext_len = record_data_len.wrapping_add(1);
+    let plaintext = writer_buffer
+      .get_mut(plaintext_begin_idx..plaintext_begin_idx.wrapping_add(plaintext_len))
+      .unwrap_or_default();
+    let ksw_state = ksw.state_mut();
+    let nonce = ksw_state.nonce();
+    let secret = ksw_state.cipher_key();
+    let tag = ksw_state.cipher_suite().aes_encrypt(&header, plaintext, nonce, secret)?;
+    if let Some(buffer_tag) = writer_buffer.last_chunk_mut::<AEAD_TAG_LEN>() {
+      buffer_tag.copy_from_slice(&tag);
+    }
+    ksw_state.increment_counter();
   }
   stream_writer.write_all(writer_buffer).await?;
   writer_buffer.clear();

@@ -5,6 +5,7 @@ extern crate wtx;
 
 use tokio::net::TcpStream;
 use wtx::{
+  misc::process_utf8_stream,
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{StreamReader, StreamWriter},
   tls::{TlsConfig, TlsConnector, TlsModeVerified},
@@ -18,11 +19,14 @@ async fn main() -> wtx::Result<()> {
   let mut tls_stream = tls_connector.connect().await?.tls_stream;
   let request = b"GET /c410-f3r/wtx HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n";
   tls_stream.write_all(request).await?;
+  let mut partial_char = None;
   loop {
     let mut buffer = [0; 128];
     let Some(read) = tls_stream.read(buffer.as_mut_slice().into()).await? else {
       return Ok(());
     };
-    println!("Received data: {:?}", buffer.get(..read.get()).unwrap_or_default());
+    let slice = buffer.get(..read.get()).unwrap_or_default();
+    let (lhs, rhs) = process_utf8_stream(&mut partial_char, slice)?;
+    println!("{lhs}{rhs}");
   }
 }

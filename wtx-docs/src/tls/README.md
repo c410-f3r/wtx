@@ -22,15 +22,6 @@ The RFC requires all parties (Client or Server) to send back carefully managed r
 
 Examples about possible concurrent utilizations are available in the `wtx-examples` directory.
 
-## Not supported
-
-* Extensions: `post_handshake_auth` (<https://datatracker.ietf.org/doc/html/rfc8740>).
-* Key Agreement: `ffdhe2048`, `ffdhe3072`, `ffdhe4096`, `ffdhe6144`, `ffdhe8192`, `secp521r1`, `x448`.
-* PSK-only key (`psk_ke`) establishment (<https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.9>)
-* Signatures: `ecdsa_secp521r1_sha512`, `ecdsa_sha1`, `ed448`, `rsa_pkcs1_sha1`, `rsa_pkcs1_sha512`, `rsa_pss_pss_sha512`.
-* Zero Round Trip Time Resumption (0-RTT)
-* For servers, PSKs are expected to be known at compile time (IOT). For clients, PSKs are normally decoded and stored.
-
 ## Example
 
 ```rust,edition2024,no_run

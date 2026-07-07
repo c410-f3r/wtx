@@ -134,7 +134,7 @@ fn parse_block(
     *output_idx = output_idx.wrapping_add(len);
     lines = lines.wrapping_add(1);
   }
-  if lines <= 2 {
+  if lines == 0 {
     return Err(CodecError::InvalidPemBlock.into());
   }
   label_begin.try_into()
