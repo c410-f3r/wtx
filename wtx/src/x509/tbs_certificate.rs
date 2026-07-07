@@ -74,6 +74,7 @@ where
     let subject_unique_id = Opt::decode(dw, SUBJECT_UID_TAG)?.0;
     let extensions = Opt::decode(dw, EXPLICIT_TAG3)?.0;
     dw.bytes = rest;
+
     Ok(Self {
       serial_number,
       signature,

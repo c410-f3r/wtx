@@ -33,7 +33,7 @@ where
   pub fn from_pem<'this, BUF>(
     buffer: &'this mut BUF,
     bytes: &[u8],
-  ) -> crate::Result<(Self, &'this [u8])>
+  ) -> crate::Result<(Self, &'this [u8], Asn1DecodeWrapperAux)>
   where
     B: TryFrom<&'this [u8]>,
     BUF: LeaseMut<[u8]> + TryExtend<(u8, usize)>,

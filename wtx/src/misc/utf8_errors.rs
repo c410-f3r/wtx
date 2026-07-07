@@ -1,13 +1,10 @@
-use crate::misc::IncompleteUtf8Char;
+use crate::misc::PartialChar;
 
 /// Extended error built upon [`StdUtf8Error`].
 #[derive(Clone, Copy, Debug)]
 pub enum ExtUtf8Error {
   /// More bytes are needed to validate the string.
-  Incomplete {
-    /// See [`IncompleteUtf8Char`].
-    incomplete_ending_char: IncompleteUtf8Char,
-  },
+  Incomplete(PartialChar),
   /// It is impossible to validate the string
   Invalid,
 }

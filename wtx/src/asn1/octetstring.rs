@@ -8,7 +8,7 @@ use crate::{
 
 /// Differently from `BitString`, each element occupies 8bits. Not to be confused with UTF-8
 /// strings.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Octetstring<B> {
   bytes: B,
   tag: u8,

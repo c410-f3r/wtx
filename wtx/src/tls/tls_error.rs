@@ -43,6 +43,8 @@ pub enum TlsError {
   InvalidFinishedRecord,
   /// Invalid Handshake
   InvalidHandshake,
+  /// Invalid Legacy Compression Method
+  InvalidLegacyCompressionMethod,
   /// Invalid Legacy Session Id
   InvalidLegacySessionId,
   /// Invalid new session ticket

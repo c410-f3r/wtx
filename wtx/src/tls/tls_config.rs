@@ -1,5 +1,5 @@
 use crate::{
-  asn1::Asn1DecodeWrapperAux,
+  asn1::{Asn1DecodeWrapperAux, Pkcs8},
   calendar::{DateTime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper},
   collections::{ArrayVector, ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU16, Vector},
@@ -61,9 +61,9 @@ impl<TM> TlsConfig<TM> {
   pub fn from_keys_pem(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
     let mut this = Self::new(mode, Instant::now_date_time()?);
     let mut buffer = Vector::new();
-    this.inner.public_key = tls_certificate(&mut buffer, public_key)?;
+    this.inner.public_key = public_key_from_pem(&mut buffer, public_key)?;
     buffer.clear();
-    this.inner.secret_key = tls_certificate(&mut buffer, secret_key)?.x509;
+    this.inner.secret_key = Pkcs8::<&[u8]>::from_pem(&mut buffer, secret_key)?.1.try_into()?;
     Ok(this)
   }
 
@@ -250,7 +250,7 @@ where
   }
 }
 
-fn tls_certificate<'de, B>(
+fn public_key_from_pem<'de, B>(
   buffer: &'de mut Vector<u8>,
   bytes: &'de [u8],
 ) -> crate::Result<TlsCertificate<B>>

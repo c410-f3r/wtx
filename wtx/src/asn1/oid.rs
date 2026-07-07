@@ -92,6 +92,15 @@ impl Debug for Oid {
   }
 }
 
+impl Default for Oid {
+  #[inline]
+  fn default() -> Self {
+    let mut array = ArrayStringU8::new();
+    let _rslt = array.push_str("0.0");
+    Self(array)
+  }
+}
+
 impl Deref for Oid {
   type Target = str;
 

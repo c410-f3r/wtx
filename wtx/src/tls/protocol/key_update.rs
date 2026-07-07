@@ -18,6 +18,7 @@ create_enum! {
   }
 }
 
+#[derive(Debug)]
 pub(crate) struct KeyUpdate {
   pub(crate) request_update: KeyUpdateRequest,
 }

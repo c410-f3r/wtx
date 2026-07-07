@@ -21,6 +21,8 @@ pub enum Asn1Error {
   InvalidOidBytes,
   /// Invalid Octetstring
   InvalidOctetstring,
+  /// Invalid PKCS#8
+  InvalidPkcs8,
   /// Invalid Set
   InvalidSet,
   /// Invalid Tag-Length-Value

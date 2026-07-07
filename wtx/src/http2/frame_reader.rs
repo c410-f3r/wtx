@@ -76,7 +76,7 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
         &inner.read_frame_waker,
         &mut stream_reader,
       ));
-      loop {
+      'inner: loop {
         let (http2_opt, tls_opt) = poll_fn(|cx| {
           let http2_poll = http2_fut.as_mut().poll(cx);
           let tls_poll = tls_fut.as_mut().poll(cx);
@@ -97,7 +97,7 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
           }
         })
         .await;
-        if let Some(Some(data)) = tls_opt {
+        if let Some(data) = tls_opt {
           // It is not necessary to close the connection here because such state will be propagated
           // to the HTTP/2 reader.
           cold_path();
@@ -105,7 +105,7 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
           tls_fut.set(stream_bridge.listen());
         }
         if let Some(http2) = http2_opt {
-          break http2;
+          break 'inner http2;
         }
       }
     };
@@ -131,6 +131,7 @@ async fn finish<SW, TM, const IS_CLIENT: bool>(
   _trace!("Finishing the reading of frames");
 }
 
+// Returns `false` if the connection should be closed.
 async fn manage_iteration<SR, SW, TM, const IS_CLIENT: bool>(
   inner: &Http2Inner<SW, TM, IS_CLIENT>,
   nrb: &mut BufStreamReader,
@@ -171,6 +172,7 @@ async fn manage_fi<SR, SW, TM, const IS_CLIENT: bool>(
 where
   SR: StreamReader,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   match fi.ty {
     FrameInitTy::Continuation => {
@@ -182,7 +184,7 @@ where
         let mut hdpm = hd_guard.parts_mut();
         prft!(fi, hdpm, inner, nrb, stream_reader).data(&mut hdpm.hb.sorps)?
       };
-      write_array([&frame], &inner.is_conn_open, &mut inner.wd.lock().await.stream_writer).await?;
+      write_array([&frame], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
     }
     FrameInitTy::GoAway => {
       let gaf = GoAwayFrame::read(nrb.current(), fi)?;
@@ -211,8 +213,7 @@ where
       let mut pf = PingFrame::read(nrb.current(), fi)?;
       if !pf.has_ack() {
         pf.set_ack();
-        let stream_writer = &mut inner.wd.lock().await.stream_writer;
-        write_array([&pf.bytes()], &inner.is_conn_open, stream_writer).await?;
+        write_array([&pf.bytes()], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
       }
     }
     FrameInitTy::PushPromise => {
@@ -236,7 +237,7 @@ where
         write_array(
           [SettingsFrame::ack().bytes(&mut [0; 45])],
           &inner.is_conn_open,
-          &mut inner.wd.lock().await.stream_writer,
+          &mut *inner.wd.lock().await,
         )
         .await?;
       }

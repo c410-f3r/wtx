@@ -92,21 +92,21 @@ where
   /// Writes the reply frame returned by [`WebSocketBridge::listen`]. Returns `true` if the
   /// connection has been closed.
   #[inline]
-  pub async fn manage_brige_data(&mut self, data: WebSocketBridgeData) -> crate::Result<()> {
-    match (data.tls, data.ws) {
-      (None, None) => {}
+  pub async fn manage_bridge_data(&mut self, data: WebSocketBridgeData) -> crate::Result<bool> {
+    let should_stop = match (data.tls, data.ws) {
+      (None, None) => true,
       (None, Some(mut ws)) => {
         self.do_write_frame::<_, true>(&mut ws).await?;
+        ws.op_code().is_close()
       }
-      (Some(tls), None) => {
-        self.stream_writer.manage_bridge_data(tls).await?;
-      }
+      (Some(tls), None) => self.stream_writer.manage_bridge_data(tls).await?,
       (Some(tls), Some(mut ws)) => {
-        self.stream_writer.manage_bridge_data(tls).await?;
+        let should_stop_tls = self.stream_writer.manage_bridge_data(tls).await?;
         self.do_write_frame::<_, true>(&mut ws).await?;
+        should_stop_tls || ws.op_code().is_close()
       }
-    }
-    Ok(())
+    };
+    Ok(should_stop)
   }
 
   /// Writes a frame to the stream.

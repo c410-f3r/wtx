@@ -41,7 +41,6 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct ClientHello<S, TC> {
-  legacy_compression_methods: [u8; 2],
   legacy_session_id: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   psk_key_exchange_modes: Option<PskKeyExchangeModes>,
@@ -57,7 +56,6 @@ impl<S, TC> ClientHello<S, TC> {
     RNG: CryptoRng,
   {
     Self {
-      legacy_compression_methods: [1, 0],
       legacy_session_id: ArrayVectorCopy::from_array({
         let mut array = [0; 32];
         rng.fill_slice(&mut array);
@@ -82,6 +80,10 @@ impl<S, TC> ClientHello<S, TC> {
 
   pub(crate) fn legacy_session_id(&self) -> &ArrayVectorCopy<u8, 32> {
     &self.legacy_session_id
+  }
+
+  pub(crate) fn supported_versions(&self) -> &SupportedVersionsClient {
+    &self.supported_versions
   }
 
   pub(crate) fn tls_config(&self) -> &TC {
@@ -114,7 +116,9 @@ where
     let mut signature_algorithms_cert = ArrayVectorCopy::new();
     let mut supported_versions_opt = None;
     u16_list(&mut cipher_suites, dw, TlsError::InvalidCipherSuite)?;
-    let legacy_compression_methods = <[u8; 2] as Decode<'de, De>>::decode(dw)?;
+    let _legacy_compression_methods @ [1, 0] = <[u8; 2] as Decode<'de, De>>::decode(dw)? else {
+      return Err(TlsError::InvalidLegacyCompressionMethod.into());
+    };
     u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
         let extension_ty = ExtensionTy::decode(local_dw)?;
@@ -147,9 +151,6 @@ where
     let Some(supported_versions) = supported_versions_opt else {
       return Err(TlsError::MissingSupportedVersions.into());
     };
-    let [ProtocolVersion::Tls13] = supported_versions.versions.as_slice() else {
-      return Err(TlsError::UnsupportedTlsVersion.into());
-    };
     if signature_algorithms.is_empty() {
       return Err(TlsError::MissingSignatureAlgorithms.into());
     }
@@ -157,7 +158,6 @@ where
       return Err(TlsError::MissingKeyShares.into());
     }
     Ok(Self {
-      legacy_compression_methods,
       legacy_session_id,
       legacy_version,
       psk_key_exchange_modes,
@@ -209,7 +209,7 @@ where
         cipher_suites
       }
       .as_slice(),
-      &self.legacy_compression_methods,
+      &[1, 0], //legacy_compression_methods,
     ])?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       if let Some(elem) = &self.tls_config.lease().inner.alpn {

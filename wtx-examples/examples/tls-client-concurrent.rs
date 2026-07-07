@@ -12,6 +12,7 @@ extern crate wtx;
 use tokio::{net::TcpStream, sync::mpsc::unbounded_channel};
 use wtx::{
   collections::ArrayVectorCopy,
+  misc::process_utf8_stream,
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{Stream, StreamReader, StreamWriter},
   tls::{TlsConfig, TlsConnector, TlsModeVerified},
@@ -37,24 +38,25 @@ async fn main() -> wtx::Result<()> {
         break;
       }
     }
+    stream_reader.send_close_notify()?;
     wtx::Result::Ok(())
   };
 
   let writer_fut = async {
+    let mut partial_char = None;
     let request = b"GET /c410-f3r/wtx HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n";
     stream_writer.write_all(request).await?;
     loop {
       tokio::select! {
-        bridge_opt = stream_bridge.listen() => {
-          if let Some(bridge) = bridge_opt {
-            stream_writer.manage_bridge_data(bridge).await?;
-          } else {
+        bridge_data = stream_bridge.listen() => {
+          if stream_writer.manage_bridge_data(bridge_data).await? {
             break;
           }
         }
         receiver_opt = receiver.recv() => {
-          if let Some(receiver) = receiver_opt {
-            println!("Received data: {receiver:?}");
+          if let Some(data) = receiver_opt {
+            let (lhs, rhs) = process_utf8_stream(&mut partial_char, &data)?;
+            println!("{lhs}{rhs}");
           } else {
             break;
           }

@@ -11,6 +11,7 @@ use crate::{
   misc::{Lease, LeaseMut, SingleTypeStorage, span::Span},
   stream::StreamWriter,
   sync::Arc,
+  tls::TlsMode,
 };
 use core::{future::poll_fn, pin::pin, task::Waker};
 
@@ -28,6 +29,7 @@ pub struct ServerStream<SW, TM> {
 impl<SW, TM> ServerStream<SW, TM>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   pub(crate) const fn new(
     inner: Arc<Http2Inner<SW, TM, false>>,

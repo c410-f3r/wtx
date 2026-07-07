@@ -56,13 +56,10 @@ impl ChaCha20 {
       output: ParBlock::new(),
     }
   }
-}
 
-impl CryptoRng for ChaCha20 {}
-
-impl Rng for ChaCha20 {
-  #[inline(always)]
-  fn u8_4(&mut self) -> [u8; 4] {
+  /// Next iteration value
+  #[inline]
+  pub fn next_value(&mut self) -> u32 {
     if usize::from(self.idx) >= TOTAL_WORDS {
       block_function::<true>(&self.block, &mut self.output);
       self.idx = 0;
@@ -79,7 +76,16 @@ impl Rng for ChaCha20 {
       .copied()
       .unwrap_or_default();
     self.idx = self.idx.wrapping_add(1);
-    rslt.to_le_bytes()
+    rslt
+  }
+}
+
+impl CryptoRng for ChaCha20 {}
+
+impl Rng for ChaCha20 {
+  #[inline(always)]
+  fn u8_4(&mut self) -> [u8; 4] {
+    self.next_value().to_le_bytes()
   }
 
   #[inline(always)]

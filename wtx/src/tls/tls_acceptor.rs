@@ -7,8 +7,8 @@ use crate::{
   stream::Stream,
   sync::{Arc, SyncMutex},
   tls::{
-    CipherSuite, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MaxFragmentLength, NamedGroup, Psks,
-    TlsBuffer, TlsCertificateTy, TlsConfig, TlsError, TlsMode, TlsStream,
+    CipherSuite, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MaxFragmentLength, NamedGroup,
+    ProtocolVersion, Psks, TlsBuffer, TlsCertificateTy, TlsConfig, TlsError, TlsMode, TlsStream,
     key_schedule::KeySchedule,
     misc::{fetch_rec_from_stream, server_sig_msg, write_payloads},
     protocol::{
@@ -141,7 +141,7 @@ where
         ),
       });
     }
-    let first_rri = self.fetch_rec_from_stream(false).await?;
+    let first_rri = self.fetch_rec_from_stream::<false>(false).await?;
     let indices = self.manage_initial_client_record(&first_rri)?;
     let buffer = self.buffer.reader_buffer.buffer_mut();
     let payloads = match indices.as_slice() {
@@ -157,7 +157,7 @@ where
       _ => &[],
     };
     write_payloads(
-      RecordContentType::ApplicationData,
+      RecordContentType::Handshake,
       self.key_schedule.write_mut(),
       self.max_fragment_length,
       payloads,
@@ -166,7 +166,10 @@ where
     )
     .await?;
     buffer.truncate(indices.first().copied().unwrap_or_default());
-    let last_rri = self.fetch_rec_from_stream(true).await?;
+    let mut last_rri = self.fetch_rec_from_stream::<true>(true).await?;
+    if last_rri.outer_ty == RecordContentType::ChangeCipherSpec {
+      last_rri = self.fetch_rec_from_stream::<false>(true).await?;
+    }
     self.manage_final_client_record(&last_rri)?;
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
@@ -267,9 +270,11 @@ where
   /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn manage_final_client_record(&mut self, rri: &ReadRecordInfo) -> crate::Result<()> {
-    let RecordContentType::ApplicationData = rri.outer_ty else {
+    if rri.outer_ty != RecordContentType::ApplicationData
+      || rri.inner_ty != RecordContentType::Handshake
+    {
       return Err(TlsError::InvalidHandshake.into());
-    };
+    }
     let current = self.buffer.reader_buffer.current();
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
     let mut remote_dw = TlsDecodeWrapper::from_bytes(plaintext);
@@ -288,9 +293,12 @@ where
   }
 
   #[inline]
-  async fn fetch_rec_from_stream(&mut self, decrypt: bool) -> crate::Result<ReadRecordInfo> {
+  async fn fetch_rec_from_stream<const CHECK_CCS: bool>(
+    &mut self,
+    decrypt: bool,
+  ) -> crate::Result<ReadRecordInfo> {
     Ok(
-      fetch_rec_from_stream::<_, false>(
+      fetch_rec_from_stream::<_, CHECK_CCS>(
         decrypt.then(|| self.key_schedule.read_mut().state_mut()),
         self.max_fragment_length,
         &mut self.buffer.reader_buffer,
@@ -311,6 +319,16 @@ where
     let client_hello = Handshake::<ClientHello<(), TlsConfigInner<_, TM>>>::decode(
       &mut TlsDecodeWrapper::from_bytes(client_hello_bytes),
     )?;
+    if !client_hello
+      .data
+      .supported_versions()
+      .versions
+      .iter()
+      .copied()
+      .any(|el| el == ProtocolVersion::Tls13)
+    {
+      return Err(TlsError::UnsupportedTlsVersion.into());
+    }
     let cipher_suite = seek_cipher_suite(
       &client_hello.data.tls_config().cipher_suites,
       &self.config.lease().inner.cipher_suites,

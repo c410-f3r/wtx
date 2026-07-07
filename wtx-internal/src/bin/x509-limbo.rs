@@ -299,7 +299,12 @@ fn evaluate_test_case<'bytes>(
 
   let Some(leaf) = eval_eager_checks(
     parse_der_from_pem_range::<Certificate<&[u8]>>(&*bytes_certs, &leaf_pem).and_then(
-      |(certificate, sig_msg)| CvEndEntity::<&[u8]>::from_certificate(certificate, sig_msg),
+      |(certificate, data, adw)| {
+        CvEndEntity::<&[u8]>::from_certificate(
+          certificate,
+          data.get(adw.tbs_cert_range()).unwrap_or_default(),
+        )
+      },
     ),
     testcase,
   ) else {
@@ -311,7 +316,7 @@ fn evaluate_test_case<'bytes>(
       &*bytes_certs,
       crls,
       &pems[..idx0],
-      |(el, _): (Crl<&[u8]>, _)| el.try_into(),
+      |(el, _, _): (Crl<&[u8]>, _, _)| el.try_into(),
     ),
     testcase,
   ) else {
@@ -323,7 +328,7 @@ fn evaluate_test_case<'bytes>(
       &*bytes_certs,
       trusted_certs,
       &pems[idx0..idx1],
-      |(el, _): (Certificate<&[u8]>, _)| CvTrustAnchor::from_certificate(el),
+      |(el, _, _): (Certificate<&[u8]>, _, _)| CvTrustAnchor::from_certificate(el),
     ),
     testcase,
   ) else {
@@ -335,7 +340,12 @@ fn evaluate_test_case<'bytes>(
       &*bytes_certs,
       untrusted_intermediates,
       &pems[idx1..],
-      |(certificate, sig_msg)| CvIntermediate::<&[u8]>::from_certificate(certificate, sig_msg),
+      |(certificate, data, adw)| {
+        CvIntermediate::<&[u8]>::from_certificate(
+          certificate,
+          data.get(adw.tbs_cert_range()).unwrap_or_default(),
+        )
+      },
     ),
     testcase,
   ) else {

@@ -1,6 +1,6 @@
 use crate::{
   collections::Vector,
-  executor::{StdExecutor, StdRuntime},
+  executor::StdExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
@@ -8,12 +8,10 @@ use crate::{
 };
 
 #[ignore]
-#[test]
-fn popular_sites() {
-  StdRuntime::new().block_on(async move {
-    send_recv("https://github.com".into()).await;
-    send_recv("https://www.google.com".into()).await;
-  });
+#[wtx::test]
+async fn popular_sites() {
+  send_recv("https://google.com".into()).await;
+  send_recv("https://github.com".into()).await;
 }
 
 async fn send_recv(uri: UriRef<'_>) {

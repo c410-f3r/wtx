@@ -12,6 +12,7 @@ mod len;
 mod octetstring;
 mod oid;
 mod opt;
+mod pkcs8;
 mod sequence_buffer;
 mod sequence_decode_cb;
 mod sequence_encode_iter;
@@ -39,6 +40,7 @@ pub use octetstring::Octetstring;
 pub use oid::Oid;
 pub use oids::*;
 pub use opt::Opt;
+pub use pkcs8::Pkcs8;
 pub use sequence_buffer::SequenceBuffer;
 pub use sequence_decode_cb::SequenceDecodeCb;
 pub use sequence_encode_iter::SequenceEncodeIter;
@@ -54,7 +56,6 @@ pub(crate) const GENERALIZED_TIME_TAG: u8 = 24;
 pub(crate) const INTEGER_TAG: u8 = 2;
 pub(crate) const OCTET_STRING_TAG: u8 = 4;
 pub(crate) const OID_TAG: u8 = 6;
-#[cfg(feature = "x509")]
 pub(crate) const SEQUENCE_TAG: u8 = 48;
 pub(crate) const SET_TAG: u8 = 49;
 pub(crate) const UTC_TIME_TAG: u8 = 23;
@@ -73,7 +74,7 @@ pub type MaxSizeTy = u16;
 pub fn parse_der_from_pem_range<'bytes, T>(
   bytes: &'bytes [u8],
   pem: &Pem<Range<usize>, 1>,
-) -> crate::Result<(T, &'bytes [u8])>
+) -> crate::Result<(T, &'bytes [u8], Asn1DecodeWrapperAux)>
 where
   T: Decode<'bytes, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
@@ -81,8 +82,7 @@ where
   let data = bytes.get(range.clone()).unwrap_or_default();
   let mut dw = DecodeWrapper::new(data, Asn1DecodeWrapperAux::default());
   let element = T::decode(&mut dw)?;
-  let tbs_bytes = data.get(dw.decode_aux.tbs_cert_range()).unwrap_or_default();
-  Ok((element, tbs_bytes))
+  Ok((element, data, dw.decode_aux))
 }
 
 /// Generalization of [`parse_der_from_pem_range`].
@@ -91,7 +91,7 @@ pub fn parse_der_from_pem_range_many<'bytes, 'pem, I, T, U>(
   buffer: &'bytes [u8],
   instances: &mut I,
   pems: impl IntoIterator<Item = &'pem Pem<Range<usize>, 1>>,
-  mut cb: impl FnMut((T, &'bytes [u8])) -> crate::Result<U>,
+  mut cb: impl FnMut((T, &'bytes [u8], Asn1DecodeWrapperAux)) -> crate::Result<U>,
 ) -> crate::Result<()>
 where
   I: TryExtend<[U; 1]>,
@@ -99,11 +99,10 @@ where
 {
   for pem in pems {
     let [(_label, range)] = pem.data.as_inner()?;
-    let bytes = buffer.get(range.clone()).unwrap_or_default();
-    let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default());
+    let data = buffer.get(range.clone()).unwrap_or_default();
+    let mut dw = DecodeWrapper::new(data, Asn1DecodeWrapperAux::default());
     let element = T::decode(&mut dw)?;
-    let tbs_bytes = bytes.get(dw.decode_aux.tbs_cert_range()).unwrap_or_default();
-    instances.try_extend([cb((element, tbs_bytes))?])?;
+    instances.try_extend([cb((element, data, dw.decode_aux))?])?;
   }
   Ok(())
 }

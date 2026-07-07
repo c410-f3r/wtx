@@ -25,16 +25,14 @@ impl<const IS_CLIENT: bool> TlsStreamBridge<IS_CLIENT> {
   /// Awaits special records sent by the concurrent reader part. It should probably be called
   /// within a loop.
   ///
-  /// Returns `None` when the reader part is dropped.
-  ///
   /// The future returned by this method is cancel-safe in the sense that it does not owns
   /// temporary internal data.
   #[inline]
-  pub async fn listen(&self) -> Option<TlsStreamBridgeData> {
+  pub async fn listen(&self) -> TlsStreamBridgeData {
     poll_fn(|cx| {
       self.inner.1.register(cx.waker());
       if let Some(elem) = self.inner.0.update(|_curr| None) {
-        Poll::Ready(Some(elem))
+        Poll::Ready(elem)
       } else {
         Poll::Pending
       }

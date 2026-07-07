@@ -44,6 +44,7 @@ use crate::{
   misc::Usize,
   stream::StreamWriter,
   sync::AtomicU8,
+  tls::{TlsMode, TlsStreamWriter},
 };
 use core::{
   future::poll_fn,
@@ -227,6 +228,7 @@ pub(crate) async fn send_msg<SW, TM, const IS_CLIENT: bool>(
 ) -> crate::Result<Http2SendStatus>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   enc_buffer.clear();
   let fut = async {
@@ -268,11 +270,11 @@ where
         SendMsgState::GeneratedFastPath | SendMsgState::GeneratedTrailers => true,
         SendMsgState::GeneratedHeadersAndData(should_stop) => should_stop,
       };
-      write_frames(
+      write_frames::<_, _, IS_CLIENT>(
         (enc_buffer.as_ref(), data),
         &frames,
         &inner.is_conn_open,
-        &mut inner.wd.lock().await.stream_writer,
+        &mut *inner.wd.lock().await,
       )
       .await?;
       if should_stop {
@@ -290,14 +292,15 @@ where
   rslt
 }
 
-pub(crate) async fn write_frames<SW>(
+pub(crate) async fn write_frames<SW, TM, const IS_CLIENT: bool>(
   (header, data): (&[u8], &[u8]),
   frames: &ArrayVectorU8<FrameParams, 4>,
   is_conn_open: &AtomicU8,
-  stream_writer: &mut SW,
+  stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   fn get<'bytes>(
     (header, data): (&'bytes [u8], &'bytes [u8]),

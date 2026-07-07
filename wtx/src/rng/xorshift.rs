@@ -17,27 +17,36 @@ impl Xorshift64 {
   pub const fn new(value: u64) -> Self {
     Self { value }
   }
+
+  /// Next iteration value
+  #[inline]
+  pub const fn next_value(&mut self) -> u64 {
+    self.value ^= self.value << 13;
+    self.value ^= self.value >> 17;
+    self.value ^= self.value << 5;
+    self.value
+  }
 }
 
 impl Rng for Xorshift64 {
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
-    xor_u8_4(&mut self.value)
+    u8_4(self.next_value())
   }
 
   #[inline]
   fn u8_8(&mut self) -> [u8; 8] {
-    xor_u8_8(&mut self.value)
+    u8_8(self.next_value())
   }
 
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
-    xor_u8_16(&mut self.value)
+    u8_16(self.next_value(), self.next_value())
   }
 
   #[inline]
   fn u8_32(&mut self) -> [u8; 32] {
-    xor_u8_32(&mut self.value)
+    u8_32(self.next_value(), self.next_value(), self.next_value(), self.next_value())
   }
 }
 
@@ -97,27 +106,4 @@ const fn u8_32(first: u64, second: u64, third: u64, forth: u64) -> [u8; 32] {
     b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20,
     b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31,
   ]
-}
-
-const fn xor_numbers(seed: &mut u64) -> u64 {
-  *seed ^= *seed << 13;
-  *seed ^= *seed >> 17;
-  *seed ^= *seed << 5;
-  *seed
-}
-
-const fn xor_u8_4(seed: &mut u64) -> [u8; 4] {
-  u8_4(xor_numbers(seed))
-}
-
-const fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
-  u8_8(xor_numbers(seed))
-}
-
-const fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
-  u8_16(xor_numbers(seed), xor_numbers(seed))
-}
-
-const fn xor_u8_32(seed: &mut u64) -> [u8; 32] {
-  u8_32(xor_numbers(seed), xor_numbers(seed), xor_numbers(seed), xor_numbers(seed))
 }

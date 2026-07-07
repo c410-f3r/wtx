@@ -16,6 +16,7 @@ use crate::{
   misc::{ConnectionState, Usize},
   stream::{BufStreamReader, StreamReader, StreamWriter},
   sync::{AtomicU8, AtomicWaker},
+  tls::{TlsMode, TlsStreamWriter},
 };
 use core::{
   future::poll_fn,
@@ -392,13 +393,14 @@ pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result
   Ok(pad_len)
 }
 
-pub(crate) async fn write_array<SW, const N: usize>(
+pub(crate) async fn write_array<SW, TM, const N: usize, const IS_CLIENT: bool>(
   array: [&[u8]; N],
   is_conn_open: &AtomicU8,
-  stream_writer: &mut SW,
+  stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   if connection_state(is_conn_open).is_closed() {
     return Ok(());

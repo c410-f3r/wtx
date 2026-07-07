@@ -13,7 +13,7 @@ use crate::{
   codec::DecompressionFlush,
   collections::{ArrayVectorCopy, Vector},
   futures::FnMutFut,
-  misc::{CompletionErr, ExtUtf8Error, IncompleteUtf8Char, from_utf8_basic, from_utf8_ext},
+  misc::{ExtUtf8Error, PartialChar, from_utf8_basic, from_utf8_ext, process_utf8_stream},
   rng::Rng,
   stream::{BufStreamReader, StreamReader, StreamWriter},
   web_socket::{
@@ -93,10 +93,10 @@ where
 pub(crate) fn manage_op_code_of_continuation_frames(
   fin: bool,
   first_op_code: OpCode,
-  iuc: &mut Option<IncompleteUtf8Char>,
+  iuc: &mut Option<PartialChar>,
   op_code: OpCode,
   payload: &[u8],
-  cb: &mut impl FnMut(&[u8], &mut Option<IncompleteUtf8Char>) -> crate::Result<()>,
+  cb: &mut impl FnMut(&[u8], &mut Option<PartialChar>) -> crate::Result<()>,
 ) -> crate::Result<bool> {
   match op_code {
     OpCode::Continuation => {
@@ -118,8 +118,8 @@ pub(crate) fn manage_op_code_of_continuation_frames(
 pub(crate) fn manage_op_code_of_first_continuation_frame(
   op_code: OpCode,
   payload: &[u8],
-  cb: fn(&[u8]) -> crate::Result<Option<IncompleteUtf8Char>>,
-) -> crate::Result<Option<IncompleteUtf8Char>> {
+  cb: fn(&[u8]) -> crate::Result<Option<PartialChar>>,
+) -> crate::Result<Option<PartialChar>> {
   match op_code {
     OpCode::Binary => Ok(None),
     OpCode::Text => cb(payload),
@@ -147,9 +147,9 @@ pub(crate) fn manage_op_code_of_first_final_frame(
 
 pub(crate) fn manage_text_of_first_continuation_frame(
   payload: &[u8],
-) -> crate::Result<Option<IncompleteUtf8Char>> {
+) -> crate::Result<Option<PartialChar>> {
   Ok(match from_utf8_ext(payload) {
-    Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => Some(incomplete_ending_char),
+    Err(ExtUtf8Error::Incomplete(el)) => Some(el),
     Err(ExtUtf8Error::Invalid) => {
       return Err(crate::Error::InvalidUTF8);
     }
@@ -159,32 +159,9 @@ pub(crate) fn manage_text_of_first_continuation_frame(
 
 pub(crate) fn manage_text_of_recurrent_continuation_frames(
   curr_payload: &[u8],
-  iuc: &mut Option<IncompleteUtf8Char>,
+  iuc: &mut Option<PartialChar>,
 ) -> crate::Result<()> {
-  let tail = if let Some(mut incomplete) = iuc.take() {
-    let (rslt, remaining) = incomplete.complete(curr_payload);
-    match rslt {
-      Err(CompletionErr::HasInvalidBytes) => {
-        return Err(crate::Error::InvalidUTF8);
-      }
-      Err(CompletionErr::InsufficientInput) => {
-        let _ = iuc.replace(incomplete);
-        &[]
-      }
-      Ok(_) => remaining,
-    }
-  } else {
-    curr_payload
-  };
-  match from_utf8_ext(tail) {
-    Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => {
-      *iuc = Some(incomplete_ending_char);
-    }
-    Err(ExtUtf8Error::Invalid) => {
-      return Err(crate::Error::InvalidUTF8);
-    }
-    Ok(_) => {}
-  }
+  let _ = process_utf8_stream(iuc, curr_payload)?;
   Ok(())
 }
 
@@ -523,7 +500,7 @@ async fn read_continuation_frames<
     &mut Vector<u8>,
     &mut Vector<u8>,
   ) -> crate::Result<()>,
-  recurrent_text_cb: &mut impl FnMut(&[u8], &mut Option<IncompleteUtf8Char>) -> crate::Result<()>,
+  recurrent_text_cb: &mut impl FnMut(&[u8], &mut Option<PartialChar>) -> crate::Result<()>,
   stream_reader: &mut impl FnMut(&mut S) -> &mut SR,
   stream_writer: &mut impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<Option<OpCode>>
