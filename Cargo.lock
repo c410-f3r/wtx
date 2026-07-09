@@ -1287,7 +1287,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "wtx"
-version = "0.47.9"
+version = "0.48.0"
 dependencies = [
  "arbitrary",
  "argon2",
@@ -1359,7 +1359,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1368,7 +1368,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "clap",
  "tokio",
