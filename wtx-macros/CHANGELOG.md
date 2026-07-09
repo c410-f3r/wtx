@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.8.3...wtx-macros-v0.9.0) - 2026-07-09
+
+### Added
+
+- feat! Improve frameworks
+- [**breaking**] TLS 1.3
+
+### Other
+
+- Fix the features of the examples
+- Fix documentation
+
 ## [0.8.3](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.8.2...wtx-macros-v0.8.3) - 2026-06-05
 
 ### Other

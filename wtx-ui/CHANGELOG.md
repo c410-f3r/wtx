@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.9...wtx-ui-v0.6.0) - 2026-07-09
+
+### Added
+
+- [**breaking**] Functional TLS
+- [**breaking**] Add the `futures` module
+- [**breaking**] Let users pass the timestamp that verifies certificates
+- [**breaking**] TLS 1.3
+
+### Other
+
+- Fix the features of the examples
+
 ## [0.5.9](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.8...wtx-ui-v0.5.9) - 2026-06-06
 
 ### Other
