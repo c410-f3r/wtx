@@ -20,7 +20,6 @@ impl WebSocketBuffer {
     }
   }
 
-  #[cfg(feature = "web-socket-handshake")]
   pub(crate) fn clear(&mut self) {
     let Self { network_buffer, reader_buffer, writer_buffer } = self;
     network_buffer.clear();

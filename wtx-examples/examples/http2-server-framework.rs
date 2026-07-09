@@ -31,14 +31,11 @@ type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut server = Http2ServerFramework::tokio(
-    ChaCha20::from_getrandom()?,
-    TlsConfig::from_keys_pem(
-      TlsModeVerified::default(),
-      PUBLIC_KEY.try_into()?,
-      SECRET_KEY.try_into()?,
-    )?,
-  )?;
+  let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
+    TlsModeVerified::default(),
+    PUBLIC_KEY.try_into()?,
+    SECRET_KEY.try_into()?,
+  )?)?;
   let pool = LocalPool::new(
     4,
     PostgresRM::new(
@@ -60,7 +57,11 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  server.set_data(pool).run(&host_from_args(), router).await
+  server
+    .set_data(pool)
+    .set_error_cb(|err| eprintln!("Error: {err}"))
+    .run(&host_from_args(), router)
+    .await
 }
 
 async fn deserialization_and_serialization(state: State<'_, LocalPool>) -> wtx::Result<JsonReply> {

@@ -1,15 +1,12 @@
 use crate::{
   _AFTER_CLOSE_TIMEOUT_MS,
   collections::{ArrayVectorU8, Vector},
-  futures::TryJoinArrayVector,
-  http::{Headers, StatusCode, u31::U31},
+  futures::{Sleep, TryJoinArrayVector},
+  http::{Headers, StatusCode, U31},
   http2::{
     Http2Error, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{
-      check_content_length, frame_reader_rslt, protocol_err, sorp_mut, status_recv, status_send,
-      write_array,
-    },
+    misc::{frame_reader_rslt, protocol_err, sorp_mut, status_recv, status_send, write_array},
     window::WindowsPair,
     write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },
@@ -18,7 +15,7 @@ use crate::{
   sync::Arc,
   tls::TlsMode,
 };
-use core::{future::poll_fn, mem, pin::pin, task::Poll};
+use core::{future::poll_fn, mem, pin::pin, task::Poll, time::Duration};
 
 /// Groups common client and server operations as well as low level methods that deal with
 /// individual frames.
@@ -40,8 +37,7 @@ where
   pub async fn clear(&self) -> crate::Result<()> {
     let Self { inner, linger, span: _, stream_id } = self;
     if *linger {
-      crate::futures::Sleep::new(core::time::Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?
-        .await?;
+      Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?.await?;
     }
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
@@ -77,7 +73,6 @@ where
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
-        check_content_length(local_sorp.content_length, &local_sorp.msg_buffer)?;
         Ok(mem::take(&mut local_sorp.msg_buffer.body))
       })? {
         return Poll::Ready(Ok(elem));
@@ -135,7 +130,7 @@ where
       let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
       wp.withdrawn_recv(hdpm.hp, *stream_id, U31::from_u32(value))?
     };
-    write_array([&frame], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
+    write_array([&frame], &mut *inner.wd.lock().await).await?;
     Ok(())
   }
 
@@ -199,7 +194,7 @@ where
       if let Some(el) = opt {
         return Ok(el);
       }
-      write_frames((&[], data), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
+      write_frames((&[], data), &frames, &mut *inner.wd.lock().await).await?;
       if *Usize::from(data_idx) >= data.len() {
         return Ok(Http2SendStatus::Ok);
       }
@@ -308,8 +303,7 @@ where
       max_frame_len,
       *stream_id,
     )?;
-    write_frames((enc_buffer, &[]), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await)
-      .await?;
+    write_frames((enc_buffer, &[]), &frames, &mut *inner.wd.lock().await).await?;
     Ok(Http2SendStatus::Ok)
   }
 
@@ -353,8 +347,7 @@ where
         *stream_id,
       )?;
     }
-    write_frames((enc_buffer, &[]), &frames, &inner.is_conn_open, &mut *inner.wd.lock().await)
-      .await?;
+    write_frames((enc_buffer, &[]), &frames, &mut *inner.wd.lock().await).await?;
     Ok(Http2SendStatus::Ok)
   }
 

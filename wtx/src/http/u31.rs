@@ -7,7 +7,7 @@ const MASK: u32 = 0b0111_1111_1111_1111_1111_1111_1111_1111;
 
 /// Unsigned integer that occupies 32 bits but the actual values are composed by 31 bits.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct U31(u32);
+pub struct U31(u32);
 
 impl U31 {
   pub(crate) const MAX: Self = Self(2_147_483_647);

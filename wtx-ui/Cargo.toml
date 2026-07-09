@@ -10,7 +10,7 @@ http-client = ["clap", "wtx/ccadb", "wtx/http2-client-pool", "wtx/_tracing-tree"
 schema-manager = ["clap", "wtx/postgres", "wtx/schema-manager", "wtx/std"]
 schema-manager-dev = ["schema-manager", "wtx/_tracing-tree", "wtx/schema-manager-dev"]
 unified = []
-web-socket = ["clap", "wtx/web-socket-handshake"]
+web-socket = ["clap", "wtx/web-socket"]
 
 _curl = []
 

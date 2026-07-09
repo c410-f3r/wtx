@@ -8,7 +8,7 @@ use crate::{
   pool::{ResourceManager, SimplePool},
   rng::ChaCha20,
   sync::{Arc, AtomicCell},
-  tls::{Psk, TlsConfig},
+  tls::TlsConfig,
 };
 
 /// Allows the customization of parameters that control HTTP requests and responses.
@@ -17,7 +17,6 @@ pub struct Http2ClientPoolBuilder<EX, TM> {
   executor: EX,
   hrp: HttpRecvParams,
   len: usize,
-  psk: Option<AtomicCell<Psk>>,
   rng: ChaCha20,
   tcp_params: TcpParams,
   tls_config: Arc<TlsConfig<TM>>,
@@ -39,7 +38,6 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
       len,
-      psk: None,
       rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
@@ -52,12 +50,6 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   #[inline]
   pub const fn http_conn_params_mut(&mut self) -> &mut HttpRecvParams {
     &mut self.hrp
-  }
-
-  /// See [`Psk`].
-  #[inline]
-  pub fn psk_mut(&mut self) -> &mut Option<AtomicCell<Psk>> {
-    &mut self.psk
   }
 
   /// See [`ChaCha20`].
@@ -86,7 +78,6 @@ where
         Http2RM {
           executor: self.executor,
           hrp: self.hrp,
-          psk: self.psk,
           rng: AtomicCell::new(self.rng),
           tcp_params: self.tcp_params,
           tls_config: self.tls_config,

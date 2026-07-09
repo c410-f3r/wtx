@@ -48,13 +48,11 @@ mod window_update_frame;
 mod write_functions;
 
 use crate::{
-  http::{
-    DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, MsgBufferString, Protocol, Request, u31::U31,
-  },
+  http::{DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, MsgBufferString, Protocol, Request, U31},
   http2::settings_frame::SettingsFrame,
   misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AsyncMutex, AtomicU8, AtomicWaker},
+  sync::{Arc, AsyncMutex, AtomicU8},
   tls::{TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
 };
 pub use client_stream::ClientStream;
@@ -115,15 +113,14 @@ where
   where
     SR: StreamReader,
   {
-    let is_conn_open = AtomicU8::new(ConnectionState::Open.into());
     let sf = SettingsFrame::from_hrp(hrp);
     let sf_buffer = &mut [0; 45];
     let sf_bytes = sf.bytes(sf_buffer);
     if hrp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
       if HAS_PREFACE {
-        misc::write_array([&PREFACE, sf_bytes], &is_conn_open, &mut stream_writer).await?;
+        misc::write_array([&PREFACE, sf_bytes], &mut stream_writer).await?;
       } else {
-        misc::write_array([sf_bytes], &is_conn_open, &mut stream_writer).await?;
+        misc::write_array([sf_bytes], &mut stream_writer).await?;
       }
     } else {
       let wuf = window_update_frame::WindowUpdateFrame::new(
@@ -132,9 +129,9 @@ where
       )?;
       if HAS_PREFACE {
         let array = [&PREFACE, sf_bytes, &wuf.bytes()];
-        misc::write_array(array, &is_conn_open, &mut stream_writer).await?;
+        misc::write_array(array, &mut stream_writer).await?;
       } else {
-        misc::write_array([sf_bytes, &wuf.bytes()], &is_conn_open, &mut stream_writer).await?;
+        misc::write_array([sf_bytes, &wuf.bytes()], &mut stream_writer).await?;
       }
     }
     hb.hpack_dec.set_max_bytes(hrp.max_hpack_len().0);
@@ -143,8 +140,7 @@ where
     let max_frame_len = hrp.max_frame_len();
     let inner = Arc::new(Http2Inner {
       hd: AsyncMutex::new(Http2Data::new(hb, hrp)),
-      is_conn_open,
-      read_frame_waker: AtomicWaker::new(),
+      is_conn_open: stream_reader.connection_state_raw().clone(),
       wd: AsyncMutex::new(stream_writer),
     });
     Ok((
@@ -203,7 +199,7 @@ where
       let mut guard = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = guard.parts_mut();
       let linger = hdpm.hp.linger();
-      if misc::connection_state(&inner.is_conn_open).is_closed() {
+      if misc::connection_state(&inner.is_conn_open).is_full_close() {
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
       }
@@ -323,7 +319,6 @@ impl<SW, TM, const IS_CLIENT: bool> Clone for Http2<SW, TM, IS_CLIENT> {
 #[derive(Debug)]
 pub(crate) struct Http2Inner<SW, TM, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
-  pub(crate) is_conn_open: AtomicU8,
-  pub(crate) read_frame_waker: AtomicWaker,
+  pub(crate) is_conn_open: Arc<AtomicU8>,
   pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TM, IS_CLIENT>>,
 }

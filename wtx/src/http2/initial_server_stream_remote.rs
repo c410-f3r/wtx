@@ -1,4 +1,4 @@
-use crate::http::{Method, Protocol, u31::U31};
+use crate::http::{Method, Protocol, U31};
 
 #[derive(Debug)]
 pub(crate) struct InitialServerStreamRemote {

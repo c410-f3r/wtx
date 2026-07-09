@@ -9,7 +9,7 @@ use crate::{
 
 /// Decodes Base64 into a buffer
 #[inline]
-pub fn decode_base64_buffer<'buffer, B, L>(
+pub fn decode_base64_into_buffer<'buffer, B, L>(
   buffer: &'buffer mut B,
   bytes: &[u8],
 ) -> crate::Result<&'buffer mut [u8]>

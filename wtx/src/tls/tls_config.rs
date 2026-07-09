@@ -7,9 +7,7 @@ use crate::{
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
   tls::{
     Alpn, CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, ServerNameList,
-    TlsCertificateTy, TlsModePlainText,
-    protocol::{cert_types::CertTypes, key_share_entry::KeyShareEntry, offered_psks::OfferedPsks},
-    tls_certificate::TlsCertificate,
+    TlsModePlainText, protocol::key_share_entry::KeyShareEntry,
   },
   x509::{Certificate, CvPolicy, CvTrustAnchor},
 };
@@ -51,6 +49,17 @@ impl<TM> TlsConfig<TM> {
     }
     let mut this = Self::new(mode, Instant::now_date_time()?);
     this.inner.trust_anchors = trust_anchors;
+    Ok(this)
+  }
+
+  /// New instance from full X.509 public and secret keys in DER format. Mostly used by servers.
+  ///
+  /// Fetches the current timestamp to verify certificates
+  #[inline]
+  pub fn from_keys_der(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
+    let mut this = Self::new(mode, Instant::now_date_time()?);
+    this.inner.public_key = public_key_from_der(public_key)?;
+    this.inner.secret_key = secret_key.try_into()?;
     Ok(this)
   }
 
@@ -138,30 +147,6 @@ impl<TM> TlsConfig<TM> {
     &mut self.inner.server_name
   }
 
-  /// **For clients**: Tells the server which types of certificates it can send.
-  /// **For servers**: The types of certificates it can receive, aborting the handshake if there
-  ///                  isn't a match with clients. Picks the first compatible type.
-  ///
-  /// If empty, the handshake will default to X.509.
-  #[inline]
-  #[must_use]
-  pub fn set_client_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
-    self.inner.client_cert_types = Some(CertTypes(value));
-    self
-  }
-
-  /// **For clients**: Tells the server which types of certificates it can receive.
-  /// **For servers**: The types of certificates it can send, aborting the handshake if there
-  ///                  isn't a match with clients. Picks the first compatible type.
-  ///
-  /// If empty, the handshake will default to X.509.
-  #[inline]
-  #[must_use]
-  pub fn set_server_cert_types(mut self, value: ArrayVectorCopy<TlsCertificateTy, 2>) -> Self {
-    self.inner.server_cert_types = Some(CertTypes(value));
-    self
-  }
-
   /// See [`CvTrustAnchor`].
   #[inline]
   pub fn trust_anchors(&self) -> &[CvTrustAnchor<ShortBoxSliceU16<u8>>] {
@@ -203,16 +188,13 @@ impl<TM> Debug for TlsConfig<TM> {
 #[derive(Clone)]
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
-  pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::len() }>,
-  pub(crate) client_cert_types: Option<CertTypes>,
+  pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<B>, MAX_KEY_SHARES_LEN>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) named_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
-  pub(crate) offered_psks: OfferedPsks<B>,
-  pub(crate) public_key: TlsCertificate<B>,
+  pub(crate) public_key: (SignatureTy, B),
   pub(crate) secret_key: B,
-  pub(crate) server_cert_types: Option<CertTypes>,
   pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms_cert: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
   pub(crate) signature_algorithms: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
@@ -228,8 +210,7 @@ where
   fn new(mode: TM, validation_time: DateTime<Utc>) -> Self {
     Self {
       alpn: None,
-      client_cert_types: None,
-      cipher_suites: ArrayVectorCopy::from_array(CipherSuite::all()),
+      cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
       cv_policy: CvPolicy::new(validation_time),
       key_shares: ArrayVector::from_array([
         KeyShareEntry { group: NamedGroup::X25519, opaque: B::default() },
@@ -237,10 +218,8 @@ where
       ]),
       max_fragment_length: None,
       named_groups: ArrayVectorCopy::from_array(NamedGroup::all()),
-      offered_psks: OfferedPsks { offered_psks: ArrayVectorU8::new() },
-      public_key: TlsCertificate::default(),
+      public_key: (SignatureTy::default(), B::default()),
       secret_key: B::default(),
-      server_cert_types: None,
       server_name: None,
       signature_algorithms: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
       signature_algorithms_cert: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
@@ -250,10 +229,21 @@ where
   }
 }
 
+fn public_key_from_der<'de, B>(bytes: &'de [u8]) -> crate::Result<(SignatureTy, B)>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
+  let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default());
+  let cert = Certificate::<&[u8]>::decode(&mut dw)?;
+  let spki = &cert.tbs_certificate().subject_public_key_info;
+  Ok((spki.try_into()?, bytes.try_into().map_err(Into::into)?))
+}
+
 fn public_key_from_pem<'de, B>(
   buffer: &'de mut Vector<u8>,
   bytes: &'de [u8],
-) -> crate::Result<TlsCertificate<B>>
+) -> crate::Result<(SignatureTy, B)>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -262,10 +252,7 @@ where
   let [(_label, range)] = pem.data.into_inner()?;
   let cert_bytes = buffer.get(range.clone()).unwrap_or_default();
   let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
-  let _cert = Certificate::<&[u8]>::decode(&mut dw)?;
-  let spki = dw.decode_aux.spki(dw.bytes).unwrap_or_default();
-  Ok(TlsCertificate {
-    raw_public_key: spki.try_into().map_err(Into::into)?,
-    x509: cert_bytes.try_into().map_err(Into::into)?,
-  })
+  let cert = Certificate::<&[u8]>::decode(&mut dw)?;
+  let spki = &cert.tbs_certificate().subject_public_key_info;
+  Ok((spki.try_into()?, cert_bytes.try_into().map_err(Into::into)?))
 }

@@ -251,7 +251,7 @@ impl BufStreamReader {
   /// number of filled elements.
   ///
   /// `reserve_len` is only used to create a buffer to allow external reads.
-  #[cfg(feature = "web-socket-handshake")]
+  #[cfg(feature = "web-socket")]
   pub(crate) async fn read_arbitrary<SR>(
     &mut self,
     reserve_len: usize,
@@ -276,13 +276,13 @@ impl BufStreamReader {
   }
 
   /// Both indices will be capped to avoid data corruption.
-  #[cfg(feature = "web-socket-handshake")]
+  #[cfg(feature = "web-socket")]
   pub(crate) fn set_indices(&mut self, antecedent_end_idx: usize, current_end_idx: usize) {
     self.current_end_idx = current_end_idx.min(self.buffer.len());
     self.antecedent_end_idx = antecedent_end_idx.min(self.current_end_idx);
   }
 
-  #[cfg(any(feature = "postgres", feature = "web-socket-handshake"))]
+  #[cfg(any(feature = "postgres", feature = "web-socket"))]
   pub(crate) fn suffix_pusher(&mut self) -> crate::collections::SuffixPusherVectorMut<'_, u8> {
     crate::collections::SuffixPusherVectorMut::from(&mut self.buffer)
   }

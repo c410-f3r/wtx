@@ -13,7 +13,6 @@ use wtx::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, State, post},
   },
-  rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{
@@ -28,14 +27,11 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  Http2ServerFramework::tokio(
-    ChaCha20::from_getrandom()?,
-    TlsConfig::from_keys_pem(
-      TlsModeVerified::default(),
-      PUBLIC_KEY.try_into()?,
-      SECRET_KEY.try_into()?,
-    )?,
-  )?
+  Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
+    TlsModeVerified::default(),
+    PUBLIC_KEY.try_into()?,
+    SECRET_KEY.try_into()?,
+  )?)?
   .set_data(GrpcManager::from_drsr(QuickProtobuf))
   .run(&host_from_args(), router)
   .await

@@ -27,6 +27,7 @@ create_enum! {
   }
 }
 
+#[derive(Debug)]
 pub(crate) struct Handshake<T> {
   pub(crate) msg_type: HandshakeType,
   pub(crate) data: T,

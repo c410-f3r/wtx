@@ -1,4 +1,4 @@
-use crate::tls::Alert;
+use crate::tls::{Alert, ProtocolVersion};
 
 /// TLS errror
 #[derive(Clone, Copy, Debug)]
@@ -13,6 +13,8 @@ pub enum TlsError {
   DiffieHellmanError,
   /// Duplicated Client Hello Parameters
   DuplicatedClientHelloParameters,
+  /// Incompatible ALPN
+  IncompatibleAlpn,
   /// Incompatible Certificate Types
   IncompatibleCertificateTypes,
   /// Invalid Alert
@@ -59,8 +61,6 @@ pub enum TlsError {
   InvalidKeyUpdateState,
   /// Invalid Max Fragment Length
   InvalidMaxFragmentLength,
-  /// Invalid protocol version
-  InvalidProtocolVersion,
   /// Invalid Psk Key Exchange Modes
   InvalidPskKeyExchangeModes,
   /// Invalid Signature Algorithms
@@ -99,12 +99,16 @@ pub enum TlsError {
   MissingSignatureAlgorithms,
   /// Missing `supported_versions`
   MissingSupportedVersions,
+  /// No certificate received
+  NoCertificate,
   /// Record extrapolates the maximum fragment length
   ReceivedRecordIsTooLarge,
   /// Unknown name type
   UnknownNameType,
   /// Unknown Webpki Signature Scheme
   UnknownWebpkiSignatureScheme,
+  /// Unsupported Cipher Suite
+  UnsupportedCipherSuite,
   /// mTLS is not supported
   UnsupportedMtls,
   /// Can not receive certificate records once a PSK was accepted
@@ -126,5 +130,7 @@ pub enum TlsError {
   /// Unsupported extension
   UnsupportedExtension,
   /// Only TLS 1.3 is supported
-  UnsupportedTlsVersion,
+  UnsupportedTlsVersion(Option<ProtocolVersion>),
+  /// Only TLS 1.2 is supported due to legacy reasons
+  UnsupportedRecTlsVersion(ProtocolVersion),
 }

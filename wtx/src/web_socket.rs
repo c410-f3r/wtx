@@ -3,7 +3,6 @@
 
 mod close_code;
 mod frame;
-#[cfg(feature = "web-socket-handshake")]
 mod handshake;
 mod is_in_continuation_frame;
 mod misc;
@@ -11,12 +10,10 @@ mod op_code;
 pub(crate) mod read_frame;
 pub(crate) mod read_frame_info;
 mod unmask;
-#[cfg(feature = "web-socket-handshake")]
 mod web_socket_acceptor;
 mod web_socket_bridge;
 mod web_socket_buffer;
 pub mod web_socket_compression;
-#[cfg(feature = "web-socket-handshake")]
 mod web_socket_connector;
 mod web_socket_error;
 pub(crate) mod web_socket_mut;
@@ -39,12 +36,10 @@ pub use frame::{
   Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut, FrameVectorRef,
 };
 pub use op_code::OpCode;
-#[cfg(feature = "web-socket-handshake")]
 pub use web_socket_acceptor::WebSocketAcceptor;
 pub use web_socket_bridge::{WebSocketBridge, WebSocketBridgeData};
 pub use web_socket_buffer::WebSocketBuffer;
 pub use web_socket_compression::{DeflateConfig, WsCompression};
-#[cfg(feature = "web-socket-handshake")]
 pub use web_socket_connector::WebSocketConnector;
 pub use web_socket_error::WebSocketError;
 pub use web_socket_mut::{WebSocketCommonMut, WebSocketReaderMut, WebSocketWriterMut};

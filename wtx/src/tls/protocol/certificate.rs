@@ -116,9 +116,7 @@ fn manage_extension(
   extension_ty: ExtensionTy,
 ) -> crate::Result<()> {
   match extension_ty {
-    ExtensionTy::SignedCertificateTimestamp | ExtensionTy::StatusRequest => {
-      Err(TlsError::UnsupportedExtension.into())
-    }
+    ExtensionTy::SignedCertificateTimestamp | ExtensionTy::StatusRequest => Ok(()),
     ExtensionTy::ApplicationLayerProtocolNegotiation
     | ExtensionTy::CertificateAuthorities
     | ExtensionTy::ClientCertificateType

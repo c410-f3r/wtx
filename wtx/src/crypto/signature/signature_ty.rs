@@ -2,7 +2,7 @@
 use crate::{
   asn1::{
     OID_EC_P256, OID_KEY_TYPE_EC_PUBLIC_KEY, OID_NIST_EC_P384, OID_NIST_HASH_SHA256,
-    OID_NIST_HASH_SHA384, OID_PKCS1_RSASSAPSS, OID_SIG_ECDSA_WITH_SHA256,
+    OID_NIST_HASH_SHA384, OID_PKCS1_RSAENCRYPTION, OID_PKCS1_RSASSAPSS, OID_SIG_ECDSA_WITH_SHA256,
     OID_SIG_ECDSA_WITH_SHA384, OID_SIG_ED25519, Oid,
   },
   crypto::CryptoError,
@@ -20,13 +20,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 create_enum! {
   /// Specifies the algorithm used for certificates
-  #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+  #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
   pub enum SignatureTy<u16> {
     /// ECDSA Secp256r1 SHA-256
     EcdsaSecp256r1Sha256 = (1027, "EcdsaSecp256r1Sha256"),
     /// ECDSA Secp384r1 SHA-384
     EcdsaSecp384r1Sha384 = (1283, "EcdsaSecp384r1Sha384"),
     /// Ed25519
+    #[default]
     Ed25519 = (2055, "Ed25519"),
     /// RSA PSS RSAE SHA-256
     RsaPssRsaeSha256 = (2052, "RsaPssRsaeSha256"),
@@ -123,6 +124,8 @@ impl TryFrom<(&Oid, Option<&Oid>)> for SignatureTy {
         _ => {}
       },
 
+      oid if oid == &OID_PKCS1_RSAENCRYPTION => return Ok(Self::RsaPssRsaeSha256),
+
       oid if oid == &OID_PKCS1_RSASSAPSS => match param {
         Some(el) if el == &OID_NIST_HASH_SHA256 => return Ok(Self::RsaPssRsaeSha256),
         Some(el) if el == &OID_NIST_HASH_SHA384 => return Ok(Self::RsaPssRsaeSha384),
@@ -131,6 +134,20 @@ impl TryFrom<(&Oid, Option<&Oid>)> for SignatureTy {
       _ => {}
     }
     Err(CryptoError::UnsupportedSignatureOid.into())
+  }
+}
+
+#[cfg(feature = "x509")]
+impl<B> TryFrom<&crate::x509::SubjectPublicKeyInfo<B>> for SignatureTy
+where
+  B: crate::misc::Lease<[u8]>,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: &crate::x509::SubjectPublicKeyInfo<B>) -> Result<Self, Self::Error> {
+    let params_oid = value.params_oid();
+    SignatureTy::try_from((&value.algorithm.algorithm, params_oid.as_ref()))
   }
 }
 

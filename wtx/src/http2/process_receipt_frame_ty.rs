@@ -1,6 +1,6 @@
 use crate::{
   collections::ArrayVectorCopy,
-  http::{HttpError, HttpRecvParams, MsgBufferString, StatusCode, u31::U31},
+  http::{HttpError, HttpRecvParams, MsgBufferString, StatusCode, U31},
   http2::{
     Http2Error, Http2ErrorCode, Scorp, Sovrp,
     data_frame::DataFrame,
@@ -8,14 +8,16 @@ use crate::{
     hpack_decoder::HpackDecoder,
     http_send_params::HttpSendParams,
     initial_server_stream_remote::InitialServerStreamRemote,
-    misc::{protocol_err, read_header_and_continuations, server_header_stream_state, sorp_mut},
+    misc::{
+      check_content_length, protocol_err, read_header_and_continuations,
+      server_header_stream_state, sorp_mut,
+    },
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
   },
   stream::{BufStreamReader, StreamReader},
-  sync::{AtomicU8, AtomicWaker},
 };
 use core::task::Waker;
 
@@ -26,10 +28,8 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, SR> {
   pub(crate) hp: &'instance mut HttpRecvParams,
   pub(crate) hpack_dec: &'instance mut HpackDecoder,
   pub(crate) hps: &'instance mut HttpSendParams,
-  pub(crate) is_conn_open: &'instance AtomicU8,
   pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) nrb: &'instance mut BufStreamReader,
-  pub(crate) read_frame_waker: &'instance AtomicWaker,
   pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) stream_reader: &'instance mut SR,
 }
@@ -63,6 +63,7 @@ where
     elem.msg_buffer.body.extend_from_copyable_slice(body_bytes)?;
     elem.has_one_or_more_data_frames = true;
     if df.has_eos() {
+      check_content_length(elem.content_length, &elem.msg_buffer)?;
       elem.stream_state = StreamState::HalfClosedRemote;
     }
     elem.waker.wake_by_ref();
@@ -78,12 +79,10 @@ where
     let has_eos = if elem.has_initial_header {
       read_header_and_continuations::<_, _, true, true>(
         self.fi,
-        self.is_conn_open,
         self.hp,
         self.hpack_dec,
         &mut elem.msg_buffer,
         self.nrb,
-        self.read_frame_waker,
         self.stream_reader,
         |_| Ok(()),
       )
@@ -92,12 +91,10 @@ where
     } else {
       let (_, has_eos, status_code) = read_header_and_continuations::<_, _, true, false>(
         self.fi,
-        self.is_conn_open,
         self.hp,
         self.hpack_dec,
         &mut elem.msg_buffer,
         self.nrb,
-        self.read_frame_waker,
         self.stream_reader,
         |hf| hf.hsresh().status_code.ok_or_else(|| HttpError::MissingResponseStatusCode.into()),
       )
@@ -128,12 +125,10 @@ where
     let mut msg_buffer = MsgBufferString::default();
     let tuple = read_header_and_continuations::<_, _, false, false>(
       self.fi,
-      self.is_conn_open,
       self.hp,
       self.hpack_dec,
       &mut msg_buffer,
       self.nrb,
-      self.read_frame_waker,
       self.stream_reader,
       |hf| Ok((hf.hsreqh().method.ok_or(HttpError::MissingRequestMethod)?, hf.hsreqh().protocol)),
     )
@@ -167,12 +162,10 @@ where
     }
     let (_, has_eos, _) = read_header_and_continuations::<_, _, false, true>(
       self.fi,
-      self.is_conn_open,
       self.hp,
       self.hpack_dec,
       &mut sorp.msg_buffer,
       self.nrb,
-      self.read_frame_waker,
       self.stream_reader,
       |_| Ok(()),
     )

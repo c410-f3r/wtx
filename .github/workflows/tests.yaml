@@ -64,6 +64,7 @@ jobs:
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
           '.scripts/h2spec.sh low ci',
+          #'.scripts/testssl.sh',
           '.scripts/x509-limbo.sh'
         ]
     steps:

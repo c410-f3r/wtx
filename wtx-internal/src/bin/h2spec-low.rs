@@ -37,27 +37,22 @@ async fn main() -> wtx::Result<()> {
           let _stream_jh = tokio::spawn(async move {
             let mut enc_buffer = Vector::new();
             let mut common = http2_stream.common();
-            let fun = async {
-              loop {
-                let hrs = common.recv_data(|_| Ok(())).await?;
-                match hrs {
-                  Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) => {
-                    return Ok(());
-                  }
-                  Http2RecvStatus::Eos(_) => break,
-                  Http2RecvStatus::Ongoing(_) => continue,
+            loop {
+              let hrs = common.recv_data(|_| Ok(())).await?;
+              match hrs {
+                Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) => {
+                  return Ok(());
                 }
+                Http2RecvStatus::Eos(_) => break,
+                Http2RecvStatus::Ongoing(_) => continue,
               }
-              let _ = common.recv_trailers().await?;
-              let _ = common.send_headers(&mut enc_buffer, &headers, false, StatusCode::Ok).await?;
-              let _ = common.send_data(b"Hello", true).await?;
-              common.clear().await?;
-              wtx::Result::Ok(())
-            };
-            if let Err(err) = fun.await {
-              http2_stream.common().send_go_away(Http2ErrorCode::InternalError).await;
-              eprint!("{err}");
             }
+            let _ = common.recv_trailers().await?;
+            let _ = common.send_headers(&mut enc_buffer, &headers, false, StatusCode::Ok).await?;
+            let _ = common.send_data(b"Hello", true).await?;
+            common.clear().await?;
+            http2_stream.common().send_reset(Http2ErrorCode::NoError).await;
+            wtx::Result::Ok(())
           });
         }
       };

@@ -6,10 +6,8 @@ macro_rules! prft {
       hp: &mut $hdpm.hp,
       hpack_dec: &mut $hdpm.hb.hpack_dec,
       hps: &mut $hdpm.hps,
-      is_conn_open: &$inner.is_conn_open,
       last_stream_id: &mut $hdpm.last_stream_id,
       nrb: $nrb,
-      read_frame_waker: &$inner.read_frame_waker,
       recv_streams_num: &mut $hdpm.recv_streams_num,
       stream_reader: $stream_reader,
     }
@@ -22,8 +20,8 @@ use crate::{
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
     misc::{
-      process_higher_operation_err, protocol_err, read_frame, send_go_away, send_reset_stream,
-      write_array,
+      manage_termination, process_higher_operation_err, protocol_err, read_frame,
+      send_reset_stream, write_array,
     },
     ping_frame::PingFrame,
     process_receipt_frame_ty::ProcessReceiptFrameTy,
@@ -54,14 +52,7 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
 
   loop {
     if TM::TY.is_plain_text() {
-      let rslt = read_frame::<_, false>(
-        &inner.is_conn_open,
-        max_frame_len,
-        &mut nrb,
-        &inner.read_frame_waker,
-        &mut stream_reader,
-      )
-      .await;
+      let rslt = read_frame::<_, false>(max_frame_len, &mut nrb, &mut stream_reader).await;
       if !manage_iteration(&inner, &mut nrb, rslt, &mut stream_reader).await {
         break;
       }
@@ -69,13 +60,7 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
     }
 
     let http2 = {
-      let mut http2_fut = pin!(read_frame::<_, false>(
-        &inner.is_conn_open,
-        max_frame_len,
-        &mut nrb,
-        &inner.read_frame_waker,
-        &mut stream_reader,
-      ));
+      let mut http2_fut = pin!(read_frame::<_, false>(max_frame_len, &mut nrb, &mut stream_reader));
       'inner: loop {
         let (http2_opt, tls_opt) = poll_fn(|cx| {
           let http2_poll = http2_fut.as_mut().poll(cx);
@@ -184,11 +169,11 @@ where
         let mut hdpm = hd_guard.parts_mut();
         prft!(fi, hdpm, inner, nrb, stream_reader).data(&mut hdpm.hb.sorps)?
       };
-      write_array([&frame], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
+      write_array([&frame], &mut *inner.wd.lock().await).await?;
     }
     FrameInitTy::GoAway => {
       let gaf = GoAwayFrame::read(nrb.current(), fi)?;
-      send_go_away(gaf.error_code(), inner).await;
+      manage_termination::<_, _, _, true>(gaf.error_code(), inner).await;
     }
     FrameInitTy::Headers => {
       let mut hd_guard = inner.hd.lock().await;
@@ -213,7 +198,7 @@ where
       let mut pf = PingFrame::read(nrb.current(), fi)?;
       if !pf.has_ack() {
         pf.set_ack();
-        write_array([&pf.bytes()], &inner.is_conn_open, &mut *inner.wd.lock().await).await?;
+        write_array([&pf.bytes()], &mut *inner.wd.lock().await).await?;
       }
     }
     FrameInitTy::PushPromise => {
@@ -234,12 +219,8 @@ where
           let hdpm = hd_guard.parts_mut();
           hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrps, &sf, &mut hdpm.hb.sorps)?;
         }
-        write_array(
-          [SettingsFrame::ack().bytes(&mut [0; 45])],
-          &inner.is_conn_open,
-          &mut *inner.wd.lock().await,
-        )
-        .await?;
+        let buffer = &mut [0; 45];
+        write_array([SettingsFrame::ack().bytes(buffer)], &mut *inner.wd.lock().await).await?;
       }
     }
     FrameInitTy::WindowUpdate => {

@@ -1,7 +1,5 @@
 pub(crate) mod alert;
 pub(crate) mod alpn;
-pub(crate) mod cert_type;
-pub(crate) mod cert_types;
 pub(crate) mod certificate;
 pub(crate) mod certificate_request;
 pub(crate) mod certificate_verify;
@@ -20,10 +18,8 @@ pub(crate) mod max_fragment_length;
 pub(crate) mod name_type;
 pub(crate) mod named_group;
 pub(crate) mod new_session_ticket;
-pub(crate) mod offered_psks;
 pub(crate) mod protocol_version;
 pub(crate) mod protocol_versions;
-pub(crate) mod psk_key_exchange_modes;
 pub(crate) mod record;
 pub(crate) mod record_content_type;
 pub(crate) mod server_hello;

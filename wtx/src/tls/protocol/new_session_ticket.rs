@@ -108,7 +108,7 @@ fn manage_extension(
   extension_ty: ExtensionTy,
 ) -> crate::Result<()> {
   match extension_ty {
-    ExtensionTy::EarlyData => Err(TlsError::UnsupportedExtension.into()),
+    ExtensionTy::EarlyData => Ok(()),
     ExtensionTy::ApplicationLayerProtocolNegotiation
     | ExtensionTy::CertificateAuthorities
     | ExtensionTy::ClientCertificateType

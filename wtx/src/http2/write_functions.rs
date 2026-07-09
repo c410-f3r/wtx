@@ -28,7 +28,7 @@ macro_rules! frame_params {
 
 use crate::{
   collections::{ArrayVectorU8, Vector},
-  http::{Headers, Trailers, u31::U31},
+  http::{Headers, Trailers, U31},
   http2::{
     Http2Data, Http2Error, Http2Inner, Http2SendStatus,
     continuation_frame::ContinuationFrame,
@@ -37,13 +37,12 @@ use crate::{
     hpack_encoder::HpackEncoder,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     http2_data::Http2DataPartsMut,
-    misc::{connection_state, process_higher_operation_err, protocol_err, scrp_mut, write_array},
+    misc::{process_higher_operation_err, protocol_err, scrp_mut, write_array},
     stream_state::StreamState,
     window::WindowsPair,
   },
   misc::Usize,
   stream::StreamWriter,
-  sync::AtomicU8,
   tls::{TlsMode, TlsStreamWriter},
 };
 use core::{
@@ -238,9 +237,6 @@ where
     let mut hpack_idx = 0;
     let hss = loop {
       let state = poll_fn(|cx| {
-        if connection_state(&inner.is_conn_open).is_closed() {
-          return Poll::Ready(crate::Result::Ok(SendMsgState::ClosedConnection));
-        }
         let state = do_send_msg::<IS_CLIENT>(
           data,
           &mut data_idx,
@@ -257,11 +253,10 @@ where
         if let SendMsgState::NeedsMoreWindow = state {
           return Poll::Pending;
         }
-        Poll::Ready(Ok(state))
+        Poll::Ready(Ok::<_, crate::Error>(state))
       })
       .await?;
       let should_stop = match state {
-        SendMsgState::ClosedConnection => break Http2SendStatus::ClosedConnection,
         SendMsgState::ClosedStream => break Http2SendStatus::ClosedStream,
         SendMsgState::Finished | SendMsgState::NeedsMoreWindow => break Http2SendStatus::Ok,
         SendMsgState::GeneratedData(should_stop) | SendMsgState::GeneratedHeaders(should_stop) => {
@@ -273,7 +268,6 @@ where
       write_frames::<_, _, IS_CLIENT>(
         (enc_buffer.as_ref(), data),
         &frames,
-        &inner.is_conn_open,
         &mut *inner.wd.lock().await,
       )
       .await?;
@@ -295,7 +289,6 @@ where
 pub(crate) async fn write_frames<SW, TM, const IS_CLIENT: bool>(
   (header, data): (&[u8], &[u8]),
   frames: &ArrayVectorU8<FrameParams, 4>,
-  is_conn_open: &AtomicU8,
   stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
 ) -> crate::Result<()>
 where
@@ -315,23 +308,19 @@ where
   match frames.as_ref() {
     [b0] => {
       let a_bytes = get((header, data), b0);
-      write_array([&b0.header, a_bytes], is_conn_open, stream_writer).await?;
+      write_array([&b0.header, a_bytes], stream_writer).await?;
     }
     [b0, b1] => {
       let a_bytes = get((header, data), b0);
       let b_bytes = get((header, data), b1);
-      write_array([&b0.header, a_bytes, &b1.header, b_bytes], is_conn_open, stream_writer).await?;
+      write_array([&b0.header, a_bytes, &b1.header, b_bytes], stream_writer).await?;
     }
     [b0, b1, b2] => {
       let a_bytes = get((header, data), b0);
       let b_bytes = get((header, data), b1);
       let c_bytes = get((header, data), b2);
-      write_array(
-        [&b0.header, a_bytes, &b1.header, b_bytes, &b2.header, c_bytes],
-        is_conn_open,
-        stream_writer,
-      )
-      .await?;
+      let array = [&b0.header, a_bytes, &b1.header, b_bytes, &b2.header, c_bytes];
+      write_array(array, stream_writer).await?;
     }
     [b0, b1, b2, b3] => {
       let a_bytes = get((header, data), b0);
@@ -340,7 +329,6 @@ where
       let d_bytes = get((header, data), b3);
       write_array(
         [&b0.header, a_bytes, &b1.header, b_bytes, &b2.header, c_bytes, &b3.header, d_bytes],
-        is_conn_open,
         stream_writer,
       )
       .await?;
@@ -651,7 +639,6 @@ fn split_bytes(bytes: &[u8], begin: u32, len: u32) -> (u32, &[u8]) {
 
 #[derive(Clone, Copy, Debug)]
 enum SendMsgState {
-  ClosedConnection,
   ClosedStream,
   Finished,
   GeneratedData(bool),

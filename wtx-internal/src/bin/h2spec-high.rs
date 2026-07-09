@@ -35,19 +35,14 @@ async fn main() -> wtx::Result<()> {
           };
           let (mut http2_stream, headers) = stream;
           let _stream_jh = tokio::spawn(async move {
-            let fun = async {
-              let (hrs, _) = http2_stream.recv_req().await?;
-              if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
-                return Ok(());
-              }
-              let res = Response::new(("Hello", &headers), StatusCode::Ok);
-              let _ = http2_stream.send_res(&mut Vector::new(), res).await?;
-              wtx::Result::Ok(())
-            };
-            if let Err(err) = fun.await {
-              http2_stream.common().send_go_away(Http2ErrorCode::InternalError).await;
-              eprint!("{err}");
+            let (hrs, _) = http2_stream.recv_req().await?;
+            if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
+              return Ok(());
             }
+            let res = Response::new(("Hello", &headers), StatusCode::Ok);
+            let _ = http2_stream.send_res(&mut Vector::new(), res).await?;
+            http2_stream.common().send_reset(Http2ErrorCode::NoError).await;
+            wtx::Result::Ok(())
           });
         }
       };

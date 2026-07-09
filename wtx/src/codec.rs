@@ -42,7 +42,8 @@ pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{DecodeWrapper, EncodeWrapper, GenericCodec};
 pub use hex::*;
 pub use misc::{
-  decode_base64_buffer, decode_hex_into_buffer, encode_base64_into_buffer, encode_hex_into_buffer,
+  decode_base64_into_buffer, decode_hex_into_buffer, encode_base64_into_buffer,
+  encode_hex_into_buffer,
 };
 pub use num_array::*;
 pub use url_encoding::*;

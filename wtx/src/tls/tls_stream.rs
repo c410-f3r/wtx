@@ -2,6 +2,7 @@ use crate::{
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   misc::ConnectionState,
   stream::{Stream, StreamCommon, StreamReader, StreamWriter},
+  sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
     TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
@@ -126,28 +127,32 @@ where
     let stream_bridge = TlsStreamBridge::new();
     let (ksr, ksw) = self.key_schedule.into_split();
     let (_, stream_reader, stream_writer) = self.stream.into_split()?;
+    let connection_state = Arc::new(AtomicU8::new(self.connection_state.into()));
+    let reader_waker = Arc::new(AtomicWaker::new());
     Ok((
       stream_bridge.clone(),
-      TlsStreamReader {
-        stream_bridge,
+      TlsStreamReader::new(
+        connection_state.clone(),
         ksr,
+        self.max_fragment_length,
+        self.new_session_ticket,
+        self.plaintext_consumed,
+        self.plaintext_len,
+        self.buffer.reader_buffer,
+        reader_waker.clone(),
+        stream_bridge,
         stream_reader,
-        connection_state: self.connection_state,
-        max_fragment_length: self.max_fragment_length,
-        new_session_ticket: self.new_session_ticket,
-        plaintext_consumed: self.plaintext_consumed,
-        plaintext_len: self.plaintext_len,
-        reader_buffer: self.buffer.reader_buffer,
-        _tm: self._tm.clone(),
-      },
-      TlsStreamWriter {
-        connection_state: self.connection_state,
+        self._tm.clone(),
+      ),
+      TlsStreamWriter::new(
+        connection_state,
         ksw,
-        max_fragment_length: self.max_fragment_length,
+        self.max_fragment_length,
+        reader_waker,
         stream_writer,
-        _tm: self._tm,
-        writer_buffer: self.buffer.writer_buffer,
-      },
+        self._tm,
+        self.buffer.writer_buffer,
+      ),
     ))
   }
 }

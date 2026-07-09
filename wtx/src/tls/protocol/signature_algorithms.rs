@@ -4,7 +4,7 @@ use crate::{
   crypto::SignatureTy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    TlsError, de::De, misc::u16_list, tls_decode_wrapper::TlsDecodeWrapper,
+    TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -18,7 +18,12 @@ impl<'de> Decode<'de, De> for SignatureAlgorithms {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut signature_schemes = ArrayVectorCopy::new();
-    u16_list(&mut signature_schemes, dw, TlsError::InvalidSignatureAlgorithms)?;
+    let bytes = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
+    for [b0, b1] in bytes.as_chunks::<2>().0 {
+      if let Ok(elem) = SignatureTy::try_from(u16::from_be_bytes([*b0, *b1])) {
+        signature_schemes.push(elem)?;
+      }
+    }
     Ok(Self { signature_schemes })
   }
 }

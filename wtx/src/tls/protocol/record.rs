@@ -18,8 +18,12 @@ pub(crate) struct Record<T> {
 }
 
 impl<T> Record<T> {
-  pub(crate) fn new(ty: RecordContentType, opaque: T) -> Self {
-    Self { ty, legacy_record_version: ProtocolVersion::Tls12, opaque }
+  pub(crate) fn new(
+    ty: RecordContentType,
+    legacy_record_version: ProtocolVersion,
+    opaque: T,
+  ) -> Self {
+    Self { ty, legacy_record_version, opaque }
   }
 }
 

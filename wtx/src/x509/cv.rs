@@ -13,12 +13,11 @@ pub(crate) mod cv_revoked_certificate;
 pub(crate) mod cv_trust_anchor;
 
 use crate::{
-  asn1::{Asn1DecodeWrapperAux, OID_PKCS1_RSASSAPSS, OID_X509_COMMON_NAME, Oid},
-  codec::{Decode as _, DecodeWrapper},
+  asn1::OID_X509_COMMON_NAME,
   crypto::SignatureTy,
   misc::Lease,
   x509::{
-    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, RsassaPssParams,
+    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -38,8 +37,7 @@ pub fn validate_signature(
   signature: &[u8],
   spki: &SubjectPublicKeyInfo<&[u8]>,
 ) -> crate::Result<()> {
-  let params_oid = params_oid(spki);
-  let signature_ty = SignatureTy::try_from((&spki.algorithm.algorithm, params_oid.as_ref()))?;
+  let signature_ty = SignatureTy::try_from(spki)?;
   signature_ty.validate_signature(spki.subject_public_key.bytes().lease(), msg, signature)?;
   Ok(())
 }
@@ -553,20 +551,6 @@ fn matches_rfc822(other: &[u8], domain: &[u8]) -> bool {
 }
 
 #[inline]
-fn params_oid<B>(subject_public_key_info: &SubjectPublicKeyInfo<B>) -> Option<Oid>
-where
-  B: Lease<[u8]>,
-{
-  let bytes = subject_public_key_info.algorithm.parameters.as_ref()?.bytes();
-  let mut dw = DecodeWrapper::new(bytes.lease(), Asn1DecodeWrapperAux::default());
-  if subject_public_key_info.algorithm.algorithm == OID_PKCS1_RSASSAPSS {
-    Some(RsassaPssParams::<&[u8]>::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
-  } else {
-    Oid::decode(&mut dw).ok()
-  }
-}
-
-#[inline]
 fn validate_chain_signature<B, const IS_EE: bool>(
   child: &CvCertificate<&[u8], IS_EE>,
   last_err: &mut Option<X509CvError>,
@@ -576,7 +560,7 @@ where
   B: Lease<[u8]>,
 {
   let child_sig_alg = &child.signature_algorithm;
-  let par_params_oid = params_oid(parent);
+  let par_params_oid = parent.params_oid();
   match SignatureTy::try_from((&child_sig_alg.algorithm, par_params_oid.as_ref())).and_then(|el| {
     el.validate_signature(
       parent.subject_public_key.bytes().lease(),

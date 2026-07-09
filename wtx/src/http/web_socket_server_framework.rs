@@ -5,7 +5,7 @@ use crate::{
   executor::{Executor, Runtime as _, TcpListener},
   http::Router,
   misc::{TcpParams, Uri},
-  rng::{CryptoRng, CryptoSeedableRng},
+  rng::{ChaCha20, CryptoRng, CryptoSeedableRng},
   stream::{StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -34,13 +34,13 @@ pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, RNG, TM>
+impl<EX, TM>
   WebSocketServerFramework<
     (),
     fn(crate::Error),
     EX,
     fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
-    RNG,
+    ChaCha20,
     TM,
   >
 where
@@ -48,7 +48,7 @@ where
 {
   /// Taking aside the provided parameters, everything else is set to default values.
   #[inline]
-  pub fn new(executor: EX, rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
     Ok(Self {
@@ -57,7 +57,7 @@ where
       executor,
       local_runtime_cb,
       local_runtimes: None,
-      rng,
+      rng: ChaCha20::from_std_random()?,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })
@@ -65,20 +65,20 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<RNG, TM>
+impl<TM>
   WebSocketServerFramework<
     (),
     fn(crate::Error),
     crate::executor::TokioExecutor,
     fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
-    RNG,
+    ChaCha20,
     TM,
   >
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
-  pub fn tokio(rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
-    Self::new(crate::executor::TokioExecutor::default(), rng, tls_config)
+  pub fn tokio(tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+    Self::new(crate::executor::TokioExecutor::default(), tls_config)
   }
 }
 

@@ -1,6 +1,6 @@
 use crate::{
   collections::ArrayVectorCopy,
-  http::{HttpRecvParams, u31::U31},
+  http::{HttpRecvParams, U31},
   http2::{
     Http2Error, Http2ErrorCode, http_send_params::HttpSendParams,
     window_update_frame::WindowUpdateFrame,

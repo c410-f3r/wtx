@@ -11,7 +11,7 @@ use crate::{
   rng::ChaCha20,
   stream::{Stream, StreamReader, StreamWriter},
   sync::{Arc, AtomicCell},
-  tls::{Psk, TlsConfig, TlsConnector, TlsMode},
+  tls::{TlsConfig, TlsConnector, TlsMode},
 };
 use core::fmt::Debug;
 
@@ -20,7 +20,6 @@ use core::fmt::Debug;
 pub struct Http2RM<EX, TM> {
   pub(crate) executor: EX,
   pub(crate) hrp: HttpRecvParams,
-  pub(crate) psk: Option<AtomicCell<Psk>>,
   pub(crate) rng: AtomicCell<ChaCha20>,
   pub(crate) tcp_params: TcpParams,
   pub(crate) tls_config: Arc<TlsConfig<TM>>,
@@ -48,11 +47,7 @@ where
     let stream = EX::TcpStream::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let mut tc = self.tls_config.lease().clone();
     push_server_name(&mut tc, &uri)?;
-    let tls_stream = TlsConnector::new(&tc, &self.rng, stream)
-      .set_psk(self.psk.as_ref().map(AtomicCell::load))
-      .connect()
-      .await?
-      .tls_stream;
+    let tls_stream = TlsConnector::new(&tc, &self.rng, stream).connect().await?.tls_stream;
     let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
     Ok(Http2ClientPoolResource { client: tuple.1 })
@@ -74,10 +69,7 @@ where
     let mut hb = Http2Buffer::default();
     let mut tc = self.tls_config.lease().clone();
     push_server_name(&mut tc, &uri)?;
-    let tco = TlsConnector::new(&tc, &self.rng, stream)
-      .set_psk(self.psk.as_ref().map(AtomicCell::load))
-      .connect()
-      .await?;
+    let tco = TlsConnector::new(&tc, &self.rng, stream).connect().await?;
     resource.client.swap_buffers(&mut hb).await;
     let (frame_reader, http2) = Http2::connect(hb, self.hrp, tco.tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(frame_reader);

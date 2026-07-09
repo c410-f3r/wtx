@@ -40,7 +40,7 @@ pub enum RouterError {
   /// short to accommodate the maximum depth length.
   FindErrEmpty,
   /// Route does not exist
-  FindErrMismatch,
+  FindMismatch,
   /// Input string or parameter length exceeds internal limits
   FindErrOverflow,
 }
@@ -97,12 +97,12 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
         return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
       }
       CheckSearchRowRslt::IncompleteMatch(local_edges) => edges = local_edges,
-      CheckSearchRowRslt::Mismatch => return Err(RouterError::FindErrMismatch.into()),
+      CheckSearchRowRslt::Mismatch => return Err(RouterError::FindMismatch.into()),
     }
 
     loop {
       let [statics @ .., last] = edges.as_slice() else {
-        return Err(RouterError::FindErrMismatch.into());
+        return Err(RouterError::FindMismatch.into());
       };
       let curr_ident_first = curr_route.first().copied();
       let last_edge_has_param = last.first_byte.is_none();
@@ -125,14 +125,14 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
         }
       } else {
         let Some(edge) = edges.iter().find(|el| el.first_byte == curr_ident_first) else {
-          return Err(RouterError::FindErrMismatch.into());
+          return Err(RouterError::FindMismatch.into());
         };
         match Self::check_edge(*edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
           CheckSearchRowRslt::CompleteMatch(value) => {
             return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
           }
           CheckSearchRowRslt::IncompleteMatch(_) => {}
-          CheckSearchRowRslt::Mismatch => return Err(RouterError::FindErrMismatch.into()),
+          CheckSearchRowRslt::Mismatch => return Err(RouterError::FindMismatch.into()),
         }
       }
     }
