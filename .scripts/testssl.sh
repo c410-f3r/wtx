@@ -11,7 +11,7 @@ cargo build --example tls-server --features tls-server
 cargo run --example tls-server --features tls-server &> /tmp/testssl.txt &
 
 mkdir -p /tmp/testssl
-rm /tmp/testssl/testssl.html
+rm -f /tmp/testssl/testssl.html
 podman run \
 	--network host \
 	--rm \

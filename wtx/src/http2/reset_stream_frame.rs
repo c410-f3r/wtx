@@ -1,5 +1,5 @@
 use crate::{
-  http::u31::U31,
+  http::U31,
   http2::{
     Http2Error, Http2ErrorCode,
     common_flags::CommonFlags,

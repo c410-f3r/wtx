@@ -258,11 +258,14 @@ pub enum Error {
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
   HttpError(crate::http::HttpError),
+  /// Fatal HTTP/2 error
   #[cfg(feature = "http2")]
-  #[doc = associated_element_doc!()]
+  Http2Error(crate::http2::Http2Error),
+  /// Maybe Fatal HTTP/2 error
+  #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, crate::http2::Http2Error),
+  /// Non-fatal HTTP/2 stream error
   #[cfg(feature = "http2")]
-  #[doc = associated_element_doc!()]
   Http2FlowControlError(crate::http2::Http2Error, u32),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]

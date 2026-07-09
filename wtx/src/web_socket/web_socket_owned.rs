@@ -13,7 +13,7 @@ use crate::{
     write_frame::write_frame,
   },
 };
-use core::marker::PhantomData;
+use core::{marker::PhantomData, sync::atomic::Ordering};
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ where
       &mut (&mut self.stream_reader, &mut ()),
       &self.stream_bridge,
       buffer,
-      |el| el.0.connection_state = ConnectionState::ReadClosed,
+      |el| el.0.connection_state_raw().store(ConnectionState::ReadClosed.into(), Ordering::Relaxed),
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
     )
@@ -89,6 +89,12 @@ where
   SW: StreamWriter,
   TM: TlsMode,
 {
+  /// Closes itself as well as the reader part
+  #[inline]
+  pub fn close(&self) {
+    self.stream_writer.close();
+  }
+
   /// Writes the reply frame returned by [`WebSocketBridge::listen`]. Returns `true` if the
   /// connection has been closed.
   #[inline]
@@ -97,13 +103,26 @@ where
       (None, None) => true,
       (None, Some(mut ws)) => {
         self.do_write_frame::<_, true>(&mut ws).await?;
-        ws.op_code().is_close()
+        if ws.op_code().is_close() {
+          self.close();
+          true
+        } else {
+          false
+        }
       }
       (Some(tls), None) => self.stream_writer.manage_bridge_data(tls).await?,
       (Some(tls), Some(mut ws)) => {
-        let should_stop_tls = self.stream_writer.manage_bridge_data(tls).await?;
         self.do_write_frame::<_, true>(&mut ws).await?;
-        should_stop_tls || ws.op_code().is_close()
+        let should_stop_ws = ws.op_code().is_close();
+        let should_stop_tls = self.stream_writer.manage_bridge_data(tls).await?;
+        if should_stop_tls {
+          true
+        } else if should_stop_ws {
+          self.close();
+          true
+        } else {
+          false
+        }
       }
     };
     Ok(should_stop)
@@ -135,8 +154,8 @@ where
       &mut self.stream_writer,
       self.writer_buffer.lease_mut(),
       |el| {
-        el.connection_state =
-          if IS_CLOSED { ConnectionState::Closed } else { ConnectionState::WriteClosed };
+        let value = if IS_CLOSED { ConnectionState::Closed } else { ConnectionState::WriteClosed };
+        el.connection_state_raw().store(value.into(), Ordering::Relaxed);
       },
     )
     .await

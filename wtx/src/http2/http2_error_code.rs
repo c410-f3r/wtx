@@ -1,4 +1,4 @@
-use crate::http2::{Http2Error, misc::protocol_err};
+use crate::http2::Http2Error;
 
 /// HTTP/2 error codes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,6 +39,15 @@ pub enum Http2ErrorCode {
   Http11Requires,
 }
 
+impl Http2ErrorCode {
+  /// Returns `true` if the instance is everything but [`Http2ErrorCode::NoError`].
+  #[must_use]
+  #[inline]
+  pub const fn is_fatal(&self) -> bool {
+    !matches!(self, Self::NoError)
+  }
+}
+
 impl TryFrom<u32> for Http2ErrorCode {
   type Error = crate::Error;
 
@@ -59,7 +68,7 @@ impl TryFrom<u32> for Http2ErrorCode {
       11 => Http2ErrorCode::EnhanceYourCalm,
       12 => Http2ErrorCode::InadequateSecurity,
       13 => Http2ErrorCode::Http11Requires,
-      _ => return Err(protocol_err(Http2Error::InvalidErrorCode)),
+      _ => return Err(crate::Error::Http2Error(Http2Error::InvalidErrorCode)),
     })
   }
 }

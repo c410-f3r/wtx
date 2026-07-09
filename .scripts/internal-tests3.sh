@@ -14,8 +14,7 @@ $rt test-with-features wtx tracing
 $rt test-with-features wtx tracing-subscriber
 $rt test-with-features wtx tracing-tree
 $rt test-with-features wtx uuid
-$rt test-with-features wtx web-socket
-$rt test-with-features wtx web-socket-handshake,crypto-ring
+$rt test-with-features wtx web-socket,crypto-ring
 $rt test-with-features wtx wtx-macros
 $rt test-with-features wtx x509
 

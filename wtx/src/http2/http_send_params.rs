@@ -2,7 +2,7 @@ use crate::{
   http::{
     DEFAULT_INITIAL_WINDOW_LEN, DEFAULT_MAX_CONCURRENT_STREAMS_NUM, DEFAULT_MAX_FRAME_LEN,
     DEFAULT_MAX_HEADERS_LEN, DEFAULT_MAX_HPACK_LEN, MAX_FRAME_LEN_LOWER_BOUND,
-    MAX_FRAME_LEN_UPPER_BOUND, u31::U31,
+    MAX_FRAME_LEN_UPPER_BOUND, U31,
   },
   http2::{Scorp, Sovrp, Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame},
 };

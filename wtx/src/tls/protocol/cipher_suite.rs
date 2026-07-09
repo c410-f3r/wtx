@@ -17,21 +17,22 @@ use crate::{
   },
 };
 
-create_enum! {
-  /// Refers a concrete cipher suite implementation.
-  #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-  pub enum CipherSuite<u16> {
-    /// `Aes128GcmSha256`
-    #[default]
-    Aes128GcmSha256 = (0x1301),
-    /// `Aes256GcmSha384`
-    Aes256GcmSha384 = (0x1302),
-    /// `Chacha20Poly1305Sha256`
-    Chacha20Poly1305Sha256 = (0x1303),
-  }
+/// Refers a concrete cipher suite implementation.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CipherSuite {
+  /// `Aes128GcmSha256`
+  #[default]
+  Aes128GcmSha256 = 0x1301,
+  /// `Aes256GcmSha384`
+  Aes256GcmSha384 = 0x1302,
+  /// `Chacha20Poly1305Sha256`
+  Chacha20Poly1305Sha256 = 0x1303,
 }
 
 impl CipherSuite {
+  pub(crate) const ALL: [Self; 3] =
+    [Self::Aes128GcmSha256, Self::Aes256GcmSha384, Self::Chacha20Poly1305Sha256];
+
   #[inline]
   pub(crate) fn aes_decrypt<'data>(
     self,
@@ -111,20 +112,6 @@ impl CipherSuite {
   }
 
   #[inline]
-  pub(crate) fn hkdf_compute<'data>(
-    self,
-    data: impl IntoIterator<Item = &'data [u8]>,
-    key: &[u8],
-  ) -> crate::Result<TlsDigest> {
-    Ok(match self {
-      CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        TlsDigest::Sha256(HkdfSha256Global::compute(data, key)?)
-      }
-      CipherSuite::Aes256GcmSha384 => TlsDigest::Sha384(HkdfSha384Global::compute(data, key)?),
-    })
-  }
-
-  #[inline]
   pub(crate) fn hkdf_extract(self, salt: Option<&[u8]>, ikm: &[u8]) -> TlsHkdf {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
@@ -175,10 +162,11 @@ impl<'de> Decode<'de, De> for CipherSuite {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, b1, rest @ ..] = dw.bytes() else {
-      return Err(TlsError::InvalidMaxFragmentLength.into());
+      return Err(TlsError::InvalidCipherSuite.into());
     };
+    let element = Self::try_from(u16::from_be_bytes([*b0, *b1]))?;
     *dw.bytes_mut() = rest;
-    Self::try_from(u16::from_be_bytes([*b0, *b1]))
+    Ok(element)
   }
 }
 
@@ -187,5 +175,30 @@ impl Encode<De> for CipherSuite {
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
     Ok(())
+  }
+}
+
+impl From<CipherSuite> for u16 {
+  #[inline]
+  fn from(value: CipherSuite) -> Self {
+    match value {
+      CipherSuite::Aes128GcmSha256 => 0x1301,
+      CipherSuite::Aes256GcmSha384 => 0x1302,
+      CipherSuite::Chacha20Poly1305Sha256 => 0x1303,
+    }
+  }
+}
+
+impl TryFrom<u16> for CipherSuite {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: u16) -> crate::Result<Self> {
+    Ok(match value {
+      0x1301 => CipherSuite::Aes128GcmSha256,
+      0x1302 => CipherSuite::Aes256GcmSha384,
+      0x1303 => CipherSuite::Chacha20Poly1305Sha256,
+      _ => return Err(TlsError::UnsupportedCipherSuite.into()),
+    })
   }
 }

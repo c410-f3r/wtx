@@ -27,7 +27,6 @@ pub(crate) struct ServerHello<'any> {
   legacy_session_id_echo: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   random: [u8; 32],
-  selected_identity: Option<u16>,
   supported_versions: SupportedVersionsServer,
 }
 
@@ -38,7 +37,6 @@ impl<'any> ServerHello<'any> {
     key_share: KeyShareEntry<&'any [u8]>,
     legacy_session_id_echo: ArrayVectorCopy<u8, 32>,
     rng: &mut RNG,
-    selected_identity: Option<u16>,
   ) -> Self
   where
     RNG: CryptoRng,
@@ -58,7 +56,6 @@ impl<'any> ServerHello<'any> {
       legacy_session_id_echo,
       legacy_version: ProtocolVersion::Tls12,
       random,
-      selected_identity,
       supported_versions: SupportedVersionsServer::new(ProtocolVersion::Tls13),
     }
   }
@@ -69,10 +66,6 @@ impl<'any> ServerHello<'any> {
 
   pub(crate) fn key_share(&self) -> &KeyShareEntry<&'any [u8]> {
     &self.key_share
-  }
-
-  pub(crate) fn selected_identity(&self) -> Option<u16> {
-    self.selected_identity
   }
 }
 
@@ -87,7 +80,6 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     let cipher_suite = CipherSuite::decode(dw)?;
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
     let mut key_share_opt = None;
-    let mut selected_identity = None;
     let mut supported_versions_opt = None;
     u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
@@ -98,7 +90,6 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
             extension_ty,
             is_hello_retry_request,
             &mut key_share_opt,
-            &mut selected_identity,
             &mut supported_versions_opt,
           )
         })?;
@@ -109,7 +100,9 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
       return Err(TlsError::MissingSupportedVersions.into());
     };
     if supported_versions.selected_version != ProtocolVersion::Tls13 {
-      return Err(TlsError::UnsupportedTlsVersion.into());
+      return Err(
+        TlsError::UnsupportedTlsVersion(Some(supported_versions.selected_version)).into(),
+      );
     }
     Ok(Self {
       cipher_suite,
@@ -119,7 +112,6 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
       legacy_session_id_echo,
       legacy_version,
       random,
-      selected_identity,
       supported_versions,
     })
   }
@@ -137,11 +129,6 @@ impl Encode<De> for ServerHello<'_> {
     self.cipher_suite.encode(ew)?;
     ew.buffer().push(self.legacy_compression_method)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      if !self.is_hello_retry_request
-        && let Some(identity) = self.selected_identity
-      {
-        Extension::new(ExtensionTy::PreSharedKey, identity).encode(local_ew)?;
-      }
       {
         *local_ew.is_hello_retry_request_mut() = self.is_hello_retry_request;
         let rslt = Extension::new(ExtensionTy::KeyShare, &self.key_share).encode(local_ew);
@@ -160,7 +147,6 @@ fn manage_extension<'de>(
   extension_ty: ExtensionTy,
   is_hello_retry_request: bool,
   key_share_opt: &mut Option<KeyShareEntry<&'de [u8]>>,
-  selected_identity_opt: &mut Option<u16>,
   supported_versions_opt: &mut Option<SupportedVersionsServer>,
 ) -> crate::Result<()> {
   match extension_ty {
@@ -180,7 +166,6 @@ fn manage_extension<'de>(
       if is_hello_retry_request {
         return Err(TlsError::MismatchedExtension.into());
       }
-      *selected_identity_opt = Some(<u16 as Decode<'_, De>>::decode(dw)?);
     }
     ExtensionTy::SupportedVersions => {
       *supported_versions_opt = Some(SupportedVersionsServer::decode(dw)?);

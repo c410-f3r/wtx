@@ -7,10 +7,10 @@ use crate::{
   tls::{TlsConfig, TlsModeUnverified},
 };
 
-#[ignore]
+#[cfg_attr(miri, ignore)]
 #[wtx::test]
 async fn popular_sites() {
-  send_recv("https://google.com".into()).await;
+  send_recv("https://www.google.com".into()).await;
   send_recv("https://github.com".into()).await;
 }
 

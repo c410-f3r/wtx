@@ -33,7 +33,7 @@ use crate::{
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
   misc::{TcpParams, Uri},
-  rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
+  rng::{ChaCha20, CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
   stream::{Stream, StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -86,13 +86,13 @@ pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, RNG, TM>
+impl<EX, TM>
   Http2ServerFramework<
     (),
     fn(crate::Error),
     EX,
     fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
-    RNG,
+    ChaCha20,
     TM,
   >
 where
@@ -102,7 +102,7 @@ where
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
-  pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
@@ -113,7 +113,7 @@ where
       hrc: HttpRecvParams::with_optioned_params(),
       local_runtime_cb,
       local_runtimes: None,
-      rng,
+      rng: ChaCha20::from_std_random()?,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })
@@ -121,20 +121,20 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<RNG, TM>
+impl<TM>
   Http2ServerFramework<
     (),
     fn(crate::Error),
     crate::executor::TokioExecutor,
     fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
-    RNG,
+    ChaCha20,
     TM,
   >
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
-  pub fn tokio(rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
-    Self::new(crate::executor::TokioExecutor::default(), rng, tls_config)
+  pub fn tokio(tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+    Self::new(crate::executor::TokioExecutor::default(), tls_config)
   }
 }
 
@@ -255,7 +255,6 @@ where
     M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
     M::Aux: Send,
     <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
-    <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
     <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
     <EX::TcpStream as StreamReader>::read(..): Send,
     <EX::TcpStream as StreamWriter>::write_all(..): Send,
@@ -263,7 +262,6 @@ where
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read_skip(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all_vectored(..): Send,
-    // TcpStream as StreamWriter>::write_all(..)
   {
     let http_router = Arc::new(hr);
     let uri = Uri::new(addr);
@@ -668,7 +666,6 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TM>(
   let stream_fun_rslt = stream_fun.await;
   let _rslt = server_stream.common().clear().await;
   if let Err(err) = stream_fun_rslt {
-    server_stream.common().send_go_away(Http2ErrorCode::InternalError).await;
     stream_error_cb(err);
   }
 }

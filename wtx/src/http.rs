@@ -28,7 +28,7 @@ mod router;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
-pub(crate) mod u31;
+mod u31;
 mod version;
 pub mod web_authn;
 #[cfg(feature = "web-socket-server-framework")]
@@ -58,6 +58,7 @@ pub use router::{Router, RouterBuilder, RouterError, RouterMatch, RouterMatchPar
 #[cfg(feature = "http-session")]
 pub use session::*;
 pub use status_code::StatusCode;
+pub use u31::U31;
 pub use version::Version;
 #[cfg(feature = "web-socket-server-framework")]
 pub use web_socket_server_framework::{WebSocketRouter, WebSocketServerFramework};

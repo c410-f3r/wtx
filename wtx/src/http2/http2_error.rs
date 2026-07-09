@@ -1,3 +1,5 @@
+use crate::http::U31;
+
 macro_rules! invalid_frame_bytes {
   () => {
     "Received bytes don't have an expected format or stream ID is zero."
@@ -133,7 +135,9 @@ pub enum Http2Error {
   /// Type is out of range or unsupported.
   UnknownSettingFrameTy,
   /// Stream id doesn't exist locally
-  UnknownStreamId,
+  UnknownControlStreamId(U31),
+  /// Stream id doesn't exist locally
+  UnknownOverallStreamId(U31),
   /// A stream ID is not locally stored.
   UnknownStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of window update frames.

@@ -1,11 +1,11 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, Len, SEQUENCE_TAG, asn1_writer,
-    decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, Len, OID_PKCS1_RSASSAPSS, Oid,
+    SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
-  x509::{AlgorithmIdentifier, X509Error},
+  x509::{AlgorithmIdentifier, RsassaPssParams, X509Error},
 };
 
 /// Used to carry the public key and identify the algorithm with which the key is used
@@ -23,6 +23,21 @@ impl<B> SubjectPublicKeyInfo<B> {
   #[inline]
   pub const fn new(algorithm: AlgorithmIdentifier<B>, subject_public_key: BitString<B>) -> Self {
     Self { algorithm, subject_public_key }
+  }
+
+  /// Additional algorithm metadata
+  #[inline]
+  pub fn params_oid(&self) -> Option<Oid>
+  where
+    B: Lease<[u8]>,
+  {
+    let bytes = self.algorithm.parameters.as_ref()?.bytes();
+    let mut dw = DecodeWrapper::new(bytes.lease(), Asn1DecodeWrapperAux::default());
+    if self.algorithm.algorithm == OID_PKCS1_RSASSAPSS {
+      Some(RsassaPssParams::<&[u8]>::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
+    } else {
+      Oid::decode(&mut dw).ok()
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-  http::u31::U31,
+  http::U31,
   http2::{
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},

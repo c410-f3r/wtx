@@ -30,14 +30,11 @@ mod ktls_bindings;
 mod ktls_stream;
 mod misc;
 mod protocol;
-mod psk;
-mod psk_ty;
 mod read_record_info;
 #[cfg(test)]
 mod tests;
 mod tls_acceptor;
 mod tls_buffer;
-mod tls_certificate;
 mod tls_config;
 mod tls_connector;
 mod tls_decode_wrapper;
@@ -52,13 +49,8 @@ mod tls_stream_bridge;
 mod tls_stream_reader;
 mod tls_stream_writer;
 
-use crate::{
-  collections::ArrayVectorCopy,
-  crypto::MAX_HASH_LEN,
-  sync::{Arc, SyncMutex},
-};
+use crate::{collections::ArrayVectorCopy, crypto::MAX_HASH_LEN};
 pub use handshake_path::HandshakePath;
-use hashbrown::HashMap;
 pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
@@ -73,12 +65,9 @@ pub use protocol::{
   server_name::ServerName,
   server_name_list::ServerNameList,
 };
-pub use psk::Psk;
-pub use psk_ty::PskTy;
 pub use read_record_info::ReadRecordInfo;
 pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};
 pub use tls_buffer::TlsBuffer;
-pub use tls_certificate::TlsCertificateTy;
 pub use tls_config::TlsConfig;
 pub use tls_connector::{
   ManageClientRecordsState, ManageRemainingServerRecordsInput, ManageRemainingServerRecordsState,
@@ -91,7 +80,7 @@ pub use tls_stream_bridge::{TlsStreamBridge, TlsStreamBridgeData};
 pub use tls_stream_reader::TlsStreamReader;
 pub use tls_stream_writer::TlsStreamWriter;
 
-const DLFT_MAX_FRAGMENT_LENGTH: u16 = (1 << 14) - 1;
+const DLFT_MAX_FRAGMENT_LENGTH: u16 = 1 << 14;
 pub(crate) const MAX_ALPN_LEN: usize = 4;
 const MAX_CIPHER_KEY_LEN: usize = 32;
 const HELLO_RETRY_REQUEST: [u8; 32] = [
@@ -102,10 +91,9 @@ const IV_LEN: usize = 12;
 const MAX_CERTIFICATES: usize = 3;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
 const MAX_KEY_SHARES_LEN: usize = 2;
+const CHANGE_CIPHER_SPEC: [u8; 6] = [20, 3, 3, 0, 1, 1];
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 
-/// Pre Shared Keys
-pub type Psks = Arc<SyncMutex<HashMap<ArrayVectorCopy<u8, MAX_HASH_LEN>, Psk>>>;
 /// Identifier of a certificate
 pub type SerialNumber = ArrayVectorCopy<u8, 20>;
 /// The hash of the server's leaf certificate.

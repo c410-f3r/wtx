@@ -1,8 +1,10 @@
 use crate::{
-  http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, u31::U31},
+  _AFTER_CLOSE_TIMEOUT_MS,
+  futures::Sleep,
+  http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, U31},
   http2::{
-    Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scorp, Sovrp,
-    Windows,
+    Http2Data, Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scorp,
+    Sovrp, Windows,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
@@ -15,15 +17,14 @@ use crate::{
   },
   misc::{ConnectionState, Usize},
   stream::{BufStreamReader, StreamReader, StreamWriter},
-  sync::{AtomicU8, AtomicWaker},
+  sync::AtomicU8,
   tls::{TlsMode, TlsStreamWriter},
 };
 use core::{
-  future::poll_fn,
   mem,
-  pin::pin,
   sync::atomic::Ordering,
   task::{Context, Poll},
+  time::Duration,
 };
 
 pub(crate) fn check_content_length(
@@ -55,7 +56,9 @@ pub(crate) fn scrp_mut(
   scrp: &mut Scorp,
   stream_id: U31,
 ) -> crate::Result<&mut StreamControlRecvParams> {
-  scrp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
+  scrp
+    .get_mut(&stream_id)
+    .ok_or_else(|| protocol_err(Http2Error::UnknownControlStreamId(stream_id)))
 }
 
 #[track_caller]
@@ -63,7 +66,9 @@ pub(crate) fn sorp_mut(
   sorp: &mut Sovrp,
   stream_id: U31,
 ) -> crate::Result<&mut StreamOverallRecvParams> {
-  sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
+  sorp
+    .get_mut(&stream_id)
+    .ok_or_else(|| protocol_err(Http2Error::UnknownOverallStreamId(stream_id)))
 }
 
 /// * If the streams are in overall receiving mode, than `scrp` don't exist.
@@ -91,7 +96,7 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
   }
 
   let sorp = sorp_mut(&mut hdpm.hb.sorps, stream_id)?;
-  match (connection_state(is_conn_open).is_open(), sorp.is_stream_open) {
+  match (!connection_state(is_conn_open).is_closed(), sorp.is_stream_open) {
     (false, false | true) => {
       let msg_buffer = mem::take(&mut sorp.msg_buffer);
       drop(hdpm.hb.sorps.remove(&stream_id));
@@ -108,22 +113,92 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
   Poll::Pending
 }
 
+pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_RECV: bool>(
+  error_code: Http2ErrorCode,
+  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+) where
+  SW: StreamWriter,
+  TM: TlsMode,
+{
+  async fn close<SW, TM, const IS_CLIENT: bool>(
+    error_code: Http2ErrorCode,
+    inner: &Http2Inner<SW, TM, IS_CLIENT>,
+    last_stream_id: U31,
+  ) where
+    SW: StreamWriter,
+    TM: TlsMode,
+  {
+    let mut lock = inner.wd.lock().await;
+    do_send_go_away(error_code, last_stream_id, &mut *lock).await;
+    lock.close();
+    wake_tasks(&mut *inner.hd.lock().await);
+  }
+
+  async fn do_send_go_away<SW, TM, const IS_CLIENT: bool>(
+    error_code: Http2ErrorCode,
+    last_stream_id: U31,
+    stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
+  ) where
+    SW: StreamWriter,
+    TM: TlsMode,
+  {
+    let gaf = GoAwayFrame::new(error_code, last_stream_id);
+    let _rslt = stream_writer.write_all(&gaf.bytes()).await;
+  }
+
+  fn wake_tasks<const IS_CLIENT: bool>(hd: &mut Http2Data<IS_CLIENT>) {
+    let hdpm = hd.parts_mut();
+    while let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
+      elem.wake();
+    }
+    for (_, value) in hdpm.hb.scrps.drain() {
+      value.waker.wake();
+    }
+    for (_, value) in hdpm.hb.sorps.drain() {
+      value.waker.wake();
+    }
+  }
+
+  if error_code.is_fatal() {
+    if IS_RECV {
+      inner.wd.lock().await.close();
+      wake_tasks(&mut *inner.hd.lock().await);
+    } else {
+      let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
+      close(error_code, inner, last_stream_id).await;
+    }
+    return;
+  }
+  inner.is_conn_open.store(ConnectionState::Draining.into(), Ordering::Relaxed);
+  let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
+  do_send_go_away(error_code, last_stream_id, &mut *inner.wd.lock().await).await;
+  wake_tasks(&mut *inner.hd.lock().await);
+  let Ok(sleep) = Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS)) else {
+    close(Http2ErrorCode::ProtocolError, inner, last_stream_id).await;
+    return;
+  };
+  let _sleep_rslt = sleep.await;
+  close(Http2ErrorCode::ProtocolError, inner, last_stream_id).await;
+}
+
 #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
 pub(crate) async fn process_higher_operation_err<SW, TM, const IS_CLIENT: bool>(
   err: &crate::Error,
   inner: &Http2Inner<SW, TM, IS_CLIENT>,
 ) where
   SW: StreamWriter,
+  TM: TlsMode,
 {
   match err {
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
-      send_go_away(*http2_error_code, inner).await;
+      manage_termination::<_, _, _, false>(*http2_error_code, inner).await;
     }
     crate::Error::Http2FlowControlError(_, stream_id) => {
       let _ = send_reset_stream(Http2ErrorCode::FlowControlError, inner, stream_id.into()).await;
     }
     _ => {
-      send_go_away(Http2ErrorCode::InternalError, inner).await;
+      // Triggers a very specific path where `manage_termination` does not reply a `GOAWAY`.
+      manage_termination::<_, _, _, false>(Http2ErrorCode::ProtocolError, inner).await;
     }
   }
 }
@@ -133,56 +208,40 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
 }
 
 pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
-  is_conn_open: &AtomicU8,
   max_frame_len: u32,
   nrb: &mut BufStreamReader,
-  read_frame_waker: &AtomicWaker,
   stream_reader: &mut SR,
 ) -> crate::Result<Option<FrameInit>>
 where
   SR: StreamReader,
 {
-  let mut fut = pin!(async move {
-    for _ in 0.._max_frames_mismatches!() {
-      let Some(array) = nrb.read_header::<_, 9>(stream_reader).await? else {
-        return Ok(None);
-      };
-      let (fi_opt, data_len) = FrameInit::from_array(array);
-      if data_len > max_frame_len {
-        return Err(crate::Error::Http2ErrorGoAway(
-          Http2ErrorCode::FrameSizeError,
-          Http2Error::LargeArbitraryFrameLen { received: data_len },
-        ));
+  for _ in 0.._max_frames_mismatches!() {
+    let Some(array) = nrb.read_header::<_, 9>(stream_reader).await? else {
+      return Ok(None);
+    };
+    let (fi_opt, data_len) = FrameInit::from_array(array);
+    if data_len > max_frame_len {
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::FrameSizeError,
+        Http2Error::LargeArbitraryFrameLen { received: data_len },
+      ));
+    }
+    let data_len_usize = *Usize::from_u32(data_len);
+    let Some(fi) = fi_opt else {
+      if IS_HEADER_BLOCK {
+        return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      let data_len_usize = *Usize::from_u32(data_len);
-      let Some(fi) = fi_opt else {
-        if IS_HEADER_BLOCK {
-          return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
-        }
-        if data_len > 32 {
-          return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
-        }
-        nrb.read_payload(data_len_usize, stream_reader).await?;
-        continue;
-      };
-      _trace!("Received frame: {fi:?}");
+      if data_len > 32 {
+        return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
+      }
       nrb.read_payload(data_len_usize, stream_reader).await?;
-      return Ok(Some(fi));
-    }
-    Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
-  });
-  poll_fn(|cx| match fut.as_mut().poll(cx) {
-    Poll::Ready(Ok(fi)) => Poll::Ready(Ok(fi)),
-    Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
-    Poll::Pending => {
-      read_frame_waker.register(cx.waker());
-      if connection_state(is_conn_open).is_closed() {
-        return Poll::Ready(Ok(None));
-      }
-      Poll::Pending
-    }
-  })
-  .await
+      continue;
+    };
+    _trace!("Received frame: {fi:?}");
+    nrb.read_payload(data_len_usize, stream_reader).await?;
+    return Ok(Some(fi));
+  }
+  Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
 }
 
 pub(crate) async fn read_header_and_continuations<
@@ -192,12 +251,10 @@ pub(crate) async fn read_header_and_continuations<
   const IS_TRAILER: bool,
 >(
   fi: FrameInit,
-  is_conn_open: &AtomicU8,
   hp: &mut HttpRecvParams,
   hpack_dec: &mut HpackDecoder,
   msg_buffer: &mut MsgBufferString,
   nrb: &mut BufStreamReader,
-  read_frame_waker: &AtomicWaker,
   stream_reader: &mut SR,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
@@ -237,14 +294,7 @@ where
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
-      let Some(frame_fi) = read_frame::<_, true>(
-        is_conn_open,
-        hp.max_frame_len(),
-        nrb,
-        read_frame_waker,
-        stream_reader,
-      )
-      .await?
+      let Some(frame_fi) = read_frame::<_, true>(hp.max_frame_len(), nrb, stream_reader).await?
       else {
         return Err(protocol_err(Http2Error::IncompleteHeader));
       };
@@ -282,32 +332,6 @@ where
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
-pub(crate) async fn send_go_away<SW, TM, const IS_CLIENT: bool>(
-  error_code: Http2ErrorCode,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
-) where
-  SW: StreamWriter,
-{
-  let last_stream_id = {
-    let mut hd_guard = inner.hd.lock().await;
-    let hdpm = hd_guard.parts_mut();
-    inner.is_conn_open.store(ConnectionState::Closed.into(), Ordering::Relaxed);
-    while let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
-      elem.wake();
-    }
-    for (_, value) in hdpm.hb.scrps.drain() {
-      value.waker.wake();
-    }
-    for (_, value) in hdpm.hb.sorps.drain() {
-      value.waker.wake();
-    }
-    inner.read_frame_waker.wake();
-    *hdpm.last_stream_id
-  };
-  let gaf = GoAwayFrame::new(error_code, last_stream_id);
-  let _rslt = inner.wd.lock().await.stream_writer.write_all(&gaf.bytes()).await;
-}
-
 pub(crate) async fn send_reset_stream<SW, TM, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
   inner: &Http2Inner<SW, TM, IS_CLIENT>,
@@ -315,15 +339,11 @@ pub(crate) async fn send_reset_stream<SW, TM, const IS_CLIENT: bool>(
 ) -> bool
 where
   SW: StreamWriter,
+  TM: TlsMode,
 {
+  let rsf = ResetStreamFrame::new(error_code, stream_id);
   let mut has_stored = false;
-  let _rslt = inner
-    .wd
-    .lock()
-    .await
-    .stream_writer
-    .write_all(&ResetStreamFrame::new(error_code, stream_id).bytes())
-    .await;
+  let _rslt = inner.wd.lock().await.write_all(&rsf.bytes()).await;
   let mut hd_guard = inner.hd.lock().await;
   if let Some(elem) = hd_guard.parts_mut().hb.scrps.get_mut(&stream_id) {
     has_stored = true;
@@ -395,16 +415,12 @@ pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result
 
 pub(crate) async fn write_array<SW, TM, const N: usize, const IS_CLIENT: bool>(
   array: [&[u8]; N],
-  is_conn_open: &AtomicU8,
   stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
   TM: TlsMode,
 {
-  if connection_state(is_conn_open).is_closed() {
-    return Ok(());
-  }
   _trace!("Sending frame(s): {:?}", {
     let process = |elem: &mut Option<_>, frame: &[u8]| {
       let [b0, b1, b2, b3, b4, b5, b6, b7, b8, rest @ ..] = frame else {

@@ -1,6 +1,6 @@
 use crate::{
   collections::ArrayStringU8,
-  http::{Header, HttpRecvParams, KnownHeaderName, Method, MsgBufferString, u31::U31},
+  http::{Header, HttpRecvParams, KnownHeaderName, Method, MsgBufferString, U31},
   http2::{
     Http2Error,
     common_flags::CommonFlags,

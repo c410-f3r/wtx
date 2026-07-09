@@ -7,10 +7,14 @@ create_enum! {
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   /// TLS version
   pub enum ProtocolVersion<u16> {
+    /// TLS 1.0
+    Tls1 = (0x0301),
+    /// TLS 1.1
+    Tls11 = (0x0302),
     /// TLS 1.2
-    Tls12 = (771),
+    Tls12 = (0x0303),
     /// TLS 1.3
-    Tls13 = (772)
+    Tls13 = (0x0304)
   }
 }
 

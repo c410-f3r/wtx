@@ -28,6 +28,7 @@ static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 type LocalWebSocket<NC, const IS_CLIENT: bool> =
   WebSocket<NC, TcpStream, TlsModePlainText, IS_CLIENT>;
 
+#[cfg_attr(miri, ignore)]
 #[cfg(feature = "zlib-rs")]
 #[test]
 fn compressed() {
@@ -50,6 +51,7 @@ fn compressed() {
   });
 }
 
+#[cfg_attr(miri, ignore)]
 #[test]
 fn uncompressed() {
   let runtime = Arc::new(StdRuntime::new());
@@ -57,6 +59,7 @@ fn uncompressed() {
   runtime.block_on(do_test_client_and_server_frames(((), false), ((), false), runtime_fut));
 }
 
+#[cfg_attr(miri, ignore)]
 #[test]
 fn uncompressed_no_masking() {
   let runtime = Arc::new(StdRuntime::new());

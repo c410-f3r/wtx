@@ -4,8 +4,8 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::{Lease as _, TryArithmetic as _},
   tls::{
-    CipherSuite, IV_LEN, MAX_CIPHER_KEY_LEN, MAX_HASH_LEN, MAX_LABEL_LEN, PskTy,
-    tls_hash::TlsDigest, tls_hkdf::TlsHkdf,
+    CipherSuite, IV_LEN, MAX_CIPHER_KEY_LEN, MAX_HASH_LEN, MAX_LABEL_LEN, tls_hash::TlsDigest,
+    tls_hkdf::TlsHkdf,
   },
 };
 use core::fmt::{Debug, Formatter};
@@ -39,7 +39,6 @@ impl KeySchedule {
         },
       },
       write: KeyScheduleWrite {
-        binder_key: cipher_suite.hkdf_extract(None, &[]),
         state: KeyScheduleState {
           counter,
           cipher_key: ArrayVectorCopy::new(),
@@ -57,21 +56,8 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn early_secret(&mut self, psk: Option<(&[u8], PskTy)>) -> crate::Result<()> {
-    if let Some(el) = psk {
-      self.hkdf_extract(el.0);
-      let label = match el.1 {
-        PskTy::External => b"ext binder",
-        PskTy::Resumption => b"res binder",
-      };
-      let mut context_buffer = ArrayVectorCopy::<_, MAX_HASH_LEN>::new();
-      context_buffer.extend_from_copyable_slice(self.cipher_suite.hash_digest([]).lease())?;
-      let context = Some(&*context_buffer);
-      let binder_key = derive_secret(self.cipher_suite, context, label, &self.common_hkdf)?;
-      self.write.binder_key = self.cipher_suite.hkdf_from_prk(&binder_key)?;
-    } else {
-      self.hkdf_extract(&self.cipher_suite.zeroed_hash());
-    }
+  pub(crate) fn early_secret(&mut self) -> crate::Result<()> {
+    self.hkdf_extract(&self.cipher_suite.zeroed_hash());
     self.common_secret = derive_secret_derived(self.cipher_suite, &self.common_hkdf)?;
     Ok(())
   }
@@ -271,22 +257,10 @@ impl KeyScheduleState {
 }
 
 pub(crate) struct KeyScheduleWrite {
-  binder_key: TlsHkdf,
   state: KeyScheduleState,
 }
 
 impl KeyScheduleWrite {
-  #[inline]
-  pub(crate) fn create_psk_binder(
-    &self,
-    cipher_suite: CipherSuite,
-    transcript_hash: &[u8],
-  ) -> crate::Result<TlsDigest> {
-    let hash_len = cipher_suite.hash_len();
-    let key = hkdf_expand_label::<MAX_HASH_LEN>(None, b"finished", hash_len, &self.binder_key)?;
-    cipher_suite.hkdf_compute([transcript_hash], &key)
-  }
-
   #[inline]
   pub(crate) const fn state_mut(&mut self) -> &mut KeyScheduleState {
     &mut self.state

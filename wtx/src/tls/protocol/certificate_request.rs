@@ -81,9 +81,7 @@ fn manage_extension(
     | ExtensionTy::OidFilters
     | ExtensionTy::SignedCertificateTimestamp
     | ExtensionTy::SignatureAlgorithmsCert
-    | ExtensionTy::StatusRequest => {
-      return Err(TlsError::UnsupportedExtension.into());
-    }
+    | ExtensionTy::StatusRequest => {}
     ExtensionTy::ApplicationLayerProtocolNegotiation
     | ExtensionTy::ClientCertificateType
     | ExtensionTy::Cookie

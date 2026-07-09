@@ -4,11 +4,11 @@ use crate::{
   codec::{Decode, Encode},
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    MaxFragmentLength, TlsCertificateTy, TlsError,
+    MaxFragmentLength, TlsError,
     de::De,
     misc::{duplicated_error, u16_chunk},
     protocol::{
-      alpn::Alpn, cert_type::CertType, extension::Extension, extension_ty::ExtensionTy,
+      alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
     },
     tls_decode_wrapper::TlsDecodeWrapper,
@@ -19,9 +19,7 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct EncryptedExtensions {
   alpn: Option<Alpn>,
-  client_cert_type: Option<TlsCertificateTy>,
   max_fragment_length: Option<MaxFragmentLength>,
-  server_cert_type: Option<TlsCertificateTy>,
   server_name: Option<ServerNameList>,
   supported_groups: Option<SupportedGroups>,
 }
@@ -29,20 +27,11 @@ pub(crate) struct EncryptedExtensions {
 impl EncryptedExtensions {
   pub(crate) fn new(
     alpn: Option<Alpn>,
-    client_cert_type: Option<TlsCertificateTy>,
     max_fragment_length: Option<MaxFragmentLength>,
-    server_cert_type: Option<TlsCertificateTy>,
     server_name: Option<ServerNameList>,
     supported_groups: Option<SupportedGroups>,
   ) -> Self {
-    Self {
-      alpn,
-      client_cert_type,
-      max_fragment_length,
-      server_cert_type,
-      server_name,
-      supported_groups,
-    }
+    Self { alpn, max_fragment_length, server_name, supported_groups }
   }
 
   pub(crate) const fn max_fragment_length(&self) -> Option<MaxFragmentLength> {
@@ -55,9 +44,7 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidEncryptedExtensions;
     let mut alpn = None;
-    let mut client_cert_type = None;
-    let mut max_fragment_length: Option<MaxFragmentLength> = None;
-    let mut server_cert_type = None;
+    let mut max_fragment_length = None;
     let mut server_name = None;
     let mut supported_groups = None;
     u16_chunk(dw, err, |local_dw| {
@@ -66,11 +53,9 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
         u16_chunk(local_dw, err, |local_local_dw| {
           manage_extension(
             &mut alpn,
-            &mut client_cert_type,
             local_local_dw,
             extension_ty,
             &mut max_fragment_length,
-            &mut server_cert_type,
             &mut server_name,
             &mut supported_groups,
           )
@@ -78,40 +63,20 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
       }
       Ok(())
     })?;
-    Ok(Self {
-      alpn,
-      client_cert_type,
-      max_fragment_length,
-      server_cert_type,
-      server_name,
-      supported_groups,
-    })
+    Ok(Self { alpn, max_fragment_length, server_name, supported_groups })
   }
 }
 
 impl Encode<De> for EncryptedExtensions {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    let Self {
-      alpn,
-      client_cert_type,
-      max_fragment_length,
-      server_cert_type,
-      server_name,
-      supported_groups,
-    } = self;
+    let Self { alpn, max_fragment_length, server_name, supported_groups } = self;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       if let Some(el) = alpn {
         Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, el).encode(local_ew)?;
       }
-      if let Some(el) = client_cert_type {
-        Extension::new(ExtensionTy::ClientCertificateType, CertType(*el)).encode(local_ew)?;
-      }
       if let Some(el) = max_fragment_length {
         Extension::new(ExtensionTy::MaxFragmentLength, el).encode(local_ew)?;
-      }
-      if let Some(el) = server_cert_type {
-        Extension::new(ExtensionTy::ServerCertificateType, CertType(*el)).encode(local_ew)?;
       }
       if let Some(el) = server_name {
         Extension::new(ExtensionTy::ServerName, el).encode(local_ew)?;
@@ -127,11 +92,9 @@ impl Encode<De> for EncryptedExtensions {
 #[inline]
 fn manage_extension(
   alpn: &mut Option<Alpn>,
-  client_cert_type: &mut Option<TlsCertificateTy>,
   dw: &mut TlsDecodeWrapper<'_>,
   extension_ty: ExtensionTy,
   max_fragment_length: &mut Option<MaxFragmentLength>,
-  server_cert_type: &mut Option<TlsCertificateTy>,
   server_name: &mut Option<ServerNameList>,
   supported_groups: &mut Option<SupportedGroups>,
 ) -> crate::Result<()> {
@@ -140,17 +103,9 @@ fn manage_extension(
       duplicated_error(alpn.is_some())?;
       *alpn = Some(Alpn::decode(dw)?);
     }
-    ExtensionTy::ClientCertificateType => {
-      duplicated_error(client_cert_type.is_some())?;
-      *client_cert_type = Some(CertType::decode(dw)?.0);
-    }
     ExtensionTy::MaxFragmentLength => {
       duplicated_error(max_fragment_length.is_some())?;
       *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
-    }
-    ExtensionTy::ServerCertificateType => {
-      duplicated_error(server_cert_type.is_some())?;
-      *server_cert_type = Some(CertType::decode(dw)?.0);
     }
     ExtensionTy::ServerName => {
       duplicated_error(server_name.is_some())?;
@@ -160,9 +115,11 @@ fn manage_extension(
       duplicated_error(supported_groups.is_some())?;
       *supported_groups = Some(SupportedGroups::decode(dw)?);
     }
-    ExtensionTy::EarlyData | ExtensionTy::Heartbeat | ExtensionTy::UseSrtp => {
-      return Err(TlsError::UnsupportedExtension.into());
-    }
+    ExtensionTy::ClientCertificateType
+    | ExtensionTy::EarlyData
+    | ExtensionTy::Heartbeat
+    | ExtensionTy::ServerCertificateType
+    | ExtensionTy::UseSrtp => {}
     ExtensionTy::CertificateAuthorities
     | ExtensionTy::Cookie
     | ExtensionTy::KeyShare

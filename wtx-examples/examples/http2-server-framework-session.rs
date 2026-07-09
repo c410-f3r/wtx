@@ -45,14 +45,11 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut server = Http2ServerFramework::tokio(
-    ChaCha20::from_getrandom()?,
-    TlsConfig::from_keys_pem(
-      TlsModeVerified::default(),
-      PUBLIC_KEY.try_into()?,
-      SECRET_KEY.try_into()?,
-    )?,
-  )?;
+  let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
+    TlsModeVerified::default(),
+    PUBLIC_KEY.try_into()?,
+    SECRET_KEY.try_into()?,
+  )?)?;
   let secret_context = SecretContext::new(server.rng_mut())?;
   let pool = DbPool::new(
     4,
@@ -79,6 +76,7 @@ async fn main() -> wtx::Result<()> {
   )?;
   server
     .set_data(Data { pool, session_manager, session_state: None })
+    .set_error_cb(|err| eprintln!("Error: {err}"))
     .run(&host_from_args(), router)
     .await
 }

@@ -3,8 +3,9 @@ use crate::{
   collections::ArrayVectorU8,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    MAX_KEY_SHARES_LEN, TlsError, de::De, misc::u16_list, protocol::key_share_entry::KeyShareEntry,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    MAX_KEY_SHARES_LEN, NamedGroup, TlsError, de::De, misc::u16_chunk,
+    protocol::key_share_entry::KeyShareEntry, tls_decode_wrapper::TlsDecodeWrapper,
+    tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
@@ -17,7 +18,16 @@ impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut client_shares = ArrayVectorU8::new();
-    u16_list(&mut client_shares, dw, TlsError::InvalidKeyShareClientHello)?;
+    *dw.bytes_mut() = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
+    while let [b0, b1, rest @ ..] = dw.bytes() {
+      let group_rslt = NamedGroup::try_from(u16::from_be_bytes([*b0, *b1]));
+      *dw.bytes_mut() = rest;
+      let opaque = u16_chunk(dw, TlsError::InvalidKeyShareEntry, |el| Ok(el.bytes()))?;
+      let Ok(group) = group_rslt else {
+        continue;
+      };
+      client_shares.push(KeyShareEntry::new(group, opaque))?;
+    }
     Ok(Self { client_shares })
   }
 }

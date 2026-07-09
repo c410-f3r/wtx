@@ -3,7 +3,7 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    NamedGroup, TlsError, de::De, misc::u16_list, tls_decode_wrapper::TlsDecodeWrapper,
+    NamedGroup, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -17,7 +17,12 @@ impl<'de> Decode<'de, De> for SupportedGroups {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut supported_groups = ArrayVectorCopy::new();
-    u16_list(&mut supported_groups, dw, TlsError::InvalidSupportedGroups)?;
+    let bytes = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
+    for [b0, b1] in bytes.as_chunks::<2>().0 {
+      if let Ok(elem) = NamedGroup::try_from(u16::from_be_bytes([*b0, *b1])) {
+        supported_groups.push(elem)?;
+      }
+    }
     Ok(Self { supported_groups })
   }
 }

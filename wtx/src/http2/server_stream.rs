@@ -1,6 +1,6 @@
 use crate::{
   collections::Vector,
-  http::{Method, MsgBufferString, MsgData, Protocol, Response, u31::U31},
+  http::{Method, MsgBufferString, MsgData, Protocol, Response, U31},
   http2::{
     CommonStream, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},

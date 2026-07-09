@@ -8,7 +8,7 @@ if [ "$ARG" != "ci" ]; then
 fi;
 
 cargo build --bin h2load --features h2load --package wtx-internal --release
-cargo run --bin h2load --features h2load --package wtx-internal --release &
+cargo run --bin h2load --features h2load --package wtx-internal --release &> /tmp/h2load-server.txt &
 sleep 1
 
 # -c = Concurrent clients
@@ -16,4 +16,4 @@ sleep 1
 # -n = Requests across all clients
 # -t = System threads
 > /tmp/h2load.txt
-h2load -c128 --log-file=/tmp/h2load.txt -m8 -n131072 --no-tls-proto=h2c -t4 http://localhost:9000
+h2load -c128 --log-file=/tmp/h2load-bench.txt -m8 -n131072 --no-tls-proto=h2c -t4 http://localhost:9000

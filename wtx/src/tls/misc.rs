@@ -36,7 +36,8 @@ pub(crate) fn duplicated_error(is_some: bool) -> crate::Result<()> {
   Ok(())
 }
 
-pub(crate) async fn fetch_rec_from_stream<SR, const CHECK_CCS: bool>(
+#[inline]
+pub(crate) async fn fetch_rec_from_stream<SR, const CHECK_CCS: bool, const IS_CH: bool>(
   kss: Option<&mut KeyScheduleState>,
   max_fragment_length: u16,
   reader_buffer: &mut BufStreamReader,
@@ -58,12 +59,23 @@ where
   }
   let [b0, b1, b2, b3, b4] = header;
   let outer_ty = RecordContentType::try_from(b0)?;
-  let protocol_version = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
-  if ProtocolVersion::try_from(protocol_version).ok() != Some(ProtocolVersion::Tls12) {
-    return unlikely_elem(Err(TlsError::UnsupportedTlsVersion.into()));
+  let protocol_version = {
+    let data = [b1, b2];
+    let dw = &mut TlsDecodeWrapper::from_bytes(&data);
+    ProtocolVersion::try_from(<u16 as Decode<De>>::decode(dw)?)?
+  };
+  if IS_CH && protocol_version != ProtocolVersion::Tls1 {
+    return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
+  }
+  if !IS_CH && protocol_version != ProtocolVersion::Tls12 {
+    return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
   }
   let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
-  if len > max_fragment_length {
+  let mut max_allowed_len = max_fragment_length;
+  if kss.is_some() {
+    max_allowed_len = max_allowed_len.saturating_add(256);
+  }
+  if len > max_allowed_len {
     cold_path();
     return Err(TlsError::ReceivedRecordIsTooLarge.into());
   }
@@ -94,7 +106,9 @@ where
     outer_ty
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
-  Ok(Some(ReadRecordInfo { inner_ty, outer_ty, plaintext_len }))
+  let rri = ReadRecordInfo { inner_ty, outer_ty, plaintext_len };
+  _debug!("TLS HS: Read record: {:?}", &rri);
+  Ok(Some(rri))
 }
 
 #[inline]
@@ -126,7 +140,7 @@ where
     ));
   }
   loop {
-    let Some(rri) = fetch_rec_from_stream::<_, false>(
+    let Some(rri) = fetch_rec_from_stream::<_, false, false>(
       Some(ksr.state_mut()),
       max_fragment_length,
       reader_buffer,
