@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.48.0...wtx-v0.48.1) - 2026-07-10
+
+### Other
+
+- Merge pull request #568 from c410-f3r/misc
+- Stop blocking the first thread in the main loop
+
 ## [0.48.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.9...wtx-v0.48.0) - 2026-07-09
 
 ### Added
