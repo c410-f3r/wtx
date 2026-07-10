@@ -28,8 +28,7 @@ use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
 type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
 
-#[tokio::main]
-async fn main() -> wtx::Result<()> {
+fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
     TlsModeVerified::default(),
@@ -60,8 +59,15 @@ async fn main() -> wtx::Result<()> {
   server
     .set_data(pool)
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run(&host_from_args(), router)
-    .await
+    .run_in_threads(&host_from_args(), router)
+}
+
+async fn db(state: StateClean<'_, LocalPool>, Path(id): Path<u32>) -> wtx::Result<VerbatimParams> {
+  let mut lock = state.data.get_with_unit().await?;
+  let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
+  let name = record.decode::<_, &str>(0)?;
+  state.req.msg_data.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
+  Ok(VerbatimParams(StatusCode::Ok))
 }
 
 async fn deserialization_and_serialization(state: State<'_, LocalPool>) -> wtx::Result<JsonReply> {
@@ -72,14 +78,6 @@ async fn deserialization_and_serialization(state: State<'_, LocalPool>) -> wtx::
   state.req.msg_data.clear();
   serde_json::to_writer(&mut state.req.msg_data.body, &serialize_example)?;
   Ok(JsonReply::default())
-}
-
-async fn db(state: StateClean<'_, LocalPool>, Path(id): Path<u32>) -> wtx::Result<VerbatimParams> {
-  let mut lock = state.data.get_with_unit().await?;
-  let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
-  let name = record.decode::<_, &str>(0)?;
-  state.req.msg_data.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
-  Ok(VerbatimParams(StatusCode::Ok))
 }
 
 async fn hello() -> &'static str {

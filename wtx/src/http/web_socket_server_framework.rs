@@ -256,36 +256,36 @@ where
     let router = build_matcher(&*web_socket_router)?;
     let mut join_handles = Vector::<std::thread::JoinHandle<Result<(), ER>>>::new();
     for _ in 0..runtimes {
-      let thread_addr = String::from(addr);
       let thread_comp = self.compression.clone();
       let thread_error_cb = self.error_cb.clone();
       let thread_executor = self.executor.clone();
       let thread_local_runtime_cb = self.local_runtime_cb.clone();
-      let thread_rng = &mut RNG::from_crypto_rng(&mut self.rng)?;
+      let mut thread_rng = RNG::from_crypto_rng(&mut self.rng)?;
       let thread_router = router.clone();
       let thread_tcp_params = self.tcp_params;
       let thread_tls_config = self.tls_config.clone();
+      let thread_uri = Uri::new(String::from(addr));
       let thread_web_socket_router = web_socket_router.clone();
-      let conn_fut = thread_local_runtime_cb()?.block_on(async move {
-        let uri = Uri::new(thread_addr);
-        let hostname = uri.hostname_with_implied_port();
-        let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
-        loop {
-          let Ok(cp) = conn_params::<CO, EC, EX, RNG, TM, WSR>(
-            (&thread_comp, &thread_error_cb),
-            (thread_rng, thread_tcp_params, &thread_tls_config),
-            &listener,
-            &thread_router,
-            &thread_web_socket_router,
-          )
-          .await
-          else {
-            continue;
-          };
-          let _jh = thread_executor.spawn_local(conn_fut(cp));
-        }
-      });
-      join_handles.push(std::thread::spawn(move || conn_fut))?;
+      join_handles.push(std::thread::spawn(move || {
+        thread_local_runtime_cb()?.block_on(async move {
+          let hostname = thread_uri.hostname_with_implied_port();
+          let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
+          loop {
+            let Ok(cp) = conn_params::<CO, EC, EX, RNG, TM, WSR>(
+              (&thread_comp, &thread_error_cb),
+              (&mut thread_rng, thread_tcp_params, &thread_tls_config),
+              &listener,
+              &thread_router,
+              &thread_web_socket_router,
+            )
+            .await
+            else {
+              continue;
+            };
+            let _jh = thread_executor.spawn_local(conn_fut(cp));
+          }
+        })
+      }))?;
     }
     for join_handle in join_handles {
       join_handle.join().map_err(crate::Error::from)??;

@@ -42,8 +42,7 @@ use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
-#[tokio::main]
-async fn main() -> wtx::Result<()> {
+fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
     TlsModeVerified::default(),
@@ -77,8 +76,7 @@ async fn main() -> wtx::Result<()> {
   server
     .set_data(Data { pool, session_manager, session_state: None })
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run(&host_from_args(), router)
-    .await
+    .run_in_threads(&host_from_args(), router)
 }
 
 async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
