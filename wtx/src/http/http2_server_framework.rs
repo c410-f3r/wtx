@@ -364,64 +364,64 @@ where
       let thread_hrc = self.hrc;
       let thread_http_router = http_router.clone();
       let thread_local_runtime_cb: RC = self.local_runtime_cb.clone();
-      let thread_rng = &mut RNG::from_crypto_rng(&mut self.rng)?;
+      let mut thread_rng = RNG::from_crypto_rng(&mut self.rng)?;
       let thread_tcp_params = self.tcp_params;
       let thread_tls_config = self.tls_config.clone();
       let thread_uri = Uri::new(String::from(addr));
-
-      let conn_fut = thread_local_runtime_cb()?.block_on(async move {
-        let hostname = thread_uri.hostname_with_implied_port();
-        let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
-        let xorshift = &mut Xorshift64::from_simple_seed()?;
-        loop {
-          let Ok(cp) = conn_params(
-            (&thread_data, &thread_error_cb, &thread_executor, thread_hrc),
-            (thread_rng, thread_tcp_params, &thread_tls_config),
-            (&thread_http_router, &listener, xorshift),
-          )
-          .await
-          else {
-            continue;
-          };
-          let _conn_jh = thread_executor.spawn_local(async move {
-            let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
-            let (frame_reader, http2, ip) = match fut.await {
-              Err(err) => {
-                (cp.error_cb)(err.into());
-                return;
-              }
-              Ok(elem) => elem,
+      join_handles.push(std::thread::spawn(move || {
+        thread_local_runtime_cb()?.block_on(async move {
+          let hostname = thread_uri.hostname_with_implied_port();
+          let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
+          let xorshift = &mut Xorshift64::from_simple_seed()?;
+          loop {
+            let Ok(cp) = conn_params(
+              (&thread_data, &thread_error_cb, &thread_executor, thread_hrc),
+              (&mut thread_rng, thread_tcp_params, &thread_tls_config),
+              (&thread_http_router, &listener, xorshift),
+            )
+            .await
+            else {
+              continue;
             };
-            let _frame_reader_jh = cp.executor.spawn_local(frame_reader);
-            loop {
-              let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
-                http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
-              ) {
-                Ok(Some(el)) => el,
-                Ok(None) => break,
+            let _conn_jh = thread_executor.spawn_local(async move {
+              let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+              let (frame_reader, http2, ip) = match fut.await {
                 Err(err) => {
-                  http2.send_go_away(Http2ErrorCode::NoError).await;
-                  (cp.error_cb)(err);
-                  break;
+                  (cp.error_cb)(err.into());
+                  return;
                 }
+                Ok(elem) => elem,
               };
-              let stream_data = cp.data.clone();
-              let stream_error_cb = cp.error_cb.clone();
-              let stream_http_router = cp.http_router.clone();
-              let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
-                headers_aux,
-                ip,
-                opt,
-                server_stream,
-                stream_data,
-                stream_error_cb,
-                stream_http_router,
-              ));
-            }
-          });
-        }
-      });
-      join_handles.push(std::thread::spawn(move || conn_fut))?;
+              let _frame_reader_jh = cp.executor.spawn_local(frame_reader);
+              loop {
+                let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+                  http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
+                ) {
+                  Ok(Some(el)) => el,
+                  Ok(None) => break,
+                  Err(err) => {
+                    http2.send_go_away(Http2ErrorCode::NoError).await;
+                    (cp.error_cb)(err);
+                    break;
+                  }
+                };
+                let stream_data = cp.data.clone();
+                let stream_error_cb = cp.error_cb.clone();
+                let stream_http_router = cp.http_router.clone();
+                let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+                  headers_aux,
+                  ip,
+                  opt,
+                  server_stream,
+                  stream_data,
+                  stream_error_cb,
+                  stream_http_router,
+                ));
+              }
+            });
+          }
+        })
+      }))?;
     }
     for join_handle in join_handles {
       join_handle.join().map_err(crate::Error::from)??;

@@ -15,16 +15,14 @@ use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 type LocalWebSocket = WebSocket<(), TcpStream, TlsModeVerified, false>;
 
-#[tokio::main]
-async fn main() -> wtx::Result<()> {
+fn main() -> wtx::Result<()> {
   WebSocketServerFramework::tokio(TlsConfig::from_keys_pem(
     TlsModeVerified::default(),
     PUBLIC_KEY.try_into()?,
     SECRET_KEY.try_into()?,
   )?)?
   .set_error_cb(|err| eprintln!("Error: {err}"))
-  .run(&host_from_args(), (("/echo", echo),))
-  .await
+  .run_in_threads(&host_from_args(), (("/echo", echo),))
 }
 
 async fn echo(mut buffer: Vector<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {

@@ -21,8 +21,7 @@ use wtx_examples::{
   host_from_args,
 };
 
-#[tokio::main]
-async fn main() -> wtx::Result<()> {
+fn main() -> wtx::Result<()> {
   let router = HttpRouter::new(
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
@@ -33,8 +32,7 @@ async fn main() -> wtx::Result<()> {
     SECRET_KEY.try_into()?,
   )?)?
   .set_data(GrpcManager::from_drsr(QuickProtobuf))
-  .run(&host_from_args(), router)
-  .await
+  .run_in_threads(&host_from_args(), router)
 }
 
 async fn wtx_generic_service_generic_method(
