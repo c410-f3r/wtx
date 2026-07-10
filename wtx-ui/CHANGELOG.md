@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.6.0...wtx-ui-v0.6.1) - 2026-07-10
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.6.0](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.9...wtx-ui-v0.6.0) - 2026-07-09
 
 ### Added
