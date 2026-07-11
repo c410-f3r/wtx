@@ -8,16 +8,16 @@ if [ ! -e "limbo.json" ]; then
     curl -L -o limbo.json https://raw.githubusercontent.com/C2SP/x509-limbo/refs/heads/main/limbo.json
 fi
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-aws-lc-rs,_hack --profile release
+cargo run --bin x509-limbo --features x509-limbo,crypto-aws-lc-rs,_hack --release
 mv ./target/release/x509-limbo /tmp/aws-lc-rs
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-graviola --profile release
+cargo run --bin x509-limbo --features x509-limbo,crypto-graviola --release
 mv ./target/release/x509-limbo /tmp/graviola
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-openssl,_hack --profile release
+cargo run --bin x509-limbo --features x509-limbo,crypto-openssl,_hack --release
 mv ./target/release/x509-limbo /tmp/openssl
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-ring --profile release
+cargo run --bin x509-limbo --features x509-limbo,crypto-ring --release
 mv ./target/release/x509-limbo /tmp/ring
 
 if [ "$ARG" == "bench" ]; then

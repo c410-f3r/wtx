@@ -3,7 +3,6 @@
 extern crate tokio;
 extern crate wtx;
 
-use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
   http::{HttpClient, HttpRecvParams, ReqBuilder},
@@ -11,18 +10,17 @@ use wtx::{
   misc::{Uri, from_utf8_basic},
   rng::{ChaCha20, CryptoSeedableRng},
   stream::Stream,
-  tls::{TlsConfig, TlsConnector, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("https://github.com/c410-f3r/wtx");
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
   let mut rng = ChaCha20::from_getrandom()?;
   let hb = Http2Buffer::new(&mut rng);
   let hrp = HttpRecvParams::with_optioned_params();
   let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
-  let tcr = TlsConnector::new(tls_config, rng, stream).connect().await?;
+  let tcr = TlsConnectorBuilder::tokio(&uri).build(tls_config, rng).await?.connect().await?;
   let (frame_reader, http2) = Http2::connect(hb, hrp, tcr.tls_stream.into_split()?).await?;
   let _jh = tokio::spawn(frame_reader);
   let res = http2

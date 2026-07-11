@@ -14,7 +14,7 @@ use crate::{
   rng::{ChaCha20, CryptoSeedableRng},
   sync::{Arc, AtomicBool},
   tests::_uri,
-  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModePlainText},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModePlainText},
   web_socket::{
     Frame, OpCode, WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin,
     WsCompression, web_socket_compression::NegotiatedWsCompression,
@@ -108,13 +108,14 @@ async fn do_test_client_and_server_frames<CC, SC>(
     })
     .unwrap();
 
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let mut ws = WebSocketConnector::default()
     .set_compression(client_compression)
     .set_no_masking(client_no_masking)
     .connect(
-      TlsConnector::new(&TlsConfig::plaintext(), &mut ChaCha20::from_std_random().unwrap(), stream),
-      &uri.to_ref(),
+      TlsConnectorBuilder::std(uri)
+        .build(&TlsConfig::plaintext(), &mut ChaCha20::from_std_random().unwrap())
+        .await
+        .unwrap(),
     )
     .await
     .unwrap();

@@ -17,7 +17,6 @@ use crate::{
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};
-use std::net::TcpStream;
 
 macro_rules! create_integration_test {
   ($executor:expr, $buffer:expr, $aux:expr, $($fun:path),*) => {{
@@ -46,12 +45,16 @@ macro_rules! create_integration_tests {
           use crate::rng::CryptoSeedableRng;
           let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_postgres.as_str());
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
-          let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-          let mut tls_connector = crate::tls::TlsConnector::new(
+          let mut tls_connector = crate::tls::TlsConnectorBuilder::new(
+            crate::executor::StdExecutor::default(),
+            &uri
+          )
+          .build(
             crate::tls::TlsConfig::plaintext(),
             crate::rng::ChaCha20::from_std_random().unwrap(),
-            stream
-          );
+          )
+          .await
+          .unwrap();
           let client_buffer = crate::database::client::postgres::ClientBuffer::new(usize::MAX, tls_connector.rng_mut());
           crate::database::client::postgres::PostgresClient::<crate::Error, _, _>::connect(
             client_buffer,

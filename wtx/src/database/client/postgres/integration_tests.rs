@@ -13,7 +13,7 @@ use crate::{
   misc::UriRef,
   rng::{ChaCha20, CryptoSeedableRng},
   tests::_vars,
-  tls::{TlsConfig, TlsConnector, TlsModePlainText},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };
 use alloc::string::String;
 use core::ops::Range;
@@ -396,15 +396,12 @@ fn serde_json() {
 
 async fn executor() -> PostgresClient<crate::Error, TcpStream, TlsModePlainText> {
   let uri = UriRef::new(_vars().database_uri_postgres.as_str());
-  let mut tls_connector = TlsConnector::new(
-    TlsConfig::plaintext(),
-    ChaCha20::from_std_random().unwrap(),
-    TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
-  );
+  let mut rng = ChaCha20::from_std_random().unwrap();
+  let client_buffer = ClientBuffer::new(usize::MAX, &mut rng);
   PostgresClient::connect(
-    ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),
+    client_buffer,
     &Config::from_uri(&uri).unwrap(),
-    tls_connector,
+    TlsConnectorBuilder::std(uri).build(TlsConfig::plaintext(), rng).await.unwrap(),
   )
   .await
   .unwrap()

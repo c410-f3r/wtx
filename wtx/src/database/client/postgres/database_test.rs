@@ -6,9 +6,9 @@ use crate::{
     schema_manager::Commands,
   },
   executor::{Executor, Runtime as _, TcpStream},
-  misc::{EnvVars, TcpParams},
+  misc::EnvVars,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsConnector, TlsModePlainText},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };
 use alloc::string::String;
 
@@ -45,11 +45,7 @@ where
       let mut client = PostgresClient::<_, _, _>::connect(
         ClientBuffer::new(MAX_STMTS, &mut rng),
         &Config::from_uri(&uri)?,
-        TlsConnector::new(
-          &tls_config,
-          &mut rng,
-          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
-        ),
+        TlsConnectorBuilder::new(EX::default(), uri).build(&tls_config, &mut rng).await?,
       )
       .await?;
       let mut create_db_query = String::new();
@@ -63,11 +59,7 @@ where
       let mut client = PostgresClient::<ER, _, _>::connect(
         ClientBuffer::new(MAX_STMTS, &mut rng),
         &config,
-        TlsConnector::new(
-          &tls_config,
-          &mut rng,
-          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
-        ),
+        TlsConnectorBuilder::new(EX::default(), uri).build(&tls_config, &mut rng).await?,
       )
       .await?;
       Commands::new(BATCH_SIZE, &mut client).clear_migrate_and_seed(migration_dir).await?;
@@ -79,11 +71,7 @@ where
       let mut client = PostgresClient::<_, _, _>::connect(
         ClientBuffer::new(MAX_STMTS, &mut rng),
         &config,
-        TlsConnector::new(
-          &tls_config,
-          &mut rng,
-          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
-        ),
+        TlsConnectorBuilder::new(EX::default(), uri).build(&tls_config, &mut rng).await?,
       )
       .await?;
       let mut drop_db_query = String::new();

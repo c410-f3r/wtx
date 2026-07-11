@@ -14,6 +14,7 @@ use crate::{
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
 pub struct Http2ClientPoolBuilder<EX, TM> {
+  disable_auto_sni: bool,
   executor: EX,
   hrp: HttpRecvParams,
   len: usize,
@@ -35,6 +36,7 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   ) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     Ok(Self {
+      disable_auto_sni: false,
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
       len,
@@ -46,6 +48,12 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
 }
 
 impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
+  /// If `true`, then the SNI TLS extension won't be added with the hostname of the URL.
+  #[inline]
+  pub const fn disable_auto_sni_mut(&mut self) -> &mut bool {
+    &mut self.disable_auto_sni
+  }
+
   /// See [`HttpRecvParams`].
   #[inline]
   pub const fn http_conn_params_mut(&mut self) -> &mut HttpRecvParams {
@@ -76,6 +84,7 @@ where
       pool: SimplePool::new(
         self.len,
         Http2RM {
+          disable_auto_sni: self.disable_auto_sni,
           executor: self.executor,
           hrp: self.hrp,
           rng: AtomicCell::new(self.rng),

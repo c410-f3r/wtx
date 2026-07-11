@@ -22,7 +22,7 @@ use crate::{
   collections::SuffixPusherVectorMut,
   crypto::{Hash as _, Sha1HashGlobal},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{Lease, SingleTypeStorage, UriRef, bytes_split1},
+  misc::{Lease, SingleTypeStorage, Uri, bytes_split1},
   rng::{CryptoRng, Rng, SeedableRng as _, Xorshift64},
   stream::{Stream, StreamWriter as _},
   tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsMode},
@@ -125,19 +125,20 @@ where
 {
   /// Sends data to establish an WebSocket connection.
   #[inline]
-  pub async fn connect<RNG, S, TC, TM>(
+  pub async fn connect<RNG, S, STR, TC, TM, U>(
     mut self,
-    tls_connector: TlsConnector<RNG, S, TC>,
-    uri: &UriRef<'_>,
+    tls_connector: TlsConnector<RNG, S, TC, U>,
   ) -> Result<WebSocket<C::NegotiatedCompression, S, TM, true>, E>
   where
     RNG: CryptoRng,
     S: Stream,
+    STR: Lease<str>,
     TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
     TM: TlsMode,
+    U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
   {
     self.wsb.clear();
-    let mut tls_stream = tls_connector.connect().await?;
+    let mut out = tls_connector.connect().await?;
     let key_buffer = &mut [0; 26];
     let key = {
       let mut sw = self.wsb.network_buffer.suffix_pusher();
@@ -147,16 +148,16 @@ where
         self.headers,
         key_buffer,
         self.no_masking,
-        &mut tls_stream.rng,
-        uri,
+        &mut out.rng,
+        out.uri.lease(),
       )?;
-      tls_stream.tls_stream.write_all(sw.curr()).await?;
+      out.tls_stream.write_all(sw.curr()).await?;
       key
     };
     let (nc, len) = loop {
       let nb = &mut self.wsb.network_buffer;
       let _ = nb
-        .read_arbitrary(READ_INCREMENT, &mut tls_stream.tls_stream)
+        .read_arbitrary(READ_INCREMENT, &mut out.tls_stream)
         .await?
         .ok_or(WebSocketError::ClosedConnection)
         .map_err(crate::Error::from)?;
@@ -184,7 +185,7 @@ where
     };
     self.wsb.network_buffer.set_indices(len, len);
     let rng = Xorshift64::from_simple_seed()?;
-    Ok(WebSocket::new(nc, self.no_masking, rng, tls_stream.tls_stream, self.wsb))
+    Ok(WebSocket::new(nc, self.no_masking, rng, out.tls_stream, self.wsb))
   }
 }
 
@@ -200,18 +201,19 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 }
 
 /// Client request
-fn build_req<'headers, 'kb, C, RNG>(
+fn build_req<'headers, 'kb, C, RNG, STR>(
   compression: &C,
   sw: &mut SuffixPusherVectorMut<'_, u8>,
   headers: impl IntoIterator<Item = (&'headers str, &'headers str)>,
   key_buffer: &'kb mut [u8; 26],
   no_masking: bool,
   rng: &mut RNG,
-  uri: &UriRef<'_>,
+  uri: &Uri<STR>,
 ) -> crate::Result<&'kb [u8]>
 where
   C: WsCompression<true>,
   RNG: CryptoRng,
+  STR: Lease<str>,
 {
   let host = match uri.port() {
     Some(80 | 443) => uri.hostname().as_bytes(),

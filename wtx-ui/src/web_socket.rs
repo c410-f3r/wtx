@@ -1,26 +1,22 @@
 use tokio::{
   io::{AsyncBufReadExt as _, BufReader},
-  net::{TcpListener, TcpStream},
+  net::TcpListener,
 };
 use wtx::{
   collections::Vector,
   misc::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModeVerified},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeVerified},
   web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri_ref = UriRef::new(uri);
-  let stream = TcpStream::connect(uri_ref.hostname_with_implied_port()).await?;
   let mut ws = WebSocketConnector::default()
     .connect(
-      TlsConnector::new(
-        TlsConfig::from_ccadb(TlsModeVerified::default())?,
-        ChaCha20::from_std_random()?,
-        stream,
-      ),
-      &uri_ref,
+      TlsConnectorBuilder::tokio(uri_ref)
+        .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_std_random()?)
+        .await?,
     )
     .await?;
   let mut read_frame_buffer = Vector::new();

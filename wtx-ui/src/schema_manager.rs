@@ -1,7 +1,6 @@
 use crate::clap::{SchemaManager, SchemaManagerCommands};
 use alloc::borrow::Cow;
 use std::{env::current_dir, path::Path};
-use tokio::net::TcpStream;
 use wtx::{
   codec::CodecController,
   collections::Vector,
@@ -14,7 +13,7 @@ use wtx::{
   },
   misc::{EnvVars, UriRef, find_file},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsConnector},
+  tls::{TlsConfig, TlsConnectorBuilder},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
@@ -29,9 +28,9 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
-      let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
-      let mut tls_connector =
-        TlsConnector::new(TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream);
+      let mut tls_connector = TlsConnectorBuilder::tokio(uri)
+        .build(TlsConfig::plaintext(), ChaCha20::from_std_random()?)
+        .await?;
       let executor = PostgresClient::<wtx::Error, _, _>::connect(
         ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),
         &Config::from_uri(&uri)?,

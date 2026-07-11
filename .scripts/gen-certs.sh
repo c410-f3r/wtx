@@ -21,11 +21,17 @@ db_file_init() {
 openssl genpkey -algorithm ed25519 -out $CERTS_DIR/key.pem
 openssl req -new -key $CERTS_DIR/key.pem -subj "/C=FI/CN=vahid" -out $CERTS_DIR/key.csr
 openssl genpkey -algorithm ed25519 -out $CERTS_DIR/root-ca.key
-openssl req -x509 -sha256 -days 1825 -subj "/C=FI/CN=vahid" -key $CERTS_DIR/root-ca.key -out $CERTS_DIR/root-ca.crt
-cat <<'EOF' >> $CERTS_DIR/localhost.ext
+openssl req -x509 -sha256 -days 1825 -subj "/C=FI/CN=vahid Root CA" \
+    -key $CERTS_DIR/root-ca.key \
+    -out $CERTS_DIR/root-ca.crt \
+    -addext "authorityKeyIdentifier=keyid:always,issuer" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "subjectKeyIdentifier=hash"
+cat <<'EOF' > $CERTS_DIR/localhost.ext
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 subjectAltName = @alt_names
+subjectKeyIdentifier=hash
 [alt_names]
 DNS.1 = localhost
 IP.1 = 127.0.0.1

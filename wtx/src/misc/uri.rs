@@ -735,6 +735,13 @@ mod tests {
   }
 
   #[test]
+  fn ip() {
+    let uri = UriString::new("http://127.0.0.1/foo".into());
+    assert_eq!(uri.host(), "127.0.0.1");
+    assert_eq!(uri.hostname(), "127.0.0.1");
+  }
+
+  #[test]
   fn multiple_question_markets() {
     let uri = UriString::new("http://example.com/path?key=value?1".into());
     assert_eq!(uri.path(), "/path");

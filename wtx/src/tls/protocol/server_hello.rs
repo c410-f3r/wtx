@@ -150,26 +150,16 @@ fn manage_extension<'de>(
   supported_versions_opt: &mut Option<SupportedVersionsServer>,
 ) -> crate::Result<()> {
   match extension_ty {
-    ExtensionTy::Cookie => {
-      if is_hello_retry_request {
-        return Err(TlsError::UnsupportedExtension.into());
-      }
-      return Err(TlsError::MismatchedExtension.into());
-    }
     ExtensionTy::KeyShare => {
       *dw.is_hello_retry_request_mut() = is_hello_retry_request;
       let rslt = KeyShareEntry::decode(dw);
       *dw.is_hello_retry_request_mut() = false;
       *key_share_opt = Some(rslt?);
     }
-    ExtensionTy::PreSharedKey => {
-      if is_hello_retry_request {
-        return Err(TlsError::MismatchedExtension.into());
-      }
-    }
     ExtensionTy::SupportedVersions => {
       *supported_versions_opt = Some(SupportedVersionsServer::decode(dw)?);
     }
+    ExtensionTy::Cookie | ExtensionTy::PreSharedKey => {}
     ExtensionTy::ApplicationLayerProtocolNegotiation
     | ExtensionTy::CertificateAuthorities
     | ExtensionTy::ClientCertificateType

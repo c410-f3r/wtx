@@ -224,6 +224,16 @@ where
   }
 }
 
+impl<T, const N: usize> AsRef<[T]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn as_ref(&self) -> &[T] {
+    self
+  }
+}
+
 impl<T, const N: usize> Borrow<[T]> for ArrayVectorCopy<T, N>
 where
   T: Copy,

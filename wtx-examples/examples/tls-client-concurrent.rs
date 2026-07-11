@@ -9,21 +9,24 @@
 extern crate tokio;
 extern crate wtx;
 
-use tokio::{net::TcpStream, sync::mpsc::unbounded_channel};
+use tokio::sync::mpsc::unbounded_channel;
 use wtx::{
   collections::ArrayVectorCopy,
-  misc::process_utf8_stream,
+  misc::{Uri, process_utf8_stream},
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{Stream, StreamReader, StreamWriter},
-  tls::{TlsConfig, TlsConnector, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let stream = TcpStream::connect("github.com:443").await?;
-  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
-  let tls_connector = TlsConnector::new(tls_config, ChaCha20::from_getrandom()?, stream);
-  let tls_stream = tls_connector.connect().await?.tls_stream;
+  let uri = Uri::new("github.com:443");
+  let tls_stream = TlsConnectorBuilder::tokio(uri)
+    .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_getrandom()?)
+    .await?
+    .connect()
+    .await?
+    .tls_stream;
   let (stream_bridge, mut stream_reader, mut stream_writer) = tls_stream.into_split()?;
   let (sender, mut receiver) = unbounded_channel();
 

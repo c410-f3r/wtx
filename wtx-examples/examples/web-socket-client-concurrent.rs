@@ -10,13 +10,12 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_examples;
 
-use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
   misc::Uri,
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AsyncMutex},
-  tls::{TlsConfig, TlsConnector, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
   web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
 use wtx_examples::{ROOT_CA, uri_from_args};
@@ -24,17 +23,13 @@ use wtx_examples::{ROOT_CA, uri_from_args};
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new(uri_from_args());
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
-  let ws = WebSocketConnector::default()
-    .connect(
-      TlsConnector::new(
-        TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
-        ChaCha20::from_getrandom()?,
-        stream,
-      ),
-      &uri.to_ref(),
+  let tls_connector = TlsConnectorBuilder::tokio(uri)
+    .build(
+      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
+      ChaCha20::from_getrandom()?,
     )
     .await?;
+  let ws = WebSocketConnector::default().connect(tls_connector).await?;
   let (stream_bridge, mut stream_reader, stream_writer) = ws.into_split()?;
   let stream_writer_bridge = Arc::new(AsyncMutex::new(stream_writer));
   let stream_writer_writer = stream_writer_bridge.clone();

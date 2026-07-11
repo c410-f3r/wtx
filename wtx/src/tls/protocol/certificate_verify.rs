@@ -19,6 +19,10 @@ impl<'any> CertificateVerify<'any> {
     Self { algorithm, signature }
   }
 
+  pub(crate) fn algorithm(&self) -> SignatureTy {
+    self.algorithm
+  }
+
   pub(crate) fn signature(&self) -> &'any [u8] {
     self.signature
   }

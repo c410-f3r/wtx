@@ -3,20 +3,22 @@
 extern crate tokio;
 extern crate wtx;
 
-use tokio::net::TcpStream;
 use wtx::{
-  misc::process_utf8_stream,
+  misc::{Uri, process_utf8_stream},
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{StreamReader, StreamWriter},
-  tls::{TlsConfig, TlsConnector, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let stream = TcpStream::connect("github.com:443").await?;
-  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
-  let tls_connector = TlsConnector::new(tls_config, ChaCha20::from_getrandom()?, stream);
-  let mut tls_stream = tls_connector.connect().await?.tls_stream;
+  let uri = Uri::new("github.com:443");
+  let mut tls_stream = TlsConnectorBuilder::tokio(uri)
+    .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_getrandom()?)
+    .await?
+    .connect()
+    .await?
+    .tls_stream;
   let request = b"GET /c410-f3r/wtx HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n";
   tls_stream.write_all(request).await?;
   let mut partial_char = None;

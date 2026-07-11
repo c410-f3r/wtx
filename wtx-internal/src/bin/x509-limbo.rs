@@ -365,7 +365,7 @@ fn evaluate_test_case<'bytes>(
     &[]
   };
   let rslt_sn = leaf.validate_subject_name(
-    peer_names.iter().map(|el| ServerName::from_ascii(el.value.as_bytes()).unwrap()),
+    peer_names.iter().map(|el| ServerName::from_ascii_bytes(el.value.as_bytes()).unwrap()),
   );
 
   let rslt = rslt_chain.and(rslt_sn);

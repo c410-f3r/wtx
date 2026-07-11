@@ -33,7 +33,7 @@ pub enum ExecutorTy {
 }
 
 /// Generic executor
-pub trait Executor {
+pub trait Executor: Default {
   /// See [`ExecutorTy`].
   const TY: ExecutorTy;
 

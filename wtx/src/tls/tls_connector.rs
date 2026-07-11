@@ -2,7 +2,7 @@ use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, Encode as _},
   collections::{ArrayVectorCopy, ArrayVectorU8},
-  misc::{Lease, SingleTypeStorage},
+  misc::{Lease, SingleTypeStorage, Uri},
   rng::CryptoRng,
   stream::Stream,
   tls::{
@@ -29,12 +29,9 @@ use crate::{
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::{TlsDigest, TlsHash},
   },
-  x509::{CvEndEntity, CvIntermediate, SubjectPublicKeyInfo, validate_signature},
+  x509::{CvEndEntity, CvIntermediate, ServerName, SubjectPublicKeyInfo},
 };
-use core::{
-  mem,
-  ops::{ControlFlow, Range},
-};
+use core::ops::{ControlFlow, Range};
 
 /// Returned by [`TlsConnector::manage_client_records`].
 #[derive(Debug, PartialEq)]
@@ -66,7 +63,7 @@ pub enum ManageRemainingServerRecordsState {
 ///
 /// Performs TLS handshakes for clients.
 #[derive(Debug)]
-pub struct TlsConnector<RNG, S, TC> {
+pub struct TlsConnector<RNG, S, TC, U> {
   buffer: TlsBuffer,
   config: TC,
   handshake_path: HandshakePath,
@@ -76,15 +73,17 @@ pub struct TlsConnector<RNG, S, TC> {
   rng: RNG,
   stream: S,
   transcript_hash: TlsHash,
+  uri: U,
 }
 
-impl<RNG, S, TC, TM> TlsConnector<RNG, S, TC>
+impl<RNG, S, STR, TC, TM, U> TlsConnector<RNG, S, TC, U>
 where
+  STR: Lease<str>,
   TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+  U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
 {
-  /// The main parameters are provided by the user.
   #[inline]
-  pub fn new(config: TC, rng: RNG, stream: S) -> Self {
+  pub(crate) fn new(config: TC, rng: RNG, stream: S, uri: U) -> Self {
     let cfg_ref = config.lease();
     let key_schedule = KeySchedule::default();
     let transcript_hash = key_schedule.cipher_suite().hash_new();
@@ -101,6 +100,7 @@ where
       rng,
       stream,
       transcript_hash,
+      uri,
     }
   }
 
@@ -147,18 +147,20 @@ where
   }
 }
 
-impl<RNG, S, TC, TM> TlsConnector<RNG, S, TC>
+impl<RNG, S, STR, TC, TM, U> TlsConnector<RNG, S, TC, U>
 where
   RNG: CryptoRng,
   S: Stream,
+  STR: Lease<str>,
   TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
   TM: TlsMode,
+  U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
 {
   /// High level operation that automatically performs a full asynchronous handshake.
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn connect(mut self) -> crate::Result<TlsConnectOutput<RNG, S, TM>> {
+  pub async fn connect(mut self) -> crate::Result<TlsConnectOutput<RNG, S, TM, U>> {
     if TM::TY.is_plain_text() {
       return Ok(TlsConnectOutput {
         handshake_path: self.handshake_path,
@@ -172,6 +174,7 @@ where
           self.stream,
           self.config.lease().mode().clone(),
         ),
+        uri: self.uri,
       });
     }
     let secrets = self.write_client_hello()?;
@@ -218,6 +221,7 @@ where
         self.stream,
         self.config.lease().mode().clone(),
       ),
+      uri: self.uri,
     })
   }
 
@@ -325,14 +329,15 @@ where
           return Err(TlsError::UnsupportedMtls.into());
         }
         HandshakeType::Certificate => {
-          let certificate_record_begin_idx = self.buffer.reader_buffer.antecedent_end_idx();
+          let filled = self.buffer.reader_buffer.filled();
           Self::manage_certificate(
-            certificate_record_begin_idx,
             self.config.lease(),
+            filled,
             &self.key_schedule,
             mrsri,
             &mut dw,
             &self.transcript_hash,
+            self.uri.lease(),
           )?;
         }
         HandshakeType::CertificateVerify => {
@@ -340,9 +345,8 @@ where
           mrsri.transcript_digest = self.transcript_hash.clone().finalize();
         }
         HandshakeType::Finished => {
-          let prev = mem::replace(dw.cipher_suite_mut(), self.key_schedule.cipher_suite());
+          *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
           let finished = Finished::decode(&mut dw)?;
-          *dw.cipher_suite_mut() = prev;
           self
             .key_schedule
             .read_mut()
@@ -404,12 +408,13 @@ where
   }
 
   fn manage_certificate(
-    certificate_record_begin_idx: usize,
     config: &TlsConfig<TM>,
+    filled: &[u8],
     key_schedule: &KeySchedule,
     mrsri: &mut ManageRemainingServerRecordsInput,
     remote_dw: &mut TlsDecodeWrapper<'_>,
     transcript_hash: &TlsHash,
+    uri: &Uri<STR>,
   ) -> crate::Result<()> {
     if TM::TY.is_unverified() {
       return Ok(());
@@ -427,15 +432,19 @@ where
         Asn1DecodeWrapperAux::default(),
       );
       let cert = crate::x509::Certificate::decode(&mut dw)?;
-      let spki_offset = spki_offset();
+      let filled_ptr = filled.as_ptr().addr();
+      let certificate_bytes_ptr = end_entity.certificate_bytes().as_ptr().addr();
+      let offset = certificate_bytes_ptr.wrapping_sub(filled_ptr);
       mrsri.spki_range = dw.decode_aux.spki_range();
-      mrsri.spki_range.start = mrsri.spki_range.start.wrapping_add(spki_offset);
-      mrsri.spki_range.start = mrsri.spki_range.start.wrapping_add(certificate_record_begin_idx);
-      mrsri.spki_range.end = mrsri.spki_range.end.wrapping_add(spki_offset);
-      mrsri.spki_range.end = mrsri.spki_range.end.wrapping_add(certificate_record_begin_idx);
+      mrsri.spki_range.start = mrsri.spki_range.start.wrapping_add(offset);
+      mrsri.spki_range.end = mrsri.spki_range.end.wrapping_add(offset);
       let sig = dw.decode_aux.tbs_cert(end_entity.certificate_bytes()).unwrap_or_default();
       CvEndEntity::from_certificate(cert, sig)?
     };
+    if !TM::TY.is_unverified() {
+      let server_name = ServerName::from_ascii_bytes(uri.hostname().as_bytes())?;
+      cv_end_entity.validate_subject_name([server_name])?;
+    }
     let mut cv_intermediates = ArrayVectorU8::<_, MAX_CERTIFICATES>::new();
     for intermediate in intermediates {
       let cv_intermediate = {
@@ -469,13 +478,14 @@ where
     }
     let certificate_verify = CertificateVerify::decode(remote_dw)?;
     let msg = server_sig_msg(mrsri.transcript_digest.lease())?;
-    validate_signature(
+    let spki = &SubjectPublicKeyInfo::<&[u8]>::decode(&mut crate::codec::DecodeWrapper::new(
+      filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
+      Asn1DecodeWrapperAux::default(),
+    ))?;
+    certificate_verify.algorithm().validate_signature(
+      spki.subject_public_key.bytes().lease(),
       &msg,
       certificate_verify.signature(),
-      &SubjectPublicKeyInfo::<&[u8]>::decode(&mut crate::codec::DecodeWrapper::new(
-        filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
-        Asn1DecodeWrapperAux::default(),
-      ))?,
     )?;
     Ok(())
   }
@@ -498,7 +508,7 @@ where
 
 /// Returned by [`TlsConnector::connect`].
 #[derive(Debug)]
-pub struct TlsConnectOutput<RNG, S, TM> {
+pub struct TlsConnectOutput<RNG, S, TM, U> {
   /// See [`HandshakePath`].
   pub handshake_path: HandshakePath,
   /// See [`NamedGroup`].
@@ -509,8 +519,6 @@ pub struct TlsConnectOutput<RNG, S, TM> {
   pub server_end_point: TlsServerEndPoint,
   /// See [`TlsStream`]
   pub tls_stream: TlsStream<S, TM, true>,
-}
-
-const fn spki_offset() -> usize {
-  11
+  /// Uri
+  pub uri: U,
 }

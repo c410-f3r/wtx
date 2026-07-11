@@ -118,6 +118,8 @@ pub enum TlsError {
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleAlgorithmTy,
   /// The server has a set of suites that the client don't support
+  ServerHasNoCompatibleAlgorithmTyForCert,
+  /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleCypherSuite,
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleKeyShare,

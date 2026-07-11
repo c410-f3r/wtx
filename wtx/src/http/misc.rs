@@ -18,18 +18,3 @@ pub(crate) fn push_h2_alpn<TM>(tc: &mut crate::tls::TlsConfig<TM>) -> crate::Res
   tc.alpn_mut().get_or_insert_default().protocol_name_list.push("h2".as_bytes().try_into()?)?;
   Ok(())
 }
-
-#[cfg(feature = "http2-client-pool")]
-pub(crate) fn push_server_name<S, TM>(
-  tc: &mut crate::tls::TlsConfig<TM>,
-  uri: &crate::misc::Uri<S>,
-) -> crate::Result<()>
-where
-  S: crate::misc::Lease<str>,
-{
-  tc.server_name_mut()
-    .get_or_insert_default()
-    .server_name_list
-    .push(crate::tls::ServerName::from_name(uri.hostname().try_into()?))?;
-  Ok(())
-}
