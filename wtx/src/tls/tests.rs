@@ -4,9 +4,9 @@ use crate::{
   rng::{ChaCha20, CryptoSeedableRng},
   stream::{StreamReader, StreamWriter},
   tests::_uri,
-  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModeUnverified},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeUnverified},
 };
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
 
 const TM: TlsModeUnverified = TlsModeUnverified::new();
 
@@ -22,8 +22,10 @@ async fn simple_connection(runtime: &StdRuntime) {
 
   let _client_jh = runtime
     .spawn(async move {
-      let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-      let mut tls_stream = TlsConnector::new(TlsConfig::new(TM, now), &mut client_rng, stream)
+      let mut tls_stream = TlsConnectorBuilder::std(uri)
+        .build(TlsConfig::new(TM, now), &mut client_rng)
+        .await
+        .unwrap()
         .connect()
         .await
         .unwrap()

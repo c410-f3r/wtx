@@ -37,8 +37,6 @@ async fn connection(stream: TcpStream) -> wtx::Result<()> {
     };
     let slice = bytes.get(..read.get()).unwrap_or_default();
     tls_stream.write_all(slice).await?;
-    tls_stream.send_close_notify().await?;
-    break;
   }
   Ok(())
 }

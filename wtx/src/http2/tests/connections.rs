@@ -10,7 +10,7 @@ use crate::{
   rng::{ChaCha20, CryptoSeedableRng, SeedableRng, Xorshift64},
   stream::Stream as _,
   tests::_uri,
-  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModePlainText},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };
 use core::time::Duration;
 use std::net::{TcpListener, TcpStream};
@@ -29,13 +29,14 @@ fn connections() {
 async fn client(uri: &UriString, runtime: &StdRuntime) {
   let mut msg_buffer = MsgBufferString::default();
   msg_buffer.headers.reserve(6, 1).unwrap();
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-  let tls_stream =
-    TlsConnector::new(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap(), stream)
-      .connect()
-      .await
-      .unwrap()
-      .tls_stream;
+  let tls_stream = TlsConnectorBuilder::std(uri)
+    .build(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap())
+    .await
+    .unwrap()
+    .connect()
+    .await
+    .unwrap()
+    .tls_stream;
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
     HttpRecvParams::with_optioned_params(),

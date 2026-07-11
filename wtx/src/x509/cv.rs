@@ -30,18 +30,6 @@ use crate::{
   },
 };
 
-/// Verifies `signature` over `msg` using the public key contained in this certificate.
-#[inline]
-pub fn validate_signature(
-  msg: &[u8],
-  signature: &[u8],
-  spki: &SubjectPublicKeyInfo<&[u8]>,
-) -> crate::Result<()> {
-  let signature_ty = SignatureTy::try_from(spki)?;
-  signature_ty.validate_signature(spki.subject_public_key.bytes().lease(), msg, signature)?;
-  Ok(())
-}
-
 #[inline]
 pub(crate) fn validate_chain<'any, B, const IS_EE: bool>(
   cert: &'any CvCertificate<&'any [u8], IS_EE>,
@@ -92,7 +80,7 @@ where
   }
 
   if !cert.is_self_signed && cert.authority_key_identifier.is_none() {
-    *last_err = Some(X509CvError::HasIncompatibleSignature);
+    *last_err = Some(X509CvError::InvalidAuthorityKeyIdentifier);
     return false;
   }
 
@@ -561,7 +549,9 @@ where
 {
   let child_sig_alg = &child.signature_algorithm;
   let par_params_oid = parent.params_oid();
-  match SignatureTy::try_from((&child_sig_alg.algorithm, par_params_oid.as_ref())).and_then(|el| {
+  let len = parent.subject_public_key.bytes().lease().len();
+  let tuple = (len, &child_sig_alg.algorithm, par_params_oid.as_ref());
+  match SignatureTy::try_from(tuple).and_then(|el| {
     el.validate_signature(
       parent.subject_public_key.bytes().lease(),
       child.signature_msg.lease(),

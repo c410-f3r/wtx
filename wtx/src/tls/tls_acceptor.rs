@@ -250,13 +250,14 @@ where
     }
     let current = self.buffer.reader_buffer.current();
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
-    let mut remote_dw = TlsDecodeWrapper::from_bytes(plaintext);
-    let hs = Handshake::<&[u8]>::decode(&mut remote_dw)?;
+    let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
+    let hs = Handshake::<&[u8]>::decode(&mut dw)?;
     if hs.msg_type != HandshakeType::Finished {
       return Err(TlsError::InvalidHandshake.into());
     }
-    *remote_dw.bytes_mut() = hs.data;
-    let finished = Finished::decode(&mut remote_dw)?;
+    *dw.bytes_mut() = hs.data;
+    *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
+    let finished = Finished::decode(&mut dw)?;
     self.key_schedule.read_mut().state_mut().verify_finished_record(
       self.transcript_hash.clone().finalize().lease(),
       finished.verify_data(),
@@ -325,9 +326,12 @@ where
     if let Some(elem) = max_fragment_length {
       self.max_fragment_length = elem.num();
     }
-    // Ensures negotiated signature actually matches the configured public/private key.
     let signature_ty = seek_signature_ty(
       &client_hello.data.tls_config().signature_algorithms,
+      &[self.config.lease().inner.public_key.0],
+    )?;
+    let _ = seek_signature_ty_cert(
+      &client_hello.data.tls_config().signature_algorithms_cert,
       &[self.config.lease().inner.public_key.0],
     )?;
     let legacy_session_id = *client_hello.data.legacy_session_id();
@@ -440,4 +444,20 @@ where
     }
   }
   Err(TlsError::ServerHasNoCompatibleAlgorithmTy.into())
+}
+
+fn seek_signature_ty_cert<'client, 'rslt, 'server>(
+  client: &'client [SignatureTy],
+  server: &'server [SignatureTy],
+) -> crate::Result<SignatureTy>
+where
+  'client: 'rslt,
+  'server: 'rslt,
+{
+  for server_el in server {
+    if client.iter().any(|client_el| client_el == server_el) {
+      return Ok(*server_el);
+    }
+  }
+  Err(TlsError::ServerHasNoCompatibleAlgorithmTyForCert.into())
 }

@@ -51,9 +51,9 @@ impl<'any> CvEndEntity<&'any [u8]> {
   #[inline]
   pub fn validate_subject_name<'sn>(
     &self,
-    sn_slice: impl IntoIterator<Item = ServerName<&'sn [u8]>>,
+    sn_iter: impl IntoIterator<Item = ServerName<&'sn [u8]>>,
   ) -> crate::Result<()> {
-    let Some(sn) = sn_slice.into_iter().next() else {
+    let Some(sn) = sn_iter.into_iter().next() else {
       return Ok(());
     };
     let ip_buffer = &mut [0; 16];

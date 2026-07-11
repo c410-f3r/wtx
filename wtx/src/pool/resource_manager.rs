@@ -63,13 +63,13 @@ impl<F> SimpleRM<F> {
   }
 }
 
-impl<E, F, R> ResourceManager for SimpleRM<F>
+impl<ER, F, R> ResourceManager for SimpleRM<F>
 where
-  E: From<crate::Error>,
-  F: Fn() -> Result<R, E>,
+  ER: From<crate::Error>,
+  F: Fn() -> Result<R, ER>,
 {
   type CreateAux = ();
-  type Error = E;
+  type Error = ER;
   type RecycleAux = ();
   type Resource = R;
 
@@ -112,30 +112,46 @@ pub(crate) mod database {
       DEFAULT_MAX_STMTS, DbClient as _,
       client::postgres::{ClientBuffer, PostgresClient},
     },
-    executor::TcpStream,
+    executor::Executor,
     misc::{Secret, SecretContext, TcpParams},
     pool::ResourceManager,
     rng::ChaCha20,
     sync::{Arc, AtomicCell},
-    tls::{TlsConfig, TlsConnector, TlsMode},
+    tls::{TlsConfig, TlsConnectorBuilder, TlsMode},
   };
   use core::{marker::PhantomData, mem};
 
   /// Manages generic database executors.
   #[derive(Debug)]
-  pub struct PostgresRM<E, S, TM> {
+  pub struct PostgresRM<ER, EX, TM> {
+    _executor: EX,
     max_stmts: usize,
-    phantom: PhantomData<(fn() -> E, S)>,
+    phantom: PhantomData<fn() -> ER>,
     rng: AtomicCell<ChaCha20>,
     secret: Secret,
     tcp_params: TcpParams,
     tls_config: Arc<TlsConfig<TM>>,
   }
 
-  impl<E, S, TM> PostgresRM<E, S, TM> {
+  #[cfg(feature = "tokio")]
+  impl<ER, TM> PostgresRM<ER, crate::executor::TokioExecutor, TM> {
+    /// [`Self::new`] with the elements provided by the tokio project.
+    #[inline]
+    pub fn tokio(
+      rng: ChaCha20,
+      secret_context: SecretContext,
+      tls_config: TlsConfig<TM>,
+      uri: &mut [u8],
+    ) -> crate::Result<Self> {
+      Self::new(crate::executor::TokioExecutor::default(), rng, secret_context, tls_config, uri)
+    }
+  }
+
+  impl<ER, EX, TM> PostgresRM<ER, EX, TM> {
     /// Generic resource manager
     #[inline]
     pub fn new(
+      executor: EX,
       mut rng: ChaCha20,
       secret_context: SecretContext,
       tls_config: TlsConfig<TM>,
@@ -143,6 +159,7 @@ pub(crate) mod database {
     ) -> crate::Result<Self> {
       let secret = Secret::new(uri, &mut rng, secret_context)?;
       Ok(Self {
+        _executor: executor,
         max_stmts: DEFAULT_MAX_STMTS,
         phantom: PhantomData,
         rng: AtomicCell::new(rng),
@@ -153,16 +170,16 @@ pub(crate) mod database {
     }
   }
 
-  impl<E, S, TM> ResourceManager for PostgresRM<E, S, TM>
+  impl<ER, EX, TM> ResourceManager for PostgresRM<ER, EX, TM>
   where
-    E: From<crate::Error>,
-    S: TcpStream,
+    ER: From<crate::Error>,
+    EX: Executor,
     TM: TlsMode,
   {
     type CreateAux = ();
-    type Error = E;
+    type Error = ER;
     type RecycleAux = ();
-    type Resource = PostgresClient<E, S, TM>;
+    type Resource = PostgresClient<ER, EX::TcpStream, TM>;
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -170,8 +187,10 @@ pub(crate) mod database {
       let rng = &mut &self.rng;
       let tls_config = &*self.tls_config;
       Ok(_executor!(&self.secret, |postgres_config, uri| {
-        let stream = S::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
-        let tls_connector = TlsConnector::new(tls_config, rng, stream);
+        let tls_connector = TlsConnectorBuilder::new(EX::default(), uri)
+          .set_tcp_params(self.tcp_params)
+          .build(tls_config, rng)
+          .await?;
         PostgresClient::connect(client_buffer, &postgres_config, tls_connector)
       }))
     }
@@ -192,8 +211,10 @@ pub(crate) mod database {
       let tls_config = &*self.tls_config;
       mem::swap(&mut client_buffer, &mut resource.cb);
       *resource = _executor!(&self.secret, |postgres_config, uri| {
-        let stream = S::connect(uri.hostname_with_implied_port(), self.tcp_params).await?;
-        let tls_connector = TlsConnector::new(tls_config, rng, stream);
+        let tls_connector = TlsConnectorBuilder::new(EX::default(), uri)
+          .set_tcp_params(self.tcp_params)
+          .build(tls_config, rng)
+          .await?;
         PostgresClient::connect(client_buffer, &postgres_config, tls_connector)
       });
       Ok(())

@@ -22,10 +22,10 @@
 //! ALTER TABLE _wtx.session ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
 //! ```
 
-use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
   database::{DbClient, Record},
+  executor::TokioExecutor,
   http::{
     MsgData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     http2_server_framework::{
@@ -39,7 +39,7 @@ use wtx::{
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream, TlsModeVerified>>;
+type DbPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TlsModeVerified>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
@@ -52,7 +52,7 @@ fn main() -> wtx::Result<()> {
   let secret_context = SecretContext::new(server.rng_mut())?;
   let pool = DbPool::new(
     4,
-    PostgresRM::new(
+    PostgresRM::tokio(
       ChaCha20::from_crypto_rng(server.rng_mut())?,
       secret_context.clone(),
       TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,

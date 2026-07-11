@@ -14,7 +14,6 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | Specification            | URL                                                              |
 | ------------------------ | ---------------------------------------------------------------- |
 | `gRPC`                   | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
-| `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
 | `PostgreSQL`             | <https://www.postgresql.org/docs/current/protocol.html>          |
 | `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc8446>                  |

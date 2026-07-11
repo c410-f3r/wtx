@@ -107,6 +107,20 @@ impl<TM> TlsConfig<TM> {
     &mut self.inner.alpn
   }
 
+  /// See [`CipherSuite`].
+  #[inline]
+  pub const fn cipher_suites(&self) -> &ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }> {
+    &self.inner.cipher_suites
+  }
+
+  /// Mutable version of [`Self::cipher_suites`].
+  #[inline]
+  pub const fn cipher_suites_mut(
+    &mut self,
+  ) -> &mut ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }> {
+    &mut self.inner.cipher_suites
+  }
+
   /// See [`CvPolicy`].
   #[inline]
   pub const fn cv_policy(&self) -> &CvPolicy<ShortBoxSliceU16<u8>> {
@@ -139,6 +153,20 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub const fn mode(&self) -> &TM {
     &self.inner.mode
+  }
+
+  /// See [`NamedGroup`].
+  #[inline]
+  pub const fn named_groups(&self) -> &ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
+    &self.inner.named_groups
+  }
+
+  /// Mutable version of [`Self::named_groups`].
+  #[inline]
+  pub const fn named_groups_mut(
+    &mut self,
+  ) -> &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
+    &mut self.inner.named_groups
   }
 
   /// See [`ServerNameList`].

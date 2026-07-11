@@ -36,8 +36,12 @@ impl Signature for P256Graviola {
 
   #[inline]
   fn validate(pk: &[u8], msg: &[u8], signature: &[u8]) -> crate::Result<()> {
-    ecdsa::VerifyingKey::<P256>::from_x962_uncompressed(pk)?
-      .verify_asn1::<Sha256>(&[msg], signature)?;
+    let vk = ecdsa::VerifyingKey::<P256>::from_x962_uncompressed(pk)?;
+    if signature.len() == 64 {
+      vk.verify::<Sha256>(&[msg], signature)?;
+    } else {
+      vk.verify_asn1::<Sha256>(&[msg], signature)?;
+    }
     Ok(())
   }
 }
@@ -62,8 +66,12 @@ impl Signature for P384Graviola {
 
   #[inline]
   fn validate(pk: &[u8], msg: &[u8], signature: &[u8]) -> crate::Result<()> {
-    ecdsa::VerifyingKey::<P384>::from_x962_uncompressed(pk)?
-      .verify_asn1::<Sha384>(&[msg], signature)?;
+    let vk = ecdsa::VerifyingKey::<P384>::from_x962_uncompressed(pk)?;
+    if signature.len() == 96 {
+      vk.verify::<Sha384>(&[msg], signature)?;
+    } else {
+      vk.verify_asn1::<Sha384>(&[msg], signature)?;
+    }
     Ok(())
   }
 }

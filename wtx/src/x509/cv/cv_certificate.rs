@@ -31,12 +31,12 @@ use crate::{
 ///
 /// The final leaf of a PKI chain and also the entry-point where chains can be validated.
 ///
-/// * Servers should concurrently or sequentially call [`Self::validate_chain`],
+/// * Clients should concurrently or sequentially call [`Self::validate_chain`],
 ///   `validate_signature` and [`Self::validate_subject_name`] to fully validate
-///   certificates.
+///   ***server*** certificates.
 ///
-/// * Clients should concurrently or sequentially call [`Self::validate_chain`] and
-///   `validate_signature` to fully validate certificates.
+/// * Servers should concurrently or sequentially call [`Self::validate_chain`] and
+///   `validate_signature` to fully validate ***client*** certificates when mTLS is involved.
 pub type CvEndEntity<B> = CvCertificate<B, true>;
 
 /// Chain Validation - Intermediate

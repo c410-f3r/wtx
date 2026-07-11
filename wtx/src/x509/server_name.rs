@@ -8,10 +8,24 @@ pub struct ServerName<D = ()>(
   pub Either<IpAddr, D>,
 );
 
+impl ServerName<[u8; 0]> {
+  /// From an IP address
+  #[inline]
+  pub const fn from_ip_addr(ip_addr: IpAddr) -> Self {
+    Self(Either::Left(ip_addr))
+  }
+}
+
 impl<D> ServerName<D>
 where
   D: Lease<[u8]>,
 {
+  /// From a domain
+  #[inline]
+  pub const fn from_domain(domain: D) -> Self {
+    Self(Either::Right(domain))
+  }
+
   #[inline]
   pub(crate) fn bytes<'ip, 'rslt, 'this>(&'this self, ip_buffer: &'ip mut [u8; 16]) -> &'rslt [u8]
   where
@@ -38,7 +52,7 @@ where
 impl<'this> ServerName<&'this [u8]> {
   /// Tries to first convert `data` to [`IpAddr`]. If unsuccessful, fallbacks to a domain.
   #[inline]
-  pub fn from_ascii(data: &'this [u8]) -> crate::Result<Self> {
+  pub fn from_ascii_bytes(data: &'this [u8]) -> crate::Result<Self> {
     if let Ok(ip_addr) = from_utf8_basic(data)?.parse() {
       return Ok(Self(Either::Left(ip_addr)));
     }

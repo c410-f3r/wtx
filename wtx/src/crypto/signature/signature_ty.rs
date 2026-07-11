@@ -107,12 +107,11 @@ impl From<SignatureTy> for &'static str {
 }
 
 #[cfg(feature = "asn1")]
-impl TryFrom<(&Oid, Option<&Oid>)> for SignatureTy {
+impl TryFrom<(usize, &Oid, Option<&Oid>)> for SignatureTy {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(value: (&Oid, Option<&Oid>)) -> Result<Self, Self::Error> {
-    let (sig_alg, param) = value;
+  fn try_from((len, sig_alg, param): (usize, &Oid, Option<&Oid>)) -> Result<Self, Self::Error> {
     match sig_alg {
       oid if oid == &OID_SIG_ED25519 => return Ok(Self::Ed25519),
 
@@ -124,11 +123,20 @@ impl TryFrom<(&Oid, Option<&Oid>)> for SignatureTy {
         _ => {}
       },
 
-      oid if oid == &OID_PKCS1_RSAENCRYPTION => return Ok(Self::RsaPssRsaeSha256),
+      oid if oid == &OID_PKCS1_RSAENCRYPTION => match len {
+        270 => return Ok(Self::RsaPssRsaeSha256),
+        526 => return Ok(Self::RsaPssRsaeSha384),
+        _ => {}
+      },
 
       oid if oid == &OID_PKCS1_RSASSAPSS => match param {
         Some(el) if el == &OID_NIST_HASH_SHA256 => return Ok(Self::RsaPssRsaeSha256),
         Some(el) if el == &OID_NIST_HASH_SHA384 => return Ok(Self::RsaPssRsaeSha384),
+        None => match len {
+          270 => return Ok(Self::RsaPssRsaeSha256),
+          526 => return Ok(Self::RsaPssRsaeSha384),
+          _ => {}
+        },
         _ => {}
       },
       _ => {}
@@ -146,8 +154,9 @@ where
 
   #[inline]
   fn try_from(value: &crate::x509::SubjectPublicKeyInfo<B>) -> Result<Self, Self::Error> {
+    let len = value.subject_public_key.bytes().lease().len();
     let params_oid = value.params_oid();
-    SignatureTy::try_from((&value.algorithm.algorithm, params_oid.as_ref()))
+    SignatureTy::try_from((len, &value.algorithm.algorithm, params_oid.as_ref()))
   }
 }
 

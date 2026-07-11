@@ -2,7 +2,10 @@ use crate::{
   crypto::{CryptoError, Hmac, HmacSha256AwsLcRs, HmacSha384AwsLcRs},
   misc::unlikely_elem,
 };
-use aws_lc_rs::hmac::{Context, HMAC_SHA256, HMAC_SHA384, Key};
+use aws_lc_rs::{
+  constant_time::verify_slices_are_equal,
+  hmac::{Context, HMAC_SHA256, HMAC_SHA384, Key},
+};
 
 impl Hmac for HmacSha256AwsLcRs {
   type Digest = [u8; 32];
@@ -26,7 +29,7 @@ impl Hmac for HmacSha256AwsLcRs {
   #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
     let computed = self.finalize();
-    if aws_lc_rs::constant_time::verify_slices_are_equal(&computed, tag).is_ok() {
+    if verify_slices_are_equal(&computed, tag).is_ok() {
       Ok(())
     } else {
       Err(CryptoError::HmacVerificationError.into())
@@ -56,7 +59,7 @@ impl Hmac for HmacSha384AwsLcRs {
   #[inline]
   fn verify(self, tag: &[u8]) -> crate::Result<()> {
     let computed = self.finalize();
-    if aws_lc_rs::constant_time::verify_slices_are_equal(&computed, tag).is_ok() {
+    if verify_slices_are_equal(&computed, tag).is_ok() {
       Ok(())
     } else {
       Err(CryptoError::HmacVerificationError.into())

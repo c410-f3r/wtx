@@ -18,7 +18,7 @@ use crate::{
       rdbms::{clear_query_buffers, common_client_buffer::CommonClientBuffer},
     },
   },
-  misc::{ConnectionState, Lease, SingleTypeStorage},
+  misc::{ConnectionState, Lease, SingleTypeStorage, Uri},
   rng::CryptoRng,
   stream::{Stream, StreamWriter as _},
   tls::{TlsConfig, TlsConnector, TlsMode, TlsServerEndPoint, TlsStream},
@@ -42,14 +42,16 @@ where
 {
   /// Connects with an unencrypted stream.
   #[inline]
-  pub async fn connect<RNG, TC>(
+  pub async fn connect<RNG, STR, TC, U>(
     mut client_buffer: ClientBuffer,
     config: &Config<'_>,
-    mut tls_connector: TlsConnector<RNG, S, TC>,
+    mut tls_connector: TlsConnector<RNG, S, TC, U>,
   ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
+    STR: Lease<str>,
     TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+    U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
   {
     client_buffer.clear();
     let ClientBuffer { common, conn_params: _ } = &mut client_buffer;

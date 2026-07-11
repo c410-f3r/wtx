@@ -17,16 +17,16 @@ mod boringssl_options;
 
 use crate::boringssl_options::OptionsIter;
 use boringssl_options::{Options, cert_from_pem_file};
-use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
   calendar::Instant,
   collections::Vector,
+  misc::Uri,
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{StreamReader, StreamWriter as _},
   tls::{
-    HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig, TlsConnector, TlsError,
+    HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsError,
     TlsModeVerified, TlsStream,
   },
   x509::CvTrustAnchor,
@@ -73,16 +73,14 @@ async fn exec_tests<const IS_CLIENT: bool>(
   mut tls_config: TlsConfig<TlsModeVerified>,
 ) {
   for idx in 0..=options.resume_count {
-    let addrs = [
-      SocketAddr::from((Ipv6Addr::LOCALHOST, options.port)),
-      SocketAddr::from((Ipv4Addr::LOCALHOST, options.port)),
-    ];
+    let uri = Uri::new(format!("127.0.0.1:{}", options.port));
     let rng = ChaCha20::from_std_random().unwrap();
-    let mut stream = TcpStream::connect(&addrs[..]).await.unwrap();
+    let mut stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
     stream.write_all(&options.shim_id.to_le_bytes()).await.unwrap();
     if IS_CLIENT {
       let fun = async {
-        let mut rslt = TlsConnector::new(&tls_config, rng, stream).connect().await?;
+        let mut rslt =
+          TlsConnectorBuilder::tokio(uri).build(&tls_config, rng).await?.connect().await?;
         check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
         manage_after_handshake(&options, false, &mut rslt.tls_stream).await
       };
