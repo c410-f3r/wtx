@@ -28,7 +28,7 @@ tracing = { default-features = false, optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.9.0" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.10.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
@@ -131,7 +131,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.96"
-version = "0.48.1"
+version = "0.49.0"
 
 [package.metadata.docs.rs]
 all-features = true
