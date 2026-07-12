@@ -16,7 +16,7 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | `gRPC`                   | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
 | `PostgreSQL`             | <https://www.postgresql.org/docs/current/protocol.html>          |
-| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc8446>                  |
+| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc9846>                  |
 | `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
 | `WebSocket Compression`  | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
 | `WebSocket Over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441>                  |

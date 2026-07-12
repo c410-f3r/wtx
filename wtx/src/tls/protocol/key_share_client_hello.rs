@@ -1,20 +1,26 @@
 use crate::{
   codec::{Decode, Encode},
   collections::ArrayVectorU8,
-  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
+  misc::{
+    Lease,
+    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
+  },
   tls::{
-    MAX_KEY_SHARES_LEN, NamedGroup, TlsError, de::De, misc::u16_chunk,
-    protocol::key_share_entry::KeyShareEntry, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    NamedGroup, TlsError, de::De, misc::u16_chunk, protocol::key_share_entry::KeyShareEntry,
+    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
-#[derive(Debug, PartialEq)]
-pub(crate) struct KeyShareClientHello<'any> {
-  pub(crate) client_shares: ArrayVectorU8<KeyShareEntry<&'any [u8]>, MAX_KEY_SHARES_LEN>,
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct KeyShareClientHello<B> {
+  pub(crate) client_shares: ArrayVectorU8<KeyShareEntry<B>, { NamedGroup::len() }>,
 }
 
-impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {
+impl<'de, B> Decode<'de, De> for KeyShareClientHello<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut client_shares = ArrayVectorU8::new();
@@ -26,13 +32,16 @@ impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {
       let Ok(group) = group_rslt else {
         continue;
       };
-      client_shares.push(KeyShareEntry::new(group, opaque))?;
+      client_shares.push(KeyShareEntry::new(group, opaque.try_into().map_err(Into::into)?))?;
     }
     Ok(Self { client_shares })
   }
 }
 
-impl Encode<De> for KeyShareClientHello<'_> {
+impl<B> Encode<De> for KeyShareClientHello<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(

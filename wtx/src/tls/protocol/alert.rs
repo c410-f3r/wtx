@@ -65,7 +65,7 @@ impl Alert {
     [u8::from(self.level), u8::from(self.description)]
   }
 
-  /// <https://datatracker.ietf.org/doc/html/rfc8446#section-6.1>
+  /// <https://datatracker.ietf.org/doc/html/rfc9846#section-6.1>
   ///
   /// `user_canceled` is a nice-to-have but optional thing that this implementation chose to
   /// ignore. All parties must send a `close_notify`, regardless if `user_canceled` was or was

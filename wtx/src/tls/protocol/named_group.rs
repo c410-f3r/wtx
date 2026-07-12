@@ -1,6 +1,7 @@
 use crate::{
   codec::{Decode, Encode},
   crypto::{Agreement, P256AgreementGlobal, P384AgreementGlobal, X25519Global},
+  misc::Lease,
   rng::CryptoRng,
   tls::{de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper},
 };
@@ -114,6 +115,23 @@ where
 {
   #[inline]
   fn as_ref(&self) -> &[T] {
+    match self {
+      NamedGroupParam::Secp256r1(el) => el.as_ref(),
+      NamedGroupParam::Secp384r1(el) => el.as_ref(),
+      NamedGroupParam::X25519(el) => el.as_ref(),
+    }
+  }
+}
+
+// `AsRef` because of third parties
+impl<A, B, C, T> Lease<[T]> for NamedGroupParam<A, B, C>
+where
+  A: AsRef<[T]>,
+  B: AsRef<[T]>,
+  C: AsRef<[T]>,
+{
+  #[inline]
+  fn lease(&self) -> &[T] {
     match self {
       NamedGroupParam::Secp256r1(el) => el.as_ref(),
       NamedGroupParam::Secp384r1(el) => el.as_ref(),

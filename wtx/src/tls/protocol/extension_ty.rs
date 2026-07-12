@@ -1,4 +1,4 @@
-// https://datatracker.ietf.org/doc/html/rfc8446#section-4.2
+// https://datatracker.ietf.org/doc/html/rfc9846#section-4.2
 
 use crate::{
   codec::{Decode, Encode},
