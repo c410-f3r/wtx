@@ -21,7 +21,7 @@ name = "wtx-macros"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.96"
-version = "0.9.0"
+version = "0.10.0"
 
 [package.metadata.docs.rs]
 all-features = true

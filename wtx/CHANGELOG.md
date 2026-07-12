@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.48.1...wtx-v0.49.0) - 2026-07-12
+
+### Added
+
+- [**breaking**] Validate subject names in connectors
+
+### Fixed
+
+- Correctly select the key exchange algorithm
+
 ## [0.48.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.48.0...wtx-v0.48.1) - 2026-07-10
 
 ### Other

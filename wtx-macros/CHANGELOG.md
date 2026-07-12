@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.9.0...wtx-macros-v0.10.0) - 2026-07-12
+
+### Added
+
+- [**breaking**] Validate subject names in connectors
+
+### Fixed
+
+- Correctly select the key exchange algorithm
+
 ## [0.9.0](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.8.3...wtx-macros-v0.9.0) - 2026-07-09
 
 ### Added
