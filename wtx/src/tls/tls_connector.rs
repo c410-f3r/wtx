@@ -7,8 +7,8 @@ use crate::{
   stream::Stream,
   tls::{
     CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MAX_CERTIFICATES,
-    MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig,
-    TlsError, TlsMode, TlsServerEndPoint, TlsStream,
+    MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
+    TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
     misc::{fetch_rec_from_stream, server_sig_msg},
     protocol::{
@@ -248,7 +248,7 @@ where
   pub fn manage_initial_server_record(
     &mut self,
     rri: &ReadRecordInfo,
-    secrets: ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>,
+    secrets: ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>,
   ) -> crate::Result<ControlFlow<Alert, ManageRemainingServerRecordsInput>> {
     let current = self.buffer.reader_buffer.current();
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
@@ -374,15 +374,15 @@ where
   #[inline]
   pub fn write_client_hello(
     &mut self,
-  ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>> {
+  ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>> {
     _trace!("TLS HS: Write CH");
     let mut secrets = ArrayVectorU8::new();
-    for key_share in &self.config.lease().inner.key_shares {
-      secrets.push(key_share.group.agreement(&mut self.rng)?)?;
+    for named_group in &self.config.lease().inner.named_groups {
+      secrets.push(named_group.agreement(&mut self.rng)?)?;
     }
     let handshake = Handshake::new(
       HandshakeType::ClientHello,
-      ClientHello::new(&mut self.rng, &secrets, self.config.lease()),
+      ClientHello::new(&secrets, &mut self.rng, self.config.lease()),
     );
     let record = Record::new(RecordContentType::Handshake, ProtocolVersion::Tls1, &handshake);
     self.buffer.writer_buffer.clear();

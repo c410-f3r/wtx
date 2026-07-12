@@ -92,7 +92,6 @@ const HELLO_RETRY_REQUEST: [u8; 32] = [
 const IV_LEN: usize = 12;
 const MAX_CERTIFICATES: usize = 3;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
-const MAX_KEY_SHARES_LEN: usize = 2;
 const CHANGE_CIPHER_SPEC: [u8; 6] = [20, 3, 3, 0, 1, 1];
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 

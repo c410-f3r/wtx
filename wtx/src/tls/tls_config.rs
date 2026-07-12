@@ -2,13 +2,10 @@ use crate::{
   asn1::{Asn1DecodeWrapperAux, Pkcs8},
   calendar::{DateTime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper},
-  collections::{ArrayVector, ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU16, Vector},
+  collections::{ArrayVectorCopy, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
-  tls::{
-    Alpn, CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, ServerNameList,
-    TlsModePlainText, protocol::key_share_entry::KeyShareEntry,
-  },
+  tls::{Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText},
   x509::{Certificate, CvPolicy, CvTrustAnchor},
 };
 use core::fmt::Debug;
@@ -218,7 +215,6 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
-  pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<B>, MAX_KEY_SHARES_LEN>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) named_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   pub(crate) public_key: (SignatureTy, B),
@@ -240,10 +236,6 @@ where
       alpn: None,
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
       cv_policy: CvPolicy::new(validation_time),
-      key_shares: ArrayVector::from_array([
-        KeyShareEntry { group: NamedGroup::X25519, opaque: B::default() },
-        KeyShareEntry { group: NamedGroup::Secp256r1, opaque: B::default() },
-      ]),
       max_fragment_length: None,
       named_groups: ArrayVectorCopy::from_array(NamedGroup::all()),
       public_key: (SignatureTy::default(), B::default()),

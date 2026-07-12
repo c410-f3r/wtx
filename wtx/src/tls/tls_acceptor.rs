@@ -36,7 +36,6 @@ use crate::{
 /// Performs TLS handshakes for servers.
 #[derive(Debug)]
 pub struct TlsAcceptor<RNG, S, TC> {
-  alpn: Option<Alpn>,
   buffer: TlsBuffer,
   config: TC,
   handshake_path: HandshakePath,
@@ -62,7 +61,6 @@ where
       cfg_ref.max_fragment_length().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
     let named_group = cfg_ref.inner.named_groups.first().copied().unwrap_or(NamedGroup::default());
     Self {
-      alpn: None,
       buffer: TlsBuffer::new(),
       config,
       handshake_path: HandshakePath::Full,
@@ -189,7 +187,7 @@ where
     let mut indices = ArrayVectorCopy::new();
     let encrypted_extensions = Handshake::new(
       HandshakeType::EncryptedExtensions,
-      EncryptedExtensions::new(self.alpn.clone(), output.max_fragment_length, None, None),
+      EncryptedExtensions::new(output.alpn, output.max_fragment_length, None, None),
     );
     encrypted_extensions.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
     self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
@@ -290,7 +288,7 @@ where
   {
     let current = self.buffer.reader_buffer.current();
     let client_hello_bytes = current.get(..rri.plaintext_len).unwrap_or_default();
-    let client_hello = Handshake::<ClientHello<(), TlsConfigInner<_, TM>>>::decode(
+    let client_hello = Handshake::<ClientHello<_, TlsConfigInner<_, TM>>>::decode(
       &mut TlsDecodeWrapper::from_bytes(client_hello_bytes),
     )?;
     if !client_hello
@@ -316,12 +314,12 @@ where
     self.key_schedule.early_secret()?;
     self.transcript_hash = cipher_suite.hash_new();
     self.transcript_hash.update(client_hello_bytes);
-    let (client_opaque, server_kse) = seek_key_share(
-      &client_hello.data.tls_config().key_shares,
-      &self.config.lease().inner.key_shares,
+    let key_share = seek_key_share(
+      &client_hello.data.generic().client_shares,
+      &self.config.lease().inner.named_groups,
     )?;
-    self.alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn);
-    self.named_group = server_kse.group;
+    let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn);
+    self.named_group = key_share.group;
     let max_fragment_length = client_hello.data.tls_config().max_fragment_length;
     if let Some(elem) = max_fragment_length {
       self.max_fragment_length = elem.num();
@@ -335,9 +333,9 @@ where
       &[self.config.lease().inner.public_key.0],
     )?;
     let legacy_session_id = *client_hello.data.legacy_session_id();
-    let agreement = server_kse.group.agreement(&mut self.rng)?;
+    let agreement = key_share.group.agreement(&mut self.rng)?;
     let ephemeral_pk = agreement.public_key()?;
-    let secret = agreement.diffie_hellman(client_opaque)?;
+    let secret = agreement.diffie_hellman(key_share.opaque)?;
     let writer_buffer = &mut self.buffer.writer_buffer;
     let server_hello_rec = Record::new(
       RecordContentType::Handshake,
@@ -347,7 +345,7 @@ where
         ServerHello::new(
           cipher_suite,
           false,
-          KeyShareEntry::new(server_kse.group, ephemeral_pk.as_ref()),
+          KeyShareEntry::new(key_share.group, ephemeral_pk.as_ref()),
           legacy_session_id,
           &mut self.rng,
         ),
@@ -360,7 +358,7 @@ where
     self
       .key_schedule
       .handshake_secret::<false>(secret.as_ref(), &self.transcript_hash.clone().finalize())?;
-    Ok(NegotiateOutput { max_fragment_length, signature_ty })
+    Ok(NegotiateOutput { alpn, max_fragment_length, signature_ty })
   }
 }
 
@@ -379,6 +377,7 @@ pub struct TlsAcceptOutput<RNG, S, TM> {
 
 #[derive(Debug)]
 struct NegotiateOutput {
+  alpn: Option<Alpn>,
   max_fragment_length: Option<MaxFragmentLength>,
   signature_ty: SignatureTy,
 }
@@ -412,20 +411,19 @@ fn seek_cipher_suite(client: &[CipherSuite], server: &[CipherSuite]) -> crate::R
   Err(TlsError::ServerHasNoCompatibleCypherSuite.into())
 }
 
-fn seek_key_share<'client, 'rslt, 'server, B>(
+fn seek_key_share<'client, 'rslt, 'server>(
   client: &'client [KeyShareEntry<&'client [u8]>],
-  server: &'server [KeyShareEntry<B>],
-) -> crate::Result<(&'rslt [u8], KeyShareEntry<&'rslt [u8]>)>
+  server: &'server [NamedGroup],
+) -> crate::Result<KeyShareEntry<&'rslt [u8]>>
 where
-  B: Lease<[u8]>,
   'client: 'rslt,
   'server: 'rslt,
 {
   for server_el in server {
-    let Some(client_el) = client.iter().find(|client_el| client_el.group == server_el.group) else {
+    let Some(client_el) = client.iter().find(|client_el| client_el.group == *server_el) else {
       continue;
     };
-    return Ok((client_el.opaque, KeyShareEntry::new(server_el.group, server_el.opaque.lease())));
+    return Ok(*client_el);
   }
   Err(TlsError::ServerHasNoCompatibleKeyShare.into())
 }

@@ -1,4 +1,4 @@
-// https://datatracker.ietf.org/doc/html/rfc8446#section-4
+// https://datatracker.ietf.org/doc/html/rfc9846#section-4
 
 use crate::{
   codec::{Decode, Encode},
@@ -10,7 +10,7 @@ use crate::{
 };
 
 create_enum! {
-  /// <https://datatracker.ietf.org/doc/html/rfc8446#appendix-B.3>
+  /// <https://datatracker.ietf.org/doc/html/rfc9846#appendix-B.3>
   #[derive(Copy, Clone, Debug, PartialEq)]
   pub(crate) enum HandshakeType<u8> {
     ClientHello = (1),

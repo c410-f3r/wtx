@@ -5,7 +5,7 @@ use crate::crypto::{
 use graviola::signing::{
   ecdsa::{self, P256, P384},
   eddsa::Ed25519SigningKey,
-  rsa::{self},
+  rsa,
 };
 
 impl SignKey for Ed25519SignKeyGraviola {

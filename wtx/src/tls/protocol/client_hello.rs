@@ -1,4 +1,4 @@
-// https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2
+// https://datatracker.ietf.org/doc/html/rfc9846#section-4.1.2
 
 use crate::{
   calendar::DateTime,
@@ -11,7 +11,7 @@ use crate::{
   },
   rng::CryptoRng,
   tls::{
-    CipherSuite, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
+    CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
     misc::{u8_chunk, u16_chunk},
     protocol::{
@@ -30,21 +30,22 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct ClientHello<S, TC> {
+pub(crate) struct ClientHello<G, TC> {
+  generic: G,
   legacy_session_id: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   random: [u8; 32],
-  secrets: S,
   supported_versions: SupportedVersionsClient,
   tls_config: TC,
 }
 
-impl<S, TC> ClientHello<S, TC> {
-  pub(crate) fn new<RNG>(rng: &mut RNG, secrets: S, tls_config: TC) -> Self
+impl<G, TC> ClientHello<G, TC> {
+  pub(crate) fn new<RNG>(generic: G, rng: &mut RNG, tls_config: TC) -> Self
   where
     RNG: CryptoRng,
   {
     Self {
+      generic,
       legacy_session_id: ArrayVectorCopy::from_array({
         let mut array = [0; 32];
         rng.fill_slice(&mut array);
@@ -56,12 +57,15 @@ impl<S, TC> ClientHello<S, TC> {
         rng.fill_slice(&mut array);
         array
       },
-      secrets,
       supported_versions: SupportedVersionsClient::new(ArrayVectorCopy::from_array([
         ProtocolVersion::Tls13,
       ])),
       tls_config,
     }
+  }
+
+  pub(crate) fn generic(&self) -> &G {
+    &self.generic
   }
 
   pub(crate) fn legacy_session_id(&self) -> &ArrayVectorCopy<u8, 32> {
@@ -77,7 +81,8 @@ impl<S, TC> ClientHello<S, TC> {
   }
 }
 
-impl<'de, TM> Decode<'de, De> for ClientHello<(), TlsConfigInner<&'de [u8], TM>>
+impl<'de, TM> Decode<'de, De>
+  for ClientHello<KeyShareClientHello<&'de [u8]>, TlsConfigInner<&'de [u8], TM>>
 where
   TM: TlsMode,
 {
@@ -89,7 +94,7 @@ where
     let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let mut alpn = None;
     let mut cipher_suites = ArrayVectorCopy::new();
-    let mut key_shares = ArrayVectorU8::new();
+    let mut key_shares_opt = None;
     let mut last_ty = None;
     let mut max_fragment_length = None;
     let mut named_groups = ArrayVectorCopy::new();
@@ -120,7 +125,7 @@ where
             &mut alpn,
             local_local_dw,
             extension_ty,
-            &mut key_shares,
+            &mut key_shares_opt,
             &mut max_fragment_length,
             &mut named_groups,
             &mut server_name,
@@ -138,20 +143,19 @@ where
     if signature_algorithms.is_empty() {
       return Err(TlsError::MissingSignatureAlgorithms.into());
     }
-    if key_shares.is_empty() {
+    let Some(key_shares) = key_shares_opt else {
       return Err(TlsError::MissingKeyShares.into());
-    }
+    };
     Ok(Self {
+      generic: key_shares,
       legacy_session_id,
       legacy_version,
       random,
-      secrets: (),
       supported_versions,
       tls_config: TlsConfigInner {
         alpn,
         cipher_suites,
         cv_policy: CvPolicy::new(DateTime::default()),
-        key_shares,
         max_fragment_length,
         named_groups,
         public_key: (SignatureTy::default(), &[]),
@@ -167,7 +171,7 @@ where
 }
 
 impl<TC, TM> Encode<De>
-  for ClientHello<&'_ ArrayVectorU8<NamedGroupAgreement, MAX_KEY_SHARES_LEN>, TC>
+  for ClientHello<&ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>, TC>
 where
   TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
 {
@@ -196,22 +200,13 @@ where
         Extension::new(ExtensionTy::ApplicationLayerProtocolNegotiation, elem).encode(local_ew)?;
       }
       {
-        let mut client_shares = ArrayVectorU8::<_, MAX_KEY_SHARES_LEN>::new();
-        for (key_share, secret) in self.tls_config.lease().inner.key_shares.iter().zip(self.secrets)
-        {
-          client_shares.push((key_share.group, secret.public_key()?))?;
+        let mut client_shares = ArrayVectorU8::new();
+        for secret in self.generic {
+          client_shares
+            .push(KeyShareEntry { group: secret.named_group(), opaque: secret.public_key()? })?;
         }
-        Extension::new(
-          ExtensionTy::KeyShare,
-          KeyShareClientHello {
-            client_shares: ArrayVectorU8::from_iterator(
-              client_shares
-                .iter()
-                .map(|(group, opaque)| KeyShareEntry { group: *group, opaque: opaque.as_ref() }),
-            )?,
-          },
-        )
-        .encode(local_ew)?;
+        Extension::new(ExtensionTy::KeyShare, KeyShareClientHello { client_shares })
+          .encode(local_ew)?;
       }
       if let Some(max_fragment_length) = self.tls_config.lease().inner.max_fragment_length {
         Extension::new(ExtensionTy::MaxFragmentLength, max_fragment_length).encode(local_ew)?;
@@ -258,7 +253,7 @@ fn manage_extension<'de>(
   alpn: &mut Option<Alpn>,
   dw: &mut TlsDecodeWrapper<'de>,
   extension_ty: ExtensionTy,
-  key_shares: &mut ArrayVectorU8<KeyShareEntry<&'de [u8]>, MAX_KEY_SHARES_LEN>,
+  key_shares: &mut Option<KeyShareClientHello<&'de [u8]>>,
   max_fragment_length: &mut Option<MaxFragmentLength>,
   named_groups: &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   server_name: &mut Option<ServerNameList>,
@@ -276,8 +271,8 @@ fn manage_extension<'de>(
       *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
     }
     ExtensionTy::KeyShare => {
-      duplicated_error(!key_shares.is_empty())?;
-      *key_shares = KeyShareClientHello::<'_>::decode(dw)?.client_shares;
+      duplicated_error(key_shares.is_some())?;
+      *key_shares = Some(KeyShareClientHello::<&[u8]>::decode(dw)?);
     }
     ExtensionTy::OidFilters => {
       return Err(TlsError::MismatchedExtension.into());
