@@ -3,8 +3,6 @@ mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "crypto-openssl")]
-mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
@@ -174,7 +172,7 @@ impl<S> Aead for AeadDummy<S> {
   }
 }
 
-#[cfg(any(feature = "crypto-graviola", feature = "crypto-openssl"))]
+#[cfg(feature = "crypto-graviola")]
 fn split_content_tag(
   data: &mut [u8],
   error: CryptoError,

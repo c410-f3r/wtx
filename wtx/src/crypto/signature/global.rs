@@ -4,35 +4,30 @@ type Ed25519Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Ed25519Ring,
   feature = "crypto-graviola" => crate::crypto::Ed25519Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Ed25519AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Ed25519Openssl,
   _ => crate::crypto::SignatureDummy::<crate::crypto::SignKeyDummy, [u8; 64]>
 };
 type P256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::P256Ring,
   feature = "crypto-graviola" => crate::crypto::P256Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::P256AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::P256Openssl,
   _ => crate::crypto::SignatureDummy::<crate::crypto::SignKeyDummy, [u8; 64]>
 };
 type P384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::P384Ring,
   feature = "crypto-graviola" => crate::crypto::P384Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::P384AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::P384Openssl,
   _ => crate::crypto::SignatureDummy::<crate::crypto::SignKeyDummy, [u8; 96]>
 };
 type RsaPssRsaeSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::RsaPssRsaeSha256Ring,
   feature = "crypto-graviola" => crate::crypto::RsaPssRsaeSha256Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::RsaPssRsaeSha256AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::RsaPssRsaeSha256Openssl,
   _ => crate::crypto::SignatureDummy::<crate::crypto::SignKeyDummy, [u8; 0]>
 };
 type RsaPssRsaeSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::RsaPssRsaeSha384Ring,
   feature = "crypto-graviola" => crate::crypto::RsaPssRsaeSha384Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::RsaPssRsaeSha384AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::RsaPssRsaeSha384Openssl,
   _ => crate::crypto::SignatureDummy::<crate::crypto::SignKeyDummy, [u8; 0]>
 };
 

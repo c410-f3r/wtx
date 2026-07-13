@@ -18,7 +18,6 @@ $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto
 $rt test-with-features wtx crypto-aws-lc-rs,_hack
 $rt test-with-features wtx crypto-graviola
-$rt test-with-features wtx crypto-openssl,_hack
 $rt test-with-features wtx crypto-ring
 $rt test-with-features wtx database
 $rt test-with-features wtx database-tests

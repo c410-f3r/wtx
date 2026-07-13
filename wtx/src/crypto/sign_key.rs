@@ -2,8 +2,6 @@
 mod aws_lc_rs;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "crypto-openssl")]
-mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 

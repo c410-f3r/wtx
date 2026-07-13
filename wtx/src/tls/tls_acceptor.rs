@@ -59,7 +59,13 @@ where
     let transcript_hash = key_schedule.cipher_suite().hash_new();
     let max_fragment_length =
       cfg_ref.max_fragment_length().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
-    let named_group = cfg_ref.inner.named_groups.first().copied().unwrap_or(NamedGroup::default());
+    let named_group = cfg_ref
+      .inner
+      .supported_groups
+      .named_group_list
+      .first()
+      .copied()
+      .unwrap_or(NamedGroup::default());
     Self {
       buffer: TlsBuffer::new(),
       config,
@@ -316,7 +322,7 @@ where
     self.transcript_hash.update(client_hello_bytes);
     let key_share = seek_key_share(
       &client_hello.data.generic().client_shares,
-      &self.config.lease().inner.named_groups,
+      &self.config.lease().inner.supported_groups.named_group_list,
     )?;
     let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn);
     self.named_group = key_share.group;
@@ -325,13 +331,13 @@ where
       self.max_fragment_length = elem.num();
     }
     let signature_ty = seek_signature_ty(
-      &client_hello.data.tls_config().signature_algorithms,
+      &client_hello.data.tls_config().signature_algorithms.signature_schemes,
       &[self.config.lease().inner.public_key.0],
     )?;
-    let _ = seek_signature_ty_cert(
-      &client_hello.data.tls_config().signature_algorithms_cert,
-      &[self.config.lease().inner.public_key.0],
-    )?;
+    if let Some(elem) = &client_hello.data.tls_config().signature_algorithms_cert {
+      let _ =
+        seek_signature_ty_cert(&elem.supported_groups, &[self.config.lease().inner.public_key.0])?;
+    }
     let legacy_session_id = *client_hello.data.legacy_session_id();
     let agreement = key_share.group.agreement(&mut self.rng)?;
     let ephemeral_pk = agreement.public_key()?;

@@ -3,8 +3,6 @@ mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "crypto-openssl")]
-mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 

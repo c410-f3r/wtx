@@ -11,7 +11,6 @@ httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
 matchit = { default-features = false, optional = true, version = "0.9" }
 memchr = { default-features = false, optional = true, version = "2.0" }
-openssl = { default-features = false, optional = true, version = "0.10" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
 pin-project-lite = { default-features = false, optional = true, version = "0.2" }
 portable-atomic = { default-features = false, optional = true, version = "1.0" }
@@ -51,7 +50,6 @@ crypto = []
 crypto-aws-lc-rs = ["dep:aws-lc-rs", "crypto"]
 crypto-fips = []
 crypto-graviola = ["crypto", "dep:graviola", "std"]
-crypto-openssl = ["crypto", "dep:openssl"]
 crypto-ring = ["crypto", "dep:ring", "ring?/alloc"]
 database = []
 database-tests = ["getrandom", "macros", "postgres", "schema-manager-dev"]

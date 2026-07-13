@@ -20,6 +20,7 @@ macro_rules! u32_cap {
     }
   };
 }
+#[cfg(target_pointer_width = "64")]
 macro_rules! u64_cap {
   () => {
     9_223_372_036_854_775_807
@@ -54,8 +55,6 @@ pub trait LinearStorageLen:
   const BITS: u8;
   /// The size of this length in bytes.
   const BYTES: u8 = Self::BITS / 8;
-  /// If the maximum number of allowed elements is backed by an `u64` primitive.
-  const IS_UPPER_BOUND_U64: bool = Self::UPPER_BOUND_USIZE == u64_cap!();
   /// The maximum number of allowed elements.
   const UPPER_BOUND: Self;
   /// The maximum number of allowed elements as `usize`.

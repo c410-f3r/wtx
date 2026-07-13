@@ -25,7 +25,7 @@ mod tests;
 mod verbatim_params;
 
 use crate::{
-  collections::{ArrayVectorCopy, Vector},
+  collections::ArrayVectorCopy,
   executor::{Executor, Runtime as _, TcpListener as _, TcpStream as _},
   http::{
     AutoStream, HttpRecvParams, ManualStream, MsgBufferString, OperationMode, Request, Response,
@@ -33,7 +33,7 @@ use crate::{
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
   misc::{TcpParams, Uri},
-  rng::{ChaCha20, CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
+  rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
   stream::{Stream, StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -86,13 +86,13 @@ pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, TM>
+impl<EX, RNG, TM>
   Http2ServerFramework<
     (),
     fn(crate::Error),
     EX,
     fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
-    ChaCha20,
+    RNG,
     TM,
   >
 where
@@ -102,7 +102,7 @@ where
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
-  pub fn new(executor: EX, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
@@ -113,7 +113,7 @@ where
       hrc: HttpRecvParams::with_optioned_params(),
       local_runtime_cb,
       local_runtimes: None,
-      rng: ChaCha20::from_std_random()?,
+      rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
     })
@@ -127,14 +127,18 @@ impl<TM>
     fn(crate::Error),
     crate::executor::TokioExecutor,
     fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
-    ChaCha20,
+    crate::rng::ChaCha20,
     TM,
   >
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
   pub fn tokio(tls_config: TlsConfig<TM>) -> crate::Result<Self> {
-    Self::new(crate::executor::TokioExecutor::default(), tls_config)
+    Self::new(
+      crate::executor::TokioExecutor::default(),
+      crate::rng::ChaCha20::from_std_random()?,
+      tls_config,
+    )
   }
 }
 
@@ -348,6 +352,7 @@ where
     <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
     <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
   {
+    use crate::collections::Vector;
     use alloc::string::String;
 
     let runtimes = if let Some(elem) = self.local_runtimes {

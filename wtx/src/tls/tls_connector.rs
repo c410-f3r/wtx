@@ -89,7 +89,7 @@ where
     let transcript_hash = key_schedule.cipher_suite().hash_new();
     let max_fragment_length =
       cfg_ref.max_fragment_length().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
-    let named_group = cfg_ref.inner.named_groups.first().copied();
+    let named_group = cfg_ref.inner.supported_groups.named_group_list.first().copied();
     Self {
       buffer: TlsBuffer::new(),
       config,
@@ -377,7 +377,7 @@ where
   ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>> {
     _trace!("TLS HS: Write CH");
     let mut secrets = ArrayVectorU8::new();
-    for named_group in &self.config.lease().inner.named_groups {
+    for named_group in &self.config.lease().inner.supported_groups.named_group_list {
       secrets.push(named_group.agreement(&mut self.rng)?)?;
     }
     let handshake = Handshake::new(

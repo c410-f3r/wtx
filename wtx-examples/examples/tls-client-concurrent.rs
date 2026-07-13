@@ -20,13 +20,11 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("github.com:443");
-  let tls_stream = TlsConnectorBuilder::tokio(uri)
+  let domain = Uri::new("github.com:443");
+  let tls_connector = TlsConnectorBuilder::tokio(domain)
     .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_getrandom()?)
-    .await?
-    .connect()
-    .await?
-    .tls_stream;
+    .await?;
+  let tls_stream = tls_connector.connect().await?.tls_stream;
   let (stream_bridge, mut stream_reader, mut stream_writer) = tls_stream.into_split()?;
   let (sender, mut receiver) = unbounded_channel();
 
