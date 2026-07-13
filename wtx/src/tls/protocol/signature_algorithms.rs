@@ -9,9 +9,17 @@ use crate::{
   },
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SignatureAlgorithms {
   pub(crate) signature_schemes: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+}
+
+impl SignatureAlgorithms {
+  pub(crate) fn new(
+    signature_schemes: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  ) -> Self {
+    Self { signature_schemes }
+  }
 }
 
 impl<'de> Decode<'de, De> for SignatureAlgorithms {

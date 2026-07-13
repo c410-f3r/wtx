@@ -7,21 +7,18 @@ type Aes128GcmTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Aes128GcmRing,
   feature = "crypto-graviola" => crate::crypto::Aes128GcmGraviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Aes128GcmAwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Aes128GcmOpenssl,
   _ => crate::crypto::AeadDummy::<[u8; 16]>
 };
 type Aes256GcmTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Aes256GcmRing,
   feature = "crypto-graviola" => crate::crypto::Aes256GcmGraviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Aes256GcmAwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Aes256GcmOpenssl,
   _ => crate::crypto::AeadDummy::<[u8; 32]>
 };
 type Chacha20Poly1305Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Chacha20Poly1305Ring,
   feature = "crypto-graviola" => crate::crypto::Chacha20Poly1305Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Chacha20Poly1305AwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Chacha20Poly1305Openssl,
   _ => crate::crypto::AeadDummy::<[u8; 32]>
 };
 

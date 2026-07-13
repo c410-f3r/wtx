@@ -97,6 +97,8 @@ pub enum TlsError {
   MissingKeyShares,
   /// Missing signature algorithms
   MissingSignatureAlgorithms,
+  /// Missing supported groups
+  MissingSupportedGroups,
   /// Missing `supported_versions`
   MissingSupportedVersions,
   /// No certificate received

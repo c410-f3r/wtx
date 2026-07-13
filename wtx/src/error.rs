@@ -52,9 +52,6 @@ pub enum Error {
   #[cfg(feature = "httparse")]
   #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
-  #[cfg(feature = "crypto-openssl")]
-  #[doc = associated_element_doc!()]
-  OpensslError(Box<openssl::error::ErrorStack>),
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
@@ -440,14 +437,6 @@ impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
   fn from(from: crate::database::client::postgres::DbError) -> Self {
     Self::PostgresDbError(from.into())
-  }
-}
-
-#[cfg(feature = "crypto-openssl")]
-impl From<openssl::error::ErrorStack> for Error {
-  #[inline]
-  fn from(from: openssl::error::ErrorStack) -> Self {
-    Self::OpensslError(from.into())
   }
 }
 

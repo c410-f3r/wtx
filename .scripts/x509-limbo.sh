@@ -14,12 +14,9 @@ mv ./target/release/x509-limbo /tmp/aws-lc-rs
 cargo run --bin x509-limbo --features x509-limbo,crypto-graviola --release
 mv ./target/release/x509-limbo /tmp/graviola
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-openssl,_hack --release
-mv ./target/release/x509-limbo /tmp/openssl
-
 cargo run --bin x509-limbo --features x509-limbo,crypto-ring --release
 mv ./target/release/x509-limbo /tmp/ring
 
 if [ "$ARG" == "bench" ]; then
-    hyperfine /tmp/aws-lc-rs /tmp/graviola /tmp/openssl /tmp/ring
+    hyperfine /tmp/aws-lc-rs /tmp/graviola /tmp/ring
 fi;

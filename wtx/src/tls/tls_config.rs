@@ -5,7 +5,13 @@ use crate::{
   collections::{ArrayVectorCopy, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
   misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
-  tls::{Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText},
+  tls::{
+    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText,
+    protocol::{
+      signature_algorithms::SignatureAlgorithms,
+      signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
+    },
+  },
   x509::{Certificate, CvPolicy, CvTrustAnchor},
 };
 use core::fmt::Debug;
@@ -152,24 +158,24 @@ impl<TM> TlsConfig<TM> {
     &self.inner.mode
   }
 
-  /// See [`NamedGroup`].
-  #[inline]
-  pub const fn named_groups(&self) -> &ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
-    &self.inner.named_groups
-  }
-
-  /// Mutable version of [`Self::named_groups`].
-  #[inline]
-  pub const fn named_groups_mut(
-    &mut self,
-  ) -> &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
-    &mut self.inner.named_groups
-  }
-
   /// See [`ServerNameList`].
   #[inline]
   pub fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
     &mut self.inner.server_name
+  }
+
+  /// See [`NamedGroup`].
+  #[inline]
+  pub const fn supported_groups(&self) -> &ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
+    &self.inner.supported_groups.named_group_list
+  }
+
+  /// Mutable version of [`Self::supported_groups`].
+  #[inline]
+  pub const fn supported_groups_mut(
+    &mut self,
+  ) -> &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
+    &mut self.inner.supported_groups.named_group_list
   }
 
   /// See [`CvTrustAnchor`].
@@ -216,12 +222,12 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
-  pub(crate) named_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   pub(crate) public_key: (SignatureTy, B),
   pub(crate) secret_key: B,
   pub(crate) server_name: Option<ServerNameList>,
-  pub(crate) signature_algorithms_cert: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
-  pub(crate) signature_algorithms: ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  pub(crate) signature_algorithms: SignatureAlgorithms,
+  pub(crate) signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
+  pub(crate) supported_groups: SupportedGroups,
   pub(crate) trust_anchors: Vector<CvTrustAnchor<B>>,
   pub(crate) mode: TM,
 }
@@ -237,12 +243,16 @@ where
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
       cv_policy: CvPolicy::new(validation_time),
       max_fragment_length: None,
-      named_groups: ArrayVectorCopy::from_array(NamedGroup::all()),
       public_key: (SignatureTy::default(), B::default()),
       secret_key: B::default(),
       server_name: None,
-      signature_algorithms: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
-      signature_algorithms_cert: ArrayVectorCopy::from_array(SignatureTy::TLS_PRIORITY),
+      signature_algorithms: SignatureAlgorithms::new(ArrayVectorCopy::from_array(
+        SignatureTy::TLS_PRIORITY,
+      )),
+      signature_algorithms_cert: Some(SignatureAlgorithmsCert::new(ArrayVectorCopy::from_array(
+        SignatureTy::TLS_PRIORITY,
+      ))),
+      supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::all())),
       trust_anchors: Vector::new(),
       mode,
     }

@@ -6,6 +6,8 @@ Transport Layer Security (TLS) is a cryptographic protocol that provides secure 
 
 To use this functionality, it is necessary to activate the `tls` feature.
 
+![WTX - TLS handshake](https://i.imgur.com/Yh8EexK.jpeg)
+
 ## Plain-text
 
 It is possible to convert a TLS stream into an unencrypted stream through the use of the `TlsModePlainText` structure. In other words, `TlsModePlainText` makes the TLS stream act like a normal plain-text stream ignoring all associated certificates, handshakes and encryptions.

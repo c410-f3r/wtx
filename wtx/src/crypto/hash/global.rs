@@ -3,21 +3,18 @@ use crate::crypto::Hash;
 type Sha1Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha1HashRing,
   feature = "crypto-aws-lc-rs" => crate::crypto::Sha1HashAwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Sha1HashOpenssl,
   _ => crate::crypto::HashDummy::<[u8; 20]>
 };
 type Sha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha256HashRing,
   feature = "crypto-graviola" => crate::crypto::Sha256HashGraviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Sha256HashAwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Sha256HashOpenssl,
   _ => crate::crypto::HashDummy::<[u8; 32]>
 };
 type Sha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha384HashRing,
   feature = "crypto-graviola" => crate::crypto::Sha384HashGraviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::Sha384HashAwsLcRs,
-  feature = "crypto-openssl" => crate::crypto::Sha384HashOpenssl,
   _ => crate::crypto::HashDummy::<[u8; 48]>
 };
 

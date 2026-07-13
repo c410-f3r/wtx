@@ -12,13 +12,11 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("github.com:443");
-  let mut tls_stream = TlsConnectorBuilder::tokio(uri)
+  let domain = Uri::new("github.com:443");
+  let tls_connector = TlsConnectorBuilder::tokio(domain)
     .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_getrandom()?)
-    .await?
-    .connect()
-    .await?
-    .tls_stream;
+    .await?;
+  let mut tls_stream = tls_connector.connect().await?.tls_stream;
   let request = b"GET /c410-f3r/wtx HTTP/1.1\r\nHost: github.com\r\nConnection: close\r\n\r\n";
   tls_stream.write_all(request).await?;
   let mut partial_char = None;

@@ -12,7 +12,7 @@ Anyone is free to use AI as a helping tool, however, AI-generated code should on
 
 ## Building
 
-All rust-related tools will be available once [rustup](https://rustup.rs/) is installed. Additionally, it is necessary to have a C compiler and the development sources of OpenSSL to build the project.
+All rust-related tools will be available once [rustup](https://rustup.rs/) is installed. Additionally, it is necessary to have a C compiler to build the project.
 
 ## Submitting PRs
 

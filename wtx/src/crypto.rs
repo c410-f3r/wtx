@@ -143,46 +143,6 @@ _create_wrappers!(
   RsaPssSignKeySha256Graviola<>(graviola::signing::rsa::SigningKey),
 );
 
-#[cfg(feature = "crypto-openssl")]
-_create_wrappers!(
-  #[derive(Default)]
-  Aes128GcmOpenssl<>(),
-  #[derive(Default)]
-  Aes256GcmOpenssl<>(),
-  #[derive(Default)]
-  Chacha20Poly1305Openssl<>(),
-  //
-  P256Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  P384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  X25519Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  //
-  HkdfSha256Openssl<>([u8; 32]),
-  HkdfSha384Openssl<>([u8; 48]),
-  //
-  #[derive(Clone)]
-  Sha1HashOpenssl<>(openssl::hash::Hasher),
-  #[derive(Clone)]
-  Sha256HashOpenssl<>(openssl::hash::Hasher),
-  #[derive(Clone)]
-  Sha384HashOpenssl<>(openssl::hash::Hasher),
-  //
-  HmacSha256Openssl<>(HmacOpenssl),
-  HmacSha384Openssl<>(HmacOpenssl),
-  //
-  Ed25519SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  P256SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  P384SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  RsaPssSignKeySha256Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  RsaPssSignKeySha384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
-  //
-  #[derive(Default)]
-  Ed25519Openssl<>(),
-  #[derive(Default)]
-  RsaPssRsaeSha256Openssl<>(),
-  #[derive(Default)]
-  RsaPssRsaeSha384Openssl<>(),
-);
-
 #[cfg(feature = "crypto-ring")]
 _create_wrappers!(
   #[derive(Default)]
@@ -222,29 +182,6 @@ _create_wrappers!(
   RsaPssSignKeySha384Ring<>(ring::signature::RsaKeyPair),
   RsaPssSignKeySha256Ring<>(ring::signature::RsaKeyPair),
 );
-
-/// HMAC helper for `OpenSSL`
-#[cfg(feature = "crypto-openssl")]
-pub struct HmacOpenssl {
-  signer: openssl::sign::Signer<'static>,
-}
-
-#[cfg(feature = "crypto-openssl")]
-impl HmacOpenssl {
-  fn new(digest: openssl::hash::MessageDigest, key: &[u8]) -> crate::Result<Self> {
-    let pkey = openssl::pkey::PKey::hmac(key)?;
-    let signer = openssl::sign::Signer::new(digest, &pkey)?;
-    Ok(Self { signer })
-  }
-}
-
-#[cfg(feature = "crypto-openssl")]
-impl core::fmt::Debug for HmacOpenssl {
-  #[inline]
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("HmacOpenssl").finish()
-  }
-}
 
 /// AEAD nonce prefix
 #[inline]

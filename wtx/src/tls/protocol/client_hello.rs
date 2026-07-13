@@ -97,10 +97,10 @@ where
     let mut key_shares_opt = None;
     let mut last_ty = None;
     let mut max_fragment_length = None;
-    let mut named_groups = ArrayVectorCopy::new();
     let mut server_name = None;
-    let mut signature_algorithms = ArrayVectorCopy::new();
-    let mut signature_algorithms_cert = ArrayVectorCopy::new();
+    let mut signature_algorithms_opt = None;
+    let mut signature_algorithms_cert = None;
+    let mut supported_groups_opt = None;
     let mut supported_versions_opt = None;
     {
       let bytes = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
@@ -127,10 +127,10 @@ where
             extension_ty,
             &mut key_shares_opt,
             &mut max_fragment_length,
-            &mut named_groups,
             &mut server_name,
-            &mut signature_algorithms,
+            &mut signature_algorithms_opt,
             &mut signature_algorithms_cert,
+            &mut supported_groups_opt,
             &mut supported_versions_opt,
           )
         })?;
@@ -140,9 +140,12 @@ where
     let Some(supported_versions) = supported_versions_opt else {
       return Err(TlsError::MissingSupportedVersions.into());
     };
-    if signature_algorithms.is_empty() {
+    let Some(signature_algorithms) = signature_algorithms_opt else {
       return Err(TlsError::MissingSignatureAlgorithms.into());
-    }
+    };
+    let Some(supported_groups) = supported_groups_opt else {
+      return Err(TlsError::MissingSupportedGroups.into());
+    };
     let Some(key_shares) = key_shares_opt else {
       return Err(TlsError::MissingKeyShares.into());
     };
@@ -157,7 +160,7 @@ where
         cipher_suites,
         cv_policy: CvPolicy::new(DateTime::default()),
         max_fragment_length,
-        named_groups,
+        supported_groups,
         public_key: (SignatureTy::default(), &[]),
         secret_key: &[],
         server_name,
@@ -216,25 +219,16 @@ where
       }
       Extension::new(
         ExtensionTy::SignatureAlgorithms,
-        SignatureAlgorithms {
-          signature_schemes: ArrayVectorCopy::from_iterator(
-            self.tls_config.lease().inner.signature_algorithms.iter().copied(),
-          )?,
-        },
+        &self.tls_config.lease().inner.signature_algorithms,
       )
       .encode(local_ew)?;
       Extension::new(
         ExtensionTy::SignatureAlgorithmsCert,
-        SignatureAlgorithmsCert {
-          supported_groups: self.tls_config.lease().inner.signature_algorithms_cert,
-        },
+        &self.tls_config.lease().inner.signature_algorithms_cert,
       )
       .encode(local_ew)?;
-      Extension::new(
-        ExtensionTy::SupportedGroups,
-        SupportedGroups { supported_groups: self.tls_config.lease().inner.named_groups },
-      )
-      .encode(local_ew)?;
+      Extension::new(ExtensionTy::SupportedGroups, &self.tls_config.lease().inner.supported_groups)
+        .encode(local_ew)?;
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;
       crate::Result::Ok(())
     })?;
@@ -255,10 +249,10 @@ fn manage_extension<'de>(
   extension_ty: ExtensionTy,
   key_shares: &mut Option<KeyShareClientHello<&'de [u8]>>,
   max_fragment_length: &mut Option<MaxFragmentLength>,
-  named_groups: &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
   server_name: &mut Option<ServerNameList>,
-  signature_algorithms: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
-  signature_algorithms_cert: &mut ArrayVectorCopy<SignatureTy, { SignatureTy::len() }>,
+  signature_algorithms: &mut Option<SignatureAlgorithms>,
+  signature_algorithms_cert: &mut Option<SignatureAlgorithmsCert>,
+  supported_groups: &mut Option<SupportedGroups>,
   supported_versions_opt: &mut Option<SupportedVersionsClient>,
 ) -> crate::Result<()> {
   match extension_ty {
@@ -274,24 +268,21 @@ fn manage_extension<'de>(
       duplicated_error(key_shares.is_some())?;
       *key_shares = Some(KeyShareClientHello::<&[u8]>::decode(dw)?);
     }
-    ExtensionTy::OidFilters => {
-      return Err(TlsError::MismatchedExtension.into());
-    }
     ExtensionTy::ServerName => {
       duplicated_error(server_name.is_some())?;
       *server_name = Some(ServerNameList::decode(dw)?);
     }
     ExtensionTy::SignatureAlgorithms => {
-      duplicated_error(!signature_algorithms.is_empty())?;
-      *signature_algorithms = SignatureAlgorithms::decode(dw)?.signature_schemes;
+      duplicated_error(signature_algorithms.is_some())?;
+      *signature_algorithms = Some(SignatureAlgorithms::decode(dw)?);
     }
     ExtensionTy::SignatureAlgorithmsCert => {
-      duplicated_error(!signature_algorithms_cert.is_empty())?;
-      *signature_algorithms_cert = SignatureAlgorithmsCert::decode(dw)?.supported_groups;
+      duplicated_error(signature_algorithms_cert.is_some())?;
+      *signature_algorithms_cert = Some(SignatureAlgorithmsCert::decode(dw)?);
     }
     ExtensionTy::SupportedGroups => {
-      duplicated_error(!named_groups.is_empty())?;
-      *named_groups = SupportedGroups::decode(dw)?.supported_groups;
+      duplicated_error(supported_groups.is_some())?;
+      *supported_groups = Some(SupportedGroups::decode(dw)?);
     }
     ExtensionTy::SupportedVersions => {
       duplicated_error(supported_versions_opt.is_some())?;
@@ -310,6 +301,9 @@ fn manage_extension<'de>(
     | ExtensionTy::SignedCertificateTimestamp
     | ExtensionTy::StatusRequest
     | ExtensionTy::UseSrtp => {}
+    ExtensionTy::OidFilters => {
+      return Err(TlsError::MismatchedExtension.into());
+    }
   }
   Ok(())
 }

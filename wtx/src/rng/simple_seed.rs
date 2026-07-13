@@ -50,7 +50,8 @@ pub fn simple_seed() -> u64 {
       seed = mix(seed, Hasher::finish(&BuildHasher::build_hasher(&RandomState::new())));
     }
     _ => {
-      use core::sync::atomic::{AtomicU64, Ordering};
+      use crate::sync::AtomicU64;
+      use core::sync::atomic::Ordering;
       static STATE: AtomicU64 = AtomicU64::new(1);
       seed = mix(seed, STATE.load(Ordering::Relaxed));
       STATE.store(seed, Ordering::Relaxed);

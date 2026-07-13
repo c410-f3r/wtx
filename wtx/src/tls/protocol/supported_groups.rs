@@ -8,22 +8,28 @@ use crate::{
   },
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct SupportedGroups {
-  pub(crate) supported_groups: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+  pub(crate) named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+}
+
+impl SupportedGroups {
+  pub(crate) fn new(named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>) -> Self {
+    Self { named_group_list }
+  }
 }
 
 impl<'de> Decode<'de, De> for SupportedGroups {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let mut supported_groups = ArrayVectorCopy::new();
+    let mut named_group_list = ArrayVectorCopy::new();
     let bytes = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
     for [b0, b1] in bytes.as_chunks::<2>().0 {
       if let Ok(elem) = NamedGroup::try_from(u16::from_be_bytes([*b0, *b1])) {
-        supported_groups.push(elem)?;
+        named_group_list.push(elem)?;
       }
     }
-    Ok(Self { supported_groups })
+    Ok(Self { named_group_list })
   }
 }
 
@@ -32,7 +38,7 @@ impl Encode<De> for SupportedGroups {
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
-      &self.supported_groups,
+      &self.named_group_list,
       None,
       ew,
       |el, local_ew| {
