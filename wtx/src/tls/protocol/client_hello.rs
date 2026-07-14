@@ -4,7 +4,6 @@ use crate::{
   calendar::DateTime,
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
-  crypto::SignatureTy,
   misc::{
     Lease, SingleTypeStorage,
     counter_writer::{CounterWriterBytesTy, u16_write},
@@ -161,7 +160,7 @@ where
         cv_policy: CvPolicy::new(DateTime::default()),
         max_fragment_length,
         supported_groups,
-        public_key: (SignatureTy::default(), &[]),
+        public_key: Vector::new(),
         secret_key: &[],
         server_name,
         signature_algorithms,

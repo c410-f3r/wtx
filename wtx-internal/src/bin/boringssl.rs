@@ -27,7 +27,7 @@ use wtx::{
   stream::{StreamReader, StreamWriter as _},
   tls::{
     HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsError,
-    TlsModeVerified, TlsStream,
+    TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
   },
   x509::CvTrustAnchor,
 };
@@ -39,11 +39,16 @@ async fn main() {
   let mut options_iter = OptionsIter::new(env::args().skip(1), &mut options);
   while let Some(_) = options_iter.next() {}
   if options.is_client {
-    let tls_config = make_client_cfg(&options);
-    exec_tests::<true>(options, tls_config).await;
+    if options.verify_peer {
+      let tls_config = make_client_cfg::<TlsModeVerified>(&options);
+      exec_tests::<_, true>(options, tls_config).await;
+    } else {
+      let tls_config = make_client_cfg::<TlsModeUnverified>(&options);
+      exec_tests::<_, true>(options, tls_config).await;
+    }
   } else {
-    let tls_config = make_server_cfg(&options);
-    exec_tests::<false>(options, tls_config).await;
+    let tls_config = make_server_cfg::<TlsModeVerified>(&options);
+    exec_tests::<_, false>(options, tls_config).await;
   }
 }
 
@@ -68,25 +73,26 @@ fn check_handshake_params(
   }
 }
 
-async fn exec_tests<const IS_CLIENT: bool>(
-  options: Options,
-  mut tls_config: TlsConfig<TlsModeVerified>,
-) {
+async fn exec_tests<TM, const IS_CLIENT: bool>(options: Options, mut tls_config: TlsConfig<TM>)
+where
+  TM: TlsMode,
+{
   for idx in 0..=options.resume_count {
-    let uri = Uri::new(format!("127.0.0.1:{}", options.port));
+    let uri = Uri::new(format!("localhost:{}", options.port));
     let rng = ChaCha20::from_std_random().unwrap();
-    let mut stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-    stream.write_all(&options.shim_id.to_le_bytes()).await.unwrap();
     if IS_CLIENT {
       let fun = async {
-        let mut rslt =
-          TlsConnectorBuilder::tokio(uri).build(&tls_config, rng).await?.connect().await?;
+        let mut connector = TlsConnectorBuilder::tokio(uri).build(&tls_config, rng).await?;
+        connector.stream_mut().write_all(&options.shim_id.to_le_bytes()).await?;
+        let mut rslt = connector.connect().await?;
         check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
         manage_after_handshake(&options, false, &mut rslt.tls_stream).await
       };
       handle_err(&options, fun.await);
     } else {
       let fun = async {
+        let mut stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
+        stream.write_all(&options.shim_id.to_le_bytes()).await?;
         let mut rslt = TlsAcceptor::new(&tls_config, rng, stream).accept().await?;
         check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
         manage_after_handshake(&options, false, &mut rslt.tls_stream).await
@@ -111,17 +117,21 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
       _ => ":FIXME:",
     },
+    Err(wtx::Error::TlsErrorFatal(TlsError::UnencryptedRecord, _)) => ":BAD_DECRYPT:",
     _ => ":FIXME:",
   };
   eprintln!("ERROR: {rslt:?}");
   quit(reason);
 }
 
-async fn manage_after_handshake<const IS_CLIENT: bool>(
+async fn manage_after_handshake<const IS_CLIENT: bool, TM>(
   options: &Options,
   mut _sent_message: bool,
-  tls_stream: &mut TlsStream<TcpStream, TlsModeVerified, IS_CLIENT>,
-) -> wtx::Result<()> {
+  tls_stream: &mut TlsStream<TcpStream, TM, IS_CLIENT>,
+) -> wtx::Result<()>
+where
+  TM: TlsMode,
+{
   let mut quench_writes = false;
   let mut _sent_key_update = false;
   let mut sent_shutdown = false;
@@ -148,7 +158,7 @@ async fn manage_after_handshake<const IS_CLIENT: bool>(
         return Ok(());
       }
       Ok(Some(len)) => len.get(),
-      Err(err) => panic!("unhandled read error {err:?}"),
+      Err(err) => return Err(err),
     };
 
     if options.shut_down_after_handshake && !sent_shutdown {
@@ -169,8 +179,11 @@ async fn manage_after_handshake<const IS_CLIENT: bool>(
   }
 }
 
-fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
-  let mut cfg = TlsConfig::new(TlsModeVerified::default(), Instant::now_date_time().unwrap());
+fn make_client_cfg<TM>(options: &Options) -> TlsConfig<TM>
+where
+  TM: TlsMode,
+{
+  let mut cfg = TlsConfig::new(TM::default(), Instant::now_date_time().unwrap());
   let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
   cfg
     .trust_anchors_mut()
@@ -196,9 +209,12 @@ fn make_client_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
   cfg
 }
 
-fn make_server_cfg(options: &Options) -> TlsConfig<TlsModeVerified> {
+fn make_server_cfg<TM>(options: &Options) -> TlsConfig<TM>
+where
+  TM: TlsMode,
+{
   let mut cfg = TlsConfig::from_keys_der(
-    TlsModeVerified::default(),
+    TM::default(),
     options.cert_der.as_slice(),
     &options.key_der.as_slice(),
   )

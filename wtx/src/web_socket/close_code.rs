@@ -76,7 +76,12 @@ impl TryFrom<u16> for CloseCode {
       1016..=2999 => Self::Reserved(from),
       3000..=3999 => Self::Iana(from),
       4000..=4999 => Self::Library(from),
-      received => return Err(crate::Error::UnexpectedUint { received: received.into() }),
+      received => {
+        return Err(crate::Error::UnexpectedUint {
+          identifier: "CloseCode".try_into().unwrap_or_default(),
+          received,
+        });
+      }
     })
   }
 }

@@ -6,7 +6,7 @@ use crate::{
   misc::{TryArithmetic as _, unlikely_elem},
   stream::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
-    SERVER_SIG_CTX, TlsError,
+    AlertDescription, CHANGE_CIPHER_SPEC, SERVER_SIG_CTX, TlsError,
     de::De,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
@@ -71,6 +71,7 @@ where
     return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
   }
   let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
+  _trace!("TLS: Read record: {:?}", (outer_ty, len));
   let mut max_allowed_len = max_fragment_length;
   if kss.is_some() {
     max_allowed_len = max_allowed_len.saturating_add(256);
@@ -85,7 +86,9 @@ where
     let nonce = elem.nonce();
     let secret = elem.cipher_key();
     let record = reader_buffer.current_mut();
-    let _ = elem.cipher_suite().aes_decrypt(&header, record, nonce, secret)?;
+    if elem.cipher_suite().aes_decrypt(&header, record, nonce, secret).is_err() {
+      return tls_error_fatal(TlsError::UnencryptedRecord, AlertDescription::BadRecordMac);
+    }
     elem.increment_counter();
     let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
       return Err(crate::crypto::CryptoError::InvalidAesData.into());
@@ -107,8 +110,30 @@ where
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
   let rri = ReadRecordInfo { inner_ty, outer_ty, plaintext_len };
-  _debug!("TLS HS: Read record: {:?}", &rri);
   Ok(Some(rri))
+}
+
+pub(crate) async fn manage_err<SW, T, const CCS: bool>(
+  kss: &mut KeyScheduleState,
+  rslt: crate::Result<T>,
+  stream_writer: &mut SW,
+) -> crate::Result<T>
+where
+  SW: StreamWriter,
+{
+  match rslt {
+    Err(err @ crate::Error::TlsErrorFatal(_, description)) => {
+      let alert = Alert::record_bytes(Alert::fatal(description).data_bytes(), kss)?;
+      if CCS {
+        stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
+      } else {
+        stream_writer.write_all(&alert[..]).await?;
+      }
+      Err(err)
+    }
+    Ok(elem) => Ok(elem),
+    Err(err) => Err(err),
+  }
 }
 
 #[inline]
@@ -222,6 +247,13 @@ pub(crate) fn server_sig_msg(transcript: &[u8]) -> crate::Result<ArrayVectorCopy
   Ok(msg)
 }
 
+pub(crate) fn tls_error_fatal(
+  tls_error: TlsError,
+  description: AlertDescription,
+) -> crate::Result<Option<ReadRecordInfo>> {
+  Err(crate::Error::TlsErrorFatal(tls_error, description))
+}
+
 #[inline(always)]
 fn transfer_after_handshake_data(
   bytes: &mut MaybeUninitSlice<'_, u8>,
@@ -256,24 +288,6 @@ pub(crate) fn u8_chunk<'de, T>(
   cb: impl FnOnce(&mut TlsDecodeWrapper<'de>) -> crate::Result<T>,
 ) -> crate::Result<T> {
   chunk::<u8, T>(dw, err, cb)
-}
-
-#[inline]
-pub(crate) fn u8_list<'de, B, T>(
-  buffer: &mut B,
-  dw: &mut TlsDecodeWrapper<'de>,
-  err: TlsError,
-) -> crate::Result<()>
-where
-  B: TryExtend<[T; 1]>,
-  T: Decode<'de, De>,
-{
-  chunk::<u8, _>(dw, err, |local_dw| {
-    while !local_dw.bytes().is_empty() {
-      buffer.try_extend([T::decode(local_dw)?])?;
-    }
-    Ok(())
-  })
 }
 
 #[inline]

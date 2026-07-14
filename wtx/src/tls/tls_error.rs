@@ -13,6 +13,8 @@ pub enum TlsError {
   DiffieHellmanError,
   /// Duplicated Client Hello Parameters
   DuplicatedClientHelloParameters,
+  /// Empty set of certificates
+  EmptySetOfCertificates,
   /// Incompatible ALPN
   IncompatibleAlpn,
   /// Incompatible Certificate Types
@@ -105,6 +107,8 @@ pub enum TlsError {
   NoCertificate,
   /// Record extrapolates the maximum fragment length
   ReceivedRecordIsTooLarge,
+  /// Record was supposed to be encrypted
+  UnencryptedRecord,
   /// Unknown name type
   UnknownNameType,
   /// Unknown Webpki Signature Scheme

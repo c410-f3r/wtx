@@ -56,7 +56,7 @@ pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
 pub use protocol::{
-  alert::Alert,
+  alert::{Alert, AlertDescription, AlertLevel},
   alpn::Alpn,
   cipher_suite::CipherSuite,
   max_fragment_length::MaxFragmentLength,

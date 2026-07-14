@@ -6,7 +6,7 @@ use crate::{
   tls::{
     TlsBuffer, TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
-    misc::{read_after_handshake_data, write_payloads},
+    misc::{manage_err, read_after_handshake_data, write_payloads},
     protocol::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
@@ -174,7 +174,7 @@ where
       return Ok(None);
     }
     let (ksr, ksw) = self.key_schedule.split_mut();
-    read_after_handshake_data::<_, _, IS_CLIENT>(
+    let rslt = read_after_handshake_data::<_, _, IS_CLIENT>(
       (&mut self.connection_state, ksw),
       bytes,
       ksr,
@@ -188,7 +188,9 @@ where
       closed_conn_cb,
       key_update_cb,
     )
-    .await
+    .await;
+    manage_err::<_, _, false>(self.key_schedule.write_mut().state_mut(), rslt, &mut self.stream)
+      .await
   }
 }
 

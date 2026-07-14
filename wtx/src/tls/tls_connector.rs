@@ -10,7 +10,7 @@ use crate::{
     MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
     TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, server_sig_msg},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg},
     protocol::{
       alert::Alert,
       certificate::Certificate,
@@ -177,43 +177,49 @@ where
         uri: self.uri,
       });
     }
-    let secrets = self.write_client_hello()?;
-    self.stream.write_all(&self.buffer.writer_buffer).await?;
-    let first_rri = self.fetch_rec_from_stream::<false>(false).await?;
-    let mut mrsri = match self.manage_initial_server_record(&first_rri, secrets)? {
-      ControlFlow::Continue(mrsri) => mrsri,
-      ControlFlow::Break(alert) => {
-        self.write_alert(alert).await?;
-        return Err(TlsError::AbortedHandshake(alert).into());
-      }
-    };
-    self.buffer.writer_buffer.clear();
-    let mut rri = self.fetch_rec_from_stream::<true>(true).await?;
-    *self.buffer.reader_buffer.forbid_clear_mut() = true;
-    loop {
-      match self.manage_remaining_server_records(&mut mrsri, &rri)? {
-        ManageRemainingServerRecordsState::Alert(alert) => {
+    let fut = async {
+      let secrets = self.write_client_hello()?;
+      self.stream.write_all(&self.buffer.writer_buffer).await?;
+      let first_rri = self.fetch_rec_from_stream::<false>(false).await?;
+      let mut mrsri = match self.manage_initial_server_record(&first_rri, secrets)? {
+        ControlFlow::Continue(mrsri) => mrsri,
+        ControlFlow::Break(alert) => {
           self.write_alert(alert).await?;
           return Err(TlsError::AbortedHandshake(alert).into());
         }
-        ManageRemainingServerRecordsState::NeedsMoreData => {
-          rri = self.fetch_rec_from_stream::<false>(true).await?;
+      };
+      self.buffer.writer_buffer.clear();
+      let mut rri = self.fetch_rec_from_stream::<true>(true).await?;
+      *self.buffer.reader_buffer.forbid_clear_mut() = true;
+      loop {
+        match self.manage_remaining_server_records(&mut mrsri, &rri)? {
+          ManageRemainingServerRecordsState::Alert(alert) => {
+            self.write_alert(alert).await?;
+            return Err(TlsError::AbortedHandshake(alert).into());
+          }
+          ManageRemainingServerRecordsState::NeedsMoreData => {
+            rri = self.fetch_rec_from_stream::<false>(true).await?;
+          }
+          ManageRemainingServerRecordsState::Terminated => break,
         }
-        ManageRemainingServerRecordsState::Terminated => break,
       }
-    }
-    *self.buffer.reader_buffer.forbid_clear_mut() = false;
-    match self.manage_client_records()? {
-      ManageClientRecordsState::Terminated(data) => {
-        _trace!("TLS HS: Write Finished");
-        self.stream.write_all(&data).await?;
+      *self.buffer.reader_buffer.forbid_clear_mut() = false;
+      match self.manage_client_records()? {
+        ManageClientRecordsState::Terminated(data) => {
+          _trace!("TLS HS: Write Finished");
+          self.stream.write_all(&data).await?;
+        }
       }
-    }
+      Ok(mrsri.tls_server_end_point)
+    };
+    let rslt = fut.await;
+    let kss = self.key_schedule.write_mut().state_mut();
+    let tls_server_end_point = manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
     Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
       rng: self.rng,
-      server_end_point: mrsri.tls_server_end_point,
+      server_end_point: tls_server_end_point,
       tls_stream: TlsStream::new(
         self.buffer,
         self.key_schedule,
@@ -313,6 +319,7 @@ where
       let before_len = maybe_handshakes.len();
       let mut dw = TlsDecodeWrapper::from_bytes(maybe_handshakes);
       let hs = Handshake::<&[u8]>::decode(&mut dw)?;
+      _trace!("TLS HS: Read handshake: {}", hs.msg_type);
       let curr_handshake_len = before_len.wrapping_sub(dw.bytes().len());
       let curr_handshake_bytes = maybe_handshakes.get(..curr_handshake_len).unwrap_or_default();
       self.transcript_hash.update(curr_handshake_bytes);
@@ -442,8 +449,14 @@ where
       CvEndEntity::from_certificate(cert, sig)?
     };
     if !TM::TY.is_unverified() {
-      let server_name = ServerName::from_ascii_bytes(uri.hostname().as_bytes())?;
-      cv_end_entity.validate_subject_name([server_name])?;
+      if let Some(sn_list) = &config.inner.server_name {
+        let [sn] = sn_list.server_name_list.as_inner()?;
+        let server_name = ServerName::from_domain(sn.name().as_bytes());
+        cv_end_entity.validate_subject_name([server_name])?;
+      } else {
+        let server_name = ServerName::from_ascii_bytes(uri.hostname().as_bytes())?;
+        cv_end_entity.validate_subject_name([server_name])?;
+      }
     }
     let mut cv_intermediates = ArrayVectorU8::<_, MAX_CERTIFICATES>::new();
     for intermediate in intermediates {
