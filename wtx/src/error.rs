@@ -197,8 +197,10 @@ pub enum Error {
   },
   /// Unexpected Unsigned integer
   UnexpectedUint {
+    /// Identifier
+    identifier: ShortStrU8<'static>,
     /// Number value
-    received: u64,
+    received: u16,
   },
   /// The operation `mlock` is not supported in your platform
   UnsupportedMlockPlatform,
@@ -289,6 +291,9 @@ pub enum Error {
   #[cfg(feature = "tls")]
   #[doc = associated_element_doc!()]
   TlsError(crate::tls::TlsError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsErrorFatal(crate::tls::TlsError, crate::tls::AlertDescription),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]

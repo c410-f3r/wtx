@@ -3,7 +3,7 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   tls::{
-    TlsError, de::De, misc::u8_list, protocol::protocol_version::ProtocolVersion,
+    TlsError, de::De, misc::u8_chunk, protocol::protocol_version::ProtocolVersion,
     tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -23,7 +23,12 @@ impl<'de> Decode<'de, De> for SupportedVersionsClient {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut versions = ArrayVectorCopy::new();
-    u8_list(&mut versions, dw, TlsError::InvalidSupportedVersions)?;
+    let bytes = u8_chunk(dw, TlsError::InvalidSupportedVersions, |el| Ok(el.bytes()))?;
+    for [b0, b1] in bytes.as_chunks::<2>().0 {
+      if let Ok(elem) = ProtocolVersion::try_from(u16::from_be_bytes([*b0, *b1])) {
+        versions.push(elem)?;
+      }
+    }
     Ok(Self { versions })
   }
 }

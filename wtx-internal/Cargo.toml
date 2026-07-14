@@ -44,6 +44,11 @@ path = "src/bin/h2spec-low.rs"
 required-features = ["h2spec-low"]
 
 [[bin]]
+name = "testssl"
+path = "src/bin/testssl.rs"
+required-features = ["testssl"]
+
+[[bin]]
 name = "x509-limbo"
 path = "src/bin/x509-limbo.rs"
 required-features = ["x509-limbo"]
@@ -64,6 +69,7 @@ ccadb = ["tokio", "wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/ht
 h2load = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
 h2spec-high = ["tokio", "wtx/http2", "wtx/tokio"]
 h2spec-low = ["tokio", "wtx/http2", "wtx/tokio"]
+testssl = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
 x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 
 [package]

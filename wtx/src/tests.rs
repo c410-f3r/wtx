@@ -4,6 +4,10 @@ use core::sync::atomic::Ordering;
 use std::sync::OnceLock;
 use wtx::misc::EnvVars;
 
+pub(crate) static _PUBLIC_KEY: &[u8] = include_bytes!("../../.certs/cert.pem");
+pub(crate) static _SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
+pub(crate) static _ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
+
 #[allow(unused, reason = "depends on feature")]
 #[derive(Debug, wtx::FromVars)]
 pub(crate) struct Vars {

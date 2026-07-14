@@ -277,7 +277,8 @@ impl TryFrom<&str> for DbError {
         "t" => table = Some(range),
         _ => {
           return Err(crate::Error::UnexpectedUint {
-            received: u64::from_radix_10(ty.as_bytes())?,
+            identifier: "DbError".try_into().unwrap_or_default(),
+            received: u64::from_radix_10(ty.as_bytes())?.try_into().unwrap_or(u16::MAX),
           });
         }
       }

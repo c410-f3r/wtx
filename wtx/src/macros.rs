@@ -93,7 +93,10 @@ macro_rules! create_enum {
       fn try_from(from: $n) -> $crate::Result<Self> {
         let rslt = match from {
           $($variant_n_fixed => Self::$variant_ident_fixed,)*
-          _ => return Err($crate::Error::UnexpectedUint { received: from.into() }),
+          _ => return Err($crate::Error::UnexpectedUint {
+            identifier: stringify!($enum_ident).try_into().unwrap_or_default(),
+            received: from.into()
+          }),
         };
         Ok(rslt)
       }

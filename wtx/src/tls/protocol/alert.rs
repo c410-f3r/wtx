@@ -10,41 +10,72 @@ use crate::{
 
 create_enum! {
   #[derive(Clone, Copy, Debug, PartialEq)]
-  pub(crate) enum AlertDescription<u8> {
-    CloseNotify = (0), // Warning
+  /// Alert Description
+  pub enum AlertDescription<u8> {
+    /// Close Notify
+    CloseNotify = (0),
+    /// Unexpected Message
     UnexpectedMessage = (10),
+    /// Bad Record Mac
     BadRecordMac = (20),
+    /// Record Overflow
     RecordOverflow = (22),
+    /// Handshake Failure
     HandshakeFailure = (40),
+    /// Bad Certificate
     BadCertificate = (42),
+    /// Unsupported Certificate
     UnsupportedCertificate = (43),
+    /// Certificate Revoked
     CertificateRevoked = (44),
+    /// Certificate Expired
     CertificateExpired = (45),
+    /// Certificate Unknown
     CertificateUnknown = (46),
+    /// Illegal Parameter
     IllegalParameter = (47),
+    /// Unknown Ca
     UnknownCa = (48),
+    /// Access Denied
     AccessDenied = (49),
+    /// Decode Error
     DecodeError = (50),
+    /// Decrypt Error
     DecryptError = (51),
+    /// Protocol Version
     ProtocolVersion = (70),
+    /// Insufficient Security
     InsufficientSecurity = (71),
+    /// Internal Error
     InternalError = (80),
+    /// Inappropriate Fallback
     InappropriateFallback = (86),
-    UserCanceled = (90), // Warning
+    /// User Canceled
+    UserCanceled = (90),
+    /// Missing Extension
     MissingExtension = (109),
+    /// Unsupported Extension
     UnsupportedExtension = (110),
+    /// Unrecognize dName
     UnrecognizedName = (112),
+    /// Bad Certificate Status Response
     BadCertificateStatusResponse = (113),
+    /// Unknown Psk Identity
     UnknownPskIdentity = (115),
+    /// Certificate Required
     CertificateRequired = (116),
+    /// No Application Protocol
     NoApplicationProtocol = (120),
   }
 }
 
 create_enum! {
+  /// Alert level
   #[derive(Debug, Clone, Copy, PartialEq)]
-  pub(crate) enum AlertLevel<u8> {
+  pub enum AlertLevel<u8> {
+    /// Warning
     Warning = (1),
+    /// Fatal
     Fatal = (2),
   }
 }
@@ -57,6 +88,10 @@ pub struct Alert {
 }
 
 impl Alert {
+  pub(crate) fn fatal(description: AlertDescription) -> Self {
+    Self { level: AlertLevel::Fatal, description }
+  }
+
   pub(crate) const fn close_notify() -> Self {
     Self { level: AlertLevel::Warning, description: AlertDescription::CloseNotify }
   }

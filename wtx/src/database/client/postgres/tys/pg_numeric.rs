@@ -125,7 +125,12 @@ impl TryFrom<u16> for Sign {
       SIGN_NAN => return Err(PostgresError::DecimalCanNotBeConvertedFromNaN.into()),
       SIGN_NEG => Self::Negative,
       SIGN_POS => Self::Positive,
-      _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
+      _ => {
+        return Err(crate::Error::UnexpectedUint {
+          identifier: "Sign".try_into().unwrap_or_default(),
+          received: from,
+        });
+      }
     })
   }
 }

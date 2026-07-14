@@ -61,7 +61,7 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub fn from_keys_der(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
     let mut this = Self::new(mode, Instant::now_date_time()?);
-    this.inner.public_key = public_key_from_der(public_key)?;
+    this.inner.public_key = Vector::from_iterator([public_key_from_der(public_key)?])?;
     this.inner.secret_key = secret_key.try_into()?;
     Ok(this)
   }
@@ -222,7 +222,7 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
-  pub(crate) public_key: (SignatureTy, B),
+  pub(crate) public_key: Vector<(SignatureTy, B)>,
   pub(crate) secret_key: B,
   pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms: SignatureAlgorithms,
@@ -243,7 +243,7 @@ where
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
       cv_policy: CvPolicy::new(validation_time),
       max_fragment_length: None,
-      public_key: (SignatureTy::default(), B::default()),
+      public_key: Vector::new(),
       secret_key: B::default(),
       server_name: None,
       signature_algorithms: SignatureAlgorithms::new(ArrayVectorCopy::from_array(
@@ -273,16 +273,19 @@ where
 fn public_key_from_pem<'de, B>(
   buffer: &'de mut Vector<u8>,
   bytes: &'de [u8],
-) -> crate::Result<(SignatureTy, B)>
+) -> crate::Result<Vector<(SignatureTy, B)>>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
 {
-  let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(bytes, &mut *buffer))?;
-  let [(_label, range)] = pem.data.into_inner()?;
-  let cert_bytes = buffer.get(range.clone()).unwrap_or_default();
-  let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
-  let cert = Certificate::<&[u8]>::decode(&mut dw)?;
-  let spki = &cert.tbs_certificate().subject_public_key_info;
-  Ok((spki.try_into()?, cert_bytes.try_into().map_err(Into::into)?))
+  let pem = Pem::<_, 3>::decode(&mut DecodeWrapper::new(bytes, &mut *buffer))?;
+  let mut certs = Vector::new();
+  for (_, range) in pem.data {
+    let cert_bytes = buffer.get(range.clone()).unwrap_or_default();
+    let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
+    let cert = Certificate::<&[u8]>::decode(&mut dw)?;
+    let spki = &cert.tbs_certificate().subject_public_key_info;
+    certs.push((spki.try_into()?, cert_bytes.try_into().map_err(Into::into)?))?;
+  }
+  Ok(certs)
 }

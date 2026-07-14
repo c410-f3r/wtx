@@ -21,22 +21,27 @@ db_file_init() {
 openssl genpkey -algorithm ed25519 -out $CERTS_DIR/key.pem
 openssl req -new -key $CERTS_DIR/key.pem -subj "/C=FI/CN=vahid" -out $CERTS_DIR/key.csr
 openssl genpkey -algorithm ed25519 -out $CERTS_DIR/root-ca.key
-openssl req -x509 -sha256 -days 1825 -subj "/C=FI/CN=vahid Root CA" \
+openssl req -x509 -sha256 -days 3650 -subj "/C=FI/CN=vahid Root CA" \
     -key $CERTS_DIR/root-ca.key \
     -out $CERTS_DIR/root-ca.crt \
     -addext "authorityKeyIdentifier=keyid:always,issuer" \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "subjectKeyIdentifier=hash"
 cat <<'EOF' > $CERTS_DIR/localhost.ext
+authorityInfoAccess = OCSP;URI:http://127.0.0.1/ocsp
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
+crlDistributionPoints = URI:http://127.0.0.1/crl.pem
 subjectAltName = @alt_names
 subjectKeyIdentifier=hash
 [alt_names]
 DNS.1 = localhost
 IP.1 = 127.0.0.1
 EOF
-openssl x509 -req -CA $CERTS_DIR/root-ca.crt -CAkey $CERTS_DIR/root-ca.key -in $CERTS_DIR/key.csr -out $CERTS_DIR/cert.pem -days 1825 -CAcreateserial -extfile $CERTS_DIR/localhost.ext
+openssl x509 -req -CA $CERTS_DIR/root-ca.crt -CAkey $CERTS_DIR/root-ca.key \
+    -in $CERTS_DIR/key.csr -out $CERTS_DIR/cert.pem \
+    -days 398 -CAcreateserial -extfile $CERTS_DIR/localhost.ext
+cat $CERTS_DIR/cert.pem $CERTS_DIR/root-ca.crt > $CERTS_DIR/fullchain.pem
 rm $CERTS_DIR/key.csr
 rm $CERTS_DIR/localhost.ext
 rm $CERTS_DIR/root-ca.srl

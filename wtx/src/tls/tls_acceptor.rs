@@ -201,7 +201,9 @@ where
     curr_idx = reader_buffer.len();
     drop(indices.push(curr_idx));
     let mut cert_list = ArrayVectorU8::new();
-    cert_list.push(CertificateEntry::new(&self.config.lease().inner.public_key.1))?;
+    for (_sig, bytes) in &self.config.lease().inner.public_key {
+      cert_list.push(CertificateEntry::new(bytes))?;
+    }
     {
       let ty = HandshakeType::Certificate;
       let certificate = Handshake::new(ty, Certificate::new(cert_list, &[]));
@@ -330,13 +332,14 @@ where
     if let Some(elem) = max_fragment_length {
       self.max_fragment_length = elem.num();
     }
+    let leaf_sig_ty =
+      self.config.lease().inner.public_key.first().ok_or(TlsError::EmptySetOfCertificates)?.0;
     let signature_ty = seek_signature_ty(
       &client_hello.data.tls_config().signature_algorithms.signature_schemes,
-      &[self.config.lease().inner.public_key.0],
+      &[leaf_sig_ty],
     )?;
     if let Some(elem) = &client_hello.data.tls_config().signature_algorithms_cert {
-      let _ =
-        seek_signature_ty_cert(&elem.supported_groups, &[self.config.lease().inner.public_key.0])?;
+      let _ = seek_signature_ty_cert(&elem.supported_groups, &[leaf_sig_ty])?;
     }
     let legacy_session_id = *client_hello.data.legacy_session_id();
     let agreement = key_share.group.agreement(&mut self.rng)?;
