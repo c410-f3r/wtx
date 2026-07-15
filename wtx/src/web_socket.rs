@@ -162,7 +162,7 @@ where
       stream,
       &WebSocketBridge::new(TlsStreamBridge::new()),
       buffer,
-      |el| el.connection_state = ConnectionState::Closed,
+      |el| el.connection_state = ConnectionState::ClosedGracefully,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )

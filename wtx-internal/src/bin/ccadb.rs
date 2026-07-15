@@ -9,10 +9,8 @@ use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, Vector},
-  executor::TokioExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
-  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
@@ -24,19 +22,14 @@ static EXCLUDED_FINGERPRINTS: &[&str] =
 async fn main() {
   let csv = {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
-    Http2ClientPoolBuilder::new(
-      TokioExecutor::default(),
-      1,
-      ChaCha20::from_std_random().unwrap(),
-      TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap(),
-    )
-    .unwrap()
-    .build()
-    .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(UriRef::new(uri)).into_request())
-    .await
-    .unwrap()
-    .msg_data
-    .body
+    Http2ClientPoolBuilder::tokio(1, TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap())
+      .unwrap()
+      .build()
+      .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(UriRef::new(uri)).into_request())
+      .await
+      .unwrap()
+      .msg_data
+      .body
   };
 
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));

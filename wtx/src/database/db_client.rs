@@ -342,7 +342,7 @@ impl DbClient for () {
 
   #[inline]
   fn connection_state(&self) -> ConnectionState {
-    ConnectionState::Closed
+    ConnectionState::ClosedAbruptly
   }
 
   #[inline]

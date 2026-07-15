@@ -22,7 +22,7 @@ podman run \
 	--userns=keep-id \
 	-v /tmp/testssl:/tmp:Z \
 	-v .certs:/tmp/certs:Z \
-	ghcr.io/testssl/testssl.sh --add-ca /tmp/certs/root-ca.crt --debug 6 --htmlfile /tmp/testssl.html --openssl=/usr/bin/openssl --quiet --severity HIGH localhost:9000 || EXIT_CODE=$?
+	ghcr.io/testssl/testssl.sh --add-ca /tmp/certs/root-ca.crt --debug 6 --full --htmlfile /tmp/testssl.html --openssl=/usr/bin/openssl --quiet --severity HIGH --wide localhost:9000 || EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -lt 10 ]; then
     exit 0

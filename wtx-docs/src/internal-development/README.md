@@ -33,13 +33,13 @@ All protocols are expected to end an connection with a signal that allows a grac
 
 ### Sequential code
 
-* `Local termination`: Sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
-* `Remote termination`: Receives a termination signal that halts the reading of further data. Immediately sends a terminal signal and closes the connection. Internal state jumps from `Open` to `Closed`.
+* `Local termination`: A local command sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
+* `Remote termination`: System receives a termination signal that halts the reading of further data. Immediately sends a terminal signal and closes the connection. Internal state jumps from `Open` to `Closed`.
 
 ### Concurrent code
 
-* `Local termination`: Sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
-* `Remote termination`: Receives a termination signal that halts the reading of further data. Local system **will certainly** send a termination signal in a posterior step. Internal state jumps from `Open` to `ReadClosed`.
+* `Local termination`: A local command sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
+* `Remote termination`: System receives a termination signal that halts the reading of further data. Local system will send a termination signal in a posterior step. Internal state jumps from `Open` to `ReadClosed`.
 
 Internal state is expected to jump from `ReadClosed` or `WriteClosed` to `Closed` once the termination cycle is fulfilled.
 
@@ -48,7 +48,7 @@ Internal state is expected to jump from `ReadClosed` or `WriteClosed` to `Closed
 Methods associated to external reads return optional elements to reflect that a connection can be closed anytime locally or by the peer. However, there are 2 exceptions to this rule.
 
 * `Handshakes`: Graceful stops are not expected in initial handshakes.
-* `PostgreSQL`: Clients expect that a connection will never be closed by the database.
+* `PostgreSQL`: Clients expect that a connection will never be closed by the database. It is a hard error if such a thing happens.
 
 ## Profiling
 

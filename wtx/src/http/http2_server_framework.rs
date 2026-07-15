@@ -86,16 +86,17 @@ pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, RNG, TM>
+impl<ERR, EX, RNG, TM>
   Http2ServerFramework<
     (),
-    fn(crate::Error),
+    fn(ERR),
     EX,
-    fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
+    fn() -> Result<<EX as Executor>::LocalRuntime, ERR>,
     RNG,
     TM,
   >
 where
+  ERR: From<crate::Error>,
   EX: Executor,
 {
   /// Taking aside the provided parameters, everything else is set to default values.
@@ -105,7 +106,7 @@ where
   pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     let error_cb: fn(_) = |_| {};
-    let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
+    let local_runtime_cb: fn() -> _ = || Ok(EX::LocalRuntime::new()?);
     Ok(Self {
       data: (),
       error_cb,
@@ -121,15 +122,17 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<TM>
+impl<ERR, TM>
   Http2ServerFramework<
     (),
-    fn(crate::Error),
+    fn(ERR),
     crate::executor::TokioExecutor,
-    fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
+    fn() -> Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime, ERR>,
     crate::rng::ChaCha20,
     TM,
   >
+where
+  ERR: From<crate::Error>,
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
@@ -262,6 +265,7 @@ where
     <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
     <EX::TcpStream as StreamReader>::read(..): Send,
     <EX::TcpStream as StreamWriter>::write_all(..): Send,
+    <EX::TcpStream as StreamWriter>::write_all_vectored(..): Send,
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read(..): Send,
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read_skip(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all(..): Send,

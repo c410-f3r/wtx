@@ -1,6 +1,7 @@
 use crate::{
   misc::Either,
   sync::{Arc, AtomicCell, AtomicWaker},
+  tls::{Alert, protocol::key_update::KeyUpdate},
 };
 use core::{future::poll_fn, task::Poll};
 
@@ -49,17 +50,17 @@ impl<const IS_CLIENT: bool> TlsStreamBridge<IS_CLIENT> {
 /// Data returned by the [`TlsStreamBridge::listen`] method. Should be handed to the writer part.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TlsStreamBridgeData {
-  frame: Either<[u8; 2], [u8; 1]>,
+  frame: Either<Alert, KeyUpdate>,
 }
 
 impl TlsStreamBridgeData {
   #[inline]
-  pub(crate) const fn new(frame: Either<[u8; 2], [u8; 1]>) -> Self {
+  pub(crate) const fn new(frame: Either<Alert, KeyUpdate>) -> Self {
     Self { frame }
   }
 
   #[inline]
-  pub(crate) const fn frame(self) -> Either<[u8; 2], [u8; 1]> {
+  pub(crate) const fn frame(self) -> Either<Alert, KeyUpdate> {
     self.frame
   }
 }

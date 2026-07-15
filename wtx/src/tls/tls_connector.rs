@@ -82,8 +82,9 @@ where
   TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
   U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
 {
+  /// It is preferable to construct instances through the builder.
   #[inline]
-  pub(crate) fn new(config: TC, rng: RNG, stream: S, uri: U) -> Self {
+  pub fn new(config: TC, rng: RNG, stream: S, uri: U) -> Self {
     let cfg_ref = config.lease();
     let key_schedule = KeySchedule::default();
     let transcript_hash = key_schedule.cipher_suite().hash_new();
@@ -173,7 +174,7 @@ where
           self.max_fragment_length,
           self.stream,
           self.config.lease().mode().clone(),
-        ),
+        )?,
         uri: self.uri,
       });
     }
@@ -226,7 +227,7 @@ where
         self.max_fragment_length,
         self.stream,
         self.config.lease().mode().clone(),
-      ),
+      )?,
       uri: self.uri,
     })
   }
@@ -354,11 +355,14 @@ where
         HandshakeType::Finished => {
           *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
           let finished = Finished::decode(&mut dw)?;
-          self
+          let rslt = self
             .key_schedule
             .read_mut()
             .state_mut()
-            .verify_finished_record(mrsri.transcript_digest.lease(), finished.verify_data())?;
+            .verify_finished_record(mrsri.transcript_digest.lease(), finished.verify_data());
+          if rslt.is_err() {
+            return Err(TlsError::DigestCheckFailed.into());
+          }
           return Ok(ManageRemainingServerRecordsState::Terminated);
         }
         HandshakeType::ClientHello
@@ -423,13 +427,13 @@ where
     transcript_hash: &TlsHash,
     uri: &Uri<STR>,
   ) -> crate::Result<()> {
-    if TM::TY.is_unverified() {
-      return Ok(());
-    }
     let certificate = Certificate::decode(remote_dw)?;
     let [end_entity, intermediates @ ..] = certificate.certificate_list().as_slice() else {
       return Err(TlsError::NoCertificate.into());
     };
+    if TM::TY.is_unverified() {
+      return Ok(());
+    }
     mrsri.tls_server_end_point.extend_from_copyable_slice(
       key_schedule.cipher_suite().hash_digest([end_entity.certificate_bytes()]).lease(),
     )?;
@@ -510,10 +514,9 @@ where
     }
     let kss = self.key_schedule.write_mut().state_mut();
     if kss.cipher_key().is_empty() {
-      let [level, description] = alert.data_bytes();
-      self.stream.write_all(&[21, 3, 3, 0, 2, level, description]).await?;
+      self.stream.write_all(&alert.record_bytes_unencrypted()).await?;
     } else {
-      self.stream.write_all(&Alert::record_bytes(alert.data_bytes(), kss)?).await?;
+      self.stream.write_all(&alert.record_bytes(kss)?).await?;
     }
     Ok(())
   }

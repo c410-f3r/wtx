@@ -113,49 +113,49 @@ pub struct GenericThrottlingApi {
 }
 #[allow(unused_qualifications)]
 #[doc =
-"[wtx::client_api_framework::misc::Pair] with [GenericThrottlingApi] as the API."]
+"[`wtx::client_api_framework::misc::Pair`] with [`GenericThrottlingApi`] as the API."]
 pub type GenericThrottlingApiPair<DRSR, T, TP> =
     wtx::client_api_framework::misc::Pair<PkgsAux<GenericThrottlingApi<>,
     DRSR, TP>, T>;
-#[doc = "[PkgsAux] with an owned [GenericThrottlingApi] as the API."]
+#[doc = "[`PkgsAux`] with an owned [`GenericThrottlingApi`] as the API."]
 pub type GenericThrottlingApiPkgsAux<DRSR, TP> =
     PkgsAux<GenericThrottlingApi<>, DRSR, TP>;
 #[doc =
-"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API."]
+"[`PkgsAux`] with a mutable reference of [`GenericThrottlingApi`] as the API."]
 pub type GenericThrottlingApiMutPkgsAux<'api, DRSR, TP> =
     PkgsAux<&'api mut GenericThrottlingApi<>, DRSR, TP>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with an owned [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+"[`PkgsAux`] with an owned [`GenericThrottlingApi`] as the API and [`wtx::client_api_framework::network::HttpParams`] as the transport parameter."]
 pub type GenericThrottlingApiHttpPkgsAux<DRSR> =
     PkgsAux<GenericThrottlingApi<>, DRSR,
     wtx::client_api_framework::network::HttpParams>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+"[`PkgsAux`] with a mutable reference of [`GenericThrottlingApi`] as the API and [`wtx::client_api_framework::network::HttpParams`] as the transport parameter."]
 pub type GenericThrottlingApiMutHttpPkgsAux<'api, DRSR> =
     PkgsAux<&'api mut GenericThrottlingApi<>, DRSR,
     wtx::client_api_framework::network::HttpParams>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+"[`PkgsAux`] with [`wtx::client_api_framework::network::HttpParams`] as the transport parameter."]
 pub type HttpPkgsAux<A, DRSR> =
     PkgsAux<A, DRSR, wtx::client_api_framework::network::HttpParams>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with an owned [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+"[`PkgsAux`] with an owned [`GenericThrottlingApi`] as the API and [`wtx::client_api_framework::network::WsParams`] as the transport parameter."]
 pub type GenericThrottlingApiWsPkgsAux<DRSR> =
     PkgsAux<GenericThrottlingApi<>, DRSR,
     wtx::client_api_framework::network::WsParams>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+"[`PkgsAux`] with a mutable reference of [`GenericThrottlingApi`] as the API and [`wtx::client_api_framework::network::WsParams`] as the transport parameter."]
 pub type GenericThrottlingApiMutWsPkgsAux<'api, DRSR> =
     PkgsAux<&'api mut GenericThrottlingApi<>, DRSR,
     wtx::client_api_framework::network::WsParams>;
 #[allow(unused_qualifications)]
 #[doc =
-"[PkgsAux] with [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+"[`PkgsAux`] with [`wtx::client_api_framework::network::WsParams`] as the transport parameter."]
 pub type WsPkgsAux<A, DRSR> =
     PkgsAux<A, DRSR, wtx::client_api_framework::network::WsParams>;
 #[automatically_derived]

@@ -18,7 +18,7 @@ create_enum! {
   }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct KeyUpdate {
   pub(crate) request_update: KeyUpdateRequest,
 }
@@ -28,14 +28,11 @@ impl KeyUpdate {
     Self { request_update }
   }
 
-  pub(crate) fn data_bytes(&self) -> [u8; 1] {
-    [u8::from(self.request_update)]
-  }
-
   pub(crate) fn record_bytes(
-    [a0]: [u8; 1],
+    self,
     kss: &mut KeyScheduleState,
   ) -> crate::Result<[u8; 5 + 1 + 1 + 16]> {
+    let [a0] = self.data_bytes();
     let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 18];
     let mut encrypted = [a0, RecordContentType::ApplicationData.into()];
     let nonce = kss.nonce();
@@ -49,6 +46,10 @@ impl KeyUpdate {
     }
     kss.increment_counter();
     Ok(rslt)
+  }
+
+  fn data_bytes(self) -> [u8; 1] {
+    [u8::from(self.request_update)]
   }
 }
 

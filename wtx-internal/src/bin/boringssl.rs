@@ -38,8 +38,10 @@ async fn main() {
   let mut options = Options::default();
   let mut options_iter = OptionsIter::new(env::args().skip(1), &mut options);
   while let Some(_) = options_iter.next() {}
+  let eval_cert =
+    options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert;
   if options.is_client {
-    if options.verify_peer {
+    if eval_cert {
       let tls_config = make_client_cfg::<TlsModeVerified>(&options);
       exec_tests::<_, true>(options, tls_config).await;
     } else {
@@ -47,8 +49,13 @@ async fn main() {
       exec_tests::<_, true>(options, tls_config).await;
     }
   } else {
-    let tls_config = make_server_cfg::<TlsModeVerified>(&options);
-    exec_tests::<_, false>(options, tls_config).await;
+    if eval_cert {
+      let tls_config = make_server_cfg::<TlsModeVerified>(&options);
+      exec_tests::<_, false>(options, tls_config).await;
+    } else {
+      let tls_config = make_server_cfg::<TlsModeUnverified>(&options);
+      exec_tests::<_, false>(options, tls_config).await;
+    }
   }
 }
 
@@ -111,13 +118,12 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
   let reason = match &rslt {
     Ok(_) => return,
     Err(wtx::Error::TlsError(err)) => match err {
-      TlsError::UnsupportedTlsVersion(_) | TlsError::UnsupportedRecTlsVersion(_) => {
-        ":WRONG_VERSION:"
-      }
+      TlsError::DigestCheckFailed => ":DIGEST_CHECK_FAILED:",
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
       _ => ":FIXME:",
     },
     Err(wtx::Error::TlsErrorFatal(TlsError::UnencryptedRecord, _)) => ":BAD_DECRYPT:",
+    Err(wtx::Error::TlsErrorFatal(TlsError::WrongAlert, _)) => ":BAD_ALERT:",
     _ => ":FIXME:",
   };
   eprintln!("ERROR: {rslt:?}");
@@ -154,9 +160,7 @@ where
 
   loop {
     let len = match tls_stream.read(buffer.get_mut(..options.read_size).unwrap().into()).await {
-      Ok(None) => {
-        return Ok(());
-      }
+      Ok(None) => return Ok(()),
       Ok(Some(len)) => len.get(),
       Err(err) => return Err(err),
     };

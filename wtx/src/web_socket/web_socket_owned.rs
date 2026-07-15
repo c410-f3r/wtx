@@ -91,8 +91,8 @@ where
 {
   /// Closes itself as well as the reader part
   #[inline]
-  pub fn close(&self) {
-    self.stream_writer.close();
+  pub fn close_abruptly(&self) {
+    self.stream_writer.close_abruptly();
   }
 
   /// Writes the reply frame returned by [`WebSocketBridge::listen`]. Returns `true` if the
@@ -104,7 +104,7 @@ where
       (None, Some(mut ws)) => {
         self.do_write_frame::<_, true>(&mut ws).await?;
         if ws.op_code().is_close() {
-          self.close();
+          self.close_abruptly();
           true
         } else {
           false
@@ -118,7 +118,7 @@ where
         if should_stop_tls {
           true
         } else if should_stop_ws {
-          self.close();
+          self.close_abruptly();
           true
         } else {
           false
@@ -154,7 +154,8 @@ where
       &mut self.stream_writer,
       self.writer_buffer.lease_mut(),
       |el| {
-        let value = if IS_CLOSED { ConnectionState::Closed } else { ConnectionState::WriteClosed };
+        let value =
+          if IS_CLOSED { ConnectionState::ClosedGracefully } else { ConnectionState::WriteClosed };
         el.connection_state_raw().store(value.into(), Ordering::Relaxed);
       },
     )
