@@ -9,6 +9,8 @@ pub enum TlsError {
   AbruptDisconnect,
   /// Bad Pre Key Share
   BadPreKeyShare,
+  /// Digest Check Failed
+  DigestCheckFailed,
   /// Diffie–Hellman error
   DiffieHellmanError,
   /// Duplicated Client Hello Parameters
@@ -141,4 +143,6 @@ pub enum TlsError {
   UnsupportedTlsVersion(Option<ProtocolVersion>),
   /// Only TLS 1.2 is supported due to legacy reasons
   UnsupportedRecTlsVersion(ProtocolVersion),
+  /// Wrong alert
+  WrongAlert,
 }

@@ -130,7 +130,7 @@ pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_R
   {
     let mut lock = inner.wd.lock().await;
     do_send_go_away(error_code, last_stream_id, &mut *lock).await;
-    lock.close();
+    lock.close_abruptly();
     wake_tasks(&mut *inner.hd.lock().await);
   }
 
@@ -161,7 +161,7 @@ pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_R
 
   if error_code.is_fatal() {
     if IS_RECV {
-      inner.wd.lock().await.close();
+      inner.wd.lock().await.close_abruptly();
       wake_tasks(&mut *inner.hd.lock().await);
     } else {
       let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;

@@ -9,7 +9,7 @@ use crate::{
 };
 
 create_enum! {
-  #[derive(Clone, Copy, Debug, PartialEq)]
+  #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   /// Alert Description
   pub enum AlertDescription<u8> {
     /// Close Notify
@@ -71,7 +71,7 @@ create_enum! {
 
 create_enum! {
   /// Alert level
-  #[derive(Debug, Clone, Copy, PartialEq)]
+  #[derive(Debug, Clone, Copy, Eq, PartialEq)]
   pub enum AlertLevel<u8> {
     /// Warning
     Warning = (1),
@@ -81,7 +81,7 @@ create_enum! {
 }
 
 /// Closure information and errors.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Alert {
   level: AlertLevel,
   description: AlertDescription,
@@ -96,10 +96,6 @@ impl Alert {
     Self { level: AlertLevel::Warning, description: AlertDescription::CloseNotify }
   }
 
-  pub(crate) fn data_bytes(self) -> [u8; 2] {
-    [u8::from(self.level), u8::from(self.description)]
-  }
-
   /// <https://datatracker.ietf.org/doc/html/rfc9846#section-6.1>
   ///
   /// `user_canceled` is a nice-to-have but optional thing that this implementation chose to
@@ -112,9 +108,10 @@ impl Alert {
   }
 
   pub(crate) fn record_bytes(
-    [a0, a1]: [u8; 2],
+    self,
     kss: &mut KeyScheduleState,
   ) -> crate::Result<[u8; 5 + 2 + 1 + 16]> {
+    let [a0, a1] = self.data_bytes();
     let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 19];
     let mut encrypted = [a0, a1, RecordContentType::Alert.into()];
     let nonce = kss.nonce();
@@ -128,6 +125,15 @@ impl Alert {
     }
     kss.increment_counter();
     Ok(rslt)
+  }
+
+  pub(crate) fn record_bytes_unencrypted(self) -> [u8; 5 + 2] {
+    let [a0, a1] = self.data_bytes();
+    [RecordContentType::ApplicationData.into(), 3, 3, 0, 2, a0, a1]
+  }
+
+  fn data_bytes(self) -> [u8; 2] {
+    [u8::from(self.level), u8::from(self.description)]
   }
 }
 

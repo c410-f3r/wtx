@@ -1,16 +1,11 @@
 //! Creates the configuration file used by the BoringSSL's testsuite.
 
 use std::fs;
-use wtx::collections::{HashMap, Vector};
+use wtx::collections::HashMap;
 
 fn main() {
-  let config = Config {
-    disabled_tests: disabled_tests(),
-    error_map: error_map(),
-    half_rtt_tickets: 0,
-    test_error_map: test_error_map(),
-    test_local_error_map: test_local_error_map(),
-  };
+  let config =
+    Config { disabled_tests: disabled_tests(), error_map: error_map(), half_rtt_tickets: 0 };
   let data = serde_json::to_vec_pretty(&config).unwrap();
   fs::write("boringssl-config.json", data).unwrap();
 }
@@ -19,9 +14,7 @@ fn main() {
 #[serde(rename_all = "PascalCase")]
 struct Config {
   disabled_tests: HashMap<&'static str, &'static str>,
-  error_map: HashMap<&'static str, Vector<&'static str>>,
-  test_error_map: HashMap<&'static str, &'static str>,
-  test_local_error_map: HashMap<&'static str, &'static str>,
+  error_map: HashMap<&'static str, &'static str>,
   #[serde(rename = "HalfRTTTickets")]
   half_rtt_tickets: u64,
 }
@@ -719,14 +712,6 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
   .collect()
 }
 
-fn error_map() -> HashMap<&'static str, Vector<&'static str>> {
-  HashMap::new()
-}
-
-fn test_error_map() -> HashMap<&'static str, &'static str> {
-  HashMap::new()
-}
-
-fn test_local_error_map() -> HashMap<&'static str, &'static str> {
-  HashMap::new()
+fn error_map() -> HashMap<&'static str, &'static str> {
+  [(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", ":BAD_DECRYPT:")].into_iter().collect()
 }

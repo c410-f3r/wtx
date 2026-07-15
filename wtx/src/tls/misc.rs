@@ -123,7 +123,7 @@ where
 {
   match rslt {
     Err(err @ crate::Error::TlsErrorFatal(_, description)) => {
-      let alert = Alert::record_bytes(Alert::fatal(description).data_bytes(), kss)?;
+      let alert = Alert::fatal(description).record_bytes(kss)?;
       if CCS {
         stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
       } else {
@@ -247,10 +247,10 @@ pub(crate) fn server_sig_msg(transcript: &[u8]) -> crate::Result<ArrayVectorCopy
   Ok(msg)
 }
 
-pub(crate) fn tls_error_fatal(
+pub(crate) fn tls_error_fatal<T>(
   tls_error: TlsError,
   description: AlertDescription,
-) -> crate::Result<Option<ReadRecordInfo>> {
+) -> crate::Result<T> {
   Err(crate::Error::TlsErrorFatal(tls_error, description))
 }
 

@@ -87,7 +87,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, u8, &'bytes [u8])> for MessageTy<'by
       }
       (b'D', [b0, b1, ..]) => Self::DataRow(u16::from_be_bytes([*b0, *b1])),
       (b'E', data) => {
-        *cs = ConnectionState::Closed;
+        *cs = ConnectionState::ClosedAbruptly;
         return Err(DbError::try_from(from_utf8_basic(data)?)?.into());
       }
       (b'G', _) => Self::CopyInResponse,

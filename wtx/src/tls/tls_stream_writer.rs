@@ -50,10 +50,10 @@ where
     }
   }
 
-  /// Closes itself as well as the reader part
+  /// Closes itself as well as the reader part without a graceful shutdown.
   #[inline]
-  pub fn close(&self) {
-    self.connection_state.store(ConnectionState::Closed.into(), Ordering::Relaxed);
+  pub fn close_abruptly(&self) {
+    self.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
     self.reader_waker.wake();
   }
 
@@ -71,7 +71,9 @@ where
     Ok(match data.frame() {
       Either::Left(elem) => {
         self.stream_writer.write_all(&Alert::record_bytes(elem, kss)?).await?;
-        self.close();
+        // The reader part received an alert, set itself as read closed, and signed us. This is
+        // a graceful stop.
+        self.connection_state.store(ConnectionState::ClosedGracefully.into(), Ordering::Relaxed);
         true
       }
       Either::Right(elem) => {
@@ -80,6 +82,18 @@ where
         false
       }
     })
+  }
+
+  /// Sends a warning alert of type `CloseNotify`, gracefully closing the connection.
+  #[inline]
+  pub async fn send_close_notify(&mut self) -> crate::Result<()> {
+    self
+      .stream_writer
+      .write_all(&Alert::close_notify().record_bytes(self.ksw.state_mut())?)
+      .await?;
+    self.connection_state.store(ConnectionState::WriteClosed.into(), Ordering::Relaxed);
+    self.reader_waker.wake();
+    Ok(())
   }
 
   #[cfg(feature = "web-socket")]

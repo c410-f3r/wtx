@@ -34,23 +34,24 @@ pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TM> {
   tls_config: Arc<TlsConfig<TM>>,
 }
 
-impl<EX, RNG, TM>
+impl<ER, EX, RNG, TM>
   WebSocketServerFramework<
     (),
-    fn(crate::Error),
+    fn(ER),
     EX,
-    fn() -> crate::Result<<EX as Executor>::LocalRuntime>,
+    fn() -> Result<<EX as Executor>::LocalRuntime, ER>,
     RNG,
     TM,
   >
 where
+  ER: From<crate::Error>,
   EX: Executor,
 {
   /// Taking aside the provided parameters, everything else is set to default values.
   #[inline]
   pub fn new(executor: EX, rng: RNG, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
     let error_cb: fn(_) = |_| {};
-    let local_runtime_cb: fn() -> _ = || EX::LocalRuntime::new();
+    let local_runtime_cb: fn() -> _ = || Ok(EX::LocalRuntime::new()?);
     Ok(Self {
       compression: (),
       error_cb,
@@ -65,15 +66,17 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<TM>
+impl<ER, TM>
   WebSocketServerFramework<
     (),
-    fn(crate::Error),
+    fn(ER),
     crate::executor::TokioExecutor,
-    fn() -> crate::Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime>,
+    fn() -> Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime, ER>,
     crate::rng::ChaCha20,
     TM,
   >
+where
+  ER: From<crate::Error>,
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]

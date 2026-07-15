@@ -10,7 +10,7 @@ use crate::{
     MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
     TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, server_sig_msg, write_payloads},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, write_payloads},
     protocol::{
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
@@ -127,39 +127,45 @@ where
           self.max_fragment_length,
           self.stream,
           self.config.lease().mode().clone(),
-        ),
+        )?,
       });
     }
-    let first_rri = self.fetch_rec_from_stream::<false, true>(false).await?;
-    let indices = self.manage_initial_client_record(&first_rri)?;
-    let buffer = self.buffer.reader_buffer.buffer_mut();
-    let payloads = match indices.as_slice() {
-      [idx0, idx1] => {
-        &[buffer.get(*idx0..*idx1).unwrap_or_default(), buffer.get(*idx1..).unwrap_or_default()][..]
+    let fut = async {
+      let first_rri = self.fetch_rec_from_stream::<false, true>(false).await?;
+      let indices = self.manage_initial_client_record(&first_rri)?;
+      let buffer = self.buffer.reader_buffer.buffer_mut();
+      let payloads = match indices.as_slice() {
+        [idx0, idx1] => {
+          &[buffer.get(*idx0..*idx1).unwrap_or_default(), buffer.get(*idx1..).unwrap_or_default()][..]
+        }
+        [idx0, idx1, idx2, idx3] => &[
+          buffer.get(*idx0..*idx1).unwrap_or_default(),
+          buffer.get(*idx1..*idx2).unwrap_or_default(),
+          buffer.get(*idx2..*idx3).unwrap_or_default(),
+          buffer.get(*idx3..).unwrap_or_default(),
+        ],
+        _ => &[],
+      };
+      write_payloads(
+        RecordContentType::Handshake,
+        self.key_schedule.write_mut(),
+        self.max_fragment_length,
+        payloads,
+        &mut self.stream,
+        &mut self.buffer.writer_buffer,
+      )
+      .await?;
+      buffer.truncate(indices.first().copied().unwrap_or_default());
+      let mut last_rri = self.fetch_rec_from_stream::<true, false>(true).await?;
+      if last_rri.outer_ty == RecordContentType::ChangeCipherSpec {
+        last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
       }
-      [idx0, idx1, idx2, idx3] => &[
-        buffer.get(*idx0..*idx1).unwrap_or_default(),
-        buffer.get(*idx1..*idx2).unwrap_or_default(),
-        buffer.get(*idx2..*idx3).unwrap_or_default(),
-        buffer.get(*idx3..).unwrap_or_default(),
-      ],
-      _ => &[],
+      self.manage_final_client_record(&last_rri)?;
+      Ok(())
     };
-    write_payloads(
-      RecordContentType::Handshake,
-      self.key_schedule.write_mut(),
-      self.max_fragment_length,
-      payloads,
-      &mut self.stream,
-      &mut self.buffer.writer_buffer,
-    )
-    .await?;
-    buffer.truncate(indices.first().copied().unwrap_or_default());
-    let mut last_rri = self.fetch_rec_from_stream::<true, false>(true).await?;
-    if last_rri.outer_ty == RecordContentType::ChangeCipherSpec {
-      last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
-    }
-    self.manage_final_client_record(&last_rri)?;
+    let rslt = fut.await;
+    let kss = self.key_schedule.write_mut().state_mut();
+    manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
@@ -170,7 +176,7 @@ where
         self.max_fragment_length,
         self.stream,
         self.config.lease().mode().clone(),
-      ),
+      )?,
     })
   }
 

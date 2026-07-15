@@ -2,13 +2,11 @@ use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write as _};
 use wtx::{
   collections::Vector,
-  executor::TokioExecutor,
   http::{
     Header, HttpClient as _, KnownHeaderName, MsgBuffer, ReqBuilder,
     http2_client_pool::Http2ClientPoolBuilder,
   },
   misc::{AsciiGeneric, from_utf8_basic, into_rslt, str_split_once1, tracing_tree_init},
-  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
 };
 
@@ -36,13 +34,8 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
   if let Some(elem) = data {
     msg_buffer.body.extend_from_copyable_slice(elem.as_bytes())?;
   }
-  let client = Http2ClientPoolBuilder::new(
-    TokioExecutor::default(),
-    1,
-    ChaCha20::from_std_random()?,
-    TlsConfig::from_ccadb(TlsModeVerified::default())?,
-  )?
-  .build();
+  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
+  let client = Http2ClientPoolBuilder::tokio(1, tls_config)?.build();
   let res = client
     .send_req_recv_res(&mut Vector::new(), ReqBuilder::new(method, msg_buffer).into_request())
     .await?;

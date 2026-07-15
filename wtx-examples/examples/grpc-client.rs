@@ -8,10 +8,8 @@ extern crate wtx_examples;
 use std::borrow::Cow;
 use wtx::{
   codec::format::QuickProtobuf,
-  executor::TokioExecutor,
   grpc::GrpcClient,
   http::{MsgBufferStr, http2_client_pool::Http2ClientPoolBuilder},
-  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{
@@ -23,10 +21,8 @@ use wtx_examples::{
 async fn main() -> wtx::Result<()> {
   let uri = "https://127.0.0.1:9000/wtx.GenericService/generic_method";
   let mut client = GrpcClient::new(
-    Http2ClientPoolBuilder::new(
-      TokioExecutor::default(),
+    Http2ClientPoolBuilder::tokio(
       1,
-      ChaCha20::from_getrandom()?,
       TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
     )?
     .build(),

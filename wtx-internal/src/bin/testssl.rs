@@ -1,7 +1,7 @@
 //! testssl
 
 use wtx::{
-  http::http2_server_framework::{Http2ServerFramework, HttpRouter, get},
+  http::http2_server_framework::{Http2ServerFramework, HttpRouter, State, VerbatimParams, get},
   tls::{TlsConfig, TlsModeVerified},
 };
 
@@ -14,9 +14,9 @@ fn main() -> wtx::Result<()> {
     FULL_CHAIN.try_into()?,
     SECRET_KEY.try_into()?,
   )?)?
-  .run_in_threads("127.0.0.1:9000", HttpRouter::paths(wtx::paths!(("/", get(root)),))?)
+  .run_in_threads("0.0.0.0:9000", HttpRouter::paths(wtx::paths!(("/", get(root)),))?)
 }
 
-async fn root() -> &'static str {
-  "Hello"
+async fn root(_: State<'_, ()>) -> wtx::Result<VerbatimParams> {
+  Ok(VerbatimParams::default())
 }

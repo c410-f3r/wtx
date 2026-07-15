@@ -47,6 +47,21 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   }
 }
 
+#[cfg(feature = "tokio")]
+impl<TM> Http2ClientPoolBuilder<crate::executor::TokioExecutor, TM> {
+  /// Calls [`Self::new`] using the elements provided by the tokio project
+  #[inline]
+  pub fn tokio(len: usize, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+    use crate::rng::CryptoSeedableRng as _;
+    Self::new(
+      crate::executor::TokioExecutor::default(),
+      len,
+      ChaCha20::from_std_random()?,
+      tls_config,
+    )
+  }
+}
+
 impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   /// If `true`, then the SNI TLS extension won't be added with the hostname of the URL.
   #[inline]
