@@ -180,14 +180,14 @@ async fn alert_cb<SR, const IS_CLIENT: bool>(
   aux: &mut (&TlsStreamBridge<IS_CLIENT>, &Arc<AtomicU8>),
   alert: Alert,
   _: &mut SR,
-) -> crate::Result<()> {
+) -> crate::Result<bool> {
   if alert.is_close_notify() {
     aux.1.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
     aux.0.update(TlsStreamBridgeData::new(Either::Left(alert)));
   } else {
     aux.1.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
   }
-  Ok(())
+  Ok(true)
 }
 
 // This branch is only entered when the peer closed the connection without an alert.

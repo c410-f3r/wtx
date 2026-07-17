@@ -7,6 +7,7 @@ use crate::{
 pub trait SeedableRng: CryptoSeedableRng {
   /// Creates a new instance based on the entropy provided by [`simple_seed`].
   #[inline]
+  #[track_caller]
   fn from_simple_seed() -> crate::Result<Self> {
     let mut seed = Self::Seed::default();
     Xorshift64::from(simple_seed()).fill_slice(seed.lease_mut());

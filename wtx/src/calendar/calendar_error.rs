@@ -5,6 +5,8 @@ pub enum CalendarError {
   //
   /// Underlying time structure couldn't hold the value generated during an arithmetic operation.
   ArithmeticOverflow,
+  /// Adjusting method was called more than once
+  EpochWasAlreadyAdjusted,
   /// Days from CE must be within the `-11968265` ~ `11967535` range
   InvalidCeDays {
     /// Invalid received number

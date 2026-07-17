@@ -26,7 +26,9 @@ pub mod grpc_bindings;
 /// Public key
 pub static PUBLIC_KEY: &[u8] = include_bytes!("../../.certs/cert.pem");
 /// Secret key
-pub static SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
+///
+/// !!! Secret keys shouldn't be static. This is only used for demonstration purposes !!!
+pub static SECRET_KEY: &[u8; 119] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 

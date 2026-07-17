@@ -8,6 +8,8 @@ use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
   http::WebSocketServerFramework,
+  misc::SecretContext,
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeVerified},
   web_socket::{OpCode, WebSocket, WebSocketPayloadOrigin},
 };
@@ -16,13 +18,18 @@ use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 type LocalWebSocket = WebSocket<(), TcpStream, TlsModeVerified, false>;
 
 fn main() -> wtx::Result<()> {
-  WebSocketServerFramework::tokio(TlsConfig::from_keys_pem(
+  let mut rng = ChaCha20::from_getrandom()?;
+  let secret_context = SecretContext::new(&mut rng)?;
+  let tls_config = TlsConfig::from_keys_pem(
     TlsModeVerified::default(),
     PUBLIC_KEY.try_into()?,
-    SECRET_KEY.try_into()?,
-  )?)?
-  .set_error_cb(|err| eprintln!("Error: {err}"))
-  .run_in_threads(&host_from_args(), (("/echo", echo),))
+    &mut rng,
+    (secret_context, &mut SECRET_KEY.clone()),
+  )?;
+  let router = (("/echo", echo),);
+  WebSocketServerFramework::tokio(tls_config)?
+    .set_error_cb(|err| eprintln!("Error: {err}"))
+    .run_in_threads(&host_from_args(), router)
 }
 
 async fn echo(mut buffer: Vector<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {

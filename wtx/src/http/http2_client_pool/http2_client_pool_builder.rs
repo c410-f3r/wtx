@@ -7,7 +7,7 @@ use crate::{
   misc::TcpParams,
   pool::{ResourceManager, SimplePool},
   rng::ChaCha20,
-  sync::{Arc, AtomicCell},
+  sync::{AsyncMutex, AtomicCell},
   tls::TlsConfig,
 };
 
@@ -20,7 +20,7 @@ pub struct Http2ClientPoolBuilder<EX, TM> {
   len: usize,
   rng: ChaCha20,
   tcp_params: TcpParams,
-  tls_config: Arc<TlsConfig<TM>>,
+  tls_config: TlsConfig<TM>,
 }
 
 impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
@@ -42,7 +42,7 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
       len,
       rng,
       tcp_params: TcpParams::default(),
-      tls_config: tls_config.into(),
+      tls_config,
     })
   }
 }
@@ -104,7 +104,7 @@ where
           hrp: self.hrp,
           rng: AtomicCell::new(self.rng),
           tcp_params: self.tcp_params,
-          tls_config: self.tls_config,
+          tls_config: AsyncMutex::new(self.tls_config),
         },
       ),
     }

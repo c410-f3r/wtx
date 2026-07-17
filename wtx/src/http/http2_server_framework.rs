@@ -26,7 +26,7 @@ mod verbatim_params;
 
 use crate::{
   collections::ArrayVectorCopy,
-  executor::{Executor, Runtime as _, TcpListener as _, TcpStream as _},
+  executor::{Executor, Runtime as _},
   http::{
     AutoStream, HttpRecvParams, ManualStream, MsgBufferString, OperationMode, Request, Response,
     push_h2_alpn,
@@ -34,7 +34,7 @@ use crate::{
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
   misc::{TcpParams, Uri},
   rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
-  stream::{Stream, StreamReader, StreamWriter},
+  stream::{Stream, StreamReader, StreamWriter, TcpListener as _, TcpStream as _},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
 };

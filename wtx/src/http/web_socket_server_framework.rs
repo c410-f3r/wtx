@@ -2,11 +2,11 @@
 
 use crate::{
   collections::Vector,
-  executor::{Executor, Runtime as _, TcpListener},
+  executor::{Executor, Runtime as _},
   http::Router,
   misc::{TcpParams, Uri},
   rng::{CryptoRng, CryptoSeedableRng},
-  stream::{StreamReader, StreamWriter},
+  stream::{StreamReader, StreamWriter, TcpListener},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
   web_socket::{WebSocket, WebSocketAcceptor, WsCompression},

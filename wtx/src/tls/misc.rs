@@ -71,7 +71,6 @@ where
     return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
   }
   let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
-  _trace!("TLS: Read record: {:?}", (outer_ty, len));
   let mut max_allowed_len = max_fragment_length;
   if kss.is_some() {
     max_allowed_len = max_allowed_len.saturating_add(256);
@@ -110,6 +109,7 @@ where
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
   let rri = ReadRecordInfo { inner_ty, outer_ty, plaintext_len };
+  _trace!(target: crate::tls::_TARGET, "Read Record: {:?}", &rri);
   Ok(Some(rri))
 }
 
@@ -147,7 +147,10 @@ pub(crate) async fn read_after_handshake_data<A, SR, const IS_CLIENT: bool>(
   plaintext_len: &mut usize,
   reader_buffer: &mut BufStreamReader,
   stream_reader: &mut SR,
-  mut alert_cb: impl for<'any> FnMutFut<(&'any mut A, Alert, &'any mut SR), Result = crate::Result<()>>,
+  mut alert_cb: impl for<'any> FnMutFut<
+    (&'any mut A, Alert, &'any mut SR),
+    Result = crate::Result<bool>,
+  >,
   closed_conn_cb: impl FnOnce(&mut A),
   mut key_update_cb: impl for<'any> FnMutFut<
     (&'any mut A, KeyUpdate, &'any mut SR),
@@ -186,8 +189,9 @@ where
       RecordContentType::Alert => {
         cold_path();
         let alert = Alert::decode(&mut TlsDecodeWrapper::from_bytes(plaintext))?;
-        alert_cb.call((&mut aux, alert, stream_reader)).await?;
-        return Ok(None);
+        if alert_cb.call((&mut aux, alert, stream_reader)).await? {
+          return Ok(None);
+        }
       }
       RecordContentType::ApplicationData => {
         *plaintext_len = rri.plaintext_len;

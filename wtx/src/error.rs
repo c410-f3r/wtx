@@ -42,7 +42,16 @@ pub enum Error {
   Argon2(argon2::Error),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
-  EmbassyNet(embassy_net::tcp::Error),
+  EmbassyNetTcp(embassy_net::tcp::Error),
+  #[cfg(feature = "embassy-net")]
+  #[doc = associated_element_doc!()]
+  EmbassyNetUdpBind(embassy_net::udp::BindError),
+  #[cfg(feature = "embassy-net")]
+  #[doc = associated_element_doc!()]
+  EmbassyNetUdpRecv(embassy_net::udp::RecvError),
+  #[cfg(feature = "embassy-net")]
+  #[doc = associated_element_doc!()]
+  EmbassyNetUdpSend(embassy_net::udp::SendError),
   #[cfg(feature = "getrandom")]
   #[doc = associated_element_doc!()]
   GetRandomError(getrandom::Error),
@@ -359,7 +368,31 @@ impl From<crate::crypto::CryptoError> for Error {
 impl From<embassy_net::tcp::Error> for Error {
   #[inline]
   fn from(from: embassy_net::tcp::Error) -> Self {
-    Self::EmbassyNet(from)
+    Self::EmbassyNetTcp(from)
+  }
+}
+
+#[cfg(feature = "embassy-net")]
+impl From<embassy_net::udp::BindError> for Error {
+  #[inline]
+  fn from(from: embassy_net::udp::BindError) -> Self {
+    Self::EmbassyNetUdpBind(from)
+  }
+}
+
+#[cfg(feature = "embassy-net")]
+impl From<embassy_net::udp::RecvError> for Error {
+  #[inline]
+  fn from(from: embassy_net::udp::RecvError) -> Self {
+    Self::EmbassyNetUdpRecv(from)
+  }
+}
+
+#[cfg(feature = "embassy-net")]
+impl From<embassy_net::udp::SendError> for Error {
+  #[inline]
+  fn from(from: embassy_net::udp::SendError) -> Self {
+    Self::EmbassyNetUdpSend(from)
   }
 }
 

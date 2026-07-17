@@ -5,7 +5,7 @@ use crate::{
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
   misc::{
-    Lease, SingleTypeStorage,
+    Lease, Secret, SingleTypeStorage,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
@@ -161,7 +161,7 @@ where
         max_fragment_length,
         supported_groups,
         public_key: Vector::new(),
-        secret_key: &[],
+        secret_key: Secret::default(),
         server_name,
         signature_algorithms,
         signature_algorithms_cert,

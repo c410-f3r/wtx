@@ -2,10 +2,11 @@
 
 set -euxo pipefail
 
-export RUST_LOG=trace
+# Successful tests expect no output but this is is kept for debugging.
+#export RUST_LOG=trace
 
 if [ ! -d "./boringssl" ]; then
-    git clone --depth 1 --branch 0.20241209.0 https://github.com/google/boringssl
+    git clone --depth 1 --branch 0.20260713.0 https://github.com/google/boringssl
     rm boringssl/.git
 fi
 

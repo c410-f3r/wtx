@@ -5,12 +5,12 @@ use crate::{
     http2_client_pool::{Http2ClientPoolResource, Http2Resource},
   },
   http2::{Http2, Http2Buffer},
-  misc::{Lease as _, TcpParams, UriRef},
+  misc::{TcpParams, UriRef},
   pool::ResourceManager,
   rng::ChaCha20,
   stream::{Stream, StreamReader, StreamWriter},
-  sync::{Arc, AtomicCell},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsMode},
+  sync::{AsyncMutex, AtomicCell},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsMode, TlsStream},
 };
 use core::fmt::Debug;
 
@@ -22,7 +22,30 @@ pub struct Http2RM<EX, TM> {
   pub(crate) hrp: HttpRecvParams,
   pub(crate) rng: AtomicCell<ChaCha20>,
   pub(crate) tcp_params: TcpParams,
-  pub(crate) tls_config: Arc<TlsConfig<TM>>,
+  pub(crate) tls_config: AsyncMutex<TlsConfig<TM>>,
+}
+
+impl<EX, TM> Http2RM<EX, TM>
+where
+  EX: Executor,
+  TM: TlsMode,
+{
+  async fn tls_stream(&self, aux: &str) -> crate::Result<TlsStream<EX::TcpStream, TM, true>> {
+    let uri = UriRef::new(aux);
+    let mut tls_config = self.tls_config.lock().await;
+    if !self.disable_auto_sni {
+      push_server_name(&mut tls_config, &uri)?;
+    }
+    Ok(
+      TlsConnectorBuilder::new(EX::default(), uri)
+        .set_tcp_params(self.tcp_params)
+        .build(&*tls_config, &self.rng)
+        .await?
+        .connect()
+        .await?
+        .tls_stream,
+    )
+  }
 }
 
 impl<EX, TM> ResourceManager for Http2RM<EX, TM>
@@ -43,22 +66,7 @@ where
 
   #[inline]
   async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-    let uri = UriRef::new(aux);
-    let mut tc_placeholder;
-    let tc = if self.disable_auto_sni {
-      &*self.tls_config
-    } else {
-      tc_placeholder = self.tls_config.lease().clone();
-      push_server_name(&mut tc_placeholder, &uri)?;
-      &tc_placeholder
-    };
-    let tls_stream = TlsConnectorBuilder::new(EX::default(), uri)
-      .set_tcp_params(self.tcp_params)
-      .build(&tc, &self.rng)
-      .await?
-      .connect()
-      .await?
-      .tls_stream;
+    let tls_stream = self.tls_stream(aux).await?;
     let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
     Ok(Http2ClientPoolResource { client: tuple.1 })
@@ -75,23 +83,8 @@ where
     aux: &Self::RecycleAux,
     resource: &mut Self::Resource,
   ) -> Result<(), Self::Error> {
-    let uri = UriRef::new(aux);
+    let tls_stream = self.tls_stream(aux).await?;
     let mut hb = Http2Buffer::default();
-    let mut tc_placeholder;
-    let tc = if self.disable_auto_sni {
-      &*self.tls_config
-    } else {
-      tc_placeholder = self.tls_config.lease().clone();
-      push_server_name(&mut tc_placeholder, &uri)?;
-      &tc_placeholder
-    };
-    let tls_stream = TlsConnectorBuilder::new(EX::default(), uri)
-      .set_tcp_params(self.tcp_params)
-      .build(&tc, &self.rng)
-      .await?
-      .connect()
-      .await?
-      .tls_stream;
     resource.client.swap_buffers(&mut hb).await;
     let (frame_reader, http2) = Http2::connect(hb, self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(frame_reader);
@@ -104,6 +97,9 @@ fn push_server_name<S, TM>(tc: &mut TlsConfig<TM>, uri: &crate::misc::Uri<S>) ->
 where
   S: crate::misc::Lease<str>,
 {
+  if tc.server_name_mut().is_some() {
+    return Ok(());
+  }
   tc.server_name_mut()
     .get_or_insert_default()
     .server_name_list

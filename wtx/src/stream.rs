@@ -43,14 +43,20 @@ mod std;
 mod stream_common;
 mod stream_reader;
 mod stream_writer;
+mod tcp_listener;
+mod tcp_stream;
 #[cfg(feature = "tokio")]
 mod tokio;
+mod udp_stream;
 
 pub use buf_stream_reader::{BufStreamReader, BufStreamReaderError};
 pub use bytes_stream::BytesStream;
 pub use stream_common::StreamCommon;
 pub use stream_reader::StreamReader;
 pub use stream_writer::StreamWriter;
+pub use tcp_listener::TcpListener;
+pub use tcp_stream::TcpStream;
+pub use udp_stream::UdpStream;
 
 /// A stream of values produced asynchronously.
 pub trait Stream: StreamReader + StreamWriter {

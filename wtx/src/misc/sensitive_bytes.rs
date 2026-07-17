@@ -1,4 +1,4 @@
-use crate::misc::{LeaseMut, memset_slice_volatile, mlock_slice, munlock_slice};
+use crate::misc::{LeaseMut, memset_slice_volatile};
 use core::{
   fmt::Debug,
   ops::{Deref, DerefMut},
@@ -10,24 +10,16 @@ where
   B: LeaseMut<[u8]>,
 {
   bytes: B,
-  is_locked: bool,
 }
 
 impl<B> SensitiveBytes<B>
 where
   B: LeaseMut<[u8]>,
 {
-  /// New instance ***with*** `mlock`ed bytes
+  /// New instance
   #[inline]
-  pub fn new_locked(mut bytes: B) -> crate::Result<Self> {
-    mlock_slice(bytes.lease_mut())?;
-    Ok(Self { bytes, is_locked: true })
-  }
-
-  /// New instance ***without*** `mlock`ed bytes
-  #[inline]
-  pub const fn new_unlocked(bytes: B) -> Self {
-    Self { bytes, is_locked: false }
+  pub const fn new(bytes: B) -> Self {
+    Self { bytes }
   }
 }
 
@@ -70,10 +62,6 @@ where
   #[inline]
   fn drop(&mut self) {
     memset_slice_volatile(self.bytes.lease_mut(), 0);
-    if self.is_locked {
-      let rslt = munlock_slice(self.bytes.lease_mut());
-      debug_assert!(rslt.is_ok());
-    }
   }
 }
 
@@ -93,7 +81,7 @@ mod database {
     #[inline]
     fn decode(dw: &mut DB::DecodeWrapper<'de, '_, '_>) -> Result<Self, DB::Error> {
       let data: B = Decode::<'_, DB>::decode(dw)?;
-      Ok(Self::new_locked(data)?)
+      Ok(Self::new(data))
     }
   }
 

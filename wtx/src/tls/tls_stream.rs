@@ -6,7 +6,7 @@ use crate::{
   stream::{Stream, StreamCommon, StreamReader, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
-    AlertDescription, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,
+    AlertDescription, AlertLevel, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,
     TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
     misc::{manage_err, read_after_handshake_data, tls_error_fatal, write_payloads},
@@ -43,6 +43,7 @@ pub struct TlsStream<S, TM, const IS_CLIENT: bool> {
   pub(crate) stream: S,
   pub(crate) timer: Pin<Box<Sleep>>,
   pub(crate) _tm: TM,
+  pub(crate) warning_alerts: u8,
 }
 
 impl<S, TM, const IS_CLIENT: bool> TlsStream<S, TM, IS_CLIENT>
@@ -70,6 +71,7 @@ where
       timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
       stream,
       _tm: tm,
+      warning_alerts: 0,
     })
   }
 
@@ -187,6 +189,7 @@ where
       stream,
       timer,
       _tm,
+      warning_alerts,
     } = self;
     let local_connection_state = *connection_state;
     let mut read_fut = pin!(async {
@@ -199,7 +202,7 @@ where
       }
       let (ksr, ksw) = key_schedule.split_mut();
       let rslt = read_after_handshake_data::<_, _, IS_CLIENT>(
-        (&mut *connection_state, ksw),
+        (&mut *connection_state, ksw, warning_alerts),
         bytes,
         ksr,
         *max_fragment_length,
@@ -291,28 +294,37 @@ where
 }
 
 async fn alert_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite),
+  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8),
   alert: Alert,
   stream: &mut S,
-) -> crate::Result<()>
+) -> crate::Result<bool>
 where
   S: Stream,
 {
-  if alert.is_close_notify() {
-    stream.write_all(&alert.record_bytes(aux.1.state_mut())?).await?;
-    *aux.0 = ConnectionState::ClosedGracefully;
-    return Ok(());
+  match (alert.level(), alert.description()) {
+    (AlertLevel::Warning, AlertDescription::CloseNotify) => {
+      stream.write_all(&alert.record_bytes(aux.1.state_mut())?).await?;
+      *aux.0 = ConnectionState::ClosedGracefully;
+      Ok(true)
+    }
+    (AlertLevel::Warning, AlertDescription::UserCanceled) => {
+      *aux.2 = aux.2.wrapping_add(1);
+      if *aux.2 >= 5 {
+        return tls_error_fatal(TlsError::TooManyWarningAlerts, AlertDescription::DecodeError);
+      }
+      Ok(false)
+    }
+    _ => tls_error_fatal(TlsError::WrongAlert, AlertDescription::DecodeError),
   }
-  tls_error_fatal(TlsError::WrongAlert, AlertDescription::DecodeError)
 }
 
 // This branch is only entered when the peer closed the connection without an alert.
-fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite)) {
+fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8)) {
   *aux.0 = ConnectionState::ClosedAbruptly;
 }
 
 async fn key_update_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite),
+  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8),
   key_update: KeyUpdate,
   stream: &mut S,
 ) -> crate::Result<()>
