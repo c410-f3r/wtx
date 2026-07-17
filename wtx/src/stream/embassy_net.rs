@@ -1,9 +1,13 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter, UdpStream},
 };
-use core::num::NonZeroUsize;
-use embassy_net::tcp::TcpSocket;
+use core::{net::SocketAddr, num::NonZeroUsize};
+use embassy_net::{
+  IpEndpoint,
+  tcp::TcpSocket,
+  udp::{UdpMetadata, UdpSocket},
+};
 
 impl Stream for TcpSocket<'_> {
   type BridgeOwned = ();
@@ -43,5 +47,19 @@ impl StreamWriter for TcpSocket<'_> {
       self.write_all(elem).await?;
     }
     Ok(())
+  }
+}
+
+impl UdpStream for UdpSocket<'_> {
+  #[inline]
+  async fn recv_from(&self, buffer: &mut [u8]) -> crate::Result<(usize, SocketAddr)> {
+    let (read, metadata) = (*self).recv_from(buffer).await?;
+    Ok((read, metadata.endpoint.into()))
+  }
+
+  #[inline]
+  async fn send_to(&self, bytes: &mut [u8], addr: SocketAddr) -> crate::Result<usize> {
+    (*self).send_to(bytes, UdpMetadata::from(IpEndpoint::from(addr))).await?;
+    Ok(bytes.len())
   }
 }

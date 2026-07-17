@@ -4,7 +4,8 @@ use crate::{
   codec::{Decode as _, DecodeWrapper},
   collections::{ArrayVectorCopy, ShortBoxSliceU16, Vector},
   crypto::SignatureTy,
-  misc::{Lease, LeaseMut, Pem, SingleTypeStorage},
+  misc::{Lease, LeaseMut, Pem, Secret, SecretContext, SensitiveBytes, SingleTypeStorage},
+  rng::CryptoRng,
   tls::{
     Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText,
     protocol::{
@@ -19,7 +20,6 @@ use core::fmt::Debug;
 /// TLS Configuration
 ///
 /// The is a non-trivial structure that should be constructed only once in your application.
-#[derive(Clone)]
 pub struct TlsConfig<TM> {
   pub(crate) inner: TlsConfigInner<ShortBoxSliceU16<u8>, TM>,
 }
@@ -59,10 +59,22 @@ impl<TM> TlsConfig<TM> {
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
-  pub fn from_keys_der(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
+  pub fn from_keys_der<'pk, RNG>(
+    mode: TM,
+    public_keys: impl IntoIterator<Item = &'pk [u8]>,
+    rng: &mut RNG,
+    (secret_context, secret_key): (SecretContext, &mut [u8]),
+  ) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
     let mut this = Self::new(mode, Instant::now_date_time()?);
-    this.inner.public_key = Vector::from_iterator([public_key_from_der(public_key)?])?;
-    this.inner.secret_key = secret_key.try_into()?;
+    let mut public_key = Vector::new();
+    for pk in public_keys {
+      public_key.push(public_key_from_der(pk)?)?;
+    }
+    this.inner.public_key = public_key;
+    this.inner.secret_key = Secret::new(secret_key, rng, secret_context)?;
     Ok(this)
   }
 
@@ -70,12 +82,28 @@ impl<TM> TlsConfig<TM> {
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
-  pub fn from_keys_pem(mode: TM, public_key: &[u8], secret_key: &[u8]) -> crate::Result<Self> {
+  pub fn from_keys_pem<RNG>(
+    mode: TM,
+    public_key: &[u8],
+    rng: &mut RNG,
+    (secret_context, secret_key): (SecretContext, &mut [u8]),
+  ) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
     let mut this = Self::new(mode, Instant::now_date_time()?);
     let mut buffer = Vector::new();
     this.inner.public_key = public_key_from_pem(&mut buffer, public_key)?;
     buffer.clear();
-    this.inner.secret_key = Pkcs8::<&[u8]>::from_pem(&mut buffer, secret_key)?.1.try_into()?;
+    let secret_key_wrapper = SensitiveBytes::new(secret_key);
+    this.inner.secret_key = {
+      let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(&secret_key_wrapper, &mut buffer))?;
+      let [(_label, range)] = pem.data.into_inner()?;
+      let data = buffer.get(range.clone()).unwrap_or_default();
+      let mut dw = DecodeWrapper::new(data, Asn1DecodeWrapperAux::default());
+      let _pkcs8 = Pkcs8::<&[u8]>::decode(&mut dw)?;
+      Secret::new(buffer.get_mut(range).unwrap_or_default(), rng, secret_context)?
+    };
     Ok(this)
   }
 
@@ -216,14 +244,13 @@ impl<TM> Debug for TlsConfig<TM> {
   }
 }
 
-#[derive(Clone)]
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) public_key: Vector<(SignatureTy, B)>,
-  pub(crate) secret_key: B,
+  pub(crate) secret_key: Secret,
   pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms: SignatureAlgorithms,
   pub(crate) signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
@@ -244,7 +271,7 @@ where
       cv_policy: CvPolicy::new(validation_time),
       max_fragment_length: None,
       public_key: Vector::new(),
-      secret_key: B::default(),
+      secret_key: Secret::default(),
       server_name: None,
       signature_algorithms: SignatureAlgorithms::new(ArrayVectorCopy::from_array(
         SignatureTy::TLS_PRIORITY,

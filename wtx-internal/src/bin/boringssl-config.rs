@@ -1,7 +1,7 @@
 //! Creates the configuration file used by the BoringSSL's testsuite.
 
 use std::fs;
-use wtx::collections::HashMap;
+use wtx::collections::{HashMap, Vector};
 
 fn main() {
   let config =
@@ -14,7 +14,7 @@ fn main() {
 #[serde(rename_all = "PascalCase")]
 struct Config {
   disabled_tests: HashMap<&'static str, &'static str>,
-  error_map: HashMap<&'static str, &'static str>,
+  error_map: HashMap<&'static str, Vector<&'static str>>,
   #[serde(rename = "HalfRTTTickets")]
   half_rtt_tickets: u64,
 }
@@ -712,6 +712,8 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
   .collect()
 }
 
-fn error_map() -> HashMap<&'static str, &'static str> {
-  [(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", ":BAD_DECRYPT:")].into_iter().collect()
+fn error_map() -> HashMap<&'static str, Vector<&'static str>> {
+  [(":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap())]
+    .into_iter()
+    .collect()
 }

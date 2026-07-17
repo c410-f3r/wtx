@@ -82,18 +82,20 @@ pub use tls_stream_bridge::{TlsStreamBridge, TlsStreamBridgeData};
 pub use tls_stream_reader::TlsStreamReader;
 pub use tls_stream_writer::TlsStreamWriter;
 
+const CHANGE_CIPHER_SPEC: [u8; 6] = [20, 3, 3, 0, 1, 1];
 const DLFT_MAX_FRAGMENT_LENGTH: u16 = 1 << 14;
-const MAX_ALPN_LEN: usize = 4;
-const MAX_CIPHER_KEY_LEN: usize = 32;
 const HELLO_RETRY_REQUEST: [u8; 32] = [
   207, 33, 173, 116, 229, 154, 97, 17, 190, 29, 140, 2, 30, 101, 184, 145, 194, 162, 17, 22, 122,
   187, 140, 94, 7, 158, 9, 226, 200, 168, 51, 156,
 ];
 const IV_LEN: usize = 12;
+const MAX_ALPN_LEN: usize = 4;
 const MAX_CERTIFICATES: usize = 3;
+const MAX_CIPHER_KEY_LEN: usize = 32;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
-const CHANGE_CIPHER_SPEC: [u8; 6] = [20, 3, 3, 0, 1, 1];
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
+const _TARGET: &str = "tls";
+const _TARGET_HS: &str = "tls-hs";
 
 /// The hash of the server's leaf certificate.
 pub type TlsServerEndPoint = ArrayVectorCopy<u8, { MAX_HASH_LEN }>;

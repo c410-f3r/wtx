@@ -1,5 +1,6 @@
 use crate::{
   executor::StdRuntime,
+  misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng},
   stream::{StreamReader, StreamWriter},
   tests::{_PUBLIC_KEY, _ROOT_CA, _SECRET_KEY, _uri},
@@ -34,8 +35,9 @@ async fn simple_connection(runtime: &StdRuntime) {
     .unwrap();
 
   let stream = listener.accept().unwrap().0;
+  let secret = (SecretContext::new(&mut server_rng).unwrap(), &mut _SECRET_KEY.clone()[..]);
   let mut tls_stream = TlsAcceptor::new(
-    TlsConfig::from_keys_pem(TM, _PUBLIC_KEY, _SECRET_KEY).unwrap(),
+    TlsConfig::from_keys_pem(TM, _PUBLIC_KEY, &mut server_rng, secret).unwrap(),
     &mut server_rng,
     stream,
   )

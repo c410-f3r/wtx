@@ -109,6 +109,8 @@ pub enum TlsError {
   NoCertificate,
   /// Record extrapolates the maximum fragment length
   ReceivedRecordIsTooLarge,
+  /// Too many warning alerts
+  TooManyWarningAlerts,
   /// Record was supposed to be encrypted
   UnencryptedRecord,
   /// Unknown name type

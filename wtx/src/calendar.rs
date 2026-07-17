@@ -14,7 +14,7 @@ mod date_time;
 mod day;
 mod day_of_year;
 mod duration;
-#[cfg(feature = "embassy-time")]
+#[cfg(feature = "epoch-sync")]
 mod epoch_offset;
 mod format;
 mod hour;
@@ -73,15 +73,38 @@ pub(crate) static DAYS_OF_MONTHS: [[u16; 12]; 2] = [
   [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
   [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
 ];
-#[cfg(feature = "embassy-time")]
+#[cfg(feature = "epoch-sync")]
 pub(crate) static EPOCH_OFFSET: epoch_offset::EpochOffset = epoch_offset::EpochOffset::new();
 
 /// Used by embedded devices in `no_std` scenarios where the timer only provides the elapsed
 /// time since boot.
-#[cfg(feature = "embassy-time")]
+///
+/// It is still necessary to figure out the IP address of a NTP pool before entering in this
+/// function.
+///
+/// Returns `false` if the server didn't respond within 5 seconds.
+#[cfg(feature = "epoch-sync")]
 #[inline]
-pub fn set_epoch_offset(ntp_seconds: u64) {
-  EPOCH_OFFSET.set(ntp_seconds);
+pub async fn fetch_and_set_epoch_offset<S>(
+  addr: core::net::SocketAddr,
+  stream: &S,
+) -> crate::Result<bool>
+where
+  S: crate::stream::UdpStream,
+{
+  use crate::futures::Timeout;
+  use core::time::Duration;
+
+  let mut buffer = [0u8; 48];
+  buffer[0] = 0b0010_0011;
+  drop(Timeout::new(stream.send_to(&mut buffer, addr), Duration::from_secs(5))?.await?);
+  drop(Timeout::new(stream.recv_from(&mut buffer), Duration::from_secs(5))?.await?);
+  let seconds_bytes: [u8; 4] = buffer[40..44].try_into().unwrap_or_default();
+  let ntp_seconds = u32::from_be_bytes(seconds_bytes);
+  EPOCH_OFFSET.set(ntp_seconds.into())?;
+  let mut orig_buffer = [0u8; 48];
+  orig_buffer[0] = 0b0010_0011;
+  Ok(buffer != orig_buffer)
 }
 
 /// The current time in according to `cb` as a string.
@@ -91,4 +114,21 @@ pub fn timestamp_str(
 ) -> crate::Result<(u64, U64String)> {
   let number = Instant::now_timestamp().map(cb)?.try_into()?;
   Ok((number, u64_string(number)))
+}
+
+#[cfg(test)]
+mod tests {
+  #[cfg(all(feature = "embassy-time", feature = "_hack", feature = "_integration-tests"))]
+  #[wtx::test]
+  async fn fetch_and_set_epoch_offset_works_as_expected() {
+    use crate::calendar::{EPOCH_OFFSET, Instant, fetch_and_set_epoch_offset};
+    use std::net::{ToSocketAddrs, UdpSocket};
+
+    assert_eq!(EPOCH_OFFSET.get(), 0);
+    let udp_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
+    let addr = "pool.ntp.org:123".to_socket_addrs().unwrap().into_iter().next().unwrap();
+    let _ = fetch_and_set_epoch_offset(addr, &udp_socket).await.unwrap();
+    assert!(EPOCH_OFFSET.get() > 1000000);
+    assert!(Instant::now_date_time().unwrap().timestamp_secs_and_ns().0 > 1784244618);
+  }
 }

@@ -44,50 +44,52 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
-    PUBLIC_KEY.try_into()?,
-    SECRET_KEY.try_into()?,
-  )?)?;
-  let secret_context = SecretContext::new(server.rng_mut())?;
-  let pool = DbPool::new(
+  let mut rng = ChaCha20::from_getrandom()?;
+  let secret_context = SecretContext::new(&mut rng)?;
+  let db_pool = DbPool::new(
     4,
     PostgresRM::tokio(
-      ChaCha20::from_crypto_rng(server.rng_mut())?,
+      ChaCha20::from_crypto_rng(&mut rng)?,
       secret_context.clone(),
       TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
       &mut uri,
     )?,
   );
   let (cleaner, session_manager) = LocalSessionManager::builder().build_generating_key(
-    server.rng_mut(),
-    secret_context,
-    pool.clone(),
+    &mut rng,
+    secret_context.clone(),
+    db_pool.clone(),
   )?;
   tokio::spawn(async move {
     if let Err(err) = cleaner.await {
       eprintln!("{err}");
     }
   });
+  let tls_config = TlsConfig::from_keys_pem(
+    TlsModeVerified::default(),
+    PUBLIC_KEY.try_into()?,
+    &mut rng,
+    (secret_context, &mut SECRET_KEY.clone()),
+  )?;
   let router = HttpRouter::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
-    SessionMiddleware::new(Vector::new(), session_manager.clone(), pool.clone()),
+    SessionMiddleware::new(Vector::new(), session_manager.clone(), db_pool.clone()),
   )?;
-  server
-    .set_data(Data { pool, session_manager, session_state: None })
+  Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
+    .set_data(Data { db_pool, session_manager, session_state: None })
     .set_error_cb(|err| eprintln!("Error: {err}"))
     .run_in_threads(&host_from_args(), router)
 }
 
 async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
-  let Data { pool, session_manager, session_state } = state.data;
+  let Data { db_pool, session_manager, session_state } = state.data;
   if session_state.is_some() {
     state.req.clear();
-    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, pool).await?;
+    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
     return Ok(DynParams::Verbatim(StatusCode::Forbidden));
   }
   let user: UserLoginReq<'_> = serde_json::from_slice(state.req.msg_data.body())?;
-  let mut pool_guard = pool.get_with_unit().await?;
+  let mut pool_guard = db_pool.get_with_unit().await?;
   let record = pool_guard
     .execute_stmt_single(
       "SELECT id,first_name,password,salt FROM user WHERE email = $1",
@@ -106,15 +108,15 @@ async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
   serde_json::to_writer(&mut state.req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
   session_manager
-    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_getrandom()?, pool)
+    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_getrandom()?, db_pool)
     .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
 async fn logout(state: StateClean<'_, Data>) -> wtx::Result<StatusCode> {
-  let Data { pool, session_manager, session_state } = state.data;
+  let Data { db_pool, session_manager, session_state } = state.data;
   if session_state.is_some() {
-    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, pool).await?;
+    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
     Ok(StatusCode::Ok)
   } else {
     Ok(StatusCode::Forbidden)
@@ -123,7 +125,7 @@ async fn logout(state: StateClean<'_, Data>) -> wtx::Result<StatusCode> {
 
 #[derive(Clone, Debug, wtx::Lease)]
 struct Data {
-  pool: DbPool,
+  db_pool: DbPool,
   session_manager: LocalSessionManager,
   session_state: Option<SessionState<u32>>,
 }

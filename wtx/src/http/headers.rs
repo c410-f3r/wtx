@@ -327,7 +327,7 @@ impl Headers {
           .bytes
           .get_mut(header_parts.header_name_end..header_parts.header_end)
           .unwrap_or_default();
-        drop(SensitiveBytes::new_unlocked(value));
+        drop(SensitiveBytes::new(value));
       }
     }
   }
@@ -339,7 +339,7 @@ impl Headers {
         .bytes
         .get_mut(header_parts.header_name_end..header_parts.header_end)
         .unwrap_or_default();
-      drop(SensitiveBytes::new_unlocked(value));
+      drop(SensitiveBytes::new(value));
     }
   }
 

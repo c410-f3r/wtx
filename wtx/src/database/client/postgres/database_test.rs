@@ -5,9 +5,10 @@ use crate::{
     client::postgres::{ClientBuffer, Config, PostgresClient},
     schema_manager::Commands,
   },
-  executor::{Executor, Runtime as _, TcpStream},
+  executor::{Executor, Runtime as _},
   misc::EnvVars,
   rng::{ChaCha20, CryptoSeedableRng as _},
+  stream::TcpStream,
   tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };
 use alloc::string::String;

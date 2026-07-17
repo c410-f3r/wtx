@@ -1,11 +1,11 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
+  stream::{Stream, StreamCommon, StreamReader, StreamWriter, UdpStream},
 };
-use core::num::NonZeroUsize;
+use core::{net::SocketAddr, num::NonZeroUsize};
 use std::{
   io::{Read, Write},
-  net::TcpStream,
+  net::{TcpStream, UdpSocket},
 };
 
 impl Stream for TcpStream {
@@ -73,5 +73,17 @@ impl StreamWriter for std::os::unix::net::UnixStream {
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     _local_write_all_vectored!(bytes, self, |io_slices| self.write_vectored(io_slices));
     Ok(())
+  }
+}
+
+impl UdpStream for UdpSocket {
+  #[inline]
+  async fn recv_from(&self, buffer: &mut [u8]) -> crate::Result<(usize, SocketAddr)> {
+    Ok((*self).recv_from(buffer)?)
+  }
+
+  #[inline]
+  async fn send_to(&self, bytes: &mut [u8], addr: SocketAddr) -> crate::Result<usize> {
+    Ok((*self).send_to(bytes, addr)?)
   }
 }

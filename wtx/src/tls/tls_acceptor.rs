@@ -130,8 +130,10 @@ where
         )?,
       });
     }
+    _trace!(target: crate::tls::_TARGET_HS, "Start");
     let fut = async {
       let first_rri = self.fetch_rec_from_stream::<false, true>(false).await?;
+      _trace!(target: crate::tls::_TARGET_HS, "Read ClientHello: {:?}", &first_rri);
       let indices = self.manage_initial_client_record(&first_rri)?;
       let buffer = self.buffer.reader_buffer.buffer_mut();
       let payloads = match indices.as_slice() {
@@ -146,6 +148,7 @@ where
         ],
         _ => &[],
       };
+      _trace!(target: crate::tls::_TARGET_HS, "Write Records");
       write_payloads(
         RecordContentType::Handshake,
         self.key_schedule.write_mut(),
@@ -160,6 +163,7 @@ where
       if last_rri.outer_ty == RecordContentType::ChangeCipherSpec {
         last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
       }
+      _trace!(target: crate::tls::_TARGET_HS, "Read Finished: {:?}", &last_rri);
       self.manage_final_client_record(&last_rri)?;
       Ok(())
     };
@@ -218,19 +222,18 @@ where
       curr_idx = reader_buffer.len();
       let _rslt = indices.push(curr_idx);
     }
-    let signature;
-    let mut signature_slice = &[][..];
-    if !TM::TY.is_unverified() {
-      let secret_key = &self.config.lease().inner.secret_key;
-      let mut sign_key = output.signature_ty.sign_key_from_pkcs8(secret_key)?;
-      let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
-      signature = sign_key.sign(&mut self.rng, &msg)?;
-      signature_slice = signature.as_ref();
-    }
+    let signature = self.config.lease().inner.secret_key.peek(
+      &mut ArrayVectorCopy::<u8, 128>::new(),
+      |secret_key| {
+        let mut sign_key = output.signature_ty.sign_key_from_pkcs8(*secret_key)?;
+        let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
+        sign_key.sign(&mut self.rng, &msg)
+      },
+    )??;
     {
       let certificate_verify = Handshake::new(
         HandshakeType::CertificateVerify,
-        CertificateVerify::new(output.signature_ty, signature_slice),
+        CertificateVerify::new(output.signature_ty, signature.as_ref()),
       );
       certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
       self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
@@ -270,10 +273,18 @@ where
     *dw.bytes_mut() = hs.data;
     *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
     let finished = Finished::decode(&mut dw)?;
-    self.key_schedule.read_mut().state_mut().verify_finished_record(
-      self.transcript_hash.clone().finalize().lease(),
-      finished.verify_data(),
-    )?;
+    if self
+      .key_schedule
+      .read_mut()
+      .state_mut()
+      .verify_finished_record(
+        self.transcript_hash.clone().finalize().lease(),
+        finished.verify_data(),
+      )
+      .is_err()
+    {
+      return Err(TlsError::DigestCheckFailed.into());
+    }
     self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
     Ok(())
   }

@@ -1,6 +1,7 @@
 use crate::{
-  executor::{Executor, TcpStream as _},
+  executor::Executor,
   misc::{Lease, SingleTypeStorage, TcpParams, Uri},
+  stream::TcpStream as _,
   tls::{TlsConfig, TlsConnector},
 };
 

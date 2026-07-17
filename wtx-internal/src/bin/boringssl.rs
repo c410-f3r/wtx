@@ -22,7 +22,7 @@ use tokio::net::TcpStream;
 use wtx::{
   calendar::Instant,
   collections::Vector,
-  misc::Uri,
+  misc::{SecretContext, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{StreamReader, StreamWriter as _},
   tls::{
@@ -38,10 +38,8 @@ async fn main() {
   let mut options = Options::default();
   let mut options_iter = OptionsIter::new(env::args().skip(1), &mut options);
   while let Some(_) = options_iter.next() {}
-  let eval_cert =
-    options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert;
   if options.is_client {
-    if eval_cert {
+    if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
       let tls_config = make_client_cfg::<TlsModeVerified>(&options);
       exec_tests::<_, true>(options, tls_config).await;
     } else {
@@ -49,13 +47,8 @@ async fn main() {
       exec_tests::<_, true>(options, tls_config).await;
     }
   } else {
-    if eval_cert {
-      let tls_config = make_server_cfg::<TlsModeVerified>(&options);
-      exec_tests::<_, false>(options, tls_config).await;
-    } else {
-      let tls_config = make_server_cfg::<TlsModeUnverified>(&options);
-      exec_tests::<_, false>(options, tls_config).await;
-    }
+    let tls_config = make_server_cfg::<TlsModeVerified>(&options);
+    exec_tests::<_, false>(options, tls_config).await;
   }
 }
 
@@ -122,8 +115,12 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
       _ => ":FIXME:",
     },
-    Err(wtx::Error::TlsErrorFatal(TlsError::UnencryptedRecord, _)) => ":BAD_DECRYPT:",
-    Err(wtx::Error::TlsErrorFatal(TlsError::WrongAlert, _)) => ":BAD_ALERT:",
+    Err(wtx::Error::TlsErrorFatal(err, _)) => match err {
+      TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
+      TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
+      TlsError::WrongAlert => ":BAD_ALERT:",
+      _ => ":FIXME:",
+    },
     _ => ":FIXME:",
   };
   eprintln!("ERROR: {rslt:?}");
@@ -217,10 +214,13 @@ fn make_server_cfg<TM>(options: &Options) -> TlsConfig<TM>
 where
   TM: TlsMode,
 {
+  let mut rng = ChaCha20::from_std_random().unwrap();
+  let secret_context = SecretContext::new(&mut rng).unwrap();
   let mut cfg = TlsConfig::from_keys_der(
     TM::default(),
-    options.cert_der.as_slice(),
-    &options.key_der.as_slice(),
+    [options.cert_der.as_slice()],
+    &mut rng,
+    (secret_context, &mut options.key_der.clone()),
   )
   .unwrap();
   if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {

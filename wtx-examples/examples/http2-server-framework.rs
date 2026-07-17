@@ -31,20 +31,23 @@ type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TlsModeVerifie
 
 fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut server = Http2ServerFramework::tokio(TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
-    PUBLIC_KEY.try_into()?,
-    SECRET_KEY.try_into()?,
-  )?)?;
-  let pool = LocalPool::new(
+  let mut rng = ChaCha20::from_getrandom()?;
+  let secret_context = SecretContext::new(&mut rng)?;
+  let db_pool = LocalPool::new(
     4,
     PostgresRM::tokio(
-      ChaCha20::from_crypto_rng(server.rng_mut())?,
-      SecretContext::new(server.rng_mut())?,
+      ChaCha20::from_crypto_rng(&mut rng)?,
+      secret_context.clone(),
       TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
       &mut uri,
     )?,
   );
+  let tls_config = TlsConfig::from_keys_pem(
+    TlsModeVerified::default(),
+    PUBLIC_KEY.try_into()?,
+    &mut rng,
+    (secret_context, &mut SECRET_KEY.clone()),
+  )?;
   let router = HttpRouter::paths(wtx::paths!(
     ("/db/{id}", get(db)),
     ("/json", json(Method::Post, deserialization_and_serialization)),
@@ -57,8 +60,8 @@ fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  server
-    .set_data(pool)
+  Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
+    .set_data(db_pool)
     .set_error_cb(|err| eprintln!("Error: {err}"))
     .run_in_threads(&host_from_args(), router)
 }

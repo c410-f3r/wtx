@@ -45,22 +45,19 @@ where
 /// # Safety
 ///
 /// * `addr` must point to `len` bytes of valid memory
+#[cfg(feature = "libc")]
 #[inline]
 pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
-  #[cfg(feature = "libc")]
-  {
-    // SAFETY: up to the caller
-    let mlock = unsafe { libc::mlock(_addr.cast(), _len) };
-    if mlock != 0 {
-      return Err(crate::Error::MlockError);
-    }
-    Ok(())
+  // SAFETY: up to the caller
+  let mlock = unsafe { libc::mlock(_addr.cast(), _len) };
+  if mlock != 0 {
+    return Err(crate::Error::MlockError);
   }
-  #[cfg(not(feature = "libc"))]
-  return Err(crate::Error::UnsupportedMlockPlatform);
+  Ok(())
 }
 
 /// Safer [`mlock`] version.
+#[cfg(feature = "libc")]
 #[inline]
 pub fn mlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
   // SAFETY: parameters come from a valid slice
@@ -77,22 +74,19 @@ pub fn mlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
 /// # Safety
 ///
 /// * `addr` must point to `len` bytes of valid memory
+#[cfg(feature = "libc")]
 #[inline]
 pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
-  #[cfg(feature = "libc")]
-  {
-    // SAFETY: up to the caller
-    let munlock = unsafe { libc::munlock(_addr.cast(), _len) };
-    if munlock != 0 {
-      return Err(crate::Error::MunlockError);
-    }
-    Ok(())
+  // SAFETY: up to the caller
+  let munlock = unsafe { libc::munlock(_addr.cast(), _len) };
+  if munlock != 0 {
+    return Err(crate::Error::MunlockError);
   }
-  #[cfg(not(feature = "libc"))]
-  return Err(crate::Error::UnsupportedMlockPlatform);
+  Ok(())
 }
 
 /// Safer [`munlock`] version.
+#[cfg(feature = "libc")]
 #[inline]
 pub fn munlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
   // SAFETY: parameters come from a valid slice

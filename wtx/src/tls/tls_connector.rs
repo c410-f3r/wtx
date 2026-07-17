@@ -207,7 +207,7 @@ where
       *self.buffer.reader_buffer.forbid_clear_mut() = false;
       match self.manage_client_records()? {
         ManageClientRecordsState::Terminated(data) => {
-          _trace!("TLS HS: Write Finished");
+          _trace!(target: crate::tls::_TARGET_HS, "Write Finished");
           self.stream.write_all(&data).await?;
         }
       }
@@ -320,7 +320,7 @@ where
       let before_len = maybe_handshakes.len();
       let mut dw = TlsDecodeWrapper::from_bytes(maybe_handshakes);
       let hs = Handshake::<&[u8]>::decode(&mut dw)?;
-      _trace!("TLS HS: Read handshake: {}", hs.msg_type);
+      _trace!(target: crate::tls::_TARGET_HS, "Read handshake: {}", hs.msg_type);
       let curr_handshake_len = before_len.wrapping_sub(dw.bytes().len());
       let curr_handshake_bytes = maybe_handshakes.get(..curr_handshake_len).unwrap_or_default();
       self.transcript_hash.update(curr_handshake_bytes);
@@ -355,12 +355,13 @@ where
         HandshakeType::Finished => {
           *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
           let finished = Finished::decode(&mut dw)?;
-          let rslt = self
+          if self
             .key_schedule
             .read_mut()
             .state_mut()
-            .verify_finished_record(mrsri.transcript_digest.lease(), finished.verify_data());
-          if rslt.is_err() {
+            .verify_finished_record(mrsri.transcript_digest.lease(), finished.verify_data())
+            .is_err()
+          {
             return Err(TlsError::DigestCheckFailed.into());
           }
           return Ok(ManageRemainingServerRecordsState::Terminated);
@@ -386,7 +387,7 @@ where
   pub fn write_client_hello(
     &mut self,
   ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>> {
-    _trace!("TLS HS: Write CH");
+    _trace!(target: crate::tls::_TARGET_HS, "Write CH");
     let mut secrets = ArrayVectorU8::new();
     for named_group in &self.config.lease().inner.supported_groups.named_group_list {
       secrets.push(named_group.agreement(&mut self.rng)?)?;

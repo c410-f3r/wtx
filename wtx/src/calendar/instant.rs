@@ -48,6 +48,15 @@ impl Instant {
     }
   }
 
+  #[allow(clippy::unnecessary_wraps, reason = "depends on feature")]
+  #[cfg(feature = "epoch-sync")]
+  pub(crate) fn since_boot_secs() -> crate::Result<u64> {
+    cfg_select! {
+      feature = "embassy-time" => Ok(embassy_time::Instant::now().as_secs()),
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+    }
+  }
+
   /// Returns the addition if the resulting value is within bounds.
   #[inline]
   pub fn add(&self, _duration: Duration) -> crate::Result<Self> {

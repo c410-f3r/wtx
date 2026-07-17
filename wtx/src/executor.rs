@@ -11,8 +11,8 @@ mod std_runtime;
 #[cfg(feature = "tokio")]
 mod tokio_executor;
 
-use crate::{misc::TcpParams, stream::Stream};
-use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use crate::stream::{TcpListener, TcpStream};
+use core::net::SocketAddr;
 pub use executor_error::ExecutorError;
 pub use no_std_runtime::NoStdRuntime;
 #[cfg(feature = "tokio")]
@@ -77,66 +77,10 @@ pub trait Runtime: Sized {
     F: Future;
 }
 
-/// Reliable, ordered, and error-checked listening of a stream of bytes.
-pub trait TcpListener: Sized {
-  /// The TCP stream type produced by this listener.
-  type TcpStream: TcpStream;
-
-  /// Binds a new TCP listener to the specified address and port.
-  fn bind(addr: (&str, u16), tcp_params: TcpParams) -> impl Future<Output = crate::Result<Self>>;
-
-  /// Accepts a new incoming TCP connection.
-  fn accept(
-    &self,
-    tcp_params: TcpParams,
-  ) -> impl Future<Output = crate::Result<(Self::TcpStream, SocketAddr)>>;
-}
-
-impl TcpListener for () {
-  type TcpStream = ();
-
-  #[inline]
-  async fn bind(_: (&str, u16), _: TcpParams) -> crate::Result<Self> {
-    Ok(())
-  }
-
-  #[inline]
-  async fn accept(&self, _: TcpParams) -> crate::Result<(Self::TcpStream, SocketAddr)> {
-    Ok(((), SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::from_bits(0), 0))))
-  }
-}
-
-/// Reliable, ordered, and error-checked delivery of a stream of bytes.
-pub trait TcpStream: Sized + Stream {
-  /// The executor associated with this stream.
-  type Executor;
-
-  /// Establishes a new TCP connection to the specified address.
-  fn connect(addr: (&str, u16), tcp_params: TcpParams)
-  -> impl Future<Output = crate::Result<Self>>;
-
-  /// Returns the socket address of the remote peer.
-  fn peer_addr(&self) -> crate::Result<SocketAddr>;
-}
-
-impl TcpStream for () {
-  type Executor = ();
-
-  #[inline]
-  async fn connect(_: (&str, u16), _: TcpParams) -> crate::Result<Self> {
-    Ok(())
-  }
-
-  #[inline]
-  fn peer_addr(&self) -> crate::Result<SocketAddr> {
-    Ok(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::from_bits(0), 0)))
-  }
-}
-
 #[cfg(feature = "std")]
 async fn tcp_listener_std<EX>(
   addr: (&str, u16),
-  _tcp_params: TcpParams,
+  _tcp_params: crate::misc::TcpParams,
 ) -> crate::Result<std::net::TcpListener>
 where
   EX: Executor,

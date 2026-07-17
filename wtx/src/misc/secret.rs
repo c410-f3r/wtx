@@ -1,17 +1,20 @@
-mod secret_context;
-
 use crate::{
   collections::{Clear, TryExtend},
-  crypto::{Aead as _, Aes256GcmGlobal, Hash as _, Sha256HashGlobal, gen_aead_nonce},
+  crypto::{Aead as _, Aes256GcmGlobal, gen_aead_nonce},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
+  sync::Arc,
 };
 use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Formatter},
   ops::{Deref, DerefMut},
 };
-pub use secret_context::SecretContext;
+
+const CTX_LEN: usize = cfg_select! {
+  target_pointer_width = "64" => 4096,
+  _ => 2048
+};
 
 /// Long-lived sensitive data.
 ///
@@ -39,22 +42,17 @@ impl Secret {
   where
     RNG: CryptoRng
   {
-    let mut data_locked = SensitiveBytes::new_locked(data)?;
+    let mut data_wrapper = SensitiveBytes::new(data);
     let mut salt = [0; 32];
     rng.fill_slice(&mut salt);
     let nonce = gen_aead_nonce(rng);
-    let tag = {
-      let mut secret_key = [0; 32];
-      let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
-      fill_secret_key(&salt, &secret_context, &mut secret_key_locked)?;
-      Aes256GcmGlobal::encrypt_parts(
-        &[],
-        nonce,
-        &mut data_locked,
-        *secret_key_locked,
-      )?
-    };
-    let all_len = nonce.len().wrapping_add(data_locked.len()).wrapping_add(tag.len());
+    let tag =  Aes256GcmGlobal::encrypt_parts(
+      &[],
+      nonce,
+      &mut data_wrapper,
+      gen_secret_key(&salt, &secret_context).as_bytes(),
+    )?;
+    let all_len = nonce.len().wrapping_add(data_wrapper.len()).wrapping_add(tag.len());
     let mut protected = Protected::zeroed(all_len);
     if let [
       a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
@@ -62,7 +60,7 @@ impl Secret {
       b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
     ] = &mut *protected {
       copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
-      copy_iter(&data_locked, content);
+      copy_iter(&data_wrapper, content);
       copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
     }
     Ok(Self { protected, salt, secret_context })
@@ -90,12 +88,13 @@ impl Secret {
   {
     buffer.clear();
     buffer.try_extend(&self.protected)?;
-    let mut secret_key = [0; 32];
-    let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
-    fill_secret_key(&self.salt, &self.secret_context, &mut secret_key_locked)?;
     let data = buffer.lease_mut();
-    let plaintext = Aes256GcmGlobal::decrypt_in_place(&[], data, *secret_key_locked)?;
-    Ok(fun(SensitiveBytes::new_locked(plaintext)?))
+    let plaintext = Aes256GcmGlobal::decrypt_in_place(
+      &[],
+      data,
+      gen_secret_key(&self.salt, &self.secret_context).as_bytes(),
+    )?;
+    Ok(fun(SensitiveBytes::new(plaintext)))
   }
 }
 
@@ -103,6 +102,50 @@ impl Debug for Secret {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("Secret").finish()
+  }
+}
+
+impl Default for Secret {
+  #[inline]
+  fn default() -> Self {
+    Self {
+      protected: Protected::zeroed(0),
+      salt: [0; 32],
+      secret_context: SecretContext::default(),
+    }
+  }
+}
+
+/// Used by `Secret`, can be freely cloned and shared across threads.
+#[derive(Clone)]
+pub struct SecretContext(Arc<Protected>);
+
+impl SecretContext {
+  /// New instance
+  #[inline]
+  pub fn new<RNG>(rng: &mut RNG) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
+    let mut protected = Protected::zeroed(CTX_LEN);
+    rng.fill_slice(&mut protected);
+    #[cfg(feature = "libc")]
+    crate::misc::mlock_slice(&mut protected)?;
+    Ok(Self(Arc::new(protected)))
+  }
+}
+
+impl Debug for SecretContext {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("SecretContext").finish()
+  }
+}
+
+impl Default for SecretContext {
+  #[inline]
+  fn default() -> Self {
+    Self(Arc::new(Protected::zeroed(0)))
   }
 }
 
@@ -177,16 +220,10 @@ fn copy_iter_mut(from: &[u8], to: &mut [&mut u8]) {
   from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
 }
 
-fn fill_secret_key(
-  salt: &[u8; 32],
-  secret_context: &SecretContext,
-  secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
-) -> crate::Result<()> {
-  let mut array = Sha256HashGlobal::digest(
-    [&salt[..]].into_iter().chain(secret_context.0.iter().map(|el| &**el)),
-  );
-  secret_key.copy_from_slice(&**SensitiveBytes::new_locked(&mut array)?);
-  Ok(())
+fn gen_secret_key(salt: &[u8; 32], secret_context: &SecretContext) -> blake3::Hash {
+  let mut hasher = blake3::Hasher::new();
+  let _ = hasher.update(&salt[..]).update(&secret_context.0);
+  hasher.finalize()
 }
 
 #[cfg(test)]
@@ -199,6 +236,7 @@ mod tests {
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
 
+  #[cfg_attr(miri, ignore)]
   #[test]
   fn peek() {
     let mut buffer = Vector::new();

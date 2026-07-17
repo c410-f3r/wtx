@@ -32,14 +32,14 @@ const MAX_LABEL_LEN: usize = 23;
 ///
 /// # Types
 ///
-/// * `B`: Maximum number of blocks
+/// * `BLK`: Maximum number of blocks
 #[derive(Debug, PartialEq)]
-pub struct Pem<T, const B: usize> {
+pub struct Pem<T, const BLK: usize> {
   /// Vector of labels and their associated decoded contents
-  pub data: ArrayVectorU8<(ArrayStringU8<MAX_LABEL_LEN>, T), B>,
+  pub data: ArrayVectorU8<(ArrayStringU8<MAX_LABEL_LEN>, T), BLK>,
 }
 
-impl<T, const B: usize> Decode<'_, GenericCodec<T, ()>> for Pem<Range<usize>, B>
+impl<T, const BLK: usize> Decode<'_, GenericCodec<T, ()>> for Pem<Range<usize>, BLK>
 where
   T: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
 {
@@ -67,7 +67,7 @@ where
   }
 }
 
-impl<T, const B: usize> Encode<GenericCodec<(), &mut Vector<u8>>> for Pem<T, B>
+impl<T, const BLK: usize> Encode<GenericCodec<(), &mut Vector<u8>>> for Pem<T, BLK>
 where
   T: Lease<[u8]>,
 {

@@ -136,7 +136,7 @@ pub trait Aead {
       return Ok("");
     };
     let base64_idx = base64_encode(Base64Alphabet::UrlNoPad, content, base64)?.len();
-    drop(SensitiveBytes::new_unlocked(content));
+    drop(SensitiveBytes::new(content));
     buffer.truncate(begin.wrapping_add(base64_idx));
     let bytes = buffer.get_mut(begin..).unwrap_or_default();
     // SAFETY: Base64 is ASCII.
