@@ -156,7 +156,7 @@ mod tests {
 
   #[wtx::test]
   async fn polls_array_vector() {
-    let futures = ArrayVectorU8::from([One, One]);
+    let futures = ArrayVectorU8::<_, 2>::from([One, One]);
     let fut = &mut JoinArrayVector::new(futures);
     assert_eq!((&mut *fut).await, ArrayVectorU8::from([1, 1]));
     assert_eq!((&mut *fut).await, ArrayVectorU8::new());

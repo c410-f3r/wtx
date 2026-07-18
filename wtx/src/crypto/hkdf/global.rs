@@ -4,12 +4,14 @@ type HkdfSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha256Ring,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha256AwsLcRs,
   feature = "crypto-graviola" => crate::crypto::HkdfSha256Graviola,
+  feature = "crypto-ruco" => crate::crypto::HkdfSha256Ruco,
   _ => crate::crypto::HkdfDummy::<[u8; 32]>
 };
 type HkdfSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha384Ring,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha384AwsLcRs,
   feature = "crypto-graviola" => crate::crypto::HkdfSha384Graviola,
+  feature = "crypto-ruco" => crate::crypto::HkdfSha384Ruco,
   _ => crate::crypto::HkdfDummy::<[u8; 48]>
 };
 

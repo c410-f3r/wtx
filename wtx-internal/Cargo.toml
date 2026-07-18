@@ -63,7 +63,7 @@ wtx = { default-features = false, features = ["nightly", "optimizations-std"], p
 autobahn-client = ["tokio", "wtx/tokio", "wtx/web-socket", "wtx/zlib-rs"]
 autobahn-client-concurrent = ["tokio",  "wtx/tokio", "wtx/web-socket", "wtx/zlib-rs"]
 autobahn-server = ["tokio", "wtx/tokio", "wtx/web-socket-server-framework", "wtx/zlib-rs"]
-boringssl = ["tokio", "wtx/crypto-ring", "wtx/tokio", "wtx/_tracing-tree", "wtx/x509"]
+boringssl = ["tokio", "wtx/tokio", "wtx/_tracing-tree", "wtx/x509"]
 boringssl-config = ["serde/derive", "serde_json/std", "wtx/hashbrown", "wtx/serde"]
 ccadb = ["tokio", "wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/http2", "wtx/tokio"]
 h2load = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]

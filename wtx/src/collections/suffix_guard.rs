@@ -1,14 +1,64 @@
+use core::ops::{Deref, DerefMut};
+
 use crate::{
   collections::{Truncate, TryExtend, Vector},
-  misc::{Lease, LeaseMut, SingleTypeStorage},
+  misc::{Lease, LeaseMut, SensitiveBytes, SingleTypeStorage},
 };
 
-/// [`SuffixPusher`] with a mutable vector reference.
-pub type SuffixPusherVectorMut<'inner, T> = SuffixPusher<&'inner mut Vector<T>>;
+/// [`SuffixGuard`] with a mutable vector reference.
+pub type SuffixGuardVectorMut<'inner, T> = SuffixGuard<&'inner mut Vector<T>>;
+
+#[derive(Debug)]
+/// A [`SuffixGuard`] where the elements are bytes that can also be zeroed.
+pub struct SensitiveSuffixGuard<T>(SuffixGuard<T>)
+where
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>;
+
+impl<T> Deref for SensitiveSuffixGuard<T>
+where
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+{
+  type Target = SuffixGuard<T>;
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    &self.0
+  }
+}
+
+impl<T> DerefMut for SensitiveSuffixGuard<T>
+where
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+{
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.0
+  }
+}
+
+impl<T> Drop for SensitiveSuffixGuard<T>
+where
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+{
+  #[inline]
+  fn drop(&mut self) {
+    drop(SensitiveBytes::new(self.0.curr_mut()));
+  }
+}
+
+impl<T> From<T> for SensitiveSuffixGuard<T>
+where
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+{
+  #[inline]
+  fn from(value: T) -> Self {
+    Self(SuffixGuard::<T>::from(value))
+  }
+}
 
 /// A scoped writer that appends a temporary suffix to a collection.
 #[derive(Debug)]
-pub struct SuffixPusher<T>
+pub struct SuffixGuard<T>
 where
   T: Truncate<usize>,
 {
@@ -16,7 +66,7 @@ where
   inner: T,
 }
 
-impl<T> SuffixPusher<T>
+impl<T> SuffixGuard<T>
 where
   T: Truncate<usize>,
 {
@@ -45,7 +95,7 @@ where
   }
 }
 
-impl<T, U> SuffixPusher<T>
+impl<T, U> SuffixGuard<T>
 where
   T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
 {
@@ -56,7 +106,7 @@ where
   }
 }
 
-impl<T, U> SuffixPusher<T>
+impl<T, U> SuffixGuard<T>
 where
   T: LeaseMut<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
 {
@@ -67,7 +117,7 @@ where
   }
 }
 
-impl<T, U> From<T> for SuffixPusher<T>
+impl<T, U> From<T> for SuffixGuard<T>
 where
   T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
 {
@@ -77,27 +127,27 @@ where
   }
 }
 
-impl<T> Lease<SuffixPusher<T>> for SuffixPusher<T>
+impl<T> Lease<SuffixGuard<T>> for SuffixGuard<T>
 where
   T: Truncate<usize>,
 {
   #[inline]
-  fn lease(&self) -> &SuffixPusher<T> {
+  fn lease(&self) -> &SuffixGuard<T> {
     self
   }
 }
 
-impl<T> LeaseMut<SuffixPusher<T>> for SuffixPusher<T>
+impl<T> LeaseMut<SuffixGuard<T>> for SuffixGuard<T>
 where
   T: Truncate<usize>,
 {
   #[inline]
-  fn lease_mut(&mut self) -> &mut SuffixPusher<T> {
+  fn lease_mut(&mut self) -> &mut SuffixGuard<T> {
     self
   }
 }
 
-impl<T> Drop for SuffixPusher<T>
+impl<T> Drop for SuffixGuard<T>
 where
   T: Truncate<usize>,
 {
@@ -107,7 +157,7 @@ where
   }
 }
 
-impl<T> core::fmt::Write for SuffixPusher<T>
+impl<T> core::fmt::Write for SuffixGuard<T>
 where
   T: Truncate<usize> + for<'any> TryExtend<&'any [u8]>,
 {
@@ -119,7 +169,7 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<T> std::io::Write for SuffixPusher<T>
+impl<T> std::io::Write for SuffixGuard<T>
 where
   T: Truncate<usize> + std::io::Write,
 {

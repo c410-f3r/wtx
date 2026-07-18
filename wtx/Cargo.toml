@@ -31,10 +31,30 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.10.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 
+# Rust Crypto and its extravagant set of associated dependencies
+aead = { default-features = false, optional = true, version = "0.6" }
+aes-gcm = { default-features = false, optional = true, version = "0.11" }
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
+chacha20 = { default-features = false, optional = true, version = "0.10" }
+chacha20poly1305 = { default-features = false, optional = true, version = "0.11" }
+crypto-common = { default-features = false, optional = true, version = "0.2" }
+digest = { default-features = false, optional = true, version = "0.11" }
+ed25519-dalek = { default-features = false, optional = true, version = "3.0" }
+elliptic-curve = { default-features = false, optional = true, version = "0.14" }
 getrandom = { default-features = false, optional = true, version = "0.4" }
+hkdf = { default-features = false, optional = true, version = "0.13" }
+hmac = { default-features = false, optional = true, version = "0.13" }
+p256 = { default-features = false, optional = true, version = "0.14" }
+p384 = { default-features = false, optional = true, version = "0.14" }
+pkcs8 = { default-features = false, optional = true, version = "0.11" }
 rand_core = { default-features = false, optional = true, version = "0.10" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.18" }
+sha1 = { default-features = false, optional = true, version = "0.11" }
+sha2 = { default-features = false, optional = true, version = "0.11" }
 sha3 = { default-features = false, optional = true, version = "0.12" }
+signature = { default-features = false, optional = true, version = "3.0" }
+spki = { default-features = false, optional = true, version = "0.8" }
+x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 
 [dev-dependencies]
 wtx = { default-features = false, features = ["crypto-ring", "macros", "nightly", "std"], path = "." }
@@ -50,7 +70,44 @@ crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel?/std", "std"]
 crypto = []
 crypto-aws-lc-rs = ["dep:aws-lc-rs", "crypto"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
-crypto-rc = []
+crypto-ruco = [
+  "dep:aead",
+  "dep:aes-gcm",
+  "aes-gcm/aes",
+  "dep:chacha20",
+  "chacha20/cipher",
+  "chacha20/rng",
+  "dep:chacha20poly1305",
+  "crypto",
+  "dep:crypto-common",
+  "dep:digest",
+  "digest/mac",
+  "dep:ed25519-dalek",
+  "ed25519-dalek?/digest",
+  "ed25519-dalek?/pkcs8",
+  "dep:elliptic-curve",
+  "dep:hkdf",
+  "dep:hmac",
+  "dep:p256",
+  "p256?/arithmetic",
+  "p256?/ecdh",
+  "p256?/ecdsa",
+  "p256?/pkcs8",
+  "dep:p384",
+  "p384?/arithmetic",
+  "p384?/ecdh",
+  "p384?/ecdsa",
+  "p384?/pkcs8",
+  "dep:pkcs8",
+  "rand_core",
+  "dep:rsa",
+  "rsa/encoding",
+  "dep:sha1",
+  "dep:sha2",
+  "dep:signature",
+  "dep:spki",
+  "dep:x25519-dalek",
+]
 crypto-ring = ["crypto", "dep:ring", "ring?/alloc"]
 database = []
 database-tests = ["getrandom", "macros", "postgres", "schema-manager-dev"]
@@ -67,12 +124,12 @@ grpc-client = ["grpc", "http2-client-pool"]
 grpc-server = ["grpc", "http2-server-framework"]
 hashbrown = ["dep:hashbrown", "hashbrown?/default-hasher", "hashbrown?/inline-more"]
 http = []
+http2 = ["foldhash", "hashbrown", "http", "tls"]
 http2-client-pool = ["http2", "nightly", "std"]
+http2-server-framework = ["http2", "nightly"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
-http2-server-framework = ["http2", "nightly"]
 http-session = ["http-cookie-secure", "secret", "serde_json"]
-http2 = ["foldhash", "hashbrown", "http", "tls"]
 httparse = ["dep:httparse"]
 libc = ["dep:libc"]
 macros = ["dep:wtx-macros"]

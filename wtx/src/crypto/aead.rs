@@ -5,6 +5,8 @@ pub(crate) mod global;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 
 use crate::{
   codec::{
@@ -172,7 +174,7 @@ impl<S> Aead for AeadDummy<S> {
   }
 }
 
-#[cfg(feature = "crypto-graviola")]
+#[cfg(any(feature = "crypto-graviola", feature = "crypto-ruco"))]
 fn split_content_tag(
   data: &mut [u8],
   error: CryptoError,

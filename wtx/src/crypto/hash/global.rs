@@ -1,20 +1,23 @@
 use crate::crypto::Hash;
 
 type Sha1Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::Sha1HashRing,
-  feature = "crypto-aws-lc-rs" => crate::crypto::Sha1HashAwsLcRs,
+  feature = "crypto-ring" => crate::crypto::HashSha1Ring,
+  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha1AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::HashSha1Ruco,
   _ => crate::crypto::HashDummy::<[u8; 20]>
 };
 type Sha256Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::Sha256HashRing,
-  feature = "crypto-graviola" => crate::crypto::Sha256HashGraviola,
-  feature = "crypto-aws-lc-rs" => crate::crypto::Sha256HashAwsLcRs,
+  feature = "crypto-ring" => crate::crypto::HashSha256Ring,
+  feature = "crypto-graviola" => crate::crypto::HashSha256Graviola,
+  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha256AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::HashSha256Ruco,
   _ => crate::crypto::HashDummy::<[u8; 32]>
 };
 type Sha384Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::Sha384HashRing,
-  feature = "crypto-graviola" => crate::crypto::Sha384HashGraviola,
-  feature = "crypto-aws-lc-rs" => crate::crypto::Sha384HashAwsLcRs,
+  feature = "crypto-ring" => crate::crypto::HashSha384Ring,
+  feature = "crypto-graviola" => crate::crypto::HashSha384Graviola,
+  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha384AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::HashSha384Ruco,
   _ => crate::crypto::HashDummy::<[u8; 48]>
 };
 
@@ -24,11 +27,6 @@ pub struct Sha1HashGlobal(Sha1Ty);
 
 impl Hash for Sha1HashGlobal {
   type Digest = [u8; 20];
-
-  #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    Sha1Ty::digest(data)
-  }
 
   #[inline]
   fn new() -> Self {
@@ -54,11 +52,6 @@ impl Hash for Sha256HashGlobal {
   type Digest = [u8; 32];
 
   #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    Sha256Ty::digest(data)
-  }
-
-  #[inline]
   fn new() -> Self {
     Self(<Sha256Ty as Hash>::new())
   }
@@ -80,11 +73,6 @@ pub struct Sha384HashGlobal(Sha384Ty);
 
 impl Hash for Sha384HashGlobal {
   type Digest = [u8; 48];
-
-  #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    Sha384Ty::digest(data)
-  }
 
   #[inline]
   fn new() -> Self {

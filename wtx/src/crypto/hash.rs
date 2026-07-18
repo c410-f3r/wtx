@@ -8,15 +8,24 @@ pub(crate) mod global;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 
 /// Maps data of arbitrary size into a fixed-size value.
-pub trait Hash {
+pub trait Hash: Sized {
   /// Output array
   type Digest: AsRef<[u8]>;
 
   /// Computes the hash digest of the given `data` and writes the resulting
   /// fixed-size output into `buffer`.
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest;
+  #[inline]
+  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
+    let mut ctx = Self::new();
+    for elem in data {
+      ctx.update(elem);
+    }
+    ctx.finalize()
+  }
 
   /// Creates a new empty instance.
   fn new() -> Self;
@@ -37,11 +46,6 @@ where
   D: AsRef<[u8]> + DefaultArray,
 {
   type Digest = D;
-
-  #[inline]
-  fn digest<'data>(_: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    dummy_crypto_call();
-  }
 
   #[inline]
   fn new() -> Self {

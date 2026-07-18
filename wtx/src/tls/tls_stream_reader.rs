@@ -197,9 +197,11 @@ fn closed_conn_cb<const IS_CLIENT: bool>(aux: &mut (&TlsStreamBridge<IS_CLIENT>,
 
 async fn key_update_cb<SR, const IS_CLIENT: bool>(
   aux: &mut (&TlsStreamBridge<IS_CLIENT>, &Arc<AtomicU8>),
-  key_update: KeyUpdate,
+  key_update: Option<KeyUpdate>,
   _: &mut SR,
 ) -> crate::Result<()> {
-  aux.0.update(TlsStreamBridgeData::new(Either::Right(key_update)));
+  if let Some(elem) = key_update {
+    aux.0.update(TlsStreamBridgeData::new(Either::Right(elem)));
+  }
   Ok(())
 }

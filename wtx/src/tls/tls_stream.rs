@@ -36,6 +36,7 @@ pub struct TlsStream<S, TM, const IS_CLIENT: bool> {
   pub(crate) buffer: TlsBuffer,
   pub(crate) connection_state: ConnectionState,
   pub(crate) key_schedule: KeySchedule,
+  pub(crate) key_updates: u8,
   pub(crate) max_fragment_length: u16,
   pub(crate) new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
   pub(crate) plaintext_consumed: usize,
@@ -64,6 +65,7 @@ where
       buffer,
       connection_state: ConnectionState::Open,
       key_schedule,
+      key_updates: 0,
       max_fragment_length,
       new_session_ticket: None,
       plaintext_consumed: 0,
@@ -182,6 +184,7 @@ where
       buffer,
       connection_state,
       key_schedule,
+      key_updates,
       max_fragment_length,
       new_session_ticket,
       plaintext_consumed,
@@ -202,7 +205,7 @@ where
       }
       let (ksr, ksw) = key_schedule.split_mut();
       let rslt = read_after_handshake_data::<_, _, IS_CLIENT>(
-        (&mut *connection_state, ksw, warning_alerts),
+        (&mut *connection_state, ksw, warning_alerts, key_updates),
         bytes,
         ksr,
         *max_fragment_length,
@@ -294,7 +297,7 @@ where
 }
 
 async fn alert_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8),
+  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8),
   alert: Alert,
   stream: &mut S,
 ) -> crate::Result<bool>
@@ -319,20 +322,26 @@ where
 }
 
 // This branch is only entered when the peer closed the connection without an alert.
-fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8)) {
+fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8)) {
   *aux.0 = ConnectionState::ClosedAbruptly;
 }
 
 async fn key_update_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8),
-  key_update: KeyUpdate,
+  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8),
+  key_update: Option<KeyUpdate>,
   stream: &mut S,
 ) -> crate::Result<()>
 where
   S: Stream,
 {
-  let kss = aux.1.state_mut();
-  stream.write_all(&key_update.record_bytes(kss)?).await?;
-  kss.rotate()?;
+  *aux.3 = aux.3.wrapping_add(1);
+  if *aux.3 >= 5 {
+    return tls_error_fatal(TlsError::TooManyKeyUpdates, AlertDescription::DecodeError);
+  }
+  if let Some(elem) = key_update {
+    let kss = aux.1.state_mut();
+    stream.write_all(&elem.record_bytes(kss)?).await?;
+    kss.rotate()?;
+  }
   Ok(())
 }

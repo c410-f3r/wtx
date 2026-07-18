@@ -4,6 +4,7 @@ type HmacSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HmacSha256Ring,
   feature = "crypto-graviola" => crate::crypto::HmacSha256Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::HmacSha256AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::HmacSha256Ruco,
   _ => crate::crypto::HmacDummy::<[u8; 32]>
 };
 
@@ -11,6 +12,7 @@ type HmacSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HmacSha384Ring,
   feature = "crypto-graviola" => crate::crypto::HmacSha384Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::HmacSha384AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::HmacSha384Ruco,
   _ => crate::crypto::HmacDummy::<[u8; 48]>
 };
 

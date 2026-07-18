@@ -283,8 +283,8 @@ impl BufStreamReader {
   }
 
   #[cfg(any(feature = "postgres", feature = "web-socket"))]
-  pub(crate) fn suffix_pusher(&mut self) -> crate::collections::SuffixPusherVectorMut<'_, u8> {
-    crate::collections::SuffixPusherVectorMut::from(&mut self.buffer)
+  pub(crate) fn suffix_pusher(&mut self) -> crate::collections::SuffixGuardVectorMut<'_, u8> {
+    crate::collections::SuffixGuardVectorMut::from(&mut self.buffer)
   }
 
   /// `additional` refers `following`, `trailing` and unreserved memory. In other words, fetched

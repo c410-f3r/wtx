@@ -170,6 +170,7 @@ where
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
     manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
+    _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
@@ -223,7 +224,7 @@ where
       let _rslt = indices.push(curr_idx);
     }
     let signature = self.config.lease().inner.secret_key.peek(
-      &mut ArrayVectorCopy::<u8, 128>::new(),
+      &mut (&mut self.buffer.writer_buffer).into(),
       |secret_key| {
         let mut sign_key = output.signature_ty.sign_key_from_pkcs8(*secret_key)?;
         let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;

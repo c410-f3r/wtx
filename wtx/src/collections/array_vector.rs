@@ -1,6 +1,6 @@
 use crate::{
   collections::{
-    ArrayIntoIter, ExpansionTy, LinearStorageLen,
+    ArrayIntoIter, ExpansionTy, LinearStorageLen, Truncate,
     array_vector_inner::ArrayVectorInner,
     linear_storage::{
       LinearStorage as _, linear_storage_mut::LinearStorageMut as _,
@@ -566,12 +566,23 @@ where
   }
 }
 
-impl<L, T, const N: usize> From<[T; N]> for ArrayVector<L, T, N>
+impl<L, T, const N: usize> Truncate<usize> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: Copy,
+{
+  #[inline]
+  fn truncate(&mut self, input: usize) {
+    (*self).truncate(L::from_usize(input).unwrap_or(L::UPPER_BOUND));
+  }
+}
+
+impl<L, T, const M: usize, const N: usize> From<[T; M]> for ArrayVector<L, T, N>
 where
   L: LinearStorageLen,
 {
   #[inline]
-  fn from(from: [T; N]) -> Self {
+  fn from(from: [T; M]) -> Self {
     Self::from_parts(from, None)
   }
 }

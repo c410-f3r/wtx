@@ -78,12 +78,12 @@ impl StreamWriter for std::os::unix::net::UnixStream {
 
 impl UdpStream for UdpSocket {
   #[inline]
-  async fn recv_from(&self, buffer: &mut [u8]) -> crate::Result<(usize, SocketAddr)> {
+  async fn recv_from(&mut self, buffer: &mut [u8]) -> crate::Result<(usize, SocketAddr)> {
     Ok((*self).recv_from(buffer)?)
   }
 
   #[inline]
-  async fn send_to(&self, bytes: &mut [u8], addr: SocketAddr) -> crate::Result<usize> {
+  async fn send_to(&mut self, bytes: &mut [u8], addr: SocketAddr) -> crate::Result<usize> {
     Ok((*self).send_to(bytes, addr)?)
   }
 }

@@ -77,7 +77,7 @@ where
   }
   if len > max_allowed_len {
     cold_path();
-    return Err(TlsError::ReceivedRecordIsTooLarge.into());
+    return tls_error_fatal(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
   }
   reader_buffer.read_payload(len.into(), stream_reader).await?;
   let mut trails: u16 = 0;
@@ -92,6 +92,9 @@ where
     let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
       return Err(crate::crypto::CryptoError::InvalidAesData.into());
     };
+    if plaintext.len() > max_fragment_length.into() {
+      return tls_error_fatal(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
+    }
     trails = 17;
     if *maybe_ty == 0 {
       let mut inner_ty = 0;
@@ -153,7 +156,7 @@ pub(crate) async fn read_after_handshake_data<A, SR, const IS_CLIENT: bool>(
   >,
   closed_conn_cb: impl FnOnce(&mut A),
   mut key_update_cb: impl for<'any> FnMutFut<
-    (&'any mut A, KeyUpdate, &'any mut SR),
+    (&'any mut A, Option<KeyUpdate>, &'any mut SR),
     Result = crate::Result<()>,
   >,
 ) -> crate::Result<Option<NonZeroUsize>>
@@ -215,10 +218,14 @@ where
             HandshakeType::KeyUpdate => {
               let remote_ku = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs.data))?;
               ksr.state_mut().rotate()?;
-              if matches!(remote_ku.request_update, KeyUpdateRequest::UpdateRequested) {
-                let local_ku = KeyUpdate { request_update: KeyUpdateRequest::UpdateNotRequested };
-                key_update_cb.call((&mut aux, local_ku, stream_reader)).await?;
-              }
+              let resend = matches!(remote_ku.request_update, KeyUpdateRequest::UpdateRequested);
+              key_update_cb
+                .call((
+                  &mut aux,
+                  resend.then_some(KeyUpdate::new(KeyUpdateRequest::UpdateNotRequested)),
+                  stream_reader,
+                ))
+                .await?;
             }
             HandshakeType::NewSessionTicket => {
               if !IS_CLIENT {

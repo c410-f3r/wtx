@@ -1,6 +1,6 @@
 use crate::{
   collections::{
-    ExpansionTy, SuffixPusherVectorMut,
+    ExpansionTy, SuffixGuardVectorMut,
     linear_storage::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
@@ -321,10 +321,10 @@ impl<T> Vector<T> {
     self.0.split_at_spare_mut()
   }
 
-  /// See [`SuffixPusherVectorMut`].
+  /// See [`SuffixGuardVectorMut`].
   #[inline]
-  pub fn suffix_pusher(&mut self) -> SuffixPusherVectorMut<'_, T> {
-    SuffixPusherVectorMut::from(self)
+  pub fn suffix_pusher(&mut self) -> SuffixGuardVectorMut<'_, T> {
+    SuffixGuardVectorMut::from(self)
   }
 
   #[doc = truncate_doc!("Vector", "[1, 2, 3]", "[1]")]
