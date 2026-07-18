@@ -116,6 +116,8 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       _ => ":FIXME:",
     },
     Err(wtx::Error::TlsErrorFatal(err, _)) => match err {
+      TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
+      TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
       TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
       TlsError::WrongAlert => ":BAD_ALERT:",

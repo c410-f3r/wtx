@@ -43,8 +43,10 @@ pub enum TlsError {
   InvalidCookie,
   /// Invalid Encrypted Extensions
   InvalidEncryptedExtensions,
-  /// Invalid client hello
+  /// Invalid extension
   InvalidExtension,
+  /// Invalid extension type
+  InvalidExtensionTy,
   /// Invalid Finished Record
   InvalidFinishedRecord,
   /// Invalid Handshake
@@ -109,6 +111,8 @@ pub enum TlsError {
   NoCertificate,
   /// Record extrapolates the maximum fragment length
   ReceivedRecordIsTooLarge,
+  /// Too many key updates
+  TooManyKeyUpdates,
   /// Too many warning alerts
   TooManyWarningAlerts,
   /// Record was supposed to be encrypted

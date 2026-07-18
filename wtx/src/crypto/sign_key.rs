@@ -4,6 +4,8 @@ mod aws_lc_rs;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 
 /// A cryptographic secret usually composed by a secret key and a public key.
 pub trait SignKey: Sized {

@@ -87,7 +87,7 @@ pub(crate) static EPOCH_OFFSET: epoch_offset::EpochOffset = epoch_offset::EpochO
 #[inline]
 pub async fn fetch_and_set_epoch_offset<S>(
   addr: core::net::SocketAddr,
-  stream: &S,
+  stream: &mut S,
 ) -> crate::Result<bool>
 where
   S: crate::stream::UdpStream,
@@ -125,9 +125,9 @@ mod tests {
     use std::net::{ToSocketAddrs, UdpSocket};
 
     assert_eq!(EPOCH_OFFSET.get(), 0);
-    let udp_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
+    let mut udp_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
     let addr = "pool.ntp.org:123".to_socket_addrs().unwrap().into_iter().next().unwrap();
-    let _ = fetch_and_set_epoch_offset(addr, &udp_socket).await.unwrap();
+    let _ = fetch_and_set_epoch_offset(addr, &mut udp_socket).await.unwrap();
     assert!(EPOCH_OFFSET.get() > 1000000);
     assert!(Instant::now_date_time().unwrap().timestamp_secs_and_ns().0 > 1784244618);
   }

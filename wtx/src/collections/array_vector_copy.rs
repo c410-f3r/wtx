@@ -1,13 +1,13 @@
 use crate::{
   collections::{
-    ArrayIntoIter, ExpansionTy, LinearStorageLen as _,
+    ArrayIntoIter, ExpansionTy, LinearStorageLen as _, Truncate,
     array_vector_inner::ArrayVectorInner,
     linear_storage::{
       LinearStorage as _, linear_storage_mut::LinearStorageMut as _,
       linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, LeaseMut, Wrapper, char_slice},
+  misc::{Lease, LeaseMut, SingleTypeStorage, Wrapper, char_slice},
 };
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -489,14 +489,41 @@ where
   }
 }
 
-impl<T, const N: usize> From<[T; N]> for ArrayVectorCopy<T, N>
+impl<T, const N: usize> Truncate<usize> for ArrayVectorCopy<T, N>
 where
   T: Copy,
 {
   #[inline]
-  fn from(from: [T; N]) -> Self {
+  fn truncate(&mut self, input: usize) {
+    (*self).truncate(input.try_into().unwrap_or(u8::MAX));
+  }
+}
+
+impl<T, const M: usize, const N: usize> From<[T; M]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn from(from: [T; M]) -> Self {
     Self::from_parts(from, None)
   }
+}
+
+impl<T, const M: usize, const N: usize> From<&[T; M]> for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  #[inline]
+  fn from(from: &[T; M]) -> Self {
+    Self::from_parts(*from, None)
+  }
+}
+
+impl<T, const N: usize> SingleTypeStorage for ArrayVectorCopy<T, N>
+where
+  T: Copy,
+{
+  type Item = T;
 }
 
 impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayVectorCopy<u8, N> {

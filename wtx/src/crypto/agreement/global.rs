@@ -4,18 +4,21 @@ type P256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::P256Ring,
   feature = "crypto-graviola" => crate::crypto::P256Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::P256AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::P256Ruco,
   _ => crate::crypto::AgreementDummy::<[u8; 65], [u8; 32]>
 };
 type P384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::P384Ring,
   feature = "crypto-graviola" => crate::crypto::P384Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::P384AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::P384Ruco,
   _ => crate::crypto::AgreementDummy::<[u8; 97], [u8; 48]>
 };
 type X25519Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::X25519Ring,
   feature = "crypto-graviola" => crate::crypto::X25519Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::X25519AwsLcRs,
+  feature = "crypto-ruco" => crate::crypto::X25519Ruco,
   _ => crate::crypto::AgreementDummy::<[u8; 32], [u8; 32]>
 };
 

@@ -1,17 +1,8 @@
 use crate::{crypto::Hash, misc::unlikely_elem};
 use aws_lc_rs::digest::{Context, SHA1_FOR_LEGACY_USE_ONLY, SHA256, SHA384};
 
-impl Hash for crate::crypto::Sha1HashAwsLcRs {
+impl Hash for crate::crypto::HashSha1AwsLcRs {
   type Digest = [u8; 20];
-
-  #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    let mut context = Context::new(&SHA1_FOR_LEGACY_USE_ONLY);
-    for elem in data {
-      context.update(elem);
-    }
-    finish_context(context, [0; 20])
-  }
 
   #[inline]
   fn new() -> Self {
@@ -29,17 +20,8 @@ impl Hash for crate::crypto::Sha1HashAwsLcRs {
   }
 }
 
-impl Hash for crate::crypto::Sha256HashAwsLcRs {
+impl Hash for crate::crypto::HashSha256AwsLcRs {
   type Digest = [u8; 32];
-
-  #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    let mut context = Context::new(&SHA256);
-    for elem in data {
-      context.update(elem);
-    }
-    finish_context(context, [0; 32])
-  }
 
   #[inline]
   fn new() -> Self {
@@ -57,17 +39,8 @@ impl Hash for crate::crypto::Sha256HashAwsLcRs {
   }
 }
 
-impl Hash for crate::crypto::Sha384HashAwsLcRs {
+impl Hash for crate::crypto::HashSha384AwsLcRs {
   type Digest = [u8; 48];
-
-  #[inline]
-  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    let mut context = Context::new(&SHA384);
-    for elem in data {
-      context.update(elem);
-    }
-    finish_context(context, [0; 48])
-  }
 
   #[inline]
   fn new() -> Self {

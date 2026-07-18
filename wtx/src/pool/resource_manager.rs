@@ -94,7 +94,7 @@ pub(crate) mod database {
   macro_rules! _executor {
     ($uri_secret:expr, |$config:ident, $uri:ident| $cb:expr) => {{
       $uri_secret
-        .peek(&mut Vector::new(), async |secret| {
+        .peek(&mut Vector::new().into(), async |secret| {
           // SAFETY: URI is a string.
           let string = unsafe { core::str::from_utf8_unchecked(&*secret) };
           let $uri = crate::misc::UriRef::new(string);

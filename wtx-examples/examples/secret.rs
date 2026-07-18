@@ -21,8 +21,8 @@ fn main() -> wtx::Result<()> {
   let secret = Secret::new(data.into_bytes().as_mut(), &mut rng, secret_context)?;
   let _rslt = SECRET.set(secret);
   std::thread::spawn(|| {
-    let mut buffer = Vector::new();
-    SECRET.wait().peek(&mut buffer, |_data| {
+    let buffer = &mut Vector::new();
+    SECRET.wait().peek(&mut buffer.into(), |_data| {
       // Sign documents, pass API keys, etc...
     })?;
     wtx::Result::Ok(())

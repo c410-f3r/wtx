@@ -19,7 +19,7 @@ macro_rules! check_headers {
 
 use crate::{
   codec::{Base64Alphabet, base64_encode, base64_encoded_len},
-  collections::SuffixPusherVectorMut,
+  collections::SuffixGuardVectorMut,
   crypto::{Hash as _, Sha1HashGlobal},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{Lease, SingleTypeStorage, Uri, bytes_split1},
@@ -203,7 +203,7 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 /// Client request
 fn build_req<'headers, 'kb, C, RNG, STR>(
   compression: &C,
-  sw: &mut SuffixPusherVectorMut<'_, u8>,
+  sw: &mut SuffixGuardVectorMut<'_, u8>,
   headers: impl IntoIterator<Item = (&'headers str, &'headers str)>,
   key_buffer: &'kb mut [u8; 26],
   no_masking: bool,

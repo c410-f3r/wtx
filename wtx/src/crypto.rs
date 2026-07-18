@@ -60,8 +60,8 @@ pub const MAX_HASH_LEN: usize = 48;
 // Based on P-384 uncompressed.
 pub const MAX_PK_LEN: usize = 97;
 
-/// A wrapper around public keys or other external structures that don't implement `AsRef<[u8]>`.
-#[cfg(feature = "crypto-graviola")]
+/// A wrapper around external structures that don't implement `AsRef<[u8]>`.
+#[cfg(any(feature = "crypto-graviola", feature = "crypto-ruco"))]
 #[derive(Debug)]
 pub struct AsRefWrapper<T>(T);
 
@@ -83,11 +83,11 @@ _create_wrappers!(
   X25519AwsLcRs<>(aws_lc_rs::agreement::EphemeralPrivateKey),
   //
   #[derive(Clone)]
-  Sha1HashAwsLcRs<>(aws_lc_rs::digest::Context),
+  HashSha1AwsLcRs<>(aws_lc_rs::digest::Context),
   #[derive(Clone)]
-  Sha256HashAwsLcRs<>(aws_lc_rs::digest::Context),
+  HashSha256AwsLcRs<>(aws_lc_rs::digest::Context),
   #[derive(Clone)]
-  Sha384HashAwsLcRs<>(aws_lc_rs::digest::Context),
+  HashSha384AwsLcRs<>(aws_lc_rs::digest::Context),
   //
   HkdfSha256AwsLcRs<>(aws_lc_rs::hkdf::Prk),
   HkdfSha384AwsLcRs<>(aws_lc_rs::hkdf::Prk),
@@ -123,9 +123,9 @@ _create_wrappers!(
   X25519Graviola<>(graviola::key_agreement::x25519::PrivateKey),
   //
   #[derive(Clone)]
-  Sha256HashGraviola<>(<graviola::hashing::Sha256 as graviola::hashing::Hash>::Context),
+  HashSha256Graviola<>(<graviola::hashing::Sha256 as graviola::hashing::Hash>::Context),
   #[derive(Clone)]
-  Sha384HashGraviola<>(<graviola::hashing::Sha384 as graviola::hashing::Hash>::Context),
+  HashSha384Graviola<>(<graviola::hashing::Sha384 as graviola::hashing::Hash>::Context),
   //
   HkdfSha256Graviola<>(GraviolaPrk<graviola::hashing::Sha256>),
   HkdfSha384Graviola<>(GraviolaPrk<graviola::hashing::Sha384>),
@@ -161,11 +161,11 @@ _create_wrappers!(
   X25519Ring<>(ring::agreement::EphemeralPrivateKey),
   //
   #[derive(Clone)]
-  Sha1HashRing<>(ring::digest::Context),
+  HashSha1Ring<>(ring::digest::Context),
   #[derive(Clone)]
-  Sha256HashRing<>(ring::digest::Context),
+  HashSha256Ring<>(ring::digest::Context),
   #[derive(Clone)]
-  Sha384HashRing<>(ring::digest::Context),
+  HashSha384Ring<>(ring::digest::Context),
   //
   HkdfSha256Ring<>(ring::hkdf::Prk),
   HkdfSha384Ring<>(ring::hkdf::Prk),
@@ -181,6 +181,46 @@ _create_wrappers!(
   P384SignKeyRing<>(ring::signature::EcdsaKeyPair),
   RsaPssSignKeySha384Ring<>(ring::signature::RsaKeyPair),
   RsaPssSignKeySha256Ring<>(ring::signature::RsaKeyPair),
+);
+
+#[cfg(feature = "crypto-ruco")]
+_create_wrappers!(
+  #[derive(Default)]
+  Aes128GcmRuco<>(),
+  #[derive(Default)]
+  Aes256GcmRuco<>(),
+  #[derive(Default)]
+  Chacha20Poly1305Ruco<>(),
+  //
+  P256Ruco<>(p256::ecdh::EphemeralSecret),
+  P384Ruco<>(p384::ecdh::EphemeralSecret),
+  X25519Ruco<>(x25519_dalek::EphemeralSecret),
+  //
+  #[derive(Clone)]
+  HashSha1Ruco<>(sha1::Sha1),
+  #[derive(Clone)]
+  HashSha256Ruco<>(sha2::Sha256),
+  #[derive(Clone)]
+  HashSha384Ruco<>(sha2::Sha384),
+  //
+  HkdfSha256Ruco<>(::hkdf::Hkdf<sha2::Sha256>),
+  HkdfSha384Ruco<>(::hkdf::Hkdf<sha2::Sha384>),
+  //
+  HmacSha256Ruco<>(::hmac::Hmac<sha2::Sha256>),
+  HmacSha384Ruco<>(::hmac::Hmac<sha2::Sha384>),
+  //
+  Ed25519SignKeyRuco<>(ed25519_dalek::SigningKey),
+  P256SignKeyRuco<>(p256::ecdsa::SigningKey),
+  P384SignKeyRuco<>(p384::ecdsa::SigningKey),
+  RsaPssSignKeySha256Ruco<>(rsa::pss::SigningKey<sha2::Sha256>),
+  RsaPssSignKeySha384Ruco<>(rsa::pss::SigningKey<sha2::Sha384>),
+  //
+  #[derive(Default)]
+  Ed25519Ruco<>(),
+  #[derive(Default)]
+  RsaPssRsaeSha256Ruco<>(),
+  #[derive(Default)]
+  RsaPssRsaeSha384Ruco<>(),
 );
 
 /// AEAD nonce prefix

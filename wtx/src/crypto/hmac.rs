@@ -8,6 +8,8 @@ pub(crate) mod global;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 
 /// Keyed-hash message authentication code.
 pub trait Hmac: Sized {

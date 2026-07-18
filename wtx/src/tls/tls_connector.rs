@@ -216,6 +216,7 @@ where
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
     let tls_server_end_point = manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
+    _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
     Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,

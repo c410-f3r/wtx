@@ -132,14 +132,15 @@ where
         if name.is_empty() || value.is_empty() {
           continue;
         }
-        let decrypt_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
-          Aes128GcmGlobal::decrypt_base64_to_buffer(
-            name.as_bytes(),
-            &mut cookie_def.value,
-            value.as_bytes(),
-            el.as_ref().try_into()?,
-          )
-        });
+        let decrypt_rslt =
+          session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new().into(), |el| {
+            Aes128GcmGlobal::decrypt_base64_to_buffer(
+              name.as_bytes(),
+              &mut cookie_def.value,
+              value.as_bytes(),
+              el.as_ref().try_into()?,
+            )
+          });
         req.msg_data.body.truncate(idx);
         let value_json = decrypt_rslt??;
         let json_rslt = serde_json_deserialize_from_slice(value_json);

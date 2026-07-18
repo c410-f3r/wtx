@@ -55,6 +55,7 @@ Taking aside very few exceptions, `WTX` does not have built-in cryptographic alg
 * `crypto-aws-lc-rs`
 * `crypto-graviola`
 * `crypto-ring`
+* `crypto-ruco` (Rust Crypto)
 
 Calling methods will halt/panic the application if no backend is selected. These panicking branches will hopefully be erased by dead code analysis if the `crypto` feature is somehow active but never actually used.
 

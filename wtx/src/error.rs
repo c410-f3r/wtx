@@ -1,3 +1,7 @@
+mod external_std;
+mod external_third_parties;
+mod internal;
+
 #[cfg(feature = "asn1")]
 use crate::asn1::Asn1Error;
 use crate::{
@@ -11,12 +15,11 @@ use crate::{
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
-use alloc::string::String;
 use core::{
   alloc::Layout,
-  any::Any,
+  array::TryFromSliceError,
   convert::Infallible,
-  fmt::{Debug, Display, Formatter, Write as _},
+  fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
   slice::GetDisjointMutError,
 };
@@ -37,9 +40,18 @@ macro_rules! associated_element_doc {
 pub enum Error {
   // External - Third parties
   //
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  AeadError(aead::Error),
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  CryptoCommonInvalidLength(crypto_common::InvalidLength),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  EllipticCurveError(elliptic_curve::Error),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNetTcp(embassy_net::tcp::Error),
@@ -61,9 +73,18 @@ pub enum Error {
   #[cfg(feature = "httparse")]
   #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  MacError(digest::MacError),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  Pkcs8Error(Box<pkcs8::Error>),
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  RsaError(Box<rsa::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -73,6 +94,12 @@ pub enum Error {
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
   SerdeJsonDeserialize(ShortBoxStrU16),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  Signature(Box<signature::Error>),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
+  SpkiError(Box<spki::Error>),
   #[cfg(feature = "tokio")]
   #[doc = associated_element_doc!()]
   TokioJoinError(Box<tokio::task::JoinError>),
@@ -112,7 +139,9 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   TryFromIntError(core::num::TryFromIntError),
   #[doc = associated_element_doc!()]
-  TryFromSliceError(core::array::TryFromSliceError),
+  TryFromSliceError(TryFromSliceError),
+  #[doc = associated_element_doc!()]
+  Utf8Error(Box<core::str::Utf8Error>),
   /// The specified environment variable was not present in the current
   /// process's environment.
   #[cfg(feature = "std")]
@@ -122,8 +151,6 @@ pub enum Error {
   /// variant.
   #[cfg(feature = "std")]
   VarIsNotUnicode(ShortBoxStrU16),
-  #[doc = associated_element_doc!()]
-  Utf8Error(Box<core::str::Utf8Error>),
 
   // Generic
   //
@@ -137,8 +164,6 @@ pub enum Error {
   CounterWriterOverflow,
   /// Future should complete before a certain duration but didn't
   ExpiredFuture,
-  /// Weight is zero, negative or overflowed list
-  InvalidWeight,
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error
@@ -157,6 +182,8 @@ pub enum Error {
   InvalidUTF8Bound,
   /// Invalid URI
   InvalidUri,
+  /// Weight is zero, negative or overflowed list
+  InvalidWeight,
   /// There is no CA provider.
   MissingCaProviders,
   /// A instance could not be constructed because of a missing required variable.
@@ -225,16 +252,16 @@ pub enum Error {
   // Internal
   //
   #[doc = associated_element_doc!()]
-  AsciiError(AsciiError),
-  #[cfg(feature = "asn1")]
-  #[doc = associated_element_doc!()]
-  Asn1Error(Asn1Error),
-  #[doc = associated_element_doc!()]
   ArithmeticError(ArithmeticError),
   #[doc = associated_element_doc!()]
   ArrayStringError(ArrayStringError),
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
+  #[doc = associated_element_doc!()]
+  AsciiError(AsciiError),
+  #[cfg(feature = "asn1")]
+  #[doc = associated_element_doc!()]
+  Asn1Error(Asn1Error),
   #[doc = associated_element_doc!()]
   Base64Error(Base64Error),
   #[doc = associated_element_doc!()]
@@ -275,9 +302,6 @@ pub enum Error {
   /// Non-fatal HTTP/2 stream error
   #[cfg(feature = "http2")]
   Http2FlowControlError(crate::http2::Http2Error, u32),
-  #[cfg(feature = "http")]
-  #[doc = associated_element_doc!()]
-  RouterError(crate::http::RouterError),
   #[doc = associated_element_doc!()]
   NetReadBufferError(crate::stream::BufStreamReaderError),
   #[cfg(feature = "postgres")]
@@ -288,6 +312,9 @@ pub enum Error {
   PostgresError(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
   QueueError(DequeueError),
+  #[cfg(feature = "http")]
+  #[doc = associated_element_doc!()]
+  RouterError(crate::http::RouterError),
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
@@ -310,10 +337,10 @@ pub enum Error {
   WebSocketError(crate::web_socket::WebSocketError),
   #[cfg(feature = "x509")]
   #[doc = associated_element_doc!()]
-  X509Error(crate::x509::X509Error),
+  X509CvError(crate::x509::X509CvError),
   #[cfg(feature = "x509")]
   #[doc = associated_element_doc!()]
-  X509CvError(crate::x509::X509CvError),
+  X509Error(crate::x509::X509Error),
 }
 
 impl Display for Error {
@@ -335,459 +362,6 @@ impl From<Infallible> for Error {
 impl From<Error> for () {
   #[inline]
   fn from(_: Error) -> Self {}
-}
-
-#[cfg(feature = "argon2")]
-impl From<argon2::Error> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: argon2::Error) -> Self {
-    Self::Argon2(from)
-  }
-}
-
-#[cfg(feature = "http-cookie")]
-impl From<crate::http::CookieError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: crate::http::CookieError) -> Self {
-    Self::Cookie(from)
-  }
-}
-
-#[cfg(feature = "crypto")]
-impl From<crate::crypto::CryptoError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: crate::crypto::CryptoError) -> Self {
-    Self::CryptoError(from)
-  }
-}
-
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::tcp::Error> for Error {
-  #[inline]
-  fn from(from: embassy_net::tcp::Error) -> Self {
-    Self::EmbassyNetTcp(from)
-  }
-}
-
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::udp::BindError> for Error {
-  #[inline]
-  fn from(from: embassy_net::udp::BindError) -> Self {
-    Self::EmbassyNetUdpBind(from)
-  }
-}
-
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::udp::RecvError> for Error {
-  #[inline]
-  fn from(from: embassy_net::udp::RecvError) -> Self {
-    Self::EmbassyNetUdpRecv(from)
-  }
-}
-
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::udp::SendError> for Error {
-  #[inline]
-  fn from(from: embassy_net::udp::SendError) -> Self {
-    Self::EmbassyNetUdpSend(from)
-  }
-}
-
-#[cfg(feature = "crypto-graviola")]
-impl From<graviola::Error> for Error {
-  #[inline]
-  fn from(from: graviola::Error) -> Self {
-    Self::GraviolaError(from)
-  }
-}
-
-#[cfg(feature = "getrandom")]
-impl From<getrandom::Error> for Error {
-  #[inline]
-  fn from(from: getrandom::Error) -> Self {
-    Self::GetRandomError(from)
-  }
-}
-
-impl From<core::net::AddrParseError> for Error {
-  #[inline]
-  fn from(from: core::net::AddrParseError) -> Self {
-    Self::AddrParseError(from)
-  }
-}
-
-impl From<core::fmt::Error> for Error {
-  #[inline]
-  fn from(from: core::fmt::Error) -> Self {
-    Self::Fmt(from)
-  }
-}
-
-#[cfg(feature = "httparse")]
-impl From<httparse::Error> for Error {
-  #[inline]
-  fn from(from: httparse::Error) -> Self {
-    Self::HttpParse(from)
-  }
-}
-
-impl From<GetDisjointMutError> for Error {
-  #[inline]
-  fn from(from: GetDisjointMutError) -> Self {
-    Self::GetDisjointMutError(from)
-  }
-}
-
-#[cfg(feature = "std")]
-impl From<std::io::Error> for Error {
-  #[inline]
-  fn from(from: std::io::Error) -> Self {
-    Self::IoError(from)
-  }
-}
-
-impl From<core::num::ParseIntError> for Error {
-  #[inline]
-  fn from(from: core::num::ParseIntError) -> Self {
-    Self::ParseIntError(from)
-  }
-}
-
-impl From<RecvError> for Error {
-  #[inline]
-  fn from(from: RecvError) -> Self {
-    Self::RecvError(from)
-  }
-}
-
-impl From<SendError<()>> for Error {
-  #[inline]
-  fn from(from: SendError<()>) -> Self {
-    Self::SendError(from)
-  }
-}
-
-#[cfg(feature = "postgres")]
-impl From<crate::database::client::postgres::DbError> for Error {
-  #[inline]
-  fn from(from: crate::database::client::postgres::DbError) -> Self {
-    Self::PostgresDbError(from.into())
-  }
-}
-
-#[cfg(feature = "quick-protobuf")]
-impl From<quick_protobuf::Error> for Error {
-  #[inline]
-  fn from(from: quick_protobuf::Error) -> Self {
-    Self::QuickProtobuf(from.into())
-  }
-}
-
-#[cfg(feature = "serde")]
-impl From<::serde::de::value::Error> for Error {
-  #[inline]
-  fn from(from: ::serde::de::value::Error) -> Self {
-    Self::SerdeDeValue(from.into())
-  }
-}
-
-#[cfg(feature = "serde_json")]
-impl From<serde_json::Error> for Error {
-  #[inline]
-  fn from(from: serde_json::Error) -> Self {
-    Self::SerdeJson(from)
-  }
-}
-
-#[cfg(feature = "http-session")]
-impl From<crate::http::SessionError> for Error {
-  #[inline]
-  fn from(from: crate::http::SessionError) -> Self {
-    Self::SessionError(from)
-  }
-}
-
-#[cfg(feature = "tls")]
-impl From<crate::tls::TlsError> for Error {
-  #[inline]
-  fn from(from: crate::tls::TlsError) -> Self {
-    Self::TlsError(from)
-  }
-}
-
-#[cfg(feature = "tokio")]
-impl From<tokio::task::JoinError> for Error {
-  #[inline]
-  fn from(from: tokio::task::JoinError) -> Self {
-    Self::TokioJoinError(from.into())
-  }
-}
-
-#[cfg(feature = "tracing-subscriber")]
-impl From<tracing_subscriber::util::TryInitError> for Error {
-  #[inline]
-  fn from(from: tracing_subscriber::util::TryInitError) -> Self {
-    Self::TryInitError(from.into())
-  }
-}
-
-impl From<core::num::TryFromIntError> for Error {
-  #[inline]
-  fn from(from: core::num::TryFromIntError) -> Self {
-    Self::TryFromIntError(from)
-  }
-}
-
-impl From<core::array::TryFromSliceError> for Error {
-  #[inline]
-  fn from(from: core::array::TryFromSliceError) -> Self {
-    Self::TryFromSliceError(from)
-  }
-}
-
-#[cfg(feature = "std")]
-impl<T> From<std::sync::TryLockError<T>> for Error {
-  #[inline]
-  fn from(from: std::sync::TryLockError<T>) -> Self {
-    Self::TryLockError(match from {
-      std::sync::TryLockError::Poisoned(_) => {
-        std::sync::TryLockError::Poisoned(std::sync::PoisonError::new(()))
-      }
-      std::sync::TryLockError::WouldBlock => std::sync::TryLockError::WouldBlock,
-    })
-  }
-}
-
-#[cfg(feature = "uuid")]
-impl From<uuid::Error> for Error {
-  #[inline]
-  fn from(value: uuid::Error) -> Self {
-    Self::UuidError(value.into())
-  }
-}
-
-#[cfg(feature = "zlib-rs")]
-impl From<zlib_rs::DeflateError> for Error {
-  #[inline]
-  fn from(value: zlib_rs::DeflateError) -> Self {
-    Self::ZlibRsDeflateError(value)
-  }
-}
-
-#[cfg(feature = "zlib-rs")]
-impl From<zlib_rs::InflateError> for Error {
-  #[inline]
-  fn from(value: zlib_rs::InflateError) -> Self {
-    Self::ZlibRsInflateError(value)
-  }
-}
-
-// Internal
-
-impl From<ArrayStringError> for Error {
-  #[inline]
-  fn from(from: ArrayStringError) -> Self {
-    Self::ArrayStringError(from)
-  }
-}
-
-impl From<ArrayVectorError> for Error {
-  #[inline]
-  fn from(from: ArrayVectorError) -> Self {
-    Self::ArrayVectorError(from)
-  }
-}
-
-impl From<Base64Error> for Error {
-  #[inline]
-  fn from(from: Base64Error) -> Self {
-    Self::Base64Error(from)
-  }
-}
-
-impl From<BlocksDequeError> for Error {
-  #[inline]
-  fn from(from: BlocksDequeError) -> Self {
-    Self::BlocksQueueError(from)
-  }
-}
-
-impl From<CalendarError> for Error {
-  #[inline]
-  fn from(from: CalendarError) -> Self {
-    Self::CalendarError(from)
-  }
-}
-
-#[cfg(feature = "http")]
-impl From<crate::http::HttpError> for Error {
-  #[inline]
-  fn from(from: crate::http::HttpError) -> Self {
-    Self::HttpError(from)
-  }
-}
-
-#[cfg(feature = "client-api-framework")]
-impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
-  #[inline]
-  fn from(from: crate::client_api_framework::ClientApiFrameworkError) -> Self {
-    Self::ClientApiFrameworkError(from)
-  }
-}
-
-impl From<crate::codec::CodecError> for Error {
-  #[inline]
-  fn from(from: crate::codec::CodecError) -> Self {
-    Self::CodecError(from.into())
-  }
-}
-
-#[cfg(feature = "database")]
-impl From<crate::database::DatabaseError> for Error {
-  #[inline]
-  fn from(from: crate::database::DatabaseError) -> Self {
-    Self::DatabaseError(from)
-  }
-}
-
-impl From<crate::executor::ExecutorError> for Error {
-  #[inline]
-  fn from(from: crate::executor::ExecutorError) -> Self {
-    Self::ExecutorError(from)
-  }
-}
-
-impl From<FixedStringError> for Error {
-  #[inline]
-  fn from(from: FixedStringError) -> Self {
-    Self::FixedStringError(from)
-  }
-}
-
-impl From<FromRadix10Error> for Error {
-  #[inline]
-  fn from(from: FromRadix10Error) -> Self {
-    Self::FromRadix10Error(from)
-  }
-}
-
-impl From<HexError> for Error {
-  #[inline]
-  fn from(from: HexError) -> Self {
-    Self::HexError(from)
-  }
-}
-
-#[cfg(feature = "postgres")]
-impl From<crate::database::client::postgres::PostgresError> for Error {
-  #[inline]
-  fn from(from: crate::database::client::postgres::PostgresError) -> Self {
-    Self::PostgresError(from)
-  }
-}
-
-impl From<DequeueError> for Error {
-  #[inline]
-  fn from(from: DequeueError) -> Self {
-    Self::QueueError(from)
-  }
-}
-
-#[cfg(feature = "http")]
-impl From<crate::http::RouterError> for Error {
-  #[inline]
-  fn from(from: crate::http::RouterError) -> Self {
-    Self::RouterError(from)
-  }
-}
-
-impl From<crate::stream::BufStreamReaderError> for Error {
-  #[inline]
-  fn from(from: crate::stream::BufStreamReaderError) -> Self {
-    Self::NetReadBufferError(from)
-  }
-}
-
-#[cfg(feature = "schema-manager")]
-impl From<crate::database::schema_manager::SchemaManagerError> for Error {
-  #[inline]
-  fn from(from: crate::database::schema_manager::SchemaManagerError) -> Self {
-    Self::SchemaManagerError(from)
-  }
-}
-
-#[cfg(feature = "http2-server-framework")]
-impl From<crate::http::http2_server_framework::Http2ServerFrameworkError> for Error {
-  #[inline]
-  fn from(from: crate::http::http2_server_framework::Http2ServerFrameworkError) -> Self {
-    Self::ServerFrameworkError(from)
-  }
-}
-
-impl From<AsciiError> for Error {
-  #[inline]
-  fn from(from: AsciiError) -> Self {
-    Self::AsciiError(from)
-  }
-}
-
-#[cfg(feature = "asn1")]
-impl From<Asn1Error> for Error {
-  #[inline]
-  fn from(from: Asn1Error) -> Self {
-    Self::Asn1Error(from)
-  }
-}
-
-impl From<ArithmeticError> for Error {
-  #[inline]
-  fn from(from: ArithmeticError) -> Self {
-    Self::ArithmeticError(from)
-  }
-}
-
-impl From<VectorError> for Error {
-  #[inline]
-  fn from(from: VectorError) -> Self {
-    Self::VectorError(from)
-  }
-}
-
-#[cfg(feature = "web-socket")]
-impl From<crate::web_socket::WebSocketError> for Error {
-  #[inline]
-  fn from(from: crate::web_socket::WebSocketError) -> Self {
-    Self::WebSocketError(from)
-  }
-}
-
-#[cfg(feature = "x509")]
-impl From<crate::x509::X509Error> for Error {
-  #[inline]
-  fn from(from: crate::x509::X509Error) -> Self {
-    Self::X509Error(from)
-  }
-}
-
-#[cfg(feature = "x509")]
-impl From<crate::x509::X509CvError> for Error {
-  #[inline]
-  fn from(from: crate::x509::X509CvError) -> Self {
-    Self::X509CvError(from)
-  }
-}
-
-impl From<Box<dyn Any + Send + 'static>> for Error {
-  #[inline]
-  fn from(from: Box<dyn Any + Send + 'static>) -> Self {
-    let mut string = String::new();
-    string.truncate(1024);
-    let _rslt = string.write_fmt(format_args!("{from:?}"));
-    Self::Generic(string.try_into().unwrap_or_default())
-  }
 }
 
 /// An error returned by the receiving part of a channel
@@ -815,24 +389,6 @@ impl<T> SendError<T> {
     match self {
       SendError::Full(_) => SendError::Full(()),
       SendError::Disconnected(_) => SendError::Disconnected(()),
-    }
-  }
-}
-
-#[cfg(feature = "serde")]
-mod serde {
-  use alloc::string::ToString as _;
-  use core::fmt::Display;
-
-  impl serde::ser::Error for crate::Error {
-    #[inline]
-    fn custom<T>(msg: T) -> Self
-    where
-      T: Display,
-    {
-      let mut string = msg.to_string();
-      string.truncate(1024);
-      Self::Generic(string.try_into().unwrap_or_default())
     }
   }
 }

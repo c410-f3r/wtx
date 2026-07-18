@@ -5,6 +5,8 @@ pub(crate) mod global;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 
 use crate::{crypto::dummy_crypto_call, misc::DefaultArray, rng::CryptoRng};
 use core::marker::PhantomData;

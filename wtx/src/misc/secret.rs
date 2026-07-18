@@ -1,7 +1,7 @@
 use crate::{
-  collections::{Clear, TryExtend},
+  collections::{SuffixGuard, Truncate, TryExtend},
   crypto::{Aead as _, Aes256GcmGlobal, gen_aead_nonce},
-  misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
+  misc::{LeaseMut, SensitiveBytes, SingleTypeStorage, memset_slice_volatile},
   rng::CryptoRng,
   sync::Arc,
 };
@@ -80,18 +80,17 @@ impl Secret {
   #[inline]
   pub fn peek<'buffer, B, T>(
     &self,
-    buffer: &'buffer mut B,
+    buffer: &'buffer mut SuffixGuard<B>,
     fun: impl FnOnce(SensitiveBytes<&'buffer mut [u8]>) -> T,
   ) -> crate::Result<T>
   where
-    for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8]>,
+    for<'any> B:
+      LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize> + TryExtend<&'any [u8]>,
   {
-    buffer.clear();
-    buffer.try_extend(&self.protected)?;
-    let data = buffer.lease_mut();
+    buffer.inner_mut().try_extend(&self.protected)?;
     let plaintext = Aes256GcmGlobal::decrypt_in_place(
       &[],
-      data,
+      buffer.curr_mut(),
       gen_secret_key(&self.salt, &self.secret_context).as_bytes(),
     )?;
     Ok(fun(SensitiveBytes::new(plaintext)))
@@ -239,20 +238,18 @@ mod tests {
   #[cfg_attr(miri, ignore)]
   #[test]
   fn peek() {
-    let mut buffer = Vector::new();
+    let buffer = &mut Vector::new();
     let mut data = DATA;
     let mut rng = ChaCha20::from_std_random().unwrap();
     let secret_context = SecretContext::new(&mut rng).unwrap();
     let secret = Secret::new(&mut data, &mut rng, secret_context).unwrap();
     let mut option = None;
     secret
-      .peek(&mut buffer, |local_buffer| {
+      .peek(&mut buffer.into(), |local_buffer| {
         option = Some(local_buffer.as_ref().try_into().unwrap());
       })
       .unwrap();
     assert_eq!(option, Some(DATA));
-    for elem in &buffer[12..16] {
-      assert_eq!(*elem, 0);
-    }
+    assert_eq!(buffer.len(), 0);
   }
 }

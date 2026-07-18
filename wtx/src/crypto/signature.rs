@@ -12,6 +12,8 @@ pub(crate) mod global;
 mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "crypto-ruco")]
+mod ruco;
 pub(crate) mod signature_ty;
 
 /// A mathematical scheme for verifying the authenticity of digital messages or documents.
