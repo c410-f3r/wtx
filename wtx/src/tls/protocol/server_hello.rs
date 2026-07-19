@@ -6,9 +6,9 @@ use crate::{
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   rng::CryptoRng,
   tls::{
-    CipherSuite, HELLO_RETRY_REQUEST, TlsError,
+    AlertDescription, CipherSuite, HELLO_RETRY_REQUEST, TlsError,
     de::De,
-    misc::{u8_chunk, u16_chunk},
+    misc::{tls_error_fatal, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
@@ -23,7 +23,6 @@ pub(crate) struct ServerHello<'any> {
   cipher_suite: CipherSuite,
   is_hello_retry_request: bool,
   key_share: KeyShareEntry<&'any [u8]>,
-  legacy_compression_method: u8,
   legacy_session_id_echo: ArrayVectorCopy<u8, 32>,
   legacy_version: ProtocolVersion,
   random: [u8; 32],
@@ -52,7 +51,6 @@ impl<'any> ServerHello<'any> {
       cipher_suite,
       is_hello_retry_request,
       key_share,
-      legacy_compression_method: 0,
       legacy_session_id_echo,
       legacy_version: ProtocolVersion::Tls12,
       random,
@@ -78,7 +76,12 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     let is_hello_retry_request = random == HELLO_RETRY_REQUEST;
     let legacy_session_id_echo = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
-    let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
+    let Ok(0) = <u8 as Decode<'de, De>>::decode(dw) else {
+      return tls_error_fatal(
+        TlsError::InvalidLegacyCompressionMethod,
+        AlertDescription::DecodeError,
+      );
+    };
     let mut key_share_opt = None;
     let mut supported_versions_opt = None;
     u16_chunk(dw, err, |local_dw| {
@@ -108,7 +111,6 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
       cipher_suite,
       is_hello_retry_request,
       key_share: key_share_opt.ok_or(TlsError::MissingKeyShares)?,
-      legacy_compression_method,
       legacy_session_id_echo,
       legacy_version,
       random,
@@ -127,7 +129,7 @@ impl Encode<De> for ServerHello<'_> {
       &self.legacy_session_id_echo,
     ])?;
     self.cipher_suite.encode(ew)?;
-    ew.buffer().push(self.legacy_compression_method)?;
+    ew.buffer().push(0)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       {
         *local_ew.is_hello_retry_request_mut() = self.is_hello_retry_request;

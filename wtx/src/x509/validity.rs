@@ -8,7 +8,7 @@ use crate::{
 
 /// Time interval during which the CA warrants that it will maintain information about the status
 /// of the certificate.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Validity {
   /// The earliest date/time at which the certificate is considered valid.
   pub not_before: Time,

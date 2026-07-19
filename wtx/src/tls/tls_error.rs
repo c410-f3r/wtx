@@ -9,6 +9,8 @@ pub enum TlsError {
   AbruptDisconnect,
   /// Bad Pre Key Share
   BadPreKeyShare,
+  /// Bad signature
+  BadSignature,
   /// Digest Check Failed
   DigestCheckFailed,
   /// Diffie–Hellman error
@@ -51,8 +53,10 @@ pub enum TlsError {
   InvalidFinishedRecord,
   /// Invalid Handshake
   InvalidHandshake,
-  /// Invalid Legacy Compression Method
+  /// Invalid Legacy Compression Method (Server)
   InvalidLegacyCompressionMethod,
+  /// Invalid Legacy Compression Methods (Client)
+  InvalidLegacyCompressionMethods,
   /// Invalid Legacy Session Id
   InvalidLegacySessionId,
   /// Invalid new session ticket
@@ -67,6 +71,8 @@ pub enum TlsError {
   InvalidKeyUpdateState,
   /// Invalid Max Fragment Length
   InvalidMaxFragmentLength,
+  /// Invalid Negotiated Max Fragment Length
+  InvalidNegotiatedMaxFragmentLength,
   /// Invalid Psk Key Exchange Modes
   InvalidPskKeyExchangeModes,
   /// Invalid Signature Algorithms

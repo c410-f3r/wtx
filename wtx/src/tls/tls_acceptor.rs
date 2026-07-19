@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode as _, Encode as _},
-  collections::{ArrayVectorCopy, ArrayVectorU8},
+  collections::ArrayVectorCopy,
   crypto::SignatureTy,
   misc::{Lease, SingleTypeStorage},
   rng::CryptoRng,
@@ -41,6 +41,7 @@ pub struct TlsAcceptor<RNG, S, TC> {
   handshake_path: HandshakePath,
   key_schedule: KeySchedule,
   max_fragment_length: u16,
+  max_fragment_length_send: u16,
   named_group: NamedGroup,
   rng: RNG,
   stream: S,
@@ -59,6 +60,8 @@ where
     let transcript_hash = key_schedule.cipher_suite().hash_new();
     let max_fragment_length =
       cfg_ref.max_fragment_length().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
+    let max_fragment_length_send =
+      cfg_ref.max_fragment_length_send().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
     let named_group = cfg_ref
       .inner
       .supported_groups
@@ -72,6 +75,7 @@ where
       handshake_path: HandshakePath::Full,
       key_schedule,
       max_fragment_length,
+      max_fragment_length_send,
       named_group,
       rng,
       stream,
@@ -125,6 +129,7 @@ where
           self.buffer,
           self.key_schedule,
           self.max_fragment_length,
+          self.max_fragment_length_send,
           self.stream,
           self.config.lease().mode().clone(),
         )?,
@@ -152,7 +157,7 @@ where
       write_payloads(
         RecordContentType::Handshake,
         self.key_schedule.write_mut(),
-        self.max_fragment_length,
+        self.max_fragment_length_send,
         payloads,
         &mut self.stream,
         &mut self.buffer.writer_buffer,
@@ -179,6 +184,7 @@ where
         self.buffer,
         self.key_schedule,
         self.max_fragment_length,
+        self.max_fragment_length_send,
         self.stream,
         self.config.lease().mode().clone(),
       )?,
@@ -211,7 +217,7 @@ where
     drop(indices.push(curr_idx));
     curr_idx = reader_buffer.len();
     drop(indices.push(curr_idx));
-    let mut cert_list = ArrayVectorU8::new();
+    let mut cert_list = ArrayVectorCopy::new();
     for (_sig, bytes) in &self.config.lease().inner.public_key {
       cert_list.push(CertificateEntry::new(bytes))?;
     }
@@ -346,9 +352,17 @@ where
     )?;
     let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn);
     self.named_group = key_share.group;
+
     let max_fragment_length = client_hello.data.tls_config().max_fragment_length;
-    if let Some(elem) = max_fragment_length {
-      self.max_fragment_length = elem.num();
+    if let Some(client_mfg) = max_fragment_length {
+      let client_num = client_mfg.num();
+      if let Some(server_mfl) = self.config.lease().max_fragment_length()
+        && client_num > server_mfl.num()
+      {
+        return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
+      }
+      self.max_fragment_length = client_num;
+      self.max_fragment_length_send = self.max_fragment_length_send.min(client_num);
     }
     let leaf_sig_ty =
       self.config.lease().inner.public_key.first().ok_or(TlsError::EmptySetOfCertificates)?.0;

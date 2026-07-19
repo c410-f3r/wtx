@@ -126,11 +126,16 @@ where
 {
   match rslt {
     Err(err @ crate::Error::TlsErrorFatal(_, description)) => {
-      let alert = Alert::fatal(description).record_bytes(kss)?;
-      if CCS {
-        stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
-      } else {
+      if kss.cipher_key().is_empty() {
+        let alert = Alert::fatal(description).record_bytes_unencrypted();
         stream_writer.write_all(&alert[..]).await?;
+      } else {
+        let alert = Alert::fatal(description).record_bytes(kss)?;
+        if CCS {
+          stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
+        } else {
+          stream_writer.write_all(&alert[..]).await?;
+        }
       }
       Err(err)
     }
@@ -362,7 +367,7 @@ where
 pub(crate) async fn write_payloads<SW>(
   inner_ty: RecordContentType,
   ksw: &mut KeyScheduleWrite,
-  max_fragment_length: u16,
+  max_fragment_length_send: u16,
   payloads: &[&[u8]],
   stream_writer: &mut SW,
   writer_buffer: &mut Vector<u8>,
@@ -376,7 +381,7 @@ where
   let mut payloads_iter = payloads.iter().copied();
   let mut current_slice = payloads_iter.next().unwrap_or_default();
   while total_unwritten > 0 {
-    let record_data_len = total_unwritten.min(max_fragment_length.into());
+    let record_data_len = total_unwritten.min(max_fragment_length_send.into());
     total_unwritten = total_unwritten.wrapping_sub(record_data_len);
     let len_usize = record_data_len.wrapping_add(1).wrapping_add(AEAD_TAG_LEN);
     let len = len_usize.try_into().unwrap_or_default();

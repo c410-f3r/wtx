@@ -65,6 +65,7 @@ pub use protocol::{
   protocol_version::ProtocolVersion,
   server_name::ServerName,
   server_name_list::ServerNameList,
+  supported_groups::SupportedGroups,
 };
 pub use read_record_info::ReadRecordInfo;
 pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};

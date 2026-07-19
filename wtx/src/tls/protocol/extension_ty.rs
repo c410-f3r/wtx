@@ -3,7 +3,8 @@
 use crate::{
   codec::{Decode, Encode},
   tls::{
-    TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    AlertDescription, TlsError, de::De, misc::tls_error_fatal,
+    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
@@ -91,7 +92,7 @@ impl TryFrom<u16> for ExtensionTy {
       49 => Self::PostHandshakeAuth,
       50 => Self::SignatureAlgorithmsCert,
       51 => Self::KeyShare,
-      _ => return Err(TlsError::InvalidExtensionTy.into()),
+      _ => return tls_error_fatal(TlsError::InvalidExtensionTy, AlertDescription::DecodeError),
     })
   }
 }

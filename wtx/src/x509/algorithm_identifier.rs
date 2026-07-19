@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// The algorithm identifier is used to identify a cryptographic algorithm.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct AlgorithmIdentifier<B> {
   /// The OID that uniquely identifies the algorithm.
   pub algorithm: Oid,

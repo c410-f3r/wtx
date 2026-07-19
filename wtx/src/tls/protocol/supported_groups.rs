@@ -8,9 +8,12 @@ use crate::{
   },
 };
 
-#[derive(Clone, Debug)]
-pub(crate) struct SupportedGroups {
-  pub(crate) named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+/// Indicates the named groups which the client supports for key exchange, ordered from most
+/// preferred to least preferred.
+#[derive(Clone, Copy, Debug)]
+pub struct SupportedGroups {
+  /// List of algorithms.
+  pub named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
 }
 
 impl SupportedGroups {

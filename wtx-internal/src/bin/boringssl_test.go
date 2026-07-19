@@ -78,7 +78,7 @@ func TestNames(t *testing.T) {
 	}
 	both := []string{
 		// Not implemented
-		"CBC", "DTLS", "ECH", "GREASE", "QUIC",
+		"CBC", "ClientAuth", "DTLS", "ECH", "GREASE", "HRR", "QUIC",
 		// Legacy
 		"3DES", "ChannelID", "DSS", "MD5", "NPN", "RC4", "SHA1", "SSL3", "-TLS1-", "TLS11", "TLS12", "V2ClientHello",
 		// Others
@@ -89,6 +89,10 @@ func TestNames(t *testing.T) {
 	individuals := []string{
 		// TLS 1.2
 		"NoCheckClientCertificateTypes",
+		// Tls 1.3 fallback to TLS 1.2
+		"ClientHelloVersionTooHigh",
+		// Resumption
+		"IgnoreLegacyVersion-TLS13"
 	}
 
 	for _, tc := range testCases {

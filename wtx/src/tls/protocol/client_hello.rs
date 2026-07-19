@@ -10,9 +10,9 @@ use crate::{
   },
   rng::CryptoRng,
   tls::{
-    CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
+    AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
-    misc::{u8_chunk, u16_chunk},
+    misc::{tls_error_fatal, u8_chunk, u16_chunk},
     protocol::{
       alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
       key_share_client_hello::KeyShareClientHello, key_share_entry::KeyShareEntry,
@@ -32,7 +32,6 @@ use crate::{
 pub(crate) struct ClientHello<G, TC> {
   generic: G,
   legacy_session_id: ArrayVectorCopy<u8, 32>,
-  legacy_version: ProtocolVersion,
   random: [u8; 32],
   supported_versions: SupportedVersionsClient,
   tls_config: TC,
@@ -50,7 +49,6 @@ impl<G, TC> ClientHello<G, TC> {
         rng.fill_slice(&mut array);
         array
       }),
-      legacy_version: ProtocolVersion::Tls12,
       random: {
         let mut array = [0u8; 32];
         rng.fill_slice(&mut array);
@@ -88,7 +86,7 @@ where
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidClientHelloLength;
-    let legacy_version = ProtocolVersion::decode(dw)?;
+    let _legacy_version = <[u8; 2] as Decode<'_, De>>::decode(dw)?;
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
     let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let mut alpn = None;
@@ -109,8 +107,11 @@ where
         }
       }
     }
-    let _legacy_compression_methods @ [1, 0] = <[u8; 2] as Decode<'de, De>>::decode(dw)? else {
-      return Err(TlsError::InvalidLegacyCompressionMethod.into());
+    let _legacy_compression_methods @ Ok([1, 0]) = <[u8; 2] as Decode<'de, De>>::decode(dw) else {
+      return tls_error_fatal(
+        TlsError::InvalidLegacyCompressionMethods,
+        AlertDescription::IllegalParameter,
+      );
     };
     u16_chunk(dw, err, |local_dw| {
       while !local_dw.bytes().is_empty() {
@@ -151,7 +152,6 @@ where
     Ok(Self {
       generic: key_shares,
       legacy_session_id,
-      legacy_version,
       random,
       supported_versions,
       tls_config: TlsConfigInner {
@@ -159,6 +159,7 @@ where
         cipher_suites,
         cv_policy: CvPolicy::new(DateTime::default()),
         max_fragment_length,
+        max_fragment_length_send: None,
         supported_groups,
         public_key: Vector::new(),
         secret_key: Secret::default(),
@@ -180,7 +181,7 @@ where
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     let _ = ew.buffer().extend_from_copyable_slices([
-      u16::from(self.legacy_version).to_be_bytes().as_slice(),
+      u16::from(ProtocolVersion::Tls12).to_be_bytes().as_slice(),
       &self.random[..],
       &[self.legacy_session_id.len()][..],
       &self.legacy_session_id,
