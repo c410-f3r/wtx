@@ -88,24 +88,38 @@ pub struct Alert {
 }
 
 impl Alert {
-  pub(crate) fn fatal(description: AlertDescription) -> Self {
-    Self { level: AlertLevel::Fatal, description }
-  }
-
-  pub(crate) const fn close_notify() -> Self {
+  /// An instance of type [`AlertDescription::CloseNotify`].
+  #[inline]
+  pub const fn close_notify() -> Self {
     Self { level: AlertLevel::Warning, description: AlertDescription::CloseNotify }
   }
 
-  pub(crate) const fn description(self) -> AlertDescription {
+  /// An instance that was the level set to fatal
+  #[inline]
+  pub const fn fatal(description: AlertDescription) -> Self {
+    Self { level: AlertLevel::Fatal, description }
+  }
+
+  /// New instance
+  #[inline]
+  pub fn new(level: AlertLevel, description: AlertDescription) -> Self {
+    Self { level, description }
+  }
+
+  /// See [`AlertDescription`].
+  #[inline]
+  pub const fn description(self) -> AlertDescription {
     self.description
+  }
+
+  /// See [`AlertLevel`].
+  #[inline]
+  pub const fn level(self) -> AlertLevel {
+    self.level
   }
 
   pub(crate) fn is_close_notify(self) -> bool {
     matches!((self.description, self.level), (AlertDescription::CloseNotify, AlertLevel::Warning))
-  }
-
-  pub(crate) const fn level(self) -> AlertLevel {
-    self.level
   }
 
   pub(crate) fn record_bytes(
@@ -130,7 +144,7 @@ impl Alert {
 
   pub(crate) fn record_bytes_unencrypted(self) -> [u8; 5 + 2] {
     let [a0, a1] = self.data_bytes();
-    [RecordContentType::ApplicationData.into(), 3, 3, 0, 2, a0, a1]
+    [RecordContentType::Alert.into(), 3, 3, 0, 2, a0, a1]
   }
 
   fn data_bytes(self) -> [u8; 2] {

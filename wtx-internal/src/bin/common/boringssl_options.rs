@@ -2,14 +2,14 @@ use core::fmt::Debug;
 use std::{fs, process};
 use wtx::{
   asn1::Pkcs8,
-  codec::{decode_base64_into_buffer, decode_hex_into_buffer},
+  codec::decode_base64_into_buffer,
   collections::Vector,
   crypto::SignatureTy,
   tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion},
   x509::Certificate,
 };
 
-const BOGO_NACK: i32 = 89;
+pub(crate) const BOGO_NACK: i32 = 89;
 
 #[derive(Debug)]
 pub struct Options {
@@ -38,9 +38,7 @@ pub struct Options {
   pub queue_data: bool,
   pub read_size: usize,
   pub reject_alpn: bool,
-  pub require_any_client_cert: bool,
   pub resume_count: usize,
-  pub root_hint_subjects: Vector<Vector<u8>>,
   pub send_key_update: bool,
   pub server_preference: bool,
   pub server_supported_group_hint: Option<NamedGroup>,
@@ -81,9 +79,7 @@ impl Default for Options {
       queue_data: false,
       read_size: 512,
       reject_alpn: false,
-      require_any_client_cert: false,
       resume_count: 0,
-      root_hint_subjects: Vector::new(),
       send_key_update: false,
       server_preference: false,
       server_supported_group_hint: None,
@@ -134,7 +130,10 @@ where
   }
 }
 
-pub fn cert_from_pem_file(path: &str) -> (Certificate<Vector<u8>>, Vector<u8>) {
+pub fn cert_der_from_pem_file(path: &str) -> (Certificate<Vector<u8>>, Vector<u8>) {
+  if path.is_empty() {
+    return (Certificate::default(), Vector::new());
+  }
   let mut buffer = Vector::new();
   let data = fs::read_to_string(path).unwrap();
   let params = Certificate::<Vector<u8>>::from_pem(&mut buffer, data.as_bytes()).unwrap();
@@ -156,7 +155,6 @@ fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -
     | "-expect-advertised-alpn"
     | "-expect-alpn"
     | "-expect-certificate-types"
-    | "-expect-client-ca-list"
     | "-expect-msg-callback"
     | "-expect-peer-signature-algorithm"
     | "-expect-peer-verify-pref"
@@ -189,7 +187,7 @@ fn check_implemented_arguments(
       options.protocols = split_protocols(&args.next().unwrap());
     }
     "-cert-file" => {
-      options.cert_der = cert_from_pem_file(&args.next().unwrap()).1;
+      options.cert_der = cert_der_from_pem_file(&args.next().unwrap()).1;
     }
     "-check-close-notify" => {
       options.check_close_notify = true;
@@ -240,8 +238,8 @@ fn check_implemented_arguments(
       options.send_key_update = true;
     }
     "-max-send-fragment" => {
-      let max_fragment = args.next().unwrap().parse::<u8>().unwrap();
-      options.max_fragment = Some(max_fragment.try_into().unwrap());
+      let max_fragment = args.next().unwrap().parse::<u16>().unwrap();
+      options.max_fragment = Some(MaxFragmentLength::from_num(max_fragment).unwrap());
     }
     "-max-version" => {
       let value = args.next().unwrap().parse::<u16>().unwrap();
@@ -275,9 +273,6 @@ fn check_implemented_arguments(
     }
     "-reject-alpn" => {
       options.reject_alpn = true;
-    }
-    "-require-any-client-certificate" => {
-      options.require_any_client_cert = true;
     }
     "-resume-count" => {
       options.resume_count = args.next().unwrap().parse::<usize>().unwrap();
@@ -316,20 +311,8 @@ fn check_implemented_arguments(
     "-trust-cert" => {
       options.trusted_cert_file = args.next().unwrap();
     }
-    "-use-client-ca-list" => match args.next().unwrap().as_ref() {
-      "<EMPTY>" | "<NULL>" => {
-        options.root_hint_subjects = Vector::new();
-      }
-      list => {
-        options.root_hint_subjects =
-          Vector::from_iterator(list.split(',').map(decode_hex)).unwrap();
-      }
-    },
     "-use-export-context" => {
       options.export_keying_material_context_used = true;
-    }
-    "-use-null-client-ca-list" => {
-      options.offer_no_client_cas = true;
     }
     "-verify-peer" => {
       options.verify_peer = true;
@@ -392,6 +375,7 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-expect-accept-early-data"
     | "-expect-channel-id"
     | "-expect-cipher-aes"
+    | "-expect-client-ca-list"
     | "-expect-dhe-group-size"
     | "-expect-draft-downgrade"
     | "-expect-early-data-info"
@@ -430,6 +414,7 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-on-retry-expect-early-data-reason"
     | "-psk"
     | "-renegotiate-freely"
+    | "-require-any-client-certificate"
     | "-resumption-across-names-enabled"
     | "-retain-only-sha256-client-cert-initial"
     | "-reverify-on-resume"
@@ -441,8 +426,10 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-srtp-profiles"
     | "-ticket-key"
     | "-tls-unique"
+    | "-use-client-ca-list"
     | "-use-custom-verify-callback"
     | "-use-exporter-between-reads"
+    | "-use-null-client-ca-list"
     | "-use-ticket-aead-callback"
     | "-use-ticket-callback"
     | "-verify-fail"
@@ -457,12 +444,6 @@ fn check_unimplemented_arguments(arg: &str) {
 fn decode_base64(data: &[u8]) -> Vector<u8> {
   let mut buffer = Vector::new();
   let _ = decode_base64_into_buffer(&mut buffer, data).unwrap();
-  buffer
-}
-
-fn decode_hex(data: &str) -> Vector<u8> {
-  let mut buffer = Vector::new();
-  let _ = decode_hex_into_buffer(&mut buffer, data.as_bytes()).unwrap();
   buffer
 }
 

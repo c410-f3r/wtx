@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Distinguished name.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Name<B> {
   /// Bytes that compose all sequences
   bytes: B,

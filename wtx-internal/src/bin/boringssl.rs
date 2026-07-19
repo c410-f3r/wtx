@@ -16,7 +16,7 @@
 mod boringssl_options;
 
 use crate::boringssl_options::OptionsIter;
-use boringssl_options::{Options, cert_from_pem_file};
+use boringssl_options::{Options, cert_der_from_pem_file};
 use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
@@ -26,8 +26,8 @@ use wtx::{
   rng::{ChaCha20, CryptoSeedableRng as _},
   stream::{StreamReader, StreamWriter as _},
   tls::{
-    HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsError,
-    TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
+    AlertDescription, HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig,
+    TlsConnectorBuilder, TlsError, TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
   },
   x509::CvTrustAnchor,
 };
@@ -36,10 +36,9 @@ use wtx::{
 async fn main() {
   wtx::misc::tracing_tree_init(None).unwrap();
   let mut options = Options::default();
-  let mut options_iter = OptionsIter::new(env::args().skip(1), &mut options);
-  while let Some(_) = options_iter.next() {}
+  for _ in OptionsIter::new(env::args().skip(1), &mut options) {}
   if options.is_client {
-    if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
+    if verify_cert(&options) {
       let tls_config = make_client_cfg::<TlsModeVerified>(&options);
       exec_tests::<_, true>(options, tls_config).await;
     } else {
@@ -111,11 +110,20 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
   let reason = match &rslt {
     Ok(_) => return,
     Err(wtx::Error::TlsError(err)) => match err {
+      TlsError::AbortedHandshake(alert)
+        if alert.description() == AlertDescription::HandshakeFailure =>
+      {
+        ":HANDSHAKE_FAILURE_ON_CLIENT_HELLO:"
+      }
+      TlsError::BadSignature => ":BAD_SIGNATURE:",
       TlsError::DigestCheckFailed => ":DIGEST_CHECK_FAILED:",
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
+      TlsError::UnsupportedCipherSuite => ":WRONG_CIPHER_RETURNED:",
       _ => ":FIXME:",
     },
     Err(wtx::Error::TlsErrorFatal(err, _)) => match err {
+      TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
+      TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
       TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
       TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
@@ -187,7 +195,7 @@ where
   TM: TlsMode,
 {
   let mut cfg = TlsConfig::new(TM::default(), Instant::now_date_time().unwrap());
-  let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
+  let (trust_anchor, _) = cert_der_from_pem_file(&options.trusted_cert_file);
   cfg
     .trust_anchors_mut()
     .push(CvTrustAnchor::from_certificate_ref(&trust_anchor).unwrap())
@@ -225,14 +233,10 @@ where
     (secret_context, &mut options.key_der.clone()),
   )
   .unwrap();
-  if options.verify_peer || options.offer_no_client_cas || options.require_any_client_cert {
-    let (trust_anchor, _) = cert_from_pem_file(&options.trusted_cert_file);
-    cfg
-      .trust_anchors_mut()
-      .push(CvTrustAnchor::from_certificate_ref(&trust_anchor).unwrap())
-      .unwrap();
+  if verify_cert(options) {
+    process::exit(boringssl_options::BOGO_NACK);
   }
-  *cfg.max_fragment_length_mut() = options.max_fragment;
+  *cfg.max_fragment_length_send_mut() = options.max_fragment;
   for protocol in &options.protocols {
     cfg
       .alpn_mut()
@@ -260,4 +264,8 @@ fn quit(why: &str) -> ! {
 fn _quit_err(why: &str) -> ! {
   eprintln!("{why}");
   process::exit(1)
+}
+
+fn verify_cert(options: &Options) -> bool {
+  options.verify_peer || options.offer_no_client_cas
 }

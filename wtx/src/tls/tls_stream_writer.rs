@@ -17,7 +17,7 @@ use core::{hint::cold_path, sync::atomic::Ordering};
 pub struct TlsStreamWriter<SW, TM, const IS_CLIENT: bool> {
   connection_state: Arc<AtomicU8>,
   ksw: KeyScheduleWrite,
-  max_fragment_length: u16,
+  max_fragment_length_send: u16,
   reader_waker: Arc<AtomicWaker>,
   stream_writer: SW,
   _tm: TM,
@@ -33,7 +33,7 @@ where
   pub(crate) const fn new(
     connection_state: Arc<AtomicU8>,
     ksw: KeyScheduleWrite,
-    max_fragment_length: u16,
+    max_fragment_length_send: u16,
     reader_waker: Arc<AtomicWaker>,
     stream_writer: SW,
     _tm: TM,
@@ -42,7 +42,7 @@ where
     Self {
       connection_state,
       ksw,
-      max_fragment_length,
+      max_fragment_length_send,
       reader_waker,
       stream_writer,
       _tm,
@@ -122,7 +122,7 @@ where
     write_payloads(
       RecordContentType::ApplicationData,
       &mut self.ksw,
-      self.max_fragment_length,
+      self.max_fragment_length_send,
       &[bytes],
       &mut self.stream_writer,
       &mut self.writer_buffer,
@@ -142,7 +142,7 @@ where
     write_payloads(
       RecordContentType::ApplicationData,
       &mut self.ksw,
-      self.max_fragment_length,
+      self.max_fragment_length_send,
       bytes,
       &mut self.stream_writer,
       &mut self.writer_buffer,

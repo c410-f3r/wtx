@@ -10,7 +10,7 @@ use crate::{
 
 /// Used to carry the public key and identify the algorithm with which the key is used
 /// (e.g., RSA, DSA, or Diffie-Hellman).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SubjectPublicKeyInfo<B> {
   /// See [`AlgorithmIdentifier`].
   pub algorithm: AlgorithmIdentifier<B>,

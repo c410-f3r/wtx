@@ -10,7 +10,7 @@ use core::ops::Deref;
 const MAX_LEN: usize = 20;
 
 /// Serial Number in DER encoding. Can contain up to 20 bytes.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SerialNumber(ArrayVectorU8<u8, MAX_LEN>);
 
 impl SerialNumber {

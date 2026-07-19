@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Arbitrary-length sequence of binary digits. Not to be confused with UTF-8 strings.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct BitString<B> {
   bytes: B,
   unused_bits: u8,

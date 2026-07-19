@@ -6,9 +6,8 @@ use crate::{
   rng::CryptoRng,
   stream::Stream,
   tls::{
-    CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MAX_CERTIFICATES,
-    MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
-    TlsServerEndPoint, TlsStream,
+    CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MAX_CERTIFICATES, NamedGroup,
+    ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode, TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
     misc::{fetch_rec_from_stream, manage_err, server_sig_msg},
     protocol::{
@@ -37,12 +36,13 @@ use core::ops::{ControlFlow, Range};
 #[derive(Debug, PartialEq)]
 pub enum ManageClientRecordsState {
   /// Finished processing client records
-  Terminated(ArrayVectorCopy<u8, { 6 + 74 }>),
+  Terminated(ArrayVectorCopy<u8, { 6 + 30 + 74 }>),
 }
 
 /// Required by [`TlsConnector::manage_remaining_server_records`].
 #[derive(Debug)]
 pub struct ManageRemainingServerRecordsInput {
+  client_cert_requested: bool,
   spki_range: Range<usize>,
   tls_server_end_point: TlsServerEndPoint,
   transcript_digest: TlsDigest,
@@ -69,6 +69,7 @@ pub struct TlsConnector<RNG, S, TC, U> {
   handshake_path: HandshakePath,
   key_schedule: KeySchedule,
   max_fragment_length: u16,
+  max_fragment_length_send: u16,
   named_group: NamedGroup,
   rng: RNG,
   stream: S,
@@ -90,6 +91,8 @@ where
     let transcript_hash = key_schedule.cipher_suite().hash_new();
     let max_fragment_length =
       cfg_ref.max_fragment_length().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
+    let max_fragment_length_send =
+      cfg_ref.max_fragment_length_send().map_or(DLFT_MAX_FRAGMENT_LENGTH, |el| el.num());
     let named_group = cfg_ref.inner.supported_groups.named_group_list.first().copied();
     Self {
       buffer: TlsBuffer::new(),
@@ -97,6 +100,7 @@ where
       handshake_path: HandshakePath::Full,
       key_schedule,
       max_fragment_length,
+      max_fragment_length_send,
       named_group: named_group.unwrap_or(NamedGroup::default()),
       rng,
       stream,
@@ -127,12 +131,6 @@ where
   #[inline]
   pub const fn rng_mut(&mut self) -> &mut RNG {
     &mut self.rng
-  }
-
-  /// See [`MaxFragmentLength`].
-  #[inline]
-  pub fn set_fragment_length(&mut self, value: MaxFragmentLength) {
-    self.max_fragment_length = value.num();
   }
 
   /// Underlying stream
@@ -172,12 +170,14 @@ where
           self.buffer,
           self.key_schedule,
           self.max_fragment_length,
+          self.max_fragment_length_send,
           self.stream,
           self.config.lease().mode().clone(),
         )?,
         uri: self.uri,
       });
     }
+
     let fut = async {
       let secrets = self.write_client_hello()?;
       self.stream.write_all(&self.buffer.writer_buffer).await?;
@@ -205,7 +205,7 @@ where
         }
       }
       *self.buffer.reader_buffer.forbid_clear_mut() = false;
-      match self.manage_client_records()? {
+      match self.manage_client_records(&mrsri)? {
         ManageClientRecordsState::Terminated(data) => {
           _trace!(target: crate::tls::_TARGET_HS, "Write Finished");
           self.stream.write_all(&data).await?;
@@ -226,6 +226,7 @@ where
         self.buffer,
         self.key_schedule,
         self.max_fragment_length,
+        self.max_fragment_length_send,
         self.stream,
         self.config.lease().mode().clone(),
       )?,
@@ -237,7 +238,28 @@ where
   ///
   /// High level operations must not be mixed with low level operations.
   #[inline]
-  pub fn manage_client_records(&mut self) -> crate::Result<ManageClientRecordsState> {
+  pub fn manage_client_records(
+    &mut self,
+    mrsri: &ManageRemainingServerRecordsInput,
+  ) -> crate::Result<ManageClientRecordsState> {
+    let mut empty_cert = ArrayVectorCopy::<u8, 30>::new();
+    if mrsri.client_cert_requested {
+      let unencrypted_msg = [HandshakeType::Certificate.into(), 0, 0, 4, 0, 0, 0, 0];
+      self.transcript_hash.update(&unencrypted_msg);
+      let payload_len: u8 = 25;
+      let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, payload_len];
+      let mut encrypted = ArrayVectorCopy::<u8, { 4 + 4 + 1 }>::new();
+      let _ = encrypted.extend_from_copyable_slices([
+        &unencrypted_msg[..],
+        &[RecordContentType::Handshake.into()],
+      ])?;
+      let kss = self.key_schedule.write_mut().state_mut();
+      let nonce = kss.nonce();
+      let secret = kss.cipher_key();
+      let tag = kss.cipher_suite().aes_encrypt(&header, &mut encrypted, nonce, secret)?;
+      kss.increment_counter();
+      let _ = empty_cert.extend_from_copyable_slices([header.as_slice(), &encrypted, &tag])?;
+    }
     let (_, ksw) = self.key_schedule.split_mut();
     let verify_data = ksw
       .state_mut()
@@ -245,7 +267,8 @@ where
     let finished = Finished::record_bytes(&verify_data, ksw.state_mut())?;
     self.key_schedule.master_secret::<true>(&self.transcript_hash.clone().finalize())?;
     let mut terminated = ArrayVectorCopy::new();
-    let _ = terminated.extend_from_copyable_slices([&CHANGE_CIPHER_SPEC[..], &finished])?;
+    let array = [&CHANGE_CIPHER_SPEC[..], &empty_cert, &finished];
+    let _ = terminated.extend_from_copyable_slices(array)?;
     Ok(ManageClientRecordsState::Terminated(terminated))
   }
 
@@ -289,6 +312,7 @@ where
       .key_schedule
       .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
     Ok(ControlFlow::Continue(ManageRemainingServerRecordsInput {
+      client_cert_requested: false,
       spki_range: 0..0,
       tls_server_end_point: TlsServerEndPoint::new(),
       transcript_digest: TlsDigest::default(),
@@ -331,11 +355,17 @@ where
         HandshakeType::EncryptedExtensions => {
           let encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
           if let Some(el) = encrypted_extensions.max_fragment_length() {
+            if Some(el) != self.config.lease().max_fragment_length() {
+              return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
+            }
             self.max_fragment_length = el.num();
+            self.max_fragment_length_send = self.max_fragment_length_send.min(el.num());
+          } else if self.config.lease().max_fragment_length().is_some() {
+            return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
           }
         }
         HandshakeType::CertificateRequest => {
-          return Err(TlsError::UnsupportedMtls.into());
+          mrsri.client_cert_requested = true;
         }
         HandshakeType::Certificate => {
           let filled = self.buffer.reader_buffer.filled();
@@ -433,9 +463,6 @@ where
     let [end_entity, intermediates @ ..] = certificate.certificate_list().as_slice() else {
       return Err(TlsError::NoCertificate.into());
     };
-    if TM::TY.is_unverified() {
-      return Ok(());
-    }
     mrsri.tls_server_end_point.extend_from_copyable_slice(
       key_schedule.cipher_suite().hash_digest([end_entity.certificate_bytes()]).lease(),
     )?;
@@ -479,6 +506,9 @@ where
       cv_intermediates.push(cv_intermediate)?;
     }
     mrsri.transcript_digest = transcript_hash.clone().finalize();
+    if TM::TY.is_unverified() {
+      return Ok(());
+    }
     drop(cv_end_entity.validate_chain(
       cv_intermediates.as_slice(),
       config.cv_policy(),
@@ -492,20 +522,23 @@ where
     mrsri: &mut ManageRemainingServerRecordsInput,
     remote_dw: &mut TlsDecodeWrapper<'_>,
   ) -> crate::Result<()> {
-    if TM::TY.is_unverified() {
-      return Ok(());
-    }
     let certificate_verify = CertificateVerify::decode(remote_dw)?;
     let msg = server_sig_msg(mrsri.transcript_digest.lease())?;
     let spki = &SubjectPublicKeyInfo::<&[u8]>::decode(&mut crate::codec::DecodeWrapper::new(
       filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
       Asn1DecodeWrapperAux::default(),
     ))?;
-    certificate_verify.algorithm().validate_signature(
-      spki.subject_public_key.bytes().lease(),
-      &msg,
-      certificate_verify.signature(),
-    )?;
+    if certificate_verify
+      .algorithm()
+      .validate_signature(
+        spki.subject_public_key.bytes().lease(),
+        &msg,
+        certificate_verify.signature(),
+      )
+      .is_err()
+    {
+      return Err(TlsError::BadSignature.into());
+    }
     Ok(())
   }
 

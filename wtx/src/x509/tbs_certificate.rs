@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// The "to be signed" portion of an X.509 certificate containing all certified fields.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct TbsCertificate<B>
 where
   B: Lease<[u8]>,

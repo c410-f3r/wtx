@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// X509 time, which has two different representations.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Time {
   date_time: DateTime<Utc>,
   tag: u8,

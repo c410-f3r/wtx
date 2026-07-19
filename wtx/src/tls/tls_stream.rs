@@ -38,6 +38,7 @@ pub struct TlsStream<S, TM, const IS_CLIENT: bool> {
   pub(crate) key_schedule: KeySchedule,
   pub(crate) key_updates: u8,
   pub(crate) max_fragment_length: u16,
+  pub(crate) max_fragment_length_send: u16,
   pub(crate) new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
   pub(crate) plaintext_consumed: usize,
   pub(crate) plaintext_len: usize,
@@ -58,6 +59,7 @@ where
     buffer: TlsBuffer,
     key_schedule: KeySchedule,
     max_fragment_length: u16,
+    max_fragment_length_send: u16,
     stream: S,
     tm: TM,
   ) -> crate::Result<Self> {
@@ -67,6 +69,7 @@ where
       key_schedule,
       key_updates: 0,
       max_fragment_length,
+      max_fragment_length_send,
       new_session_ticket: None,
       plaintext_consumed: 0,
       plaintext_len: 0,
@@ -161,7 +164,7 @@ where
       TlsStreamWriter::new(
         connection_state,
         ksw,
-        self.max_fragment_length,
+        self.max_fragment_length_send,
         reader_waker,
         stream_writer,
         self._tm,
@@ -186,6 +189,7 @@ where
       key_schedule,
       key_updates,
       max_fragment_length,
+      max_fragment_length_send: _,
       new_session_ticket,
       plaintext_consumed,
       plaintext_len,
@@ -267,7 +271,7 @@ where
     write_payloads(
       RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
-      self.max_fragment_length,
+      self.max_fragment_length_send,
       &[bytes],
       &mut self.stream,
       &mut self.buffer.writer_buffer,
@@ -287,7 +291,7 @@ where
     write_payloads(
       RecordContentType::ApplicationData,
       self.key_schedule.write_mut(),
-      self.max_fragment_length,
+      self.max_fragment_length_send,
       bytes,
       &mut self.stream,
       &mut self.buffer.writer_buffer,

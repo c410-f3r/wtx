@@ -28,10 +28,8 @@ openssl req -x509 -sha256 -days 3650 -subj "/C=FI/CN=vahid Root CA" \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "subjectKeyIdentifier=hash"
 cat <<'EOF' > $CERTS_DIR/localhost.ext
-authorityInfoAccess = OCSP;URI:http://127.0.0.1/ocsp
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
-crlDistributionPoints = URI:http://127.0.0.1/crl.pem
 subjectAltName = @alt_names
 subjectKeyIdentifier=hash
 [alt_names]

@@ -164,9 +164,12 @@ impl<TM> TlsConfig<TM> {
     &mut self.inner.cv_policy
   }
 
-  /// Maximum size of a TLS record
+  /// Maximum record size the local TLS instance is willing to accept from peers.
   ///
-  /// Default to 2^24 - 1
+  /// * `Clients`: Servers must accept sent non-null parameters, otherwise the handshake will fail.
+  /// * `Servers`: Forbids received values that are greater then non-nul parameters.
+  ///
+  /// If [`None`], defaults to `2^14`.
   #[inline]
   pub const fn max_fragment_length(&self) -> Option<MaxFragmentLength> {
     self.inner.max_fragment_length
@@ -174,10 +177,26 @@ impl<TM> TlsConfig<TM> {
 
   /// Mutable version of [`Self::max_fragment_length`].
   ///
-  /// If [`None`], defaults to `2^24 -1`
+  /// If [`None`], defaults to `2^14`.
   #[inline]
   pub const fn max_fragment_length_mut(&mut self) -> &mut Option<MaxFragmentLength> {
     &mut self.inner.max_fragment_length
+  }
+
+  /// Maximum record size the local TLS instance can send to peers.
+  ///
+  /// If [`None`], defaults to `2^14`.
+  #[inline]
+  pub const fn max_fragment_length_send(&self) -> Option<MaxFragmentLength> {
+    self.inner.max_fragment_length_send
+  }
+
+  /// Mutable version of [`Self::max_fragment_length_send`].
+  ///
+  /// If [`None`], defaults to `2^14`.
+  #[inline]
+  pub const fn max_fragment_length_send_mut(&mut self) -> &mut Option<MaxFragmentLength> {
+    &mut self.inner.max_fragment_length_send
   }
 
   /// See [`crate::tls::TlsMode`].
@@ -194,16 +213,14 @@ impl<TM> TlsConfig<TM> {
 
   /// See [`NamedGroup`].
   #[inline]
-  pub const fn supported_groups(&self) -> &ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
-    &self.inner.supported_groups.named_group_list
+  pub const fn supported_groups(&self) -> &SupportedGroups {
+    &self.inner.supported_groups
   }
 
   /// Mutable version of [`Self::supported_groups`].
   #[inline]
-  pub const fn supported_groups_mut(
-    &mut self,
-  ) -> &mut ArrayVectorCopy<NamedGroup, { NamedGroup::len() }> {
-    &mut self.inner.supported_groups.named_group_list
+  pub const fn supported_groups_mut(&mut self) -> &mut SupportedGroups {
+    &mut self.inner.supported_groups
   }
 
   /// See [`CvTrustAnchor`].
@@ -244,11 +261,13 @@ impl<TM> Debug for TlsConfig<TM> {
   }
 }
 
+#[derive(Debug)]
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
+  pub(crate) max_fragment_length_send: Option<MaxFragmentLength>,
   pub(crate) public_key: Vector<(SignatureTy, B)>,
   pub(crate) secret_key: Secret,
   pub(crate) server_name: Option<ServerNameList>,
@@ -270,6 +289,7 @@ where
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
       cv_policy: CvPolicy::new(validation_time),
       max_fragment_length: None,
+      max_fragment_length_send: None,
       public_key: Vector::new(),
       secret_key: Secret::default(),
       server_name: None,

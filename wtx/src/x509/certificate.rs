@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// A complete X.509 certificate comprising the signed data, algorithm, and signature.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Certificate<B>
 where
   B: Lease<[u8]>,

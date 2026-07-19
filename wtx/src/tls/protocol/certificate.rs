@@ -2,7 +2,7 @@
 
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   misc::counter_writer::{
     CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write, u24_write, u24_write_iter,
   },
@@ -18,13 +18,13 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct Certificate<'any> {
-  certificate_list: ArrayVectorU8<CertificateEntry<'any>, MAX_CERTIFICATES>,
+  certificate_list: ArrayVectorCopy<CertificateEntry<'any>, MAX_CERTIFICATES>,
   certificate_request_context: &'any [u8],
 }
 
 impl<'any> Certificate<'any> {
   pub(crate) fn new(
-    certificate_list: ArrayVectorU8<CertificateEntry<'any>, MAX_CERTIFICATES>,
+    certificate_list: ArrayVectorCopy<CertificateEntry<'any>, MAX_CERTIFICATES>,
     certificate_request_context: &'any [u8],
   ) -> Self {
     Self { certificate_list, certificate_request_context }
@@ -32,7 +32,7 @@ impl<'any> Certificate<'any> {
 
   pub(crate) fn certificate_list(
     &self,
-  ) -> &ArrayVectorU8<CertificateEntry<'any>, MAX_CERTIFICATES> {
+  ) -> &ArrayVectorCopy<CertificateEntry<'any>, MAX_CERTIFICATES> {
     &self.certificate_list
   }
 }
@@ -42,7 +42,7 @@ impl<'de> Decode<'de, De> for Certificate<'de> {
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificate;
     let certificate_request_context = u8_chunk(dw, err, |local_dw| Ok(local_dw.bytes()))?;
-    let mut certificate_list = ArrayVectorU8::new();
+    let mut certificate_list = ArrayVectorCopy::new();
     u24_list(&mut certificate_list, dw, err)?;
     Ok(Self { certificate_list, certificate_request_context })
   }
@@ -68,7 +68,7 @@ impl Encode<De> for Certificate<'_> {
   }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct CertificateEntry<'any> {
   certificate_bytes: &'any [u8],
 }
