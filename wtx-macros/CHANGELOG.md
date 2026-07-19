@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.10.0...wtx-macros-v0.10.1) - 2026-07-19
+
+### Other
+
+- Fix BoringSSL tests [3/N]
+- Fix BoringSSL tests [1/N]
+- Merge pull request #573 from c410-f3r/misc
+- Remove OpenSSL
+
 ## [0.10.0](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.9.0...wtx-macros-v0.10.0) - 2026-07-12
 
 ### Added
