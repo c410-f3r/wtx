@@ -4,7 +4,7 @@ mod simple_query;
 mod stmt;
 
 use crate::{
-  collections::TryExtend,
+  collections::{SingleTypeStorage, TryExtend},
   database::{
     Database, DbClient, RecordValues, StmtCmd,
     client::{
@@ -18,9 +18,9 @@ use crate::{
       rdbms::{clear_query_buffers, common_client_buffer::CommonClientBuffer},
     },
   },
-  misc::{ConnectionState, Lease, SingleTypeStorage, Uri},
+  misc::Lease,
+  net::{ConnectionState, Stream, StreamWriter as _, Uri},
   rng::CryptoRng,
-  stream::{Stream, StreamWriter as _},
   tls::{TlsConfig, TlsConnector, TlsMode, TlsServerEndPoint, TlsStream},
 };
 use core::marker::PhantomData;

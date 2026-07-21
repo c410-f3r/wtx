@@ -20,7 +20,7 @@ use wtx::{
     },
     codec::format::SerdeJson, executor::StdExecutor,
     http::http2_client_pool::{Http2ClientPool, Http2ClientPoolBuilder},
-    misc::Uri, tls::{TlsConfig, TlsModePlainText},
+    net::Uri, tls::{TlsConfig, TlsModePlainText},
     web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 use core::time::Duration;
@@ -100,7 +100,7 @@ impl wtx::misc::LeaseMut<GenericThrottlingApi<>> for GenericThrottlingApi<> {
     #[inline]
     fn lease_mut(&mut self) -> &mut GenericThrottlingApi<> { self }
 }
-impl wtx::misc::SingleTypeStorage for GenericThrottlingApi<> {
+impl wtx::collections::SingleTypeStorage for GenericThrottlingApi<> {
     type Item = ();
 }
 #[doc = "Identifier of the `GenericThrottlingApi` API"]
@@ -335,7 +335,7 @@ mod generic_http_request {
         crate::GenericThrottlingApiId> +
         wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
         type ExternalResponseContent<'__de> =
@@ -401,7 +401,7 @@ mod generic_http_request {
         crate::GenericThrottlingApiId> +
         wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
         type ExternalResponseContent<'__de> =
@@ -645,7 +645,7 @@ mod generic_web_socket_subscription {
         crate::GenericThrottlingApiId> +
         wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
         type ExternalResponseContent<'__de> =
@@ -704,7 +704,7 @@ mod generic_web_socket_subscription {
         crate::GenericThrottlingApiId> +
         wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
         type ExternalResponseContent<'__de> =

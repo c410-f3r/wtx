@@ -8,8 +8,8 @@ extern crate wtx;
 use tokio::net::{TcpListener, TcpStream};
 use wtx::{
   misc::SecretContext,
+  net::{StreamReader, StreamWriter},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  stream::{StreamReader, StreamWriter},
   tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};

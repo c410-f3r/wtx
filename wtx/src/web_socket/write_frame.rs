@@ -4,8 +4,8 @@ use crate::{
   codec::CompressionFlush,
   collections::Vector,
   misc::{Lease, LeaseMut},
+  net::StreamWriter,
   rng::Rng,
-  stream::StreamWriter,
   web_socket::{
     Frame, FrameMut, misc::has_masked_frame, unmask::unmask,
     web_socket_compression::WebSocketCompression,

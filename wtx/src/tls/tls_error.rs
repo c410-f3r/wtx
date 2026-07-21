@@ -15,8 +15,16 @@ pub enum TlsError {
   DigestCheckFailed,
   /// Diffie–Hellman error
   DiffieHellmanError,
+  /// Duplicated Certificate Request Parameters
+  DuplicatedCertificateRequestParameters,
   /// Duplicated Client Hello Parameters
   DuplicatedClientHelloParameters,
+  /// Duplicated Encrypted Extensions Parameters
+  DuplicatedEncryptedExtensionsParameters,
+  /// Invalid Negotiated ALPN
+  EmptyNegotiatedAlpnClient,
+  /// Invalid Negotiated ALPN
+  EmptyNegotiatedAlpnServer,
   /// Empty set of certificates
   EmptySetOfCertificates,
   /// Incompatible ALPN
@@ -73,6 +81,8 @@ pub enum TlsError {
   InvalidMaxFragmentLength,
   /// Invalid Negotiated Max Fragment Length
   InvalidNegotiatedMaxFragmentLength,
+  /// Invalid Negotiated Server Name
+  InvalidNegotiatedServerName,
   /// Invalid Psk Key Exchange Modes
   InvalidPskKeyExchangeModes,
   /// Invalid Signature Algorithms
@@ -105,6 +115,10 @@ pub enum TlsError {
   InvalidU24Prefix,
   /// Mismatch Extension
   MismatchedExtension,
+  /// Invalid Negotiated ALPN
+  MismatchedNegotiatedAlpnClient,
+  /// Invalid Negotiated ALPN
+  MismatchedNegotiatedAlpnServer,
   /// Missing Key Shares
   MissingKeyShares,
   /// Missing signature algorithms

@@ -119,7 +119,7 @@ mod pkg {
         wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
         wtx::misc::LeaseMut<<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =
@@ -174,7 +174,7 @@ mod pkg {
         wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
         wtx::misc::LeaseMut<<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =

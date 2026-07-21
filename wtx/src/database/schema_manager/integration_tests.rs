@@ -43,7 +43,7 @@ macro_rules! create_integration_tests {
       create_integration_test!(
         {
           use crate::rng::CryptoSeedableRng;
-          let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_postgres.as_str());
+          let uri = crate::net::UriRef::new(crate::tests::_vars().database_uri_postgres.as_str());
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let mut tls_connector = crate::tls::TlsConnectorBuilder::new(
             crate::executor::StdExecutor::default(),

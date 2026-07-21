@@ -1,7 +1,7 @@
 use crate::{
   database::{Identifier, client::postgres::PostgresCommonExecutorBuffer},
+  net::BufStreamReader,
   rng::Rng,
-  stream::BufStreamReader,
 };
 use hashbrown::HashMap;
 

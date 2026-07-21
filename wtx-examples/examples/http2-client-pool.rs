@@ -6,7 +6,8 @@ extern crate wtx;
 use wtx::{
   collections::Vector,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
-  misc::{Uri, from_utf8_basic},
+  misc::from_utf8_basic,
+  net::Uri,
   tls::{TlsConfig, TlsModeVerified},
 };
 

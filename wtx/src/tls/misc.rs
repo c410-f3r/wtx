@@ -4,7 +4,7 @@ use crate::{
   crypto::AEAD_TAG_LEN,
   futures::FnMutFut,
   misc::{TryArithmetic as _, unlikely_elem},
-  stream::{BufStreamReader, StreamReader, StreamWriter},
+  net::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
     AlertDescription, CHANGE_CIPHER_SPEC, SERVER_SIG_CTX, TlsError,
     de::De,
@@ -27,13 +27,6 @@ use core::{hint::cold_path, num::NonZeroUsize};
 pub(crate) fn build_header(ty: RecordContentType, len: u16) -> [u8; 5] {
   let [b0, n1] = len.to_be_bytes();
   [ty.into(), 3, 3, b0, n1]
-}
-
-pub(crate) fn duplicated_error(is_some: bool) -> crate::Result<()> {
-  if is_some {
-    return Err(TlsError::DuplicatedClientHelloParameters.into());
-  }
-  Ok(())
 }
 
 #[inline]

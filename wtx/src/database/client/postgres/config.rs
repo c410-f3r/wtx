@@ -1,4 +1,4 @@
-use crate::{database::client::postgres::PostgresError, misc::UriRef};
+use crate::{database::client::postgres::PostgresError, net::UriRef};
 
 /// Configuration
 #[derive(Debug, PartialEq, Eq)]

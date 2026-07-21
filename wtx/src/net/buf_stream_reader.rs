@@ -1,20 +1,9 @@
 use crate::{
   collections::Vector,
   misc::{Lease, LeaseMut},
-  stream::StreamReader,
+  net::{NetError, StreamReader},
 };
 use core::{fmt::Debug, hint::cold_path, mem::MaybeUninit};
-
-/// Buffered stream reader error
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BufStreamReaderError {
-  /// Connections should gracefully stop but the peer unexpectedly closed by stream.
-  AbruptDisconnect,
-  /// External actor sent a payload greater than the maximum capacity
-  CapacityOverflow,
-  /// The instance is configured to prevent the removal of contents
-  ForbiddenClear,
-}
 
 /// Buffered stream reader
 ///
@@ -205,7 +194,7 @@ impl BufStreamReader {
         // Headers with 0-length payloads can't enter here and because of that, this branch only
         // happens when the peer closed the connection without a graceful stop, which is an error!
         cold_path();
-        return Err(BufStreamReaderError::AbruptDisconnect.into());
+        return Err(NetError::AbruptDisconnect.into());
       };
       let new_len = init.len().wrapping_add(len.get());
       // SAFETY: `stream_reader.read` just initialized `len` buffer
@@ -300,7 +289,7 @@ impl BufStreamReader {
     let following_len = buffer_len.wrapping_sub(current_end_idx);
     if additional > capacity_ub {
       cold_path();
-      return Err(BufStreamReaderError::CapacityOverflow.into());
+      return Err(NetError::CapacityOverflow.into());
     }
     if following_len == 0 && !self.forbid_clear {
       self.clear();
@@ -317,7 +306,7 @@ impl BufStreamReader {
     }
     cold_path();
     if self.forbid_clear {
-      return Err(BufStreamReaderError::ForbiddenClear.into());
+      return Err(NetError::ForbiddenClear.into());
     }
     self.antecedent_end_idx = 0;
     self.current_end_idx = 0;
@@ -365,7 +354,7 @@ impl Default for BufStreamReader {
 
 #[cfg(test)]
 mod tests {
-  use crate::stream::{BufStreamReader, BytesStream, StreamWriter};
+  use crate::net::{BufStreamReader, BytesStream, StreamWriter};
 
   #[wtx::test]
   async fn read_header_and_payload() {

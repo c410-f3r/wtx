@@ -17,7 +17,7 @@ use crate::{
   http::{HttpClient as _, MsgBufferString, ReqBuilder, WTX_USER_AGENT},
   http2::{ClientStream, Http2},
   misc::LeaseMut,
-  stream::StreamWriter,
+  net::StreamWriter,
   tls::TlsMode,
 };
 use core::mem;
@@ -222,8 +222,8 @@ mod http_client_pool {
     http::http2_client_pool::{Http2ClientPool, Http2RM, Http2Resource},
     http2::{ClientStream, Http2},
     misc::LeaseMut,
+    net::StreamWriter,
     pool::ResourceManager,
-    stream::StreamWriter,
     tls::TlsMode,
   };
 

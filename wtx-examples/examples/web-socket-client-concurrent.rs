@@ -12,7 +12,7 @@ extern crate wtx_examples;
 
 use wtx::{
   collections::Vector,
-  misc::Uri,
+  net::Uri,
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AsyncMutex},
   tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},

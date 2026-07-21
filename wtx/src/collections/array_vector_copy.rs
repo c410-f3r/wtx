@@ -1,13 +1,13 @@
 use crate::{
   collections::{
-    ArrayIntoIter, ExpansionTy, LinearStorageLen as _, Truncate,
+    ArrayIntoIter, ExpansionTy, LinearStorageLen as _, SingleTypeStorage, Truncate,
     array_vector_inner::ArrayVectorInner,
     linear_storage::{
       LinearStorage as _, linear_storage_mut::LinearStorageMut as _,
       linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, LeaseMut, SingleTypeStorage, Wrapper, char_slice},
+  misc::{Lease, LeaseMut, Wrapper, char_slice},
 };
 use core::{
   borrow::{Borrow, BorrowMut},

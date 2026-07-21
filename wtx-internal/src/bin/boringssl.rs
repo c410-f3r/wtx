@@ -22,11 +22,11 @@ use tokio::net::TcpStream;
 use wtx::{
   calendar::Instant,
   collections::Vector,
-  misc::{SecretContext, Uri},
+  misc::SecretContext,
+  net::{StreamReader, StreamWriter as _, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  stream::{StreamReader, StreamWriter as _},
   tls::{
-    AlertDescription, HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig,
+    AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig,
     TlsConnectorBuilder, TlsError, TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
   },
   x509::CvTrustAnchor,
@@ -38,7 +38,7 @@ async fn main() {
   let mut options = Options::default();
   for _ in OptionsIter::new(env::args().skip(1), &mut options) {}
   if options.is_client {
-    if verify_cert(&options) {
+    if boringssl_options::verify_cert(&options) {
       let tls_config = make_client_cfg::<TlsModeVerified>(&options);
       exec_tests::<_, true>(options, tls_config).await;
     } else {
@@ -122,8 +122,13 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       _ => ":FIXME:",
     },
     Err(wtx::Error::TlsErrorFatal(err, _)) => match err {
+      TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
+      TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
       TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
       TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
+      TlsError::InvalidNegotiatedServerName => ":UNEXPECTED_EXTENSION:",
+      TlsError::MismatchedNegotiatedAlpnClient => ":INVALID_ALPN_PROTOCOL:",
+      TlsError::MismatchedNegotiatedAlpnServer => ":NO_APPLICATION_PROTOCOL:",
       TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
       TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
@@ -233,10 +238,10 @@ where
     (secret_context, &mut options.key_der.clone()),
   )
   .unwrap();
-  if verify_cert(options) {
-    process::exit(boringssl_options::BOGO_NACK);
-  }
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
+  if options.select_empty_alpn {
+    *cfg.alpn_mut() = Some(Alpn::default());
+  }
   for protocol in &options.protocols {
     cfg
       .alpn_mut()
@@ -264,8 +269,4 @@ fn quit(why: &str) -> ! {
 fn _quit_err(why: &str) -> ! {
   eprintln!("{why}");
   process::exit(1)
-}
-
-fn verify_cert(options: &Options) -> bool {
-  options.verify_peer || options.offer_no_client_cas
 }

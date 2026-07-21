@@ -4,7 +4,7 @@ use crate::{
     http2_client_pool::{Http2ClientPool, Http2RM},
     push_h2_alpn,
   },
-  misc::TcpParams,
+  net::TcpParams,
   pool::{ResourceManager, SimplePool},
   rng::ChaCha20,
   sync::{AsyncMutex, AtomicCell},

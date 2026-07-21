@@ -11,7 +11,9 @@ mod std_runtime;
 #[cfg(feature = "tokio")]
 mod tokio_executor;
 
-use crate::stream::{TcpListener, TcpStream};
+#[cfg(feature = "std")]
+use crate::net::ToSocketAddrs;
+use crate::net::{TcpListener, TcpStream};
 use core::net::SocketAddr;
 pub use executor_error::ExecutorError;
 pub use no_std_runtime::NoStdRuntime;
@@ -32,6 +34,15 @@ pub enum ExecutorTy {
   Tokio,
 }
 
+impl ExecutorTy {
+  /// Returns `true` if the instance is [`ExecutorTy::Std`].
+  #[inline]
+  #[must_use]
+  pub const fn is_std(&self) -> bool {
+    matches!(self, Self::Std)
+  }
+}
+
 /// Generic executor
 pub trait Executor: Default {
   /// See [`ExecutorTy`].
@@ -47,11 +58,6 @@ pub trait Executor: Default {
   type TcpListener: TcpListener<TcpStream = Self::TcpStream>;
   /// See [`TcpStream`].
   type TcpStream: TcpStream<Executor = Self>;
-
-  /// Performs a DNS resolution.
-  fn lookup_host(
-    host: (&str, u16),
-  ) -> impl Future<Output = crate::Result<impl Iterator<Item = SocketAddr>>>;
 
   /// Spawns a future to run concurrently on the executor.
   fn spawn<F>(&self, future: F) -> Self::SpawnFuture<F::Output>
@@ -78,43 +84,67 @@ pub trait Runtime: Sized {
 }
 
 #[cfg(feature = "std")]
-async fn tcp_listener_std<EX>(
-  addr: (&str, u16),
-  _tcp_params: crate::misc::TcpParams,
+async fn tcp_listener_std<A, EX>(
+  addr: A,
+  executor: &EX,
+  _tcp_params: crate::net::TcpParams,
 ) -> crate::Result<std::net::TcpListener>
 where
+  A: ToSocketAddrs,
   EX: Executor,
 {
-  let socket_addr = crate::misc::into_rslt(EX::lookup_host(addr).await?.next())?;
-  cfg_select! {
-    feature = "socket2" => {
-      let domain = if socket_addr.is_ipv4() {
-        socket2::Domain::IPV4
-      } else {
-        socket2::Domain::IPV6
-      };
-      let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
-      if let Some(elem) = _tcp_params.reuse_address {
-        socket.set_reuse_address(elem)?;
-      }
-      #[cfg(not(any(
-        target_os = "cygwin",
-        target_os = "illumos",
-        target_os = "solaris",
-        target_os = "wasi"
-      )))]
-      if let Some(elem) = _tcp_params.reuse_port {
-        socket.set_reuse_port(elem)?;
-      }
-      socket.set_tcp_nodelay(_tcp_params.tcp_nodelay)?;
+  let fun = async |socket_addr: SocketAddr| {
+    cfg_select! {
+      feature = "socket2" => {
+        let domain = if socket_addr.is_ipv4() {
+          socket2::Domain::IPV4
+        } else {
+          socket2::Domain::IPV6
+        };
+        let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
+        if let Some(elem) = _tcp_params.reuse_address {
+          socket.set_reuse_address(elem)?;
+        }
+        #[cfg(not(any(
+          target_os = "cygwin",
+          target_os = "illumos",
+          target_os = "solaris",
+          target_os = "wasi"
+        )))]
+        if let Some(elem) = _tcp_params.reuse_port {
+          socket.set_reuse_port(elem)?;
+        }
+        socket.set_tcp_nodelay(_tcp_params.tcp_nodelay)?;
 
-      // ***** THE ORDER IS IMPORTANT *****
-      socket.bind(&socket_addr.into())?;
-      socket.listen(_tcp_params.listen)?;
-      // ***** THE ORDER IS IMPORTANT *****
+        // ***** THE ORDER IS IMPORTANT *****
+        socket.bind(&socket_addr.into())?;
+        socket.listen(_tcp_params.listen)?;
+        // ***** THE ORDER IS IMPORTANT *****
 
-      Ok(std::net::TcpListener::from(socket))
-    },
-    _ => Ok(std::net::TcpListener::bind(socket_addr)?)
+        Ok(std::net::TcpListener::from(socket))
+      },
+      _ => Ok(std::net::TcpListener::bind(socket_addr)?)
+    }
+  };
+  resolve_addrs(addr, executor, fun).await
+}
+
+#[cfg(feature = "std")]
+async fn resolve_addrs<A, EX, T>(
+  addr: A,
+  executor: &EX,
+  mut cb: impl AsyncFnMut(SocketAddr) -> crate::Result<T>,
+) -> crate::Result<T>
+where
+  A: ToSocketAddrs,
+  EX: Executor,
+{
+  let mut last_err = None;
+  for socket_addr in addr.to_socket_addrs(executor).await? {
+    match cb(socket_addr).await {
+      Ok(el) => return Ok(el),
+      Err(err) => last_err = Some(err),
+    }
   }
+  Err(last_err.unwrap_or_else(|| ExecutorError::InvalidResolvedAddress.into()))
 }

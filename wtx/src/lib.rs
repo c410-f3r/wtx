@@ -40,9 +40,9 @@ pub mod http;
 #[cfg(feature = "http2")]
 pub mod http2;
 pub mod misc;
+pub mod net;
 pub mod pool;
 pub mod rng;
-pub mod stream;
 pub mod sync;
 #[cfg(test)]
 mod tests;

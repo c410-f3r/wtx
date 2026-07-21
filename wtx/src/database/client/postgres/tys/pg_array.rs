@@ -1,12 +1,14 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::{ArrayVector, ArrayVectorU8, LinearStorageLen, TryExtend, Vector},
+  collections::{
+    ArrayVector, ArrayVectorU8, LinearStorageLen, SingleTypeStorage, TryExtend, Vector,
+  },
   database::{
     Typed,
     client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
   misc::{
-    Lease, SingleTypeStorage, Usize,
+    Lease, Usize,
     counter_writer::{CounterWriterBytesTy, i32_write},
   },
 };

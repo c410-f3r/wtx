@@ -1,13 +1,13 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, SingleTypeStorage, Vector},
   futures::JoinArrayVector,
   http::{Headers, StatusCode},
   http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
-  misc::{LeaseMut, SingleTypeStorage},
+  misc::LeaseMut,
+  net::StreamWriter,
   rng::Xorshift64,
-  stream::StreamWriter,
   tls::{TlsMode, TlsStreamBridge},
   web_socket::{
     Frame, FrameMut, OpCode, WebSocketBridge,

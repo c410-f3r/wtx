@@ -4,9 +4,9 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  misc::{Uri, process_utf8_stream},
+  misc::process_utf8_stream,
+  net::{StreamReader, StreamWriter, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  stream::{StreamReader, StreamWriter},
   tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 

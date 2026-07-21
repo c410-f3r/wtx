@@ -4,7 +4,7 @@ use crate::{
   codec::CodecController,
   collections::TryExtend,
   database::{Database, DatabaseError, RecordValues, Records as _, StmtCmd},
-  misc::ConnectionState,
+  net::ConnectionState,
 };
 
 /// A connection for executing database commands.

@@ -6,9 +6,8 @@ use core::slice;
 use wtx::{
   asn1::parse_der_from_pem_range,
   calendar::DateTime,
-  codec::{Decode as _, DecodeWrapper},
+  codec::{Decode as _, DecodeWrapper, Pem},
   collections::Vector,
-  misc::Pem,
   x509::{Certificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor},
 };
 

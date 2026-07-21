@@ -95,8 +95,8 @@ mod postgres {
       client::postgres::{Postgres, PostgresClient},
     },
     http::session::{SessionKey, SessionState, SessionStore},
+    net::Stream,
     pool::{ResourceManager, SimplePool},
-    stream::Stream,
     tls::TlsMode,
   };
 

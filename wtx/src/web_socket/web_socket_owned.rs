@@ -1,8 +1,8 @@
 use crate::{
   collections::Vector,
-  misc::{ConnectionState, LeaseMut},
+  misc::LeaseMut,
+  net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   rng::Xorshift64,
-  stream::{BufStreamReader, StreamReader, StreamWriter},
   tls::{TlsMode, TlsStreamReader, TlsStreamWriter},
   web_socket::{
     Frame, FrameMut, WebSocketPayloadOrigin,

@@ -1,8 +1,8 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SequenceDecodeCb, SequenceEncodeIter},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::TryExtend,
-  misc::{Lease, SingleTypeStorage},
+  collections::{SingleTypeStorage, TryExtend},
+  misc::Lease,
 };
 
 /// Helper that collects sequences of the same type

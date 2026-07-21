@@ -147,10 +147,10 @@ impl From<crate::http::HttpError> for Error {
   }
 }
 
-impl From<crate::stream::BufStreamReaderError> for Error {
+impl From<crate::net::NetError> for Error {
   #[inline]
-  fn from(from: crate::stream::BufStreamReaderError) -> Self {
-    Self::NetReadBufferError(from)
+  fn from(from: crate::net::NetError) -> Self {
+    Self::NetError(from)
   }
 }
 

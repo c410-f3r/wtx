@@ -12,7 +12,7 @@ use crate::{
   },
   collections::Vector,
   misc::LeaseMut,
-  stream::Stream,
+  net::Stream,
   tls::TlsMode,
   web_socket::{
     Frame, WebSocket, WebSocketPayloadOrigin, web_socket_compression::NegotiatedWsCompression,

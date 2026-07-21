@@ -14,8 +14,8 @@ use crate::{
   collections::{ArrayVectorCopy, Vector},
   futures::FnMutFut,
   misc::{ExtUtf8Error, PartialChar, from_utf8_basic, from_utf8_ext, process_utf8_stream},
+  net::{BufStreamReader, StreamReader, StreamWriter},
   rng::Rng,
-  stream::{BufStreamReader, StreamReader, StreamWriter},
   web_socket::{
     CloseCode, Frame, FrameMut, MAX_CONTROL_PAYLOAD_LEN, OpCode, WebSocketError,
     WebSocketPayloadOrigin,

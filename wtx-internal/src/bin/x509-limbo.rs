@@ -5,9 +5,8 @@ use std::{borrow::Cow, fs::File, io::BufReader};
 use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
   calendar::{DateTime, Instant, Utc},
-  codec::{Decode as _, DecodeWrapper},
+  codec::{Decode as _, DecodeWrapper, Pem},
   collections::Vector,
-  misc::Pem,
   x509::{
     Certificate, Crl, CvCertificate, CvCrl, CvEndEntity, CvEvaluationDepth, CvIntermediate,
     CvPolicy, CvPolicyMode, CvTrustAnchor, ServerName, X509CvError, X509Error,

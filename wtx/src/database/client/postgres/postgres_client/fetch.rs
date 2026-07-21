@@ -6,8 +6,8 @@ use crate::{
       message::{Message, MessageTy},
     },
   },
-  misc::{ConnectionState, Usize},
-  stream::{BufStreamReader, Stream},
+  misc::Usize,
+  net::{BufStreamReader, ConnectionState, Stream},
   tls::{TlsMode, TlsStream},
 };
 

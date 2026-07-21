@@ -398,7 +398,7 @@ const fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
 mod tests {
   use crate::{
     http2::headers_frame::{create_path_buffer, push_uri_in_path_buffer},
-    misc::UriString,
+    net::UriString,
   };
   use alloc::string::String;
 

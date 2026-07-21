@@ -9,9 +9,9 @@ use wtx::{
   collections::Vector,
   http::{HttpRecvParams, Response, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
-  misc::{SecretContext, Uri},
+  misc::SecretContext,
+  net::{Stream, Uri},
   rng::{ChaCha20, CryptoSeedableRng},
-  stream::Stream,
   tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};

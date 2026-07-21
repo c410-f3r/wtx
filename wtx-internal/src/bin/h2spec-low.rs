@@ -8,8 +8,8 @@ use wtx::{
   collections::Vector,
   http::{HttpRecvParams, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
+  net::Stream,
   rng::{ChaCha20, CryptoSeedableRng},
-  stream::Stream,
   tls::{TlsAcceptor, TlsConfig},
 };
 

@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::{SingleTypeStorage, Vector},
   http::{Method, MsgBufferString, MsgData, Protocol, Response, U31},
   http2::{
     CommonStream, Http2Inner, Http2RecvStatus, Http2SendStatus,
@@ -8,8 +8,8 @@ use crate::{
     stream_receiver::StreamControlRecvParams,
     write_functions::send_msg,
   },
-  misc::{Lease, LeaseMut, SingleTypeStorage, span::Span},
-  stream::StreamWriter,
+  misc::{Lease, LeaseMut, span::Span},
+  net::StreamWriter,
   sync::Arc,
   tls::TlsMode,
 };

@@ -4,7 +4,7 @@ use tokio::{
 };
 use wtx::{
   collections::Vector,
-  misc::UriRef,
+  net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeVerified},
   web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin},

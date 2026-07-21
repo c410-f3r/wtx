@@ -42,7 +42,7 @@ use crate::{
     window::WindowsPair,
   },
   misc::Usize,
-  stream::StreamWriter,
+  net::StreamWriter,
   tls::{TlsMode, TlsStreamWriter},
 };
 use core::{

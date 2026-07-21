@@ -1,8 +1,8 @@
 use crate::{
   executor::StdRuntime,
   misc::SecretContext,
+  net::{StreamReader, StreamWriter},
   rng::{ChaCha20, CryptoSeedableRng},
-  stream::{StreamReader, StreamWriter},
   tests::{_PUBLIC_KEY, _ROOT_CA, _SECRET_KEY, _uri},
   tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeUnverified},
 };

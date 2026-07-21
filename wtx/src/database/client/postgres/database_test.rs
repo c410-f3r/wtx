@@ -7,8 +7,8 @@ use crate::{
   },
   executor::{Executor, Runtime as _},
   misc::EnvVars,
+  net::TcpStream,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  stream::TcpStream,
   tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };
 use alloc::string::String;

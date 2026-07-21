@@ -275,7 +275,7 @@ mod postgres {
       },
     },
     misc::Lease,
-    stream::Stream,
+    net::Stream,
     tls::TlsMode,
   };
   use alloc::string::String;

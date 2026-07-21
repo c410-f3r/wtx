@@ -1,4 +1,4 @@
-use crate::{misc::TcpParams, stream::TcpStream};
+use crate::net::{TcpParams, TcpStream, ToSocketAddrs};
 use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 
 /// Reliable, ordered, and error-checked listening of a stream of bytes.
@@ -7,7 +7,9 @@ pub trait TcpListener: Sized {
   type TcpStream: TcpStream;
 
   /// Binds a new TCP listener to the specified address and port.
-  fn bind(addr: (&str, u16), tcp_params: TcpParams) -> impl Future<Output = crate::Result<Self>>;
+  fn bind<A>(addr: A, tcp_params: TcpParams) -> impl Future<Output = crate::Result<Self>>
+  where
+    A: ToSocketAddrs;
 
   /// Accepts a new incoming TCP connection.
   fn accept(
@@ -20,7 +22,10 @@ impl TcpListener for () {
   type TcpStream = ();
 
   #[inline]
-  async fn bind(_: (&str, u16), _: TcpParams) -> crate::Result<Self> {
+  async fn bind<A>(_: A, _: TcpParams) -> crate::Result<Self>
+  where
+    A: ToSocketAddrs,
+  {
     Ok(())
   }
 

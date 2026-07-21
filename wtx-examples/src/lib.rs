@@ -49,7 +49,7 @@ pub async fn postgres_client(
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
   };
-  let uri = wtx::misc::Uri::new(uri_str);
+  let uri = wtx::net::Uri::new(uri_str);
   let mut tls_connector = TlsConnectorBuilder::tokio(uri)
     .build(
       TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,

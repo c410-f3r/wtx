@@ -1,7 +1,7 @@
 use crate::{
-  collections::{SuffixGuard, Truncate, TryExtend},
+  collections::{SingleTypeStorage, SuffixGuard, Truncate, TryExtend},
   crypto::{Aead as _, Aes256GcmGlobal, gen_aead_nonce},
-  misc::{LeaseMut, SensitiveBytes, SingleTypeStorage, memset_slice_volatile},
+  misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
   sync::Arc,
 };

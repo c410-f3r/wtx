@@ -90,7 +90,7 @@ pub async fn fetch_and_set_epoch_offset<S>(
   stream: &mut S,
 ) -> crate::Result<bool>
 where
-  S: crate::stream::UdpStream,
+  S: crate::net::UdpStream,
 {
   use crate::futures::Timeout;
   use core::time::Duration;

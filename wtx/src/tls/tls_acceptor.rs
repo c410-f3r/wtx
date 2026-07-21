@@ -1,16 +1,16 @@
 use crate::{
   codec::{Decode as _, Encode as _},
-  collections::ArrayVectorCopy,
+  collections::{ArrayVectorCopy, SingleTypeStorage},
   crypto::SignatureTy,
-  misc::{Lease, SingleTypeStorage},
+  misc::Lease,
+  net::Stream,
   rng::CryptoRng,
-  stream::Stream,
   tls::{
-    Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath,
-    MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
-    TlsStream,
+    AlertDescription, Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH,
+    HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError,
+    TlsMode, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, write_payloads},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_fatal, write_payloads},
     protocol::{
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
@@ -350,7 +350,7 @@ where
       &client_hello.data.generic().client_shares,
       &self.config.lease().inner.supported_groups.named_group_list,
     )?;
-    let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn);
+    let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn)?;
     self.named_group = key_share.group;
 
     let max_fragment_length = client_hello.data.tls_config().max_fragment_length;
@@ -423,24 +423,32 @@ struct NegotiateOutput {
   signature_ty: SignatureTy,
 }
 
-fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> Option<Alpn> {
-  let Some(client) = client_opt else {
-    // Client did not request this extension
-    return None;
+fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Result<Option<Alpn>> {
+  let (Some(client), Some(server)) = (client_opt, server_opt) else {
+    return Ok(None);
   };
-  let Some(server) = server_opt else {
-    // Server did not want to support this extension
-    return None;
-  };
-  let mut common = Alpn::default();
-  for server_el in &server.protocol_name_list {
-    for client_el in &client.protocol_name_list {
-      if server_el == client_el {
-        let _rslt = common.protocol_name_list.push(*server_el);
-      }
+  if server.protocol_name_list.is_empty() {
+    return tls_error_fatal(TlsError::EmptyNegotiatedAlpnServer, AlertDescription::InternalError);
+  }
+  let mut rslt = None;
+  for client_el in &client.protocol_name_list {
+    if client_el.is_empty() {
+      return tls_error_fatal(TlsError::EmptyNegotiatedAlpnClient, AlertDescription::DecodeError);
+    }
+    if rslt.is_none() && server.protocol_name_list.contains(client_el) {
+      let mut alpn = Alpn::default();
+      let _rslt = alpn.protocol_name_list.push(*client_el);
+      rslt = Some(alpn);
     }
   }
-  Some(common)
+  if let Some(elem) = rslt {
+    Ok(Some(elem))
+  } else {
+    tls_error_fatal(
+      TlsError::MismatchedNegotiatedAlpnServer,
+      AlertDescription::NoApplicationProtocol,
+    )
+  }
 }
 
 fn seek_cipher_suite(client: &[CipherSuite], server: &[CipherSuite]) -> crate::Result<CipherSuite> {

@@ -24,9 +24,9 @@ pub(crate) mod write_frame;
 use crate::{
   _MAX_PAYLOAD_LEN,
   collections::Vector,
-  misc::{ConnectionState, LeaseMut},
+  misc::LeaseMut,
+  net::{ConnectionState, Stream},
   rng::{SeedableRng as _, Xorshift64},
-  stream::Stream,
   tls::{TlsMode, TlsStream, TlsStreamBridge},
   web_socket::web_socket_compression::NegotiatedWsCompression,
 };

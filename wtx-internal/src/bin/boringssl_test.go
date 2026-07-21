@@ -92,7 +92,7 @@ func TestNames(t *testing.T) {
 		// Tls 1.3 fallback to TLS 1.2
 		"ClientHelloVersionTooHigh",
 		// Resumption
-		"IgnoreLegacyVersion-TLS13"
+		"IgnoreLegacyVersion-TLS13",
 	}
 
 	for _, tc := range testCases {
@@ -106,9 +106,15 @@ func TestNames(t *testing.T) {
 			continue
 		}
 
-		if tc.config.MaxVersion <= VersionTLS12 {
-			printFmt(tc.name)
+		shouldIgnore := false
+		if tc.resumeSession {
+			shouldIgnore = true
+		} else if tc.config.MaxVersion <= VersionTLS12 {
+			shouldIgnore = true
 		} else if tc.resumeConfig != nil && tc.resumeConfig.MaxVersion <= VersionTLS12 {
+			shouldIgnore = true
+		}
+		if shouldIgnore {
 			printFmt(tc.name)
 		}
 	}
@@ -131,7 +137,7 @@ func TestNames(t *testing.T) {
 
 func hasIndividual(name string, individuals []string) bool {
 	for _, individual := range individuals {
-		if strings.Contains(name, individual) {
+		if name == individual {
 			return true
 		}
 	}
@@ -158,5 +164,5 @@ func hasPattern(name string, begin, both, end []string) bool {
 }
 
 func printFmt(name string) {
-	fmt.Println("    (\"" + name + "\", \"UNSUPPORTED\"),")
+	fmt.Printf("    (%q, \"UNSUPPORTED\"),\n", name)
 }

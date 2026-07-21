@@ -10,7 +10,7 @@ use crate::{
     records::Records,
   },
   executor::StdRuntime,
-  misc::UriRef,
+  net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng},
   tests::_vars,
   tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},

@@ -11,7 +11,8 @@ use wtx::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
-  misc::{EnvVars, UriRef, find_file},
+  misc::{EnvVars, find_file},
+  net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsConnectorBuilder},
 };

@@ -10,7 +10,7 @@ use wtx::{
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, Vector},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
-  misc::UriRef,
+  net::UriRef,
   tls::{TlsConfig, TlsModeVerified},
   x509::{Certificate, CvTrustAnchor, X509Error},
 };

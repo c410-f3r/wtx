@@ -1,9 +1,9 @@
 use crate::{
   executor::{
     Executor, ExecutorError, ExecutorTy, SpawnFuture, StdRuntime, TcpListener, TcpStream,
-    tcp_listener_std,
+    resolve_addrs, tcp_listener_std,
   },
-  misc::TcpParams,
+  net::{TcpParams, ToSocketAddrs},
 };
 use core::{
   marker::PhantomData,
@@ -12,7 +12,6 @@ use core::{
   pin::Pin,
   task::{Context, Poll, ready},
 };
-use std::net::ToSocketAddrs as _;
 
 /// Uses the structures originated from the standard library.
 #[derive(Clone, Debug, Default)]
@@ -26,11 +25,6 @@ impl Executor for StdExecutor {
   type SpawnLocalFuture<T> = StdSpawnLocalFuture<T>;
   type TcpListener = std::net::TcpListener;
   type TcpStream = std::net::TcpStream;
-
-  #[inline]
-  async fn lookup_host(host: (&str, u16)) -> crate::Result<impl Iterator<Item = SocketAddr>> {
-    Ok(host.to_socket_addrs()?)
-  }
 
   #[inline]
   fn spawn<F>(&self, future: F) -> Self::SpawnFuture<F::Output>
@@ -55,8 +49,11 @@ impl TcpListener for std::net::TcpListener {
   type TcpStream = std::net::TcpStream;
 
   #[inline]
-  async fn bind(addr: (&str, u16), tcp_params: TcpParams) -> crate::Result<Self> {
-    tcp_listener_std::<StdExecutor>(addr, tcp_params).await
+  async fn bind<A>(addr: A, tcp_params: TcpParams) -> crate::Result<Self>
+  where
+    A: ToSocketAddrs,
+  {
+    tcp_listener_std(addr, &StdExecutor::default(), tcp_params).await
   }
 
   #[inline]
@@ -71,8 +68,14 @@ impl TcpStream for std::net::TcpStream {
   type Executor = StdExecutor;
 
   #[inline]
-  async fn connect(addr: (&str, u16), tcp_params: TcpParams) -> crate::Result<Self> {
-    let stream = std::net::TcpStream::connect(addr)?;
+  async fn connect<A>(addr: A, tcp_params: TcpParams) -> crate::Result<Self>
+  where
+    A: ToSocketAddrs,
+  {
+    let stream = resolve_addrs(addr, &StdExecutor::default(), async |socket_addr| {
+      Ok(std::net::TcpStream::connect(socket_addr)?)
+    })
+    .await?;
     stream.set_nodelay(tcp_params.tcp_nodelay)?;
     Ok(stream)
   }

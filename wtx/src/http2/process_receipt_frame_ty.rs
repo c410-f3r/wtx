@@ -17,7 +17,7 @@ use crate::{
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
   },
-  stream::{BufStreamReader, StreamReader},
+  net::{BufStreamReader, StreamReader},
 };
 use core::task::Waker;
 

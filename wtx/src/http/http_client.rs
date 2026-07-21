@@ -76,7 +76,7 @@ mod http2 {
     http::{HttpClient, MsgBufferString, MsgData, Request, Response},
     http2::{ClientStream, Http2, Http2RecvStatus},
     misc::Lease,
-    stream::StreamWriter,
+    net::StreamWriter,
     tls::TlsMode,
   };
 
@@ -127,8 +127,8 @@ mod http_client_pool {
     },
     http2::{ClientStream, Http2RecvStatus},
     misc::Lease,
+    net::StreamWriter,
     pool::ResourceManager,
-    stream::StreamWriter,
     tls::TlsMode,
   };
 

@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
+  net::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::{
   num::NonZeroUsize,

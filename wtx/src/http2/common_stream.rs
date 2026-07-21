@@ -11,7 +11,7 @@ use crate::{
     write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },
   misc::{Usize, span::Span},
-  stream::StreamWriter,
+  net::StreamWriter,
   sync::Arc,
   tls::TlsMode,
 };

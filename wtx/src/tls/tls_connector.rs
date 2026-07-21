@@ -1,15 +1,16 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, Encode as _},
-  collections::{ArrayVectorCopy, ArrayVectorU8},
-  misc::{Lease, SingleTypeStorage, Uri},
+  collections::{ArrayVectorCopy, ArrayVectorU8, SingleTypeStorage},
+  misc::Lease,
+  net::{Stream, Uri},
   rng::CryptoRng,
-  stream::Stream,
   tls::{
-    CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, MAX_CERTIFICATES, NamedGroup,
-    ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode, TlsServerEndPoint, TlsStream,
+    AlertDescription, CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath,
+    MAX_CERTIFICATES, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
+    TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_fatal},
     protocol::{
       alert::Alert,
       certificate::Certificate,
@@ -353,8 +354,11 @@ where
       *dw.bytes_mut() = hs.data;
       match hs.msg_type {
         HandshakeType::EncryptedExtensions => {
-          let encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
-          if let Some(el) = encrypted_extensions.max_fragment_length() {
+          let ee = EncryptedExtensions::decode(&mut dw)?;
+          if let Some(value) = Self::check_alpn(self.config.lease(), &ee) {
+            return value;
+          }
+          if let Some(el) = ee.max_fragment_length() {
             if Some(el) != self.config.lease().max_fragment_length() {
               return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
             }
@@ -362,6 +366,12 @@ where
             self.max_fragment_length_send = self.max_fragment_length_send.min(el.num());
           } else if self.config.lease().max_fragment_length().is_some() {
             return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
+          }
+          if self.config.lease().server_name().is_none() && ee.server_name().is_some() {
+            return tls_error_fatal(
+              TlsError::InvalidNegotiatedServerName,
+              AlertDescription::UnsupportedExtension,
+            );
           }
         }
         HandshakeType::CertificateRequest => {
@@ -408,6 +418,29 @@ where
       }
     }
     Ok(ManageRemainingServerRecordsState::NeedsMoreData)
+  }
+
+  fn check_alpn(
+    config: &TlsConfig<TM>,
+    ee: &EncryptedExtensions,
+  ) -> Option<Result<ManageRemainingServerRecordsState, crate::Error>> {
+    if let (Some(client), Some(server)) = (config.lease().alpn(), ee.alpn()) {
+      for server_el in &server.protocol_name_list {
+        if server_el.is_empty() {
+          return Some(tls_error_fatal(
+            TlsError::EmptyNegotiatedAlpnClient,
+            AlertDescription::IllegalParameter,
+          ));
+        }
+        if client.protocol_name_list.iter().find(|el| *el == server_el).is_none() {
+          return Some(tls_error_fatal(
+            TlsError::MismatchedNegotiatedAlpnClient,
+            AlertDescription::IllegalParameter,
+          ));
+        }
+      }
+    }
+    None
   }
 
   /// Low level operation responsible for informing the local parameters to the remote server. No other method should
