@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.7.1...wtx-ui-v0.8.0) - 2026-07-21
+
+### Other
+
+- [**breaking**] Fix BoringSSL tests [5/N]
+
 ## [0.7.1](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.7.0...wtx-ui-v0.7.1) - 2026-07-19
 
 ### Other
