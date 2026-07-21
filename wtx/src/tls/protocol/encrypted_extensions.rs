@@ -6,7 +6,7 @@ use crate::{
   tls::{
     MaxFragmentLength, TlsError,
     de::De,
-    misc::{duplicated_error, u16_chunk},
+    misc::u16_chunk,
     protocol::{
       alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
@@ -34,8 +34,16 @@ impl EncryptedExtensions {
     Self { alpn, max_fragment_length, server_name, supported_groups }
   }
 
+  pub(crate) const fn alpn(&self) -> &Option<Alpn> {
+    &self.alpn
+  }
+
   pub(crate) const fn max_fragment_length(&self) -> Option<MaxFragmentLength> {
     self.max_fragment_length
+  }
+
+  pub(crate) const fn server_name(&self) -> &Option<ServerNameList> {
+    &self.server_name
   }
 }
 
@@ -87,6 +95,14 @@ impl Encode<De> for EncryptedExtensions {
       Ok(())
     })
   }
+}
+
+#[inline]
+fn duplicated_error(is_some: bool) -> crate::Result<()> {
+  if is_some {
+    return Err(TlsError::DuplicatedEncryptedExtensionsParameters.into());
+  }
+  Ok(())
 }
 
 #[inline]

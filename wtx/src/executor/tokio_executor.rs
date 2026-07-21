@@ -1,6 +1,8 @@
 use crate::{
-  executor::{Executor, ExecutorTy, Runtime, TcpListener, TcpStream, tcp_listener_std},
-  misc::TcpParams,
+  executor::{
+    Executor, ExecutorTy, Runtime, TcpListener, TcpStream, resolve_addrs, tcp_listener_std,
+  },
+  net::{TcpParams, ToSocketAddrs},
 };
 use core::{
   net::SocketAddr,
@@ -21,11 +23,6 @@ impl Executor for TokioExecutor {
   type SpawnLocalFuture<T> = TokioSpawnFutureFuture<T>;
   type TcpListener = tokio::net::TcpListener;
   type TcpStream = tokio::net::TcpStream;
-
-  #[inline]
-  async fn lookup_host(host: (&str, u16)) -> crate::Result<impl Iterator<Item = SocketAddr>> {
-    Ok(tokio::net::lookup_host(host).await?)
-  }
 
   #[inline]
   fn spawn<F>(&self, future: F) -> Self::SpawnFuture<F::Output>
@@ -50,8 +47,11 @@ impl TcpListener for tokio::net::TcpListener {
   type TcpStream = tokio::net::TcpStream;
 
   #[inline]
-  async fn bind(addr: (&str, u16), tcp_params: TcpParams) -> crate::Result<Self> {
-    let tcp_listener = tcp_listener_std::<TokioExecutor>(addr, tcp_params).await?;
+  async fn bind<A>(addr: A, tcp_params: TcpParams) -> crate::Result<Self>
+  where
+    A: ToSocketAddrs,
+  {
+    let tcp_listener = tcp_listener_std(addr, &TokioExecutor::default(), tcp_params).await?;
     tcp_listener.set_nonblocking(true)?;
     Ok(tokio::net::TcpListener::from_std(tcp_listener)?)
   }
@@ -83,10 +83,16 @@ impl TcpStream for tokio::net::TcpStream {
   type Executor = TokioExecutor;
 
   #[inline]
-  async fn connect(addr: (&str, u16), tcp_params: TcpParams) -> crate::Result<Self> {
-    let tcp_stream = tokio::net::TcpStream::connect(addr).await?;
-    tcp_stream.set_nodelay(tcp_params.tcp_nodelay)?;
-    Ok(tcp_stream)
+  async fn connect<A>(addr: A, tcp_params: TcpParams) -> crate::Result<Self>
+  where
+    A: ToSocketAddrs,
+  {
+    let stream = resolve_addrs(addr, &TokioExecutor::default(), async |socket_addr| {
+      Ok(tokio::net::TcpStream::connect(socket_addr).await?)
+    })
+    .await?;
+    stream.set_nodelay(tcp_params.tcp_nodelay)?;
+    Ok(stream)
   }
 
   #[inline]

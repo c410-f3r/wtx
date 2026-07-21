@@ -1,6 +1,6 @@
 use crate::{
-  collections::{Clear, TryExtend},
-  misc::{Lease, SingleTypeStorage, TryArithmetic},
+  collections::{Clear, SingleTypeStorage, TryExtend},
+  misc::{Lease, TryArithmetic},
   rng::{FromRng, Rng},
 };
 

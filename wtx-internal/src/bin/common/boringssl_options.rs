@@ -9,7 +9,7 @@ use wtx::{
   x509::Certificate,
 };
 
-pub(crate) const BOGO_NACK: i32 = 89;
+const BOGO_NACK: i32 = 89;
 
 #[derive(Debug)]
 pub struct Options {
@@ -39,6 +39,7 @@ pub struct Options {
   pub read_size: usize,
   pub reject_alpn: bool,
   pub resume_count: usize,
+  pub select_empty_alpn: bool,
   pub send_key_update: bool,
   pub server_preference: bool,
   pub server_supported_group_hint: Option<NamedGroup>,
@@ -80,6 +81,7 @@ impl Default for Options {
       read_size: 512,
       reject_alpn: false,
       resume_count: 0,
+      select_empty_alpn: false,
       send_key_update: false,
       server_preference: false,
       server_supported_group_hint: None,
@@ -126,6 +128,14 @@ where
     } else {
       println!("Unknown: {arg:?}");
       process::exit(1);
+    }
+  }
+}
+
+impl<A> Drop for OptionsIter<'_, A> {
+  fn drop(&mut self) {
+    if !self.options.is_client && verify_cert(self.options) {
+      process::exit(BOGO_NACK);
     }
   }
 }
@@ -280,6 +290,9 @@ fn check_implemented_arguments(
     "-select-alpn" => {
       options.protocols.push(args.next().unwrap()).unwrap();
     }
+    "-select-empty-alpn" => {
+      options.select_empty_alpn = true;
+    }
     "-server-preference" => {
       options.server_preference = true;
     }
@@ -318,7 +331,9 @@ fn check_implemented_arguments(
       options.verify_peer = true;
     }
     "-verify-prefs" => {
-      let _ = lookup_scheme(args.next().unwrap().parse::<u16>().unwrap());
+      let Ok(_el) = SignatureTy::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
+        process::exit(BOGO_NACK);
+      };
     }
     "-wait-for-debugger" => {
       if cfg!(unix) {
@@ -447,17 +462,13 @@ fn decode_base64(data: &[u8]) -> Vector<u8> {
   buffer
 }
 
-fn lookup_scheme(scheme: u16) -> SignatureTy {
-  match scheme {
-    0x0403 => SignatureTy::EcdsaSecp256r1Sha256,
-    0x0503 => SignatureTy::EcdsaSecp384r1Sha384,
-    0x0804 => SignatureTy::RsaPssRsaeSha256,
-    0x0805 => SignatureTy::RsaPssRsaeSha384,
-    0x0807 => SignatureTy::Ed25519,
-    _ => {
-      process::exit(BOGO_NACK);
-    }
-  }
+fn pkc8_from_pem_file(path: &str) -> Vector<u8> {
+  let mut buffer = Vector::new();
+  Pkcs8::<&[u8]>::from_pem(&mut buffer, fs::read_to_string(path).unwrap().as_bytes())
+    .unwrap()
+    .1
+    .try_into()
+    .unwrap()
 }
 
 fn split_protocols(protos: &str) -> Vector<String> {
@@ -474,11 +485,6 @@ fn split_protocols(protos: &str) -> Vector<String> {
   ret
 }
 
-fn pkc8_from_pem_file(path: &str) -> Vector<u8> {
-  let mut buffer = Vector::new();
-  Pkcs8::<&[u8]>::from_pem(&mut buffer, fs::read_to_string(path).unwrap().as_bytes())
-    .unwrap()
-    .1
-    .try_into()
-    .unwrap()
+pub(crate) fn verify_cert(options: &Options) -> bool {
+  options.verify_peer || options.offer_no_client_cas
 }

@@ -19,12 +19,12 @@ macro_rules! check_headers {
 
 use crate::{
   codec::{Base64Alphabet, base64_encode, base64_encoded_len},
-  collections::SuffixGuardVectorMut,
+  collections::{SingleTypeStorage, SuffixGuardVectorMut},
   crypto::{Hash as _, Sha1HashGlobal},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{Lease, SingleTypeStorage, Uri, bytes_split1},
+  misc::{Lease, bytes_split1},
+  net::{Stream, StreamWriter as _, Uri},
   rng::{CryptoRng, Rng, SeedableRng as _, Xorshift64},
-  stream::{Stream, StreamWriter as _},
   tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsMode},
   web_socket::{
     WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketError, WsCompression,

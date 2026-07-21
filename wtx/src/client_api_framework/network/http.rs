@@ -4,7 +4,8 @@ use crate::{
   client_api_framework::network::transport::TransportParams,
   collections::Vector,
   http::{Headers, Method, Mime, MsgBufferString, StatusCode},
-  misc::{Lease, LeaseMut, UriString},
+  misc::{Lease, LeaseMut},
+  net::UriString,
 };
 use alloc::string::String;
 

@@ -5,7 +5,7 @@ use {
   tokio::net::TcpStream,
   wtx::{
     collections::{ArrayStringU8, Vector},
-    misc::Uri,
+    net::Uri,
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
     web_socket::{

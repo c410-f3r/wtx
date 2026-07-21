@@ -1,9 +1,8 @@
-use core::ops::{Deref, DerefMut};
-
 use crate::{
-  collections::{Truncate, TryExtend, Vector},
-  misc::{Lease, LeaseMut, SensitiveBytes, SingleTypeStorage},
+  collections::{SingleTypeStorage, Truncate, TryExtend, Vector},
+  misc::{Lease, LeaseMut, SensitiveBytes},
 };
+use core::ops::{Deref, DerefMut};
 
 /// [`SuffixGuard`] with a mutable vector reference.
 pub type SuffixGuardVectorMut<'inner, T> = SuffixGuard<&'inner mut Vector<T>>;

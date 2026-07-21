@@ -8,7 +8,7 @@ use crate::{
     pkg::PkgsAux,
   },
   misc::LeaseMut,
-  stream::StreamReader,
+  net::StreamReader,
   tls::TlsMode,
   web_socket::{
     WebSocketPayloadOrigin, WebSocketReaderOwned, web_socket_compression::NegotiatedWsCompression,

@@ -1,4 +1,4 @@
-use crate::{collections::MaybeUninitSlice, stream::StreamCommon};
+use crate::{collections::MaybeUninitSlice, net::StreamCommon};
 use core::num::NonZeroUsize;
 
 /// A stream of values sent asynchronously.
@@ -22,7 +22,7 @@ pub trait StreamReader: StreamCommon {
         }
         let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
         let Some(read) = self.read(slice.into()).await? else {
-          return Err(crate::Error::UnexpectedStreamReadEOF);
+          return Err(crate::net::NetError::UnexpectedStreamReadEOF.into());
         };
         counter = counter.wrapping_sub(read.get());
       }

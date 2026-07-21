@@ -4,7 +4,8 @@ use crate::{
     AutoStream, HttpError, StatusCode,
     http2_server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
   },
-  misc::{UriString, bytes_split1},
+  misc::bytes_split1,
+  net::UriString,
 };
 use core::str::FromStr;
 

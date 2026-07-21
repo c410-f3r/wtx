@@ -12,9 +12,9 @@ extern crate wtx;
 use tokio::sync::mpsc::unbounded_channel;
 use wtx::{
   collections::ArrayVectorCopy,
-  misc::{Uri, process_utf8_stream},
+  misc::process_utf8_stream,
+  net::{Stream, StreamReader, StreamWriter, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  stream::{Stream, StreamReader, StreamWriter},
   tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 

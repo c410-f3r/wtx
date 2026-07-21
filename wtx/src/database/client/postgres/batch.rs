@@ -15,7 +15,7 @@ use crate::{
     },
   },
   misc::{Either, Usize},
-  stream::{Stream, StreamWriter as _},
+  net::{Stream, StreamWriter as _},
   tls::TlsMode,
 };
 

@@ -2,8 +2,8 @@ use crate::{
   collections::Vector,
   database::client::rdbms::statements::Statements,
   misc::{Lease, LeaseMut},
+  net::BufStreamReader,
   rng::Rng,
-  stream::BufStreamReader,
 };
 use core::ops::Range;
 

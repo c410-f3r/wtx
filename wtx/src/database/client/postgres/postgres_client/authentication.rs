@@ -16,9 +16,9 @@ use crate::{
       rdbms::common_client_buffer::CommonClientBuffer,
     },
   },
-  misc::{ConnectionState, bytes_split1, from_utf8_basic},
+  misc::{bytes_split1, from_utf8_basic},
+  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
   rng::CryptoRng,
-  stream::{BufStreamReader, Stream, StreamWriter as _},
   tls::{TlsMode, TlsServerEndPoint, TlsStream},
 };
 

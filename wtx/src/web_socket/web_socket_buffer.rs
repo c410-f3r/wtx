@@ -1,4 +1,4 @@
-use crate::{collections::Vector, stream::BufStreamReader};
+use crate::{collections::Vector, net::BufStreamReader};
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]

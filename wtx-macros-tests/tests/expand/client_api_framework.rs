@@ -18,7 +18,7 @@ use wtx::{
   codec::format::SerdeJson,
   executor::StdExecutor,
   http::http2_client_pool::{Http2ClientPool, Http2ClientPoolBuilder},
-  misc::Uri,
+  net::Uri,
   tls::{TlsConfig, TlsModePlainText},
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };

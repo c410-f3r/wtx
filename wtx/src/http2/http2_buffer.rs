@@ -4,8 +4,8 @@ use crate::{
     Scorp, Sovrp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     initial_server_stream_remote::InitialServerStreamRemote,
   },
+  net::BufStreamReader,
   rng::{Rng, Xorshift64, simple_seed},
-  stream::BufStreamReader,
 };
 use core::task::Waker;
 use hashbrown::HashMap;

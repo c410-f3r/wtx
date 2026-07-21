@@ -48,10 +48,11 @@ mod window_update_frame;
 mod write_functions;
 
 use crate::{
+  collections::SingleTypeStorage,
   http::{DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, MsgBufferString, Protocol, Request, U31},
   http2::settings_frame::SettingsFrame,
-  misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
-  stream::{StreamReader, StreamWriter},
+  misc::{Lease, LeaseMut, Usize},
+  net::{ConnectionState, StreamReader, StreamWriter},
   sync::{Arc, AsyncMutex, AtomicU8},
   tls::{TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
 };

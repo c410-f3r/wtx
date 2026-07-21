@@ -13,8 +13,8 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  misc::{ConnectionState, Either, Usize},
-  stream::{BufStreamReader, Stream, StreamWriter as _},
+  misc::{Either, Usize},
+  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
   sync::AtomicU64,
   tls::{TlsMode, TlsStream},
 };

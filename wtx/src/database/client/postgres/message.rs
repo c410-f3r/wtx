@@ -5,7 +5,8 @@ use crate::{
     DatabaseError,
     client::postgres::{DbError, PostgresError, authentication::Authentication},
   },
-  misc::{ConnectionState, bytes_rsplit1, bytes_split1, from_utf8_basic},
+  misc::{bytes_rsplit1, bytes_split1, from_utf8_basic},
+  net::ConnectionState,
 };
 use core::any::type_name;
 

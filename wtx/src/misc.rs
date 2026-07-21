@@ -4,42 +4,35 @@
 pub(crate) mod bytes_transfer;
 #[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
-mod hints;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
 mod ascii;
-mod connection_state;
 mod default_array;
 mod either;
 mod enum_var_strings;
 mod env_vars;
 mod error_info;
 mod from_vars;
+mod hints;
 pub(crate) mod int_conv;
 mod interspace;
 mod lease;
 mod mem;
 mod optimizations;
 mod partial_char;
-mod pem;
 mod ppm;
-mod role;
 #[cfg(feature = "secret")]
 mod secret;
 mod sensitive_bytes;
-mod single_type_storage;
-mod tcp_params;
 mod try_arithmetic;
 mod tuple_impls;
-mod uri;
 mod usize;
 mod utf8_errors;
 mod wrapper;
 
 use crate::collections::ShortStrU8;
 pub use ascii::*;
-pub use connection_state::ConnectionState;
 use core::any::type_name;
 pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
@@ -53,16 +46,11 @@ pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
-pub use pem::Pem;
 pub use ppm::Ppm;
-pub use role::{Client, Role, RoleTy, Server};
 #[cfg(feature = "secret")]
 pub use secret::{Secret, SecretContext};
 pub use sensitive_bytes::SensitiveBytes;
-pub use single_type_storage::SingleTypeStorage;
-pub use tcp_params::TcpParams;
 pub use try_arithmetic::*;
-pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use wrapper::Wrapper;

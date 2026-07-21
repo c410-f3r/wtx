@@ -15,8 +15,8 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  misc::{ConnectionState, unlikely_elem},
-  stream::{BufStreamReader, Stream, StreamWriter as _},
+  misc::unlikely_elem,
+  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
   tls::{TlsMode, TlsStream},
 };
 

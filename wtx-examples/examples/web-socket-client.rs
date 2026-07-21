@@ -6,7 +6,7 @@ extern crate wtx_examples;
 
 use wtx::{
   collections::Vector,
-  misc::Uri,
+  net::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},

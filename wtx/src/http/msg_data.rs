@@ -1,7 +1,8 @@
 use crate::{
   collections::Clear,
   http::Headers,
-  misc::{Lease, LeaseMut, Uri, UriRef},
+  misc::{Lease, LeaseMut},
+  net::{Uri, UriRef},
 };
 use alloc::boxed::Box;
 

@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{StreamCommon, StreamReader, StreamWriter},
+  net::{StreamCommon, StreamReader, StreamWriter},
 };
 use core::{future, num::NonZeroUsize};
 use std::os::unix::prelude::{AsRawFd, RawFd};

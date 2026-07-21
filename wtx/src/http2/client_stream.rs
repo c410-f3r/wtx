@@ -11,7 +11,7 @@ use crate::{
     write_functions::send_msg,
   },
   misc::{Lease, span::Span},
-  stream::StreamWriter,
+  net::StreamWriter,
   sync::Arc,
   tls::TlsMode,
 };

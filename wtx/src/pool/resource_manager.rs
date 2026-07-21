@@ -97,7 +97,7 @@ pub(crate) mod database {
         .peek(&mut Vector::new().into(), async |secret| {
           // SAFETY: URI is a string.
           let string = unsafe { core::str::from_utf8_unchecked(&*secret) };
-          let $uri = crate::misc::UriRef::new(string);
+          let $uri = crate::net::UriRef::new(string);
           let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
           let $config = config_rslt?;
           $cb.await
@@ -113,7 +113,8 @@ pub(crate) mod database {
       client::postgres::{ClientBuffer, PostgresClient},
     },
     executor::Executor,
-    misc::{Secret, SecretContext, TcpParams},
+    misc::{Secret, SecretContext},
+    net::TcpParams,
     pool::ResourceManager,
     rng::ChaCha20,
     sync::{Arc, AtomicCell},

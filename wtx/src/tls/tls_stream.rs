@@ -2,8 +2,7 @@ use crate::{
   _AFTER_CLOSE_TIMEOUT_MS,
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   futures::Sleep,
-  misc::ConnectionState,
-  stream::{Stream, StreamCommon, StreamReader, StreamWriter},
+  net::{ConnectionState, Stream, StreamCommon, StreamReader, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
     AlertDescription, AlertLevel, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,

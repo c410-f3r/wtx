@@ -90,7 +90,7 @@ pub(crate) fn log_http_req<T, TP>(
   _log_data: bool,
   _method: crate::http::Method,
   _trans: &T,
-  _uri: &crate::misc::UriString,
+  _uri: &crate::net::UriString,
 ) where
   T: Transport<TP>,
 {

@@ -24,9 +24,8 @@ mod u32;
 
 use crate::{
   calendar::{Date, DateTime, Day, Hour, Month, Sixty, Time, Utc, Year},
-  codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10 as _, GenericCodec},
+  codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10 as _, GenericCodec, Pem},
   collections::{ExpansionTy, TryExtend},
-  misc::Pem,
 };
 pub use any::Any;
 pub use asn1_error::Asn1Error;

@@ -158,7 +158,7 @@ pub(crate) fn api(
         }
       }
 
-      impl<#api_params> wtx::misc::SingleTypeStorage for #api_ident<#api_params> {
+      impl<#api_params> wtx::collections::SingleTypeStorage for #api_ident<#api_params> {
         type Item = #sts_ty;
       }
 

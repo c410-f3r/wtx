@@ -7,7 +7,7 @@ use crate::{
   tls::{
     TlsError,
     de::De,
-    misc::{duplicated_error, u8_chunk, u16_chunk},
+    misc::{u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, signature_algorithms::SignatureAlgorithms,
     },
@@ -63,6 +63,14 @@ impl Encode<De> for CertificateRequest {
     })?;
     Ok(())
   }
+}
+
+#[inline]
+fn duplicated_error(is_some: bool) -> crate::Result<()> {
+  if is_some {
+    return Err(TlsError::DuplicatedCertificateRequestParameters.into());
+  }
+  Ok(())
 }
 
 #[expect(dead_code, reason = "Future-proof mTLS")]

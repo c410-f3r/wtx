@@ -1,6 +1,6 @@
 use crate::{
   collections::MaybeUninitSlice,
-  stream::{Stream, StreamCommon, StreamReader, StreamWriter, UdpStream},
+  net::{Stream, StreamCommon, StreamReader, StreamWriter, UdpStream},
 };
 use core::{net::SocketAddr, num::NonZeroUsize};
 use std::{

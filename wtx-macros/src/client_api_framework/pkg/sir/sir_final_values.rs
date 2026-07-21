@@ -163,7 +163,7 @@ impl<'module, 'others>
                 Id = #id
               >
               + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS>>
-              + wtx::misc::SingleTypeStorage<Item = __API_PARAMS>
+              + wtx::collections::SingleTypeStorage<Item = __API_PARAMS>
           {
             type ExternalRequestContent = wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>

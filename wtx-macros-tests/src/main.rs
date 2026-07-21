@@ -35,7 +35,6 @@ fn cfg(path: &Path, mode: Mode) -> Config {
     Mode::Test => {
       config.output_conflict_handling = ignore_output_conflict;
       config.program.args.push("--test".into());
-      //config.comment_defaults.base().run_command = Spanned::dummy(Some(CommandBuilder::cmd("{output}"))).into();
       0
     }
   };

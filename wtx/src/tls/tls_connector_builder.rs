@@ -1,7 +1,8 @@
 use crate::{
+  collections::SingleTypeStorage,
   executor::Executor,
-  misc::{Lease, SingleTypeStorage, TcpParams, Uri},
-  stream::TcpStream as _,
+  misc::Lease,
+  net::{TcpParams, TcpStream as _, Uri},
   tls::{TlsConfig, TlsConnector},
 };
 

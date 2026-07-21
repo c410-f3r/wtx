@@ -1,10 +1,10 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Pkcs8},
   calendar::{DateTime, Instant, Utc},
-  codec::{Decode as _, DecodeWrapper},
-  collections::{ArrayVectorCopy, ShortBoxSliceU16, Vector},
+  codec::{Decode as _, DecodeWrapper, Pem},
+  collections::{ArrayVectorCopy, ShortBoxSliceU16, SingleTypeStorage, Vector},
   crypto::SignatureTy,
-  misc::{Lease, LeaseMut, Pem, Secret, SecretContext, SensitiveBytes, SingleTypeStorage},
+  misc::{Lease, LeaseMut, Secret, SecretContext, SensitiveBytes},
   rng::CryptoRng,
   tls::{
     Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText,
@@ -206,6 +206,12 @@ impl<TM> TlsConfig<TM> {
   }
 
   /// See [`ServerNameList`].
+  #[inline]
+  pub fn server_name(&self) -> &Option<ServerNameList> {
+    &self.inner.server_name
+  }
+
+  /// Mutable version of [`Self::server_name`].
   #[inline]
   pub fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
     &mut self.inner.server_name

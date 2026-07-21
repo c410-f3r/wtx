@@ -1,4 +1,4 @@
-use crate::{misc::UriString, sync::AtomicU32};
+use crate::{net::UriString, sync::AtomicU32};
 use alloc::string::String;
 use core::sync::atomic::Ordering;
 use std::sync::OnceLock;

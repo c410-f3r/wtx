@@ -1,7 +1,7 @@
 use crate::{
   collections::Vector,
-  misc::{ConnectionState, Either},
-  stream::{StreamCommon, StreamWriter},
+  misc::Either,
+  net::{ConnectionState, StreamCommon, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
     TlsMode, TlsStreamBridgeData,

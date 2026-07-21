@@ -7,9 +7,9 @@ use wtx::{
   collections::Vector,
   http::{HttpClient, HttpRecvParams, ReqBuilder},
   http2::{Http2, Http2Buffer, Http2ErrorCode},
-  misc::{Uri, from_utf8_basic},
+  misc::from_utf8_basic,
+  net::{Stream, Uri},
   rng::{ChaCha20, CryptoSeedableRng},
-  stream::Stream,
   tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
 };
 

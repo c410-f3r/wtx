@@ -32,9 +32,8 @@ use crate::{
     push_h2_alpn,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
-  misc::{TcpParams, Uri},
+  net::{Stream, StreamReader, StreamWriter, TcpListener as _, TcpParams, TcpStream as _, Uri},
   rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
-  stream::{Stream, StreamReader, StreamWriter, TcpListener as _, TcpStream as _},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
 };

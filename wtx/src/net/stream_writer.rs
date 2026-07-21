@@ -1,4 +1,4 @@
-use crate::stream::StreamCommon;
+use crate::net::StreamCommon;
 
 /// A stream of values written asynchronously.
 pub trait StreamWriter: StreamCommon {

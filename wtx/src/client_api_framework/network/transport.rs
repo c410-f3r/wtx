@@ -57,7 +57,7 @@ pub(crate) fn log_http_res(
   _log_data: bool,
   _status_code: crate::http::StatusCode,
   _tg: TransportGroup,
-  _uri: &crate::misc::UriString,
+  _uri: &crate::net::UriString,
 ) {
   let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   _debug!(

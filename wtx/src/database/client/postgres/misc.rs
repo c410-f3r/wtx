@@ -8,7 +8,7 @@ use crate::{
     },
   },
   misc::Either,
-  stream::BufStreamReader,
+  net::BufStreamReader,
 };
 use core::ops::Range;
 

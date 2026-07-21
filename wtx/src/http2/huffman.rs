@@ -1,12 +1,12 @@
 use crate::{
   _SIMD_LEN,
-  collections::{Clear, TryExtend, Vector},
+  collections::{Clear, SingleTypeStorage, TryExtend, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{Lease, SingleTypeStorage},
+  misc::Lease,
 };
 use core::hint::cold_path;
 

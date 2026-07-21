@@ -1,7 +1,8 @@
 use crate::{
   collections::{Clear, Vector},
   http::{Headers, Method, MsgData, MsgDataMut, Request, Response, StatusCode},
-  misc::{Lease, LeaseMut, Uri, UriRef},
+  misc::{Lease, LeaseMut},
+  net::{Uri, UriRef},
 };
 use alloc::string::String;
 use core::fmt::{Debug, Formatter};

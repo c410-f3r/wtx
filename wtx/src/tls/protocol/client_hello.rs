@@ -3,9 +3,9 @@
 use crate::{
   calendar::DateTime,
   codec::{Decode, Encode},
-  collections::{ArrayVectorCopy, ArrayVectorU8, Vector},
+  collections::{ArrayVectorCopy, ArrayVectorU8, SingleTypeStorage, Vector},
   misc::{
-    Lease, Secret, SingleTypeStorage,
+    Lease, Secret,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
@@ -89,16 +89,8 @@ where
     let _legacy_version = <[u8; 2] as Decode<'_, De>>::decode(dw)?;
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
     let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
-    let mut alpn = None;
     let mut cipher_suites = ArrayVectorCopy::new();
-    let mut key_shares_opt = None;
-    let mut last_ty = None;
-    let mut max_fragment_length = None;
-    let mut server_name = None;
-    let mut signature_algorithms_opt = None;
-    let mut signature_algorithms_cert = None;
-    let mut supported_groups_opt = None;
-    let mut supported_versions_opt = None;
+    let mut extensions = Extensions::default();
     {
       let bytes = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
       for [b0, b1] in bytes.as_chunks::<2>().0 {
@@ -114,39 +106,37 @@ where
       );
     };
     u16_chunk(dw, err, |local_dw| {
+      let mut seen_unknowns = ArrayVectorCopy::<u16, 5>::new();
       while !local_dw.bytes().is_empty() {
-        let Ok(extension_ty) = ExtensionTy::decode(local_dw) else {
+        let tag: u16 = Decode::<'_, De>::decode(local_dw)?;
+        let Ok(extension_ty) = ExtensionTy::try_from(tag) else {
+          if seen_unknowns.contains(&tag) {
+            return tls_error_fatal(
+              TlsError::DuplicatedClientHelloParameters,
+              AlertDescription::DecodeError,
+            );
+          }
+          seen_unknowns.push(tag)?;
           u16_chunk(local_dw, err, |_bytes| Ok(()))?;
           continue;
         };
-        last_ty = Some(extension_ty);
+
         u16_chunk(local_dw, err, |local_local_dw| {
-          manage_extension(
-            &mut alpn,
-            local_local_dw,
-            extension_ty,
-            &mut key_shares_opt,
-            &mut max_fragment_length,
-            &mut server_name,
-            &mut signature_algorithms_opt,
-            &mut signature_algorithms_cert,
-            &mut supported_groups_opt,
-            &mut supported_versions_opt,
-          )
+          manage_extension(local_local_dw, extension_ty, &mut extensions)
         })?;
       }
       Ok(())
     })?;
-    let Some(supported_versions) = supported_versions_opt else {
+    let Some(supported_versions) = extensions.supported_versions else {
       return Err(TlsError::MissingSupportedVersions.into());
     };
-    let Some(signature_algorithms) = signature_algorithms_opt else {
+    let Some(signature_algorithms) = extensions.signature_algorithms else {
       return Err(TlsError::MissingSignatureAlgorithms.into());
     };
-    let Some(supported_groups) = supported_groups_opt else {
+    let Some(supported_groups) = extensions.supported_groups else {
       return Err(TlsError::MissingSupportedGroups.into());
     };
-    let Some(key_shares) = key_shares_opt else {
+    let Some(key_shares) = extensions.key_shares else {
       return Err(TlsError::MissingKeyShares.into());
     };
     Ok(Self {
@@ -155,17 +145,17 @@ where
       random,
       supported_versions,
       tls_config: TlsConfigInner {
-        alpn,
+        alpn: extensions.alpn,
         cipher_suites,
         cv_policy: CvPolicy::new(DateTime::default()),
-        max_fragment_length,
+        max_fragment_length: extensions.max_fragment_length,
         max_fragment_length_send: None,
         supported_groups,
         public_key: Vector::new(),
         secret_key: Secret::default(),
-        server_name,
+        server_name: extensions.server_name,
         signature_algorithms,
-        signature_algorithms_cert,
+        signature_algorithms_cert: extensions.signature_algorithms_cert,
         trust_anchors: Vector::new(),
         mode: TM::default(),
       },
@@ -205,8 +195,7 @@ where
       {
         let mut client_shares = ArrayVectorU8::new();
         for secret in self.generic {
-          client_shares
-            .push(KeyShareEntry { group: secret.named_group(), opaque: secret.public_key()? })?;
+          client_shares.push(KeyShareEntry::new(secret.named_group(), secret.public_key()?))?;
         }
         Extension::new(ExtensionTy::KeyShare, KeyShareClientHello { client_shares })
           .encode(local_ew)?;
@@ -238,72 +227,133 @@ where
 
 fn duplicated_error(is_some: bool) -> crate::Result<()> {
   if is_some {
-    return Err(TlsError::DuplicatedClientHelloParameters.into());
+    return tls_error_fatal(
+      TlsError::DuplicatedClientHelloParameters,
+      AlertDescription::DecodeError,
+    );
   }
   Ok(())
 }
 
+#[inline]
 fn manage_extension<'de>(
-  alpn: &mut Option<Alpn>,
   dw: &mut TlsDecodeWrapper<'de>,
   extension_ty: ExtensionTy,
-  key_shares: &mut Option<KeyShareClientHello<&'de [u8]>>,
-  max_fragment_length: &mut Option<MaxFragmentLength>,
-  server_name: &mut Option<ServerNameList>,
-  signature_algorithms: &mut Option<SignatureAlgorithms>,
-  signature_algorithms_cert: &mut Option<SignatureAlgorithmsCert>,
-  supported_groups: &mut Option<SupportedGroups>,
-  supported_versions_opt: &mut Option<SupportedVersionsClient>,
+  extensions: &mut Extensions<'de>,
 ) -> crate::Result<()> {
   match extension_ty {
     ExtensionTy::ApplicationLayerProtocolNegotiation => {
-      duplicated_error(alpn.is_some())?;
-      *alpn = Some(Alpn::decode(dw)?);
+      duplicated_error(extensions.alpn.is_some())?;
+      extensions.alpn = Some(Alpn::decode(dw)?);
+    }
+    ExtensionTy::CertificateAuthorities => {
+      duplicated_error(extensions.certificate_authorities)?;
+      extensions.certificate_authorities = true;
+    }
+    ExtensionTy::ClientCertificateType => {
+      duplicated_error(extensions.client_certificate_type)?;
+      extensions.client_certificate_type = true;
+    }
+    ExtensionTy::Cookie => {
+      duplicated_error(extensions.cookie)?;
+      extensions.cookie = true;
+    }
+    ExtensionTy::EarlyData => {
+      duplicated_error(extensions.early_data)?;
+      extensions.early_data = true;
+    }
+    ExtensionTy::Heartbeat => {
+      duplicated_error(extensions.heartbeat)?;
+      extensions.heartbeat = true;
     }
     ExtensionTy::MaxFragmentLength => {
-      duplicated_error(max_fragment_length.is_some())?;
-      *max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
+      duplicated_error(extensions.max_fragment_length.is_some())?;
+      extensions.max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
     }
-    ExtensionTy::KeyShare => {
-      duplicated_error(key_shares.is_some())?;
-      *key_shares = Some(KeyShareClientHello::<&[u8]>::decode(dw)?);
-    }
-    ExtensionTy::ServerName => {
-      duplicated_error(server_name.is_some())?;
-      *server_name = Some(ServerNameList::decode(dw)?);
-    }
-    ExtensionTy::SignatureAlgorithms => {
-      duplicated_error(signature_algorithms.is_some())?;
-      *signature_algorithms = Some(SignatureAlgorithms::decode(dw)?);
-    }
-    ExtensionTy::SignatureAlgorithmsCert => {
-      duplicated_error(signature_algorithms_cert.is_some())?;
-      *signature_algorithms_cert = Some(SignatureAlgorithmsCert::decode(dw)?);
-    }
-    ExtensionTy::SupportedGroups => {
-      duplicated_error(supported_groups.is_some())?;
-      *supported_groups = Some(SupportedGroups::decode(dw)?);
-    }
-    ExtensionTy::SupportedVersions => {
-      duplicated_error(supported_versions_opt.is_some())?;
-      *supported_versions_opt = Some(SupportedVersionsClient::decode(dw)?);
-    }
-    ExtensionTy::CertificateAuthorities
-    | ExtensionTy::ClientCertificateType
-    | ExtensionTy::Cookie
-    | ExtensionTy::EarlyData
-    | ExtensionTy::Heartbeat
-    | ExtensionTy::Padding
-    | ExtensionTy::PostHandshakeAuth
-    | ExtensionTy::PreSharedKey
-    | ExtensionTy::PskKeyExchangeModes
-    | ExtensionTy::ServerCertificateType
-    | ExtensionTy::SignedCertificateTimestamp
-    | ExtensionTy::StatusRequest
-    | ExtensionTy::UseSrtp => {}
     ExtensionTy::OidFilters => {
       return Err(TlsError::MismatchedExtension.into());
     }
+    ExtensionTy::Padding => {
+      duplicated_error(extensions.padding)?;
+      extensions.padding = true;
+    }
+    ExtensionTy::PostHandshakeAuth => {
+      duplicated_error(extensions.post_handshake_auth)?;
+      extensions.post_handshake_auth = true;
+    }
+    ExtensionTy::PreSharedKey => {
+      duplicated_error(extensions.pre_shared_key)?;
+      extensions.pre_shared_key = true;
+    }
+    ExtensionTy::PskKeyExchangeModes => {
+      duplicated_error(extensions.psk_key_exchange_modes)?;
+      extensions.psk_key_exchange_modes = true;
+    }
+    ExtensionTy::KeyShare => {
+      duplicated_error(extensions.key_shares.is_some())?;
+      extensions.key_shares = Some(KeyShareClientHello::<&[u8]>::decode(dw)?);
+    }
+    ExtensionTy::ServerCertificateType => {
+      duplicated_error(extensions.server_certificate_type)?;
+      extensions.server_certificate_type = true;
+    }
+    ExtensionTy::ServerName => {
+      duplicated_error(extensions.server_name.is_some())?;
+      extensions.server_name = Some(ServerNameList::decode(dw)?);
+    }
+    ExtensionTy::SignedCertificateTimestamp => {
+      duplicated_error(extensions.signed_certificate_timestamp)?;
+      extensions.signed_certificate_timestamp = true;
+    }
+    ExtensionTy::SignatureAlgorithms => {
+      duplicated_error(extensions.signature_algorithms.is_some())?;
+      extensions.signature_algorithms = Some(SignatureAlgorithms::decode(dw)?);
+    }
+    ExtensionTy::SignatureAlgorithmsCert => {
+      duplicated_error(extensions.signature_algorithms_cert.is_some())?;
+      extensions.signature_algorithms_cert = Some(SignatureAlgorithmsCert::decode(dw)?);
+    }
+    ExtensionTy::StatusRequest => {
+      duplicated_error(extensions.status_request)?;
+      extensions.status_request = true;
+    }
+    ExtensionTy::SupportedGroups => {
+      duplicated_error(extensions.supported_groups.is_some())?;
+      extensions.supported_groups = Some(SupportedGroups::decode(dw)?);
+    }
+    ExtensionTy::SupportedVersions => {
+      duplicated_error(extensions.supported_versions.is_some())?;
+      extensions.supported_versions = Some(SupportedVersionsClient::decode(dw)?);
+    }
+    ExtensionTy::UseSrtp => {
+      duplicated_error(extensions.use_srtp)?;
+      extensions.use_srtp = true;
+    }
   }
   Ok(())
+}
+
+#[derive(Debug, Default)]
+struct Extensions<'de> {
+  alpn: Option<Alpn>,
+  certificate_authorities: bool,
+  client_certificate_type: bool,
+  cookie: bool,
+  early_data: bool,
+  heartbeat: bool,
+  key_shares: Option<KeyShareClientHello<&'de [u8]>>,
+  max_fragment_length: Option<MaxFragmentLength>,
+  padding: bool,
+  post_handshake_auth: bool,
+  pre_shared_key: bool,
+  psk_key_exchange_modes: bool,
+  server_certificate_type: bool,
+  server_name: Option<ServerNameList>,
+  signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
+  signature_algorithms: Option<SignatureAlgorithms>,
+  signed_certificate_timestamp: bool,
+  status_request: bool,
+  supported_groups: Option<SupportedGroups>,
+  supported_versions: Option<SupportedVersionsClient>,
+  use_srtp: bool,
 }

@@ -29,7 +29,7 @@ use crate::{
     settings_frame::SettingsFrame,
     window_update_frame::WindowUpdateFrame,
   },
-  stream::{BufStreamReader, StreamReader, StreamWriter},
+  net::{BufStreamReader, StreamReader, StreamWriter},
   sync::Arc,
   tls::{TlsMode, TlsStreamBridge, TlsStreamReader},
 };

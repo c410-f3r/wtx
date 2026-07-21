@@ -222,10 +222,6 @@ pub enum Error {
     /// Name of the associated entity
     ty: ShortStrU8<'static>,
   },
-  /// Unexpected end of file when reading from a stream.
-  UnexpectedStreamReadEOF,
-  /// Unexpected end of file when writing to a stream.
-  UnexpectedStreamWriteEOF,
   /// Unexpected string
   UnexpectedString {
     /// Length of the unexpected string
@@ -244,10 +240,6 @@ pub enum Error {
   UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
-  /// In the current platform a number is larger than `usize`.
-  UsizeConversionOverflow,
-  /// It is not possible to write more than 8 slices at once.
-  VectoredWriteOverflow,
 
   // Internal
   //
@@ -303,7 +295,7 @@ pub enum Error {
   #[cfg(feature = "http2")]
   Http2FlowControlError(crate::http2::Http2Error, u32),
   #[doc = associated_element_doc!()]
-  NetReadBufferError(crate::stream::BufStreamReaderError),
+  NetError(crate::net::NetError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),

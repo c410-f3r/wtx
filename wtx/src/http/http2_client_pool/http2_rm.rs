@@ -5,10 +5,9 @@ use crate::{
     http2_client_pool::{Http2ClientPoolResource, Http2Resource},
   },
   http2::{Http2, Http2Buffer},
-  misc::{TcpParams, UriRef},
+  net::{Stream, StreamReader, StreamWriter, TcpParams, Uri, UriRef},
   pool::ResourceManager,
   rng::ChaCha20,
-  stream::{Stream, StreamReader, StreamWriter},
   sync::{AsyncMutex, AtomicCell},
   tls::{TlsConfig, TlsConnectorBuilder, TlsMode, TlsStream},
 };
@@ -93,7 +92,7 @@ where
   }
 }
 
-fn push_server_name<S, TM>(tc: &mut TlsConfig<TM>, uri: &crate::misc::Uri<S>) -> crate::Result<()>
+fn push_server_name<S, TM>(tc: &mut TlsConfig<TM>, uri: &Uri<S>) -> crate::Result<()>
 where
   S: crate::misc::Lease<str>,
 {

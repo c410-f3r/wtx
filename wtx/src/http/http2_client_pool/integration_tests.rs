@@ -2,7 +2,7 @@ use crate::{
   collections::Vector,
   executor::StdExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
-  misc::UriRef,
+  net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsModeUnverified},
 };

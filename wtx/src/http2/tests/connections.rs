@@ -6,9 +6,8 @@ use crate::{
     StatusCode,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode},
-  misc::{UriRef, UriString},
+  net::{Stream as _, UriRef, UriString},
   rng::{ChaCha20, CryptoSeedableRng, SeedableRng, Xorshift64},
-  stream::Stream as _,
   tests::_uri,
   tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModePlainText},
 };

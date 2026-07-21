@@ -15,8 +15,8 @@ use crate::{
     stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams},
     stream_state::StreamState,
   },
-  misc::{ConnectionState, Usize},
-  stream::{BufStreamReader, StreamReader, StreamWriter},
+  misc::Usize,
+  net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   sync::AtomicU8,
   tls::{TlsMode, TlsStreamWriter},
 };

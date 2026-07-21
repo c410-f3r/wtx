@@ -22,6 +22,7 @@ mod generic_codec;
 mod hex;
 mod misc;
 mod num_array;
+mod pem;
 pub mod protocol;
 mod url_encoding;
 
@@ -46,6 +47,7 @@ pub use misc::{
   encode_hex_into_buffer,
 };
 pub use num_array::*;
+pub use pem::Pem;
 pub use url_encoding::*;
 
 /// Identifier used to track the number of issued requests.

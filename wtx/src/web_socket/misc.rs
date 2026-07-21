@@ -2,8 +2,8 @@ use crate::{
   collections::ArrayVectorCopy,
   futures::FnMutFut,
   misc::from_utf8_basic,
+  net::StreamWriter,
   rng::Rng,
-  stream::StreamWriter,
   web_socket::{
     CloseCode, Frame, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OP_CODE_MASK, OpCode,
     WebSocketError, write_frame::mask_frame,

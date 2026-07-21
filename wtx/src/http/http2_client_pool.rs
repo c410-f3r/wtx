@@ -8,7 +8,7 @@ mod integration_tests;
 
 use crate::{
   http2::Http2,
-  misc::UriRef,
+  net::UriRef,
   pool::{ResourceManager, SimplePool, SimplePoolGetElem, SimplePoolResource},
   sync::AsyncMutexGuard,
 };
