@@ -28,7 +28,7 @@ tracing = { default-features = false, optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.10.1" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.11.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 
 # Rust Crypto and its extravagant set of associated dependencies
@@ -188,7 +188,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.96"
-version = "0.50.0"
+version = "0.51.0"
 
 [package.metadata.docs.rs]
 all-features = true
