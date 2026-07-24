@@ -14,10 +14,9 @@ pub(crate) mod cv_trust_anchor;
 
 use crate::{
   asn1::OID_X509_COMMON_NAME,
-  crypto::SignatureTy,
   misc::Lease,
   x509::{
-    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name,
+    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, SignatureTy,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -548,13 +547,11 @@ where
   B: Lease<[u8]>,
 {
   let child_sig_alg = &child.signature_algorithm;
-  let par_params_oid = parent.params_oid();
-  let len = parent.subject_public_key.bytes().lease().len();
-  let tuple = (len, &child_sig_alg.algorithm, par_params_oid.as_ref());
+  let tuple = (&child_sig_alg.algorithm, &child_sig_alg.params_oid());
   match SignatureTy::try_from(tuple).and_then(|el| {
     el.validate_signature(
-      parent.subject_public_key.bytes().lease(),
       child.signature_msg.lease(),
+      parent.subject_public_key.bytes().lease(),
       child.signature.lease(),
     )
   }) {

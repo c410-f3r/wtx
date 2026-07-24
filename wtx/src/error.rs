@@ -78,6 +78,9 @@ pub enum Error {
   MacError(digest::MacError),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
+  Pkcs1Error(Box<pkcs1::Error>),
+  #[cfg(feature = "crypto-ruco")]
+  #[doc = associated_element_doc!()]
   Pkcs8Error(Box<pkcs8::Error>),
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
@@ -321,7 +324,7 @@ pub enum Error {
   TlsError(crate::tls::TlsError),
   #[cfg(feature = "tls")]
   #[doc = associated_element_doc!()]
-  TlsErrorFatal(crate::tls::TlsError, crate::tls::AlertDescription),
+  TlsErrorReply(crate::tls::TlsError, crate::tls::AlertDescription),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]

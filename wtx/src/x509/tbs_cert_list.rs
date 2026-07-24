@@ -1,7 +1,7 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, INTEGER_TAG, Len, Opt, SEQUENCE_TAG, U32,
-    asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ExplicitOpt, INTEGER_TAG, Len, Opt, SEQUENCE_TAG,
+    U32, asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
@@ -61,8 +61,8 @@ where
     let issuer = Name::decode(dw)?;
     let this_update = Time::decode(dw)?;
     let next_update = OptTime::decode(dw)?.0;
-    let revoked_certificates = Opt::decode(dw, SEQUENCE_TAG)?.0;
-    let crl_extensions = Opt::decode(dw, EXPLICIT_TAG0)?.0;
+    let revoked_certificates = Opt::<_, SEQUENCE_TAG>::decode(dw)?.0;
+    let crl_extensions = ExplicitOpt::<_, EXPLICIT_TAG0>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self {
       bytes: bytes.try_into().map_err(Into::into)?,
@@ -88,8 +88,8 @@ where
       self.issuer.encode(local_ew)?;
       self.this_update.encode(local_ew)?;
       OptTime(self.next_update).encode(local_ew)?;
-      Opt(&self.revoked_certificates).encode(local_ew, SEQUENCE_TAG)?;
-      Opt(&self.crl_extensions).encode(local_ew, EXPLICIT_TAG0)?;
+      Opt::<_, SEQUENCE_TAG>(&self.revoked_certificates).encode(local_ew)?;
+      ExplicitOpt::<_, EXPLICIT_TAG0>(&self.crl_extensions).encode(local_ew)?;
       Ok(())
     })
   }

@@ -10,7 +10,9 @@ pub enum CodecError {
   /// Invalid PEM block
   InvalidPemBlock,
   /// Invalid PEM label
-  InvalidPemLabel,
+  InvalidPemLabelBegin,
+  /// Mismatched PEM labels
+  MismatchedPemLabel,
   /// JSON-RPC response error
   JsonRpcDecoderErr(JsonRpcResponseError),
   /// `wtx` can not perform this operation due to known limitations.

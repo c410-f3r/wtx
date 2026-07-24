@@ -25,10 +25,14 @@ pub enum CryptoError {
   LargeHkdfOutput,
   /// Public Key Agreement Error
   PublicKeyAgreementError,
-  /// Sig Key Error
-  SignKeyError,
   /// Signature Error
   SignatureError,
+  /// Sig Key Error
+  SigningKeyError,
+  /// Unsupported Signature Oid
+  UnsupportedPublicKeyOid,
   /// Unsupported Signature Oid
   UnsupportedSignatureOid,
+  /// Unknown Signature Type
+  UnknownSignatureTy,
 }

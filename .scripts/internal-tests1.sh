@@ -16,7 +16,7 @@ $rt test-with-features wtx asn1
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto
-$rt test-with-features wtx crypto-aws-lc-rs,_hack
+$rt test-with-features wtx crypto-alr,_hack
 $rt test-with-features wtx crypto-graviola
 $rt test-with-features wtx crypto-ring
 $rt test-with-features wtx database

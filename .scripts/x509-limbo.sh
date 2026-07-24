@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-BACKENDS=("wtx/crypto-aws-lc-rs wtx/_hack" "wtx/crypto-graviola" "wtx/crypto-ring" "wtx/crypto-ruco")
+BACKENDS=("wtx/crypto-alr wtx/_hack" "wtx/crypto-graviola" "wtx/crypto-ring" "wtx/crypto-ruco")
 
 if [ ! -e "limbo.json" ]; then
     curl -L -o limbo.json https://raw.githubusercontent.com/C2SP/x509-limbo/refs/heads/main/limbo.json

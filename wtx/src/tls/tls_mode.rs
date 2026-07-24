@@ -1,5 +1,7 @@
+use core::fmt::Debug;
+
 /// Indicates how TLS streams should interpret connections.
-pub trait TlsMode: Clone + Default {
+pub trait TlsMode: Clone + Debug + Default {
   /// See [`TlsModeTy`].
   const TY: TlsModeTy;
 }

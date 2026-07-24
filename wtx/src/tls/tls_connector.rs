@@ -10,7 +10,7 @@ use crate::{
     MAX_CERTIFICATES, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
     TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_fatal},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_reply},
     protocol::{
       alert::Alert,
       certificate::Certificate,
@@ -29,7 +29,7 @@ use crate::{
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::{TlsDigest, TlsHash},
   },
-  x509::{CvEndEntity, CvIntermediate, ServerName, SubjectPublicKeyInfo},
+  x509::{CvEndEntity, CvIntermediate, PublicKeyTy, ServerName, SubjectPublicKeyInfo},
 };
 use core::ops::{ControlFlow, Range};
 
@@ -43,6 +43,7 @@ pub enum ManageClientRecordsState {
 /// Required by [`TlsConnector::manage_remaining_server_records`].
 #[derive(Debug)]
 pub struct ManageRemainingServerRecordsInput {
+  certificate_pky: PublicKeyTy,
   client_cert_requested: bool,
   spki_range: Range<usize>,
   tls_server_end_point: TlsServerEndPoint,
@@ -68,6 +69,7 @@ pub struct TlsConnector<RNG, S, TC, U> {
   buffer: TlsBuffer,
   config: TC,
   handshake_path: HandshakePath,
+  has_sent_ccs: bool,
   key_schedule: KeySchedule,
   max_fragment_length: u16,
   max_fragment_length_send: u16,
@@ -99,6 +101,7 @@ where
       buffer: TlsBuffer::new(),
       config,
       handshake_path: HandshakePath::Full,
+      has_sent_ccs: false,
       key_schedule,
       max_fragment_length,
       max_fragment_length_send,
@@ -216,7 +219,7 @@ where
     };
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
-    let tls_server_end_point = manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
+    let tls_server_end_point = manage_err(self.has_sent_ccs, kss, rslt, &mut self.stream).await?;
     _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
     Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
@@ -270,6 +273,7 @@ where
     let mut terminated = ArrayVectorCopy::new();
     let array = [&CHANGE_CIPHER_SPEC[..], &empty_cert, &finished];
     let _ = terminated.extend_from_copyable_slices(array)?;
+    self.has_sent_ccs = true;
     Ok(ManageClientRecordsState::Terminated(terminated))
   }
 
@@ -313,6 +317,7 @@ where
       .key_schedule
       .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
     Ok(ControlFlow::Continue(ManageRemainingServerRecordsInput {
+      certificate_pky: PublicKeyTy::default(),
       client_cert_requested: false,
       spki_range: 0..0,
       tls_server_end_point: TlsServerEndPoint::new(),
@@ -368,7 +373,7 @@ where
             return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
           }
           if self.config.lease().server_name().is_none() && ee.server_name().is_some() {
-            return tls_error_fatal(
+            return tls_error_reply(
               TlsError::InvalidNegotiatedServerName,
               AlertDescription::UnsupportedExtension,
             );
@@ -427,13 +432,13 @@ where
     if let (Some(client), Some(server)) = (config.lease().alpn(), ee.alpn()) {
       for server_el in &server.protocol_name_list {
         if server_el.is_empty() {
-          return Some(tls_error_fatal(
+          return Some(tls_error_reply(
             TlsError::EmptyNegotiatedAlpnClient,
             AlertDescription::IllegalParameter,
           ));
         }
         if client.protocol_name_list.iter().find(|el| *el == server_el).is_none() {
-          return Some(tls_error_fatal(
+          return Some(tls_error_reply(
             TlsError::MismatchedNegotiatedAlpnClient,
             AlertDescription::IllegalParameter,
           ));
@@ -505,6 +510,7 @@ where
         Asn1DecodeWrapperAux::default(),
       );
       let cert = crate::x509::Certificate::decode(&mut dw)?;
+      mrsri.certificate_pky = PublicKeyTy::try_from(&cert)?;
       let filled_ptr = filled.as_ptr().addr();
       let certificate_bytes_ptr = end_entity.certificate_bytes().as_ptr().addr();
       let offset = certificate_bytes_ptr.wrapping_sub(filled_ptr);
@@ -561,11 +567,15 @@ where
       filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
       Asn1DecodeWrapperAux::default(),
     ))?;
+    if mrsri.certificate_pky != certificate_verify.algorithm().cert_pkt() {
+      return Err(TlsError::MismatchedCertificatePkAndSignature.into());
+    }
     if certificate_verify
       .algorithm()
+      .handshake_st()
       .validate_signature(
-        spki.subject_public_key.bytes().lease(),
         &msg,
+        spki.subject_public_key.bytes().lease(),
         certificate_verify.signature(),
       )
       .is_err()

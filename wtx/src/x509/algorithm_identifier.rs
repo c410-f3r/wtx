@@ -1,11 +1,11 @@
 use crate::{
   asn1::{
-    Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, SEQUENCE_TAG, asn1_writer,
-    decode_asn1_tlv,
+    Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, OID_PKCS1_RSASSAPSS, Oid, SEQUENCE_TAG,
+    asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
-  x509::X509Error,
+  x509::{RsassaPssParams, X509Error},
 };
 
 /// The algorithm identifier is used to identify a cryptographic algorithm.
@@ -28,6 +28,21 @@ impl<B> AlgorithmIdentifier<B> {
   #[inline]
   pub const fn new(algorithm: Oid, parameters: Option<Any<B>>) -> Self {
     Self { algorithm, parameters }
+  }
+
+  /// Additional algorithm metadata
+  #[inline]
+  pub fn params_oid(&self) -> Option<Oid>
+  where
+    B: Lease<[u8]>,
+  {
+    let bytes = self.parameters.as_ref()?.bytes();
+    let mut dw = DecodeWrapper::new(bytes.lease(), Asn1DecodeWrapperAux::default());
+    if self.algorithm == OID_PKCS1_RSASSAPSS {
+      Some(RsassaPssParams::<&[u8]>::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
+    } else {
+      Oid::decode(&mut dw).ok()
+    }
   }
 }
 
@@ -62,5 +77,46 @@ where
       }
       Ok(())
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    asn1::{
+      Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, OID_NIST_HASH_SHA256,
+      OID_PKCS1_RSASSAPSS,
+    },
+    codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
+    collections::Vector,
+    x509::AlgorithmIdentifier,
+  };
+
+  #[test]
+  fn pss_params() {
+    let ai = AlgorithmIdentifier {
+      algorithm: OID_PKCS1_RSASSAPSS,
+      parameters: Some(Any::new(
+        &[
+          48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 161, 28, 48, 26, 6,
+          9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5,
+          0, 162, 3, 2, 1, 32,
+        ][..],
+        48,
+        Len::from_u8(52),
+      )),
+    };
+    assert_eq!(ai.params_oid(), Some(OID_NIST_HASH_SHA256));
+
+    let mut encoded = Vector::new();
+    ai.encode(&mut EncodeWrapper::new(&mut encoded, Asn1EncodeWrapperAux::default())).unwrap();
+    assert_eq!(
+      AlgorithmIdentifier::<&[u8]>::decode(&mut DecodeWrapper::new(
+        &encoded,
+        Asn1DecodeWrapperAux::default()
+      ))
+      .unwrap(),
+      ai
+    );
   }
 }

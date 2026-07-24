@@ -1,4 +1,4 @@
-#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
+#[cfg(any(feature = "crypto-alr", feature = "crypto-ring"))]
 macro_rules! common_aead_functions {
   () => {
     #[inline]
@@ -39,7 +39,7 @@ macro_rules! common_aead_functions {
   };
 }
 
-#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
+#[cfg(any(feature = "crypto-alr", feature = "crypto-ring"))]
 macro_rules! common_hkdf_functions {
   ($krate:ident) => {
     #[inline]
@@ -118,7 +118,7 @@ macro_rules! _create_wrappers {
         }
       }
 
-      impl core::fmt::Debug for $name {
+      impl<$($param $(: $bound)?)?> core::fmt::Debug for $name<$($param)?> {
         #[inline]
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
           f.write_str(stringify!($name))

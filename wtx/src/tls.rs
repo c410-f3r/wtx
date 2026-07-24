@@ -65,6 +65,8 @@ pub use protocol::{
   protocol_version::ProtocolVersion,
   server_name::ServerName,
   server_name_list::ServerNameList,
+  signature_algorithms::SignatureAlgorithms,
+  signature_scheme::SignatureScheme,
   supported_groups::SupportedGroups,
 };
 pub use read_record_info::ReadRecordInfo;
@@ -100,36 +102,3 @@ const _TARGET_HS: &str = "tls-hs";
 
 /// The hash of the server's leaf certificate.
 pub type TlsServerEndPoint = ArrayVectorCopy<u8, { MAX_HASH_LEN }>;
-
-mod crypto {
-  use crate::{
-    codec::{Decode, Encode},
-    crypto::SignatureTy,
-    tls::{de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper},
-  };
-
-  impl SignatureTy {
-    pub(crate) const TLS_PRIORITY: [Self; Self::len()] = [
-      Self::Ed25519,
-      Self::EcdsaSecp256r1Sha256,
-      Self::EcdsaSecp384r1Sha384,
-      Self::RsaPssRsaeSha256,
-      Self::RsaPssRsaeSha384,
-    ];
-  }
-
-  impl<'de> Decode<'de, De> for SignatureTy {
-    #[inline]
-    fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-      Self::try_from(<u16 as Decode<De>>::decode(dw)?)
-    }
-  }
-
-  impl Encode<De> for SignatureTy {
-    #[inline]
-    fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-      ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;
-      Ok(())
-    }
-  }
-}

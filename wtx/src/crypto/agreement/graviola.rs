@@ -1,10 +1,12 @@
 use crate::{
-  crypto::{Agreement, AsRefWrapper, CryptoError, P256Graviola, P384Graviola, X25519Graviola},
+  crypto::{
+    Agreement, AsRefWrapper, CryptoError, EcdhP256Graviola, EcdhP384Graviola, X25519Graviola,
+  },
   rng::CryptoRng,
 };
 use graviola::key_agreement::{p256, p384, x25519};
 
-impl Agreement for P256Graviola {
+impl Agreement for EcdhP256Graviola {
   type PublicKey = [u8; 65];
   type SharedSecret = AsRefWrapper<p256::SharedSecret>;
 
@@ -32,7 +34,7 @@ impl Agreement for P256Graviola {
   }
 }
 
-impl Agreement for P384Graviola {
+impl Agreement for EcdhP384Graviola {
   type PublicKey = [u8; 97];
   type SharedSecret = AsRefWrapper<p384::SharedSecret>;
 

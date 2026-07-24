@@ -4,7 +4,7 @@ use crate::{
   crypto::{
     AEAD_TAG_LEN, Aead as _, Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305Global, Hash as _,
     Hkdf as _, HkdfSha256Global, HkdfSha384Global, Hmac as _, HmacSha256Global, HmacSha384Global,
-    MAX_HASH_LEN, Sha256HashGlobal, Sha384HashGlobal,
+    MAX_HASH_LEN, Sha256Global, Sha384Global,
   },
   tls::{
     TlsError,
@@ -87,9 +87,9 @@ impl CipherSuite {
   pub(crate) fn hash_digest<'data>(self, data: impl IntoIterator<Item = &'data [u8]>) -> TlsDigest {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        TlsDigest::Sha256(Sha256HashGlobal::digest(data))
+        TlsDigest::Sha256(Sha256Global::digest(data))
       }
-      CipherSuite::Aes256GcmSha384 => TlsDigest::Sha384(Sha384HashGlobal::digest(data)),
+      CipherSuite::Aes256GcmSha384 => TlsDigest::Sha384(Sha384Global::digest(data)),
     }
   }
 
@@ -105,9 +105,9 @@ impl CipherSuite {
   pub(crate) fn hash_new(self) -> TlsHash {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
-        TlsHash::Sha256(Sha256HashGlobal::new())
+        TlsHash::Sha256(Sha256Global::new())
       }
-      CipherSuite::Aes256GcmSha384 => TlsHash::Sha384(Sha384HashGlobal::new()),
+      CipherSuite::Aes256GcmSha384 => TlsHash::Sha384(Sha384Global::new()),
     }
   }
 

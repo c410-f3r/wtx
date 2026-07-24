@@ -23,6 +23,7 @@ mod ip_address;
 mod key_identifier;
 mod name;
 mod opt_time;
+mod public_key_ty;
 mod reason_flags;
 mod relative_distinguished_name;
 mod revoked_certificate;
@@ -30,6 +31,7 @@ mod revoked_certificates;
 mod rsassa_pss_params;
 mod serial_number;
 mod server_name;
+mod signature_ty;
 mod subject_public_key_info;
 mod tbs_cert_list;
 mod tbs_certificate;
@@ -68,6 +70,7 @@ pub use ip_address::IpAddress;
 pub use key_identifier::KeyIdentifier;
 pub use name::Name;
 pub use opt_time::OptTime;
+pub use public_key_ty::PublicKeyTy;
 pub use reason_flags::ReasonFlags;
 pub use relative_distinguished_name::RelativeDistinguishedName;
 pub use revoked_certificate::RevokedCertificate;
@@ -75,6 +78,7 @@ pub use revoked_certificates::RevokedCertificates;
 pub use rsassa_pss_params::RsassaPssParams;
 pub use serial_number::SerialNumber;
 pub use server_name::ServerName;
+pub use signature_ty::SignatureTy;
 pub use subject_public_key_info::SubjectPublicKeyInfo;
 pub use tbs_cert_list::TbsCertList;
 pub use tbs_certificate::TbsCertificate;
@@ -89,6 +93,8 @@ pub const MAX_INTERMEDIATES: usize = 8;
 
 // Explicit
 const EXPLICIT_TAG0: u8 = 160;
+const EXPLICIT_TAG1: u8 = 161;
+const EXPLICIT_TAG2: u8 = 162;
 const EXPLICIT_TAG3: u8 = 163;
 
 // Implicit

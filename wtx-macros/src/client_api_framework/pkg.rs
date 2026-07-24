@@ -23,7 +23,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens as _;
 use sir::{sir_final_values::SirFinalValues, sir_pkg_attr::SirPkaAttr};
 use syn::{
-  Generics, Item, ItemMod, ItemType, Visibility,
+  Generics, Item, ItemMod, ItemType, TypeModifiers, Visibility, WhereClausePlacement,
   punctuated::Punctuated,
   token::{Eq, Pub, Semi, Type},
 };
@@ -95,6 +95,7 @@ fn params_item_unit_fn(camel_case_id: &mut String) -> Item {
       );
       attrs
     },
+    modifiers: TypeModifiers::default(),
     vis: Visibility::Public(Pub { span: Span::mixed_site() }),
     type_token: Type(Span::mixed_site()),
     ident: {
@@ -113,5 +114,6 @@ fn params_item_unit_fn(camel_case_id: &mut String) -> Item {
     eq_token: Eq(Span::mixed_site()),
     ty: Box::new(unit_type()),
     semi_token: Semi(Span::mixed_site()),
+    where_clause_placement: WhereClausePlacement::Late,
   })
 }

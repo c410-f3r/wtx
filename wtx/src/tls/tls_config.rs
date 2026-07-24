@@ -3,17 +3,17 @@ use crate::{
   calendar::{DateTime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper, Pem},
   collections::{ArrayVectorCopy, ShortBoxSliceU16, SingleTypeStorage, Vector},
-  crypto::SignatureTy,
   misc::{Lease, LeaseMut, Secret, SecretContext, SensitiveBytes},
   rng::CryptoRng,
   tls::{
-    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, TlsModePlainText,
+    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, SignatureScheme,
+    TlsModePlainText,
     protocol::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
   },
-  x509::{Certificate, CvPolicy, CvTrustAnchor},
+  x509::{Certificate, CvPolicy, CvTrustAnchor, PublicKeyTy},
 };
 use core::fmt::Debug;
 
@@ -84,7 +84,7 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub fn from_keys_pem<RNG>(
     mode: TM,
-    public_key: &[u8],
+    public_keys: &[u8],
     rng: &mut RNG,
     (secret_context, secret_key): (SecretContext, &mut [u8]),
   ) -> crate::Result<Self>
@@ -93,7 +93,7 @@ impl<TM> TlsConfig<TM> {
   {
     let mut this = Self::new(mode, Instant::now_date_time()?);
     let mut buffer = Vector::new();
-    this.inner.public_key = public_key_from_pem(&mut buffer, public_key)?;
+    this.inner.public_key = public_key_from_pem(&mut buffer, public_keys)?;
     buffer.clear();
     let secret_key_wrapper = SensitiveBytes::new(secret_key);
     this.inner.secret_key = {
@@ -217,6 +217,20 @@ impl<TM> TlsConfig<TM> {
     &mut self.inner.server_name
   }
 
+  /// Every instance of [`TlsConfig`] is already pre-filled with a list of signature algorithms.
+  ///
+  /// See [`SignatureAlgorithms`].
+  #[inline]
+  pub fn signature_algorithms(&self) -> &SignatureAlgorithms {
+    &self.inner.signature_algorithms
+  }
+
+  /// Mutable version of [`Self::signature_algorithms`].
+  #[inline]
+  pub fn signature_algorithms_mut(&mut self) -> &mut SignatureAlgorithms {
+    &mut self.inner.signature_algorithms
+  }
+
   /// See [`NamedGroup`].
   #[inline]
   pub const fn supported_groups(&self) -> &SupportedGroups {
@@ -260,10 +274,13 @@ impl<TM> SingleTypeStorage for TlsConfig<TM> {
   type Item = TM;
 }
 
-impl<TM> Debug for TlsConfig<TM> {
+impl<TM> Debug for TlsConfig<TM>
+where
+  TM: Debug,
+{
   #[inline]
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("TlsConfig").finish()
+    self.inner.fmt(f)
   }
 }
 
@@ -274,7 +291,7 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) max_fragment_length_send: Option<MaxFragmentLength>,
-  pub(crate) public_key: Vector<(SignatureTy, B)>,
+  pub(crate) public_key: Vector<(PublicKeyTy, B)>,
   pub(crate) secret_key: Secret,
   pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms: SignatureAlgorithms,
@@ -300,10 +317,10 @@ where
       secret_key: Secret::default(),
       server_name: None,
       signature_algorithms: SignatureAlgorithms::new(ArrayVectorCopy::from_array(
-        SignatureTy::TLS_PRIORITY,
+        SignatureScheme::PRIORITY,
       )),
       signature_algorithms_cert: Some(SignatureAlgorithmsCert::new(ArrayVectorCopy::from_array(
-        SignatureTy::TLS_PRIORITY,
+        SignatureScheme::PRIORITY,
       ))),
       supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::all())),
       trust_anchors: Vector::new(),
@@ -312,21 +329,20 @@ where
   }
 }
 
-fn public_key_from_der<'de, B>(bytes: &'de [u8]) -> crate::Result<(SignatureTy, B)>
+fn public_key_from_der<'de, B>(bytes: &'de [u8]) -> crate::Result<(PublicKeyTy, B)>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
 {
   let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default());
-  let cert = Certificate::<&[u8]>::decode(&mut dw)?;
-  let spki = &cert.tbs_certificate().subject_public_key_info;
-  Ok((spki.try_into()?, bytes.try_into().map_err(Into::into)?))
+  let cert = &Certificate::<&[u8]>::decode(&mut dw)?;
+  Ok((cert.try_into()?, bytes.try_into().map_err(Into::into)?))
 }
 
 fn public_key_from_pem<'de, B>(
   buffer: &'de mut Vector<u8>,
   bytes: &'de [u8],
-) -> crate::Result<Vector<(SignatureTy, B)>>
+) -> crate::Result<Vector<(PublicKeyTy, B)>>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -336,9 +352,8 @@ where
   for (_, range) in pem.data {
     let cert_bytes = buffer.get(range.clone()).unwrap_or_default();
     let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
-    let cert = Certificate::<&[u8]>::decode(&mut dw)?;
-    let spki = &cert.tbs_certificate().subject_public_key_info;
-    certs.push((spki.try_into()?, cert_bytes.try_into().map_err(Into::into)?))?;
+    let cert = &Certificate::<&[u8]>::decode(&mut dw)?;
+    certs.push((cert.try_into()?, cert_bytes.try_into().map_err(Into::into)?))?;
   }
   Ok(certs)
 }

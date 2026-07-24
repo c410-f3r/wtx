@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{Agreement, CryptoError, P256AwsLcRs, P384AwsLcRs, X25519AwsLcRs},
+  crypto::{Agreement, CryptoError, EcdhP256Alr, EcdhP384Alr, X25519Alr},
   rng::CryptoRng,
 };
 use aws_lc_rs::{
@@ -10,7 +10,7 @@ use aws_lc_rs::{
   rand::SystemRandom,
 };
 
-impl Agreement for P256AwsLcRs {
+impl Agreement for EcdhP256Alr {
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 32];
 
@@ -46,7 +46,7 @@ impl Agreement for P256AwsLcRs {
   }
 }
 
-impl Agreement for P384AwsLcRs {
+impl Agreement for EcdhP384Alr {
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 48];
 
@@ -82,7 +82,7 @@ impl Agreement for P384AwsLcRs {
   }
 }
 
-impl Agreement for X25519AwsLcRs {
+impl Agreement for X25519Alr {
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 32];
 

@@ -46,8 +46,8 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for BasicConstrain
       return Err(X509Error::InvalidExtensionBasicConstraint.into());
     };
     dw.bytes = value;
-    let ca = Opt::decode(dw, BOOLEAN_TAG)?.0.unwrap_or(Boolean(false)).0;
-    let path_len_constraint: Option<U32> = Opt::decode(dw, INTEGER_TAG)?.0;
+    let ca = Opt::<_, BOOLEAN_TAG>::decode(dw)?.0.unwrap_or(Boolean(false)).0;
+    let path_len_constraint: Option<U32> = Opt::<_, INTEGER_TAG>::decode(dw)?.0;
     if path_len_constraint.is_some() && !ca {
       return Err(X509Error::InvalidExtensionBasicConstraint.into());
     }
@@ -63,7 +63,7 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for BasicConstraints {
       if self.ca {
         Boolean(self.ca).encode(local_ew)?;
       }
-      Opt(self.path_len_constraint.map(U32::from_u32)).encode(local_ew, INTEGER_TAG)?;
+      Opt::<_, INTEGER_TAG>(self.path_len_constraint.map(U32::from_u32)).encode(local_ew)?;
       Ok(())
     })
   }

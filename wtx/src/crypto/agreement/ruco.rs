@@ -1,10 +1,10 @@
 use crate::{
-  crypto::{Agreement, AsRefWrapper, P256Ruco, P384Ruco, X25519Ruco},
+  crypto::{Agreement, AsRefWrapper, EcdhP256Ruco, EcdhP384Ruco, X25519Ruco},
   rng::CryptoRng,
 };
 use crypto_common::Generate as _;
 
-impl Agreement for P256Ruco {
+impl Agreement for EcdhP256Ruco {
   type PublicKey = p256::Sec1Point;
   type SharedSecret = AsRefWrapper<p256::ecdh::SharedSecret>;
 
@@ -38,7 +38,7 @@ impl AsRef<[u8]> for AsRefWrapper<p256::ecdh::SharedSecret> {
   }
 }
 
-impl Agreement for P384Ruco {
+impl Agreement for EcdhP384Ruco {
   type PublicKey = p384::Sec1Point;
   type SharedSecret = AsRefWrapper<p384::ecdh::SharedSecret>;
 

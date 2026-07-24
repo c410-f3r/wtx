@@ -7,6 +7,8 @@ pub enum Asn1Error {
   InvalidBitString,
   /// Invalid Boolean
   InvalidBoolean,
+  /// Invalid Explicit Tag
+  InvalidExplicitTag,
   /// Invalid Generalized Time
   InvalidGeneralizedTime,
   /// Invalid Generic Sequence

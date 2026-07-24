@@ -106,5 +106,9 @@ where
 }
 
 pub(crate) fn unit_type() -> Type {
-  Type::Tuple(TypeTuple { paren_token: Paren(Span::mixed_site()), elems: Punctuated::new() })
+  Type::Tuple(TypeTuple {
+    attrs: Vec::new(),
+    paren_token: Paren(Span::mixed_site()),
+    elems: Punctuated::new(),
+  })
 }

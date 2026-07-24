@@ -1,19 +1,16 @@
 use core::fmt::Debug;
 use std::{fs, process};
 use wtx::{
-  asn1::Pkcs8,
   codec::decode_base64_into_buffer,
   collections::Vector,
-  crypto::SignatureTy,
-  tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion},
-  x509::Certificate,
+  tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme},
 };
 
 const BOGO_NACK: i32 = 89;
 
 #[derive(Debug)]
 pub struct Options {
-  pub cert_der: Vector<u8>,
+  pub cert_pem: String,
   pub check_close_notify: bool,
   pub expect_curve_id: Option<NamedGroup>,
   pub expect_handshake_kind: Option<Vector<HandshakePath>>,
@@ -27,7 +24,7 @@ pub struct Options {
   pub groups: Option<Vector<NamedGroup>>,
   pub host_name: String,
   pub is_client: bool,
-  pub key_der: Vector<u8>,
+  pub key_pem: String,
   pub max_fragment: Option<MaxFragmentLength>,
   pub must_match_issuer: bool,
   pub offer_no_client_cas: bool,
@@ -45,17 +42,18 @@ pub struct Options {
   pub server_supported_group_hint: Option<NamedGroup>,
   pub shim_id: u64,
   pub shut_down_after_handshake: bool,
-  pub signing_prefs: Option<u16>,
+  pub signing_prefs: Option<SignatureScheme>,
   pub trusted_cert_file: String,
   pub use_sni: bool,
   pub verify_peer: bool,
+  pub verify_prefs: Option<SignatureScheme>,
   pub wait_for_debugger: bool,
 }
 
 impl Default for Options {
   fn default() -> Self {
     Self {
-      cert_der: Vector::default(),
+      cert_pem: String::new(),
       check_close_notify: false,
       expect_curve_id: None,
       expect_handshake_kind: None,
@@ -69,7 +67,7 @@ impl Default for Options {
       groups: None,
       host_name: "example.com".into(),
       is_client: true,
-      key_der: Vector::default(),
+      key_pem: String::new(),
       max_fragment: None,
       must_match_issuer: false,
       offer_no_client_cas: false,
@@ -91,6 +89,7 @@ impl Default for Options {
       trusted_cert_file: String::new(),
       use_sni: false,
       verify_peer: false,
+      verify_prefs: None,
       wait_for_debugger: false,
     }
   }
@@ -140,14 +139,11 @@ impl<A> Drop for OptionsIter<'_, A> {
   }
 }
 
-pub fn cert_der_from_pem_file(path: &str) -> (Certificate<Vector<u8>>, Vector<u8>) {
+pub fn cert_pem_from_pem_file(path: &str) -> String {
   if path.is_empty() {
-    return (Certificate::default(), Vector::new());
+    return String::new();
   }
-  let mut buffer = Vector::new();
-  let data = fs::read_to_string(path).unwrap();
-  let params = Certificate::<Vector<u8>>::from_pem(&mut buffer, data.as_bytes()).unwrap();
-  (params.0, params.1.try_into().unwrap())
+  fs::read_to_string(path).unwrap()
 }
 
 fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -> bool {
@@ -158,6 +154,8 @@ fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -
     | "-expect-secure-renegotiation"
     | "-expect-session-id"
     | "-expect-tls13-downgrade"
+    | "-no-legacy-server-connect" // Always ignored
+    | "-ocsp-response"
     | "-on-resume-expect-no-offer-early-data" => {
       println!("Ignored: {arg}");
     }
@@ -197,7 +195,7 @@ fn check_implemented_arguments(
       options.protocols = split_protocols(&args.next().unwrap());
     }
     "-cert-file" => {
-      options.cert_der = cert_der_from_pem_file(&args.next().unwrap()).1;
+      options.cert_pem = cert_pem_from_pem_file(&args.next().unwrap());
     }
     "-check-close-notify" => {
       options.check_close_notify = true;
@@ -242,7 +240,7 @@ fn check_implemented_arguments(
       options.use_sni = true;
     }
     "-key-file" => {
-      options.key_der = pkc8_from_pem_file(&args.next().unwrap());
+      options.key_pem = pkc8_pem_from_pem_file(&args.next().unwrap());
     }
     "-key-update" => {
       options.send_key_update = true;
@@ -313,7 +311,8 @@ fn check_implemented_arguments(
       options.queue_data = true;
     }
     "-signing-prefs" => {
-      options.signing_prefs = Some(args.next().unwrap().parse().unwrap());
+      let num: u16 = args.next().unwrap().parse().unwrap();
+      options.signing_prefs = Some(SignatureScheme::try_from(num).unwrap());
     }
     "-tls13-variant" => {
       let variant = args.next().unwrap().parse::<u16>().unwrap();
@@ -331,9 +330,10 @@ fn check_implemented_arguments(
       options.verify_peer = true;
     }
     "-verify-prefs" => {
-      let Ok(_el) = SignatureTy::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
+      let Ok(el) = SignatureScheme::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
         process::exit(BOGO_NACK);
       };
+      options.verify_prefs = Some(el);
     }
     "-wait-for-debugger" => {
       if cfg!(unix) {
@@ -462,13 +462,8 @@ fn decode_base64(data: &[u8]) -> Vector<u8> {
   buffer
 }
 
-fn pkc8_from_pem_file(path: &str) -> Vector<u8> {
-  let mut buffer = Vector::new();
-  Pkcs8::<&[u8]>::from_pem(&mut buffer, fs::read_to_string(path).unwrap().as_bytes())
-    .unwrap()
-    .1
-    .try_into()
-    .unwrap()
+fn pkc8_pem_from_pem_file(path: &str) -> String {
+  fs::read_to_string(path).unwrap()
 }
 
 fn split_protocols(protos: &str) -> Vector<String> {

@@ -1,31 +1,31 @@
 use crate::crypto::Hash;
 
 type Sha1Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::HashSha1Ring,
-  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha1AwsLcRs,
-  feature = "crypto-ruco" => crate::crypto::HashSha1Ruco,
+  feature = "crypto-ring" => crate::crypto::Sha1Ring,
+  feature = "crypto-alr" => crate::crypto::Sha1Alr,
+  feature = "crypto-ruco" => crate::crypto::Sha1Ruco,
   _ => crate::crypto::HashDummy::<[u8; 20]>
 };
 type Sha256Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::HashSha256Ring,
-  feature = "crypto-graviola" => crate::crypto::HashSha256Graviola,
-  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha256AwsLcRs,
-  feature = "crypto-ruco" => crate::crypto::HashSha256Ruco,
+  feature = "crypto-ring" => crate::crypto::Sha256Ring,
+  feature = "crypto-graviola" => crate::crypto::Sha256Graviola,
+  feature = "crypto-alr" => crate::crypto::Sha256Alr,
+  feature = "crypto-ruco" => crate::crypto::Sha256Ruco,
   _ => crate::crypto::HashDummy::<[u8; 32]>
 };
 type Sha384Ty = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::HashSha384Ring,
-  feature = "crypto-graviola" => crate::crypto::HashSha384Graviola,
-  feature = "crypto-aws-lc-rs" => crate::crypto::HashSha384AwsLcRs,
-  feature = "crypto-ruco" => crate::crypto::HashSha384Ruco,
+  feature = "crypto-ring" => crate::crypto::Sha384Ring,
+  feature = "crypto-graviola" => crate::crypto::Sha384Graviola,
+  feature = "crypto-alr" => crate::crypto::Sha384Alr,
+  feature = "crypto-ruco" => crate::crypto::Sha384Ruco,
   _ => crate::crypto::HashDummy::<[u8; 48]>
 };
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Clone, Debug)]
-pub struct Sha1HashGlobal(Sha1Ty);
+pub struct Sha1Global(Sha1Ty);
 
-impl Hash for Sha1HashGlobal {
+impl Hash for Sha1Global {
   type Digest = [u8; 20];
 
   #[inline]
@@ -46,9 +46,9 @@ impl Hash for Sha1HashGlobal {
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Clone, Debug)]
-pub struct Sha256HashGlobal(Sha256Ty);
+pub struct Sha256Global(Sha256Ty);
 
-impl Hash for Sha256HashGlobal {
+impl Hash for Sha256Global {
   type Digest = [u8; 32];
 
   #[inline]
@@ -69,9 +69,9 @@ impl Hash for Sha256HashGlobal {
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Clone, Debug)]
-pub struct Sha384HashGlobal(Sha384Ty);
+pub struct Sha384Global(Sha384Ty);
 
-impl Hash for Sha384HashGlobal {
+impl Hash for Sha384Global {
   type Digest = [u8; 48];
 
   #[inline]

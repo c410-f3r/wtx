@@ -112,7 +112,7 @@ fn parse_block(
     label_begin @ ..,
     b'-', b'-', b'-', b'-', b'-'
   ] = first_line else {
-    return Err(CodecError::InvalidPemLabel.into());
+    return Err(CodecError::InvalidPemLabelBegin.into());
   };
   let mut lines = 0usize;
   while let Some((line, rest)) = bytes_split_once1(bytes, b'\n') {
@@ -125,7 +125,7 @@ fn parse_block(
     ] = actual_line
     {
       if label_begin != label_end {
-        return Err(CodecError::InvalidPemLabel.into());
+        return Err(CodecError::MismatchedPemLabel.into());
       }
       break;
     }
@@ -138,4 +138,35 @@ fn parse_block(
     return Err(CodecError::InvalidPemBlock.into());
   }
   label_begin.try_into()
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    codec::{DecodeWrapper, Pem, decode::Decode},
+    collections::Vector,
+  };
+
+  #[test]
+  fn simple_rsa_cert() {
+    let cert = "-----BEGIN CERTIFICATE-----\n\
+    MIICvDCCAaSgAwIBAgIBBDANBgkqhkiG9w0BAQsFADAdMRswGQYDVQQDExJUZXN0\n\
+    IFJTQS0yMDQ4IFJvb3QwHhcNMjYwNzIyMTEzMDQ2WhcNMjYwNzIyMTMzMDQ2WjAA\n\
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAugvahBkSAUF1fC49vb1b\n\
+    vlPrcl80kop1iLpiuYoz4Qptwy57+EWssZBcHprZ5BkWf6PeGZ7F5AX1PyJbGHZL\n\
+    qvMCvViP6pd4MFox/igESISEHEixoiXCzepBrhtp5UQSjHD4D4hKtgdMgVxX+LRt\n\
+    wgW3mnu/vBu7rzpr/DS8io99p3lqZ1Aky+aNlcMj6MYy8U+YFEevb/V0lRY9oqwm\n\
+    W7BHnXikm/vi6sjIS350U8zb/mRzYeIs2R65LUduTL50+UMgat9ocewI2dv8aO9D\n\
+    ph+8NdGtg8LFYyTTHcUxJoMr1PTOgnmET19WJH4PrFwk7ZE1QJQQ1L4iKmPeQist\n\
+    uQIDAQABoyQwIjAPBgNVHSMECDAGgARyb290MA8GA1UdEQQIMAaCBHRlc3QwDQYJ\n\
+    KoZIhvcNAQELBQADggEBAGJvwQS3QWweK+BwQbAshJ9Mmp1C8/sGzVyiYwpwy9Cp\n\
+    mOoP6EBf8HU9Mg+4m/kDiiMWh5aVjeQduyn4Y5CFAmr1FSQr0cEJsOZMZwLGyqsL\n\
+    wKbxBygFgLYDmNKMPnaDrPAudI90X50IQJUBbS6fuY7Xk200qfNGlYP5p3coGLBA\n\
+    AZf7AHBd4vU6kVS9qxDZAg7T5V1esqQSeW8fQhRhYwFDeFV7ERfwLbLcus9k3nU/\n\
+    UB03rN0wUYWv4lRa5hZyBkEUplzIZNiQTvMFCmNNv9YabMtRK9SV3m99t/n86duC\n\
+    soep5aC1gXLUZMEbdUklZCjkLPt9A1gHlFn+dKcf1zU=\n\
+    -----END CERTIFICATE-----\n";
+    let mut buffer = Vector::new();
+    let _pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(cert.as_bytes(), &mut buffer)).unwrap();
+  }
 }

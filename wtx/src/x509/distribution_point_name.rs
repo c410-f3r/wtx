@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SequenceBuffer},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ImplicitTag, Len, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
   x509::{
@@ -25,12 +25,9 @@ where
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     match dw.bytes.first().copied() {
-      Some(DISTRIBUTION_POINT_NAME_FULL_NAME_TAG) => {
-        dw.decode_aux.tag = Some(DISTRIBUTION_POINT_NAME_FULL_NAME_TAG);
-        let general_names = GeneralNames::decode(dw)?;
-        dw.decode_aux.tag = None;
-        Ok(Self::FullName(general_names))
-      }
+      Some(DISTRIBUTION_POINT_NAME_FULL_NAME_TAG) => Ok(Self::FullName(
+        ImplicitTag::<GeneralNames<_>, DISTRIBUTION_POINT_NAME_FULL_NAME_TAG>::decode(dw)?.0,
+      )),
       Some(DISTRIBUTION_POINT_NAME_RELATIVE_TAG) => {
         Ok(Self::NameRelativeToCrlIssuer(RelativeDistinguishedName {
           entries: SequenceBuffer::decode(dw, DISTRIBUTION_POINT_NAME_RELATIVE_TAG)?.0.0,

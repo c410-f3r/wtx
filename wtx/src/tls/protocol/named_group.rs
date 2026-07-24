@@ -1,21 +1,20 @@
 use crate::{
   codec::{Decode, Encode},
-  crypto::{Agreement, P256AgreementGlobal, P384AgreementGlobal, X25519Global},
+  crypto::{Agreement, EcdhP256Global, EcdhP384Global, X25519Global},
   misc::Lease,
   rng::CryptoRng,
   tls::{de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper},
 };
 
-pub(crate) type NamedGroupAgreement =
-  NamedGroupParam<P256AgreementGlobal, P384AgreementGlobal, X25519Global>;
+pub(crate) type NamedGroupAgreement = NamedGroupParam<EcdhP256Global, EcdhP384Global, X25519Global>;
 pub(crate) type NamedGroupPk = NamedGroupParam<
-  <P256AgreementGlobal as Agreement>::PublicKey,
-  <P384AgreementGlobal as Agreement>::PublicKey,
+  <EcdhP256Global as Agreement>::PublicKey,
+  <EcdhP384Global as Agreement>::PublicKey,
   <X25519Global as Agreement>::PublicKey,
 >;
 pub(crate) type NamedGroupSs = NamedGroupParam<
-  <P256AgreementGlobal as Agreement>::SharedSecret,
-  <P384AgreementGlobal as Agreement>::SharedSecret,
+  <EcdhP256Global as Agreement>::SharedSecret,
+  <EcdhP384Global as Agreement>::SharedSecret,
   <X25519Global as Agreement>::SharedSecret,
 >;
 
@@ -39,8 +38,8 @@ impl NamedGroup {
     RNG: CryptoRng,
   {
     Ok(match self {
-      NamedGroup::Secp256r1 => NamedGroupAgreement::Secp256r1(P256AgreementGlobal::generate(rng)?),
-      NamedGroup::Secp384r1 => NamedGroupAgreement::Secp384r1(P384AgreementGlobal::generate(rng)?),
+      NamedGroup::Secp256r1 => NamedGroupAgreement::Secp256r1(EcdhP256Global::generate(rng)?),
+      NamedGroup::Secp384r1 => NamedGroupAgreement::Secp384r1(EcdhP384Global::generate(rng)?),
       NamedGroup::X25519 => NamedGroupAgreement::X25519(X25519Global::generate(rng)?),
     })
   }

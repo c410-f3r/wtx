@@ -76,8 +76,7 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
-    let _ =
-      ew.buffer.extend_from_copyable_slices([&[self.tag][..], &*self.len, self.bytes.lease()])?;
+    let _ = ew.buffer.extend_from_copyable_slices([self.bytes.lease()])?;
     Ok(())
   }
 }

@@ -1,6 +1,6 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, U32, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ImplicitOpt, Len, SEQUENCE_TAG, U32, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
@@ -26,8 +26,10 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for PolicyConstrai
       return Err(X509Error::InvalidExtensionPolicyConstraints.into());
     };
     dw.bytes = value;
-    let require_explicit_policy: Option<U32> = Opt::decode(dw, REQUIRE_EXPLICIT_POLICY_TAG)?.0;
-    let inhibit_policy_mapping: Option<U32> = Opt::decode(dw, INHIBIT_POLICY_MAPPING_TAG)?.0;
+    let require_explicit_policy: Option<U32> =
+      ImplicitOpt::<_, REQUIRE_EXPLICIT_POLICY_TAG>::decode(dw)?.0;
+    let inhibit_policy_mapping: Option<U32> =
+      ImplicitOpt::<_, INHIBIT_POLICY_MAPPING_TAG>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self {
       require_explicit_policy: require_explicit_policy.map(|el| el.u32()),
@@ -40,10 +42,12 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for PolicyConstraints {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.require_explicit_policy.map(U32::from_u32))
-        .encode(local_ew, REQUIRE_EXPLICIT_POLICY_TAG)?;
-      Opt(&self.inhibit_policy_mapping.map(U32::from_u32))
-        .encode(local_ew, INHIBIT_POLICY_MAPPING_TAG)?;
+      ImplicitOpt::<_, REQUIRE_EXPLICIT_POLICY_TAG>(
+        &self.require_explicit_policy.map(U32::from_u32),
+      )
+      .encode(local_ew)?;
+      ImplicitOpt::<_, INHIBIT_POLICY_MAPPING_TAG>(&self.inhibit_policy_mapping.map(U32::from_u32))
+        .encode(local_ew)?;
       Ok(())
     })
   }

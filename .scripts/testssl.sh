@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 ARG=${1:-""}
-BACKENDS=("wtx/crypto-aws-lc-rs wtx/_hack" "wtx/crypto-graviola" "wtx/crypto-ring" "wtx/crypto-ruco")
+BACKENDS=("wtx/crypto-alr wtx/_hack" "wtx/crypto-graviola" "wtx/crypto-ring" "wtx/crypto-ruco")
 EXIT_CODE=0
 
 if [ "$ARG" != "ci" ]; then

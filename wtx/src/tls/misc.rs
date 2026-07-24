@@ -70,7 +70,7 @@ where
   }
   if len > max_allowed_len {
     cold_path();
-    return tls_error_fatal(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
+    return tls_error_reply(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
   }
   reader_buffer.read_payload(len.into(), stream_reader).await?;
   let mut trails: u16 = 0;
@@ -79,14 +79,14 @@ where
     let secret = elem.cipher_key();
     let record = reader_buffer.current_mut();
     if elem.cipher_suite().aes_decrypt(&header, record, nonce, secret).is_err() {
-      return tls_error_fatal(TlsError::UnencryptedRecord, AlertDescription::BadRecordMac);
+      return tls_error_reply(TlsError::UnencryptedRecord, AlertDescription::BadRecordMac);
     }
     elem.increment_counter();
     let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
       return Err(crate::crypto::CryptoError::InvalidAesData.into());
     };
     if plaintext.len() > max_fragment_length.into() {
-      return tls_error_fatal(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
+      return tls_error_reply(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
     }
     trails = 17;
     if *maybe_ty == 0 {
@@ -109,7 +109,8 @@ where
   Ok(Some(rri))
 }
 
-pub(crate) async fn manage_err<SW, T, const CCS: bool>(
+pub(crate) async fn manage_err<SW, T>(
+  has_sent_ccs: bool,
   kss: &mut KeyScheduleState,
   rslt: crate::Result<T>,
   stream_writer: &mut SW,
@@ -118,16 +119,17 @@ where
   SW: StreamWriter,
 {
   match rslt {
-    Err(err @ crate::Error::TlsErrorFatal(_, description)) => {
+    Err(err @ crate::Error::TlsErrorReply(_, description)) => {
+      cold_path();
       if kss.cipher_key().is_empty() {
         let alert = Alert::fatal(description).record_bytes_unencrypted();
         stream_writer.write_all(&alert[..]).await?;
       } else {
         let alert = Alert::fatal(description).record_bytes(kss)?;
-        if CCS {
-          stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
-        } else {
+        if has_sent_ccs {
           stream_writer.write_all(&alert[..]).await?;
+        } else {
+          stream_writer.write_all_vectored(&[&CHANGE_CIPHER_SPEC[..], &alert[..]]).await?;
         }
       }
       Err(err)
@@ -256,11 +258,11 @@ pub(crate) fn server_sig_msg(transcript: &[u8]) -> crate::Result<ArrayVectorCopy
   Ok(msg)
 }
 
-pub(crate) fn tls_error_fatal<T>(
+pub(crate) fn tls_error_reply<T>(
   tls_error: TlsError,
   description: AlertDescription,
 ) -> crate::Result<T> {
-  Err(crate::Error::TlsErrorFatal(tls_error, description))
+  Err(crate::Error::TlsErrorReply(tls_error, description))
 }
 
 #[inline(always)]

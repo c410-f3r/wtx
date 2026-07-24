@@ -1,4 +1,4 @@
-#[cfg(feature = "crypto-aws-lc-rs")]
+#[cfg(feature = "crypto-alr")]
 mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
