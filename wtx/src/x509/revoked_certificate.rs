@@ -32,7 +32,7 @@ where
     dw.bytes = value;
     let user_certificate = SerialNumber::decode(dw)?;
     let revocation_date = Time::decode(dw)?;
-    let crl_entry_extensions = Opt::decode(dw, SEQUENCE_TAG)?.0;
+    let crl_entry_extensions = Opt::<_, SEQUENCE_TAG>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self { user_certificate, revocation_date, crl_entry_extensions })
   }
@@ -47,7 +47,7 @@ where
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.user_certificate.encode(local_ew)?;
       self.revocation_date.encode(local_ew)?;
-      Opt(&self.crl_entry_extensions).encode(local_ew, SEQUENCE_TAG)?;
+      Opt::<_, SEQUENCE_TAG>(&self.crl_entry_extensions).encode(local_ew)?;
       Ok(())
     })
   }

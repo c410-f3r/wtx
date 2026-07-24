@@ -1,7 +1,7 @@
 use crate::misc::unlikely_elem;
 use graviola::hashing::{Hash as _, HashContext};
 
-impl crate::crypto::Hash for crate::crypto::HashSha256Graviola {
+impl crate::crypto::Hash for crate::crypto::Sha256Graviola {
   type Digest = [u8; 32];
 
   #[inline]
@@ -20,7 +20,7 @@ impl crate::crypto::Hash for crate::crypto::HashSha256Graviola {
   }
 }
 
-impl crate::crypto::Hash for crate::crypto::HashSha384Graviola {
+impl crate::crypto::Hash for crate::crypto::Sha384Graviola {
   type Digest = [u8; 48];
 
   #[inline]

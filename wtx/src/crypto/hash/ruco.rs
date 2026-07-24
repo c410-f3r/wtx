@@ -1,7 +1,7 @@
-use crate::crypto::{Hash, HashSha1Ruco, HashSha256Ruco, HashSha384Ruco};
+use crate::crypto::{Hash, Sha1Ruco, Sha256Ruco, Sha384Ruco};
 use digest::Digest;
 
-impl Hash for HashSha1Ruco {
+impl Hash for Sha1Ruco {
   type Digest = [u8; 20];
 
   #[inline]
@@ -20,7 +20,7 @@ impl Hash for HashSha1Ruco {
   }
 }
 
-impl Hash for HashSha256Ruco {
+impl Hash for Sha256Ruco {
   type Digest = [u8; 32];
 
   #[inline]
@@ -39,7 +39,7 @@ impl Hash for HashSha256Ruco {
   }
 }
 
-impl Hash for HashSha384Ruco {
+impl Hash for Sha384Ruco {
   type Digest = [u8; 48];
 
   #[inline]

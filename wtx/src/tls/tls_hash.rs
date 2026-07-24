@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{Hash as _, Sha256HashGlobal, Sha384HashGlobal},
+  crypto::{Hash as _, Sha256Global, Sha384Global},
   misc::Lease,
 };
 
@@ -28,8 +28,8 @@ impl Default for TlsDigest {
 
 #[derive(Clone, Debug)]
 pub(crate) enum TlsHash {
-  Sha256(Sha256HashGlobal),
-  Sha384(Sha384HashGlobal),
+  Sha256(Sha256Global),
+  Sha384(Sha384Global),
 }
 
 impl TlsHash {

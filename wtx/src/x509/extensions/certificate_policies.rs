@@ -1,7 +1,7 @@
 use crate::{
   asn1::{
-    Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, Opt, SEQUENCE_TAG, SequenceBuffer,
-    asn1_writer, decode_asn1_tlv,
+    Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, OptSeq, SEQUENCE_TAG,
+    SequenceBuffer, asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collections::ArrayVectorU8,
@@ -59,7 +59,7 @@ where
     };
     dw.bytes = value;
     let policy_identifier = Oid::decode(dw)?;
-    let policy_qualifiers = Opt::decode_seq(dw, SEQUENCE_TAG)?.0;
+    let policy_qualifiers = OptSeq::<_, SEQUENCE_TAG>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self { policy_identifier, policy_qualifiers })
   }
@@ -73,7 +73,7 @@ where
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.policy_identifier.encode(local_ew)?;
-      Opt(&self.policy_qualifiers).encode_seq(local_ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG)?;
+      OptSeq::<_, SEQUENCE_TAG>(&self.policy_qualifiers).encode(local_ew)?;
       Ok(())
     })
   }

@@ -1,6 +1,6 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, OptSeq, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
@@ -42,8 +42,8 @@ where
     };
     dw.bytes = value;
     let mut fun = || {
-      let permitted_subtrees = Opt::decode_seq(dw, PERMITTED_SUBTREES_TAG).ok()?.0;
-      let excluded_subtrees = Opt::decode_seq(dw, EXCLUDED_SUBTREES_TAG).ok()?.0;
+      let permitted_subtrees = OptSeq::<_, PERMITTED_SUBTREES_TAG>::decode(dw).ok()?.0;
+      let excluded_subtrees = OptSeq::<_, EXCLUDED_SUBTREES_TAG>::decode(dw).ok()?.0;
       Some((permitted_subtrees, excluded_subtrees))
     };
     let (permitted_subtrees, excluded_subtrees) =
@@ -60,16 +60,8 @@ where
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.permitted_subtrees).encode_seq(
-        local_ew,
-        Len::MAX_TWO_BYTES,
-        PERMITTED_SUBTREES_TAG,
-      )?;
-      Opt(&self.excluded_subtrees).encode_seq(
-        local_ew,
-        Len::MAX_TWO_BYTES,
-        EXCLUDED_SUBTREES_TAG,
-      )?;
+      OptSeq::<_, PERMITTED_SUBTREES_TAG>(&self.permitted_subtrees).encode(local_ew)?;
+      OptSeq::<_, EXCLUDED_SUBTREES_TAG>(&self.excluded_subtrees).encode(local_ew)?;
       Ok(())
     })
   }

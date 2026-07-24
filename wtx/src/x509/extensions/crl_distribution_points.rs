@@ -1,6 +1,6 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, SequenceBuffer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ImplicitOpt, Len, SEQUENCE_TAG, SequenceBuffer,
     asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
@@ -62,9 +62,9 @@ where
       return Err(X509Error::InvalidExtensionCrlDistributionPoints.into());
     };
     dw.bytes = value;
-    let distribution_point = Opt::decode(dw, DISTRIBUTION_POINT_TAG)?.0;
-    let reasons = Opt::decode(dw, REASONS_TAG)?.0;
-    let crl_issuer = Opt::decode(dw, CRL_ISSUER_TAG)?.0;
+    let distribution_point = ImplicitOpt::<_, DISTRIBUTION_POINT_TAG>::decode(dw)?.0;
+    let reasons = ImplicitOpt::<_, REASONS_TAG>::decode(dw)?.0;
+    let crl_issuer = ImplicitOpt::<_, CRL_ISSUER_TAG>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self { distribution_point, reasons, crl_issuer })
   }
@@ -77,9 +77,9 @@ where
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.distribution_point).encode(local_ew, DISTRIBUTION_POINT_TAG)?;
-      Opt(&self.reasons).encode(local_ew, REASONS_TAG)?;
-      Opt(&self.crl_issuer).encode(local_ew, CRL_ISSUER_TAG)?;
+      ImplicitOpt::<_, DISTRIBUTION_POINT_TAG>(&self.distribution_point).encode(local_ew)?;
+      ImplicitOpt::<_, REASONS_TAG>(&self.reasons).encode(local_ew)?;
+      ImplicitOpt::<_, CRL_ISSUER_TAG>(&self.crl_issuer).encode(local_ew)?;
       Ok(())
     })
   }

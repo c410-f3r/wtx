@@ -12,13 +12,13 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
-    misc::{tls_error_fatal, u8_chunk, u16_chunk},
+    misc::{tls_error_reply, u8_chunk, u16_chunk},
     protocol::{
-      alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
-      key_share_client_hello::KeyShareClientHello, key_share_entry::KeyShareEntry,
-      named_group::NamedGroupAgreement, protocol_version::ProtocolVersion,
-      protocol_versions::SupportedVersionsClient, server_name_list::ServerNameList,
-      signature_algorithms::SignatureAlgorithms,
+      alpn::Alpn, certificate_authorities::CertificateAuthorities, extension::Extension,
+      extension_ty::ExtensionTy, key_share_client_hello::KeyShareClientHello,
+      key_share_entry::KeyShareEntry, named_group::NamedGroupAgreement,
+      protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsClient,
+      server_name_list::ServerNameList, signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
     tls_config::TlsConfigInner,
@@ -100,7 +100,7 @@ where
       }
     }
     let _legacy_compression_methods @ Ok([1, 0]) = <[u8; 2] as Decode<'de, De>>::decode(dw) else {
-      return tls_error_fatal(
+      return tls_error_reply(
         TlsError::InvalidLegacyCompressionMethods,
         AlertDescription::IllegalParameter,
       );
@@ -111,7 +111,7 @@ where
         let tag: u16 = Decode::<'_, De>::decode(local_dw)?;
         let Ok(extension_ty) = ExtensionTy::try_from(tag) else {
           if seen_unknowns.contains(&tag) {
-            return tls_error_fatal(
+            return tls_error_reply(
               TlsError::DuplicatedClientHelloParameters,
               AlertDescription::DecodeError,
             );
@@ -227,7 +227,7 @@ where
 
 fn duplicated_error(is_some: bool) -> crate::Result<()> {
   if is_some {
-    return tls_error_fatal(
+    return tls_error_reply(
       TlsError::DuplicatedClientHelloParameters,
       AlertDescription::DecodeError,
     );
@@ -249,6 +249,13 @@ fn manage_extension<'de>(
     ExtensionTy::CertificateAuthorities => {
       duplicated_error(extensions.certificate_authorities)?;
       extensions.certificate_authorities = true;
+      let certificate_authorities = CertificateAuthorities::<&[u8]>::decode(dw)?;
+      if certificate_authorities.authorities.is_empty() {
+        return tls_error_reply(
+          TlsError::EmptyCertificateAuthorities,
+          AlertDescription::DecodeError,
+        );
+      }
     }
     ExtensionTy::ClientCertificateType => {
       duplicated_error(extensions.client_certificate_type)?;
@@ -269,9 +276,6 @@ fn manage_extension<'de>(
     ExtensionTy::MaxFragmentLength => {
       duplicated_error(extensions.max_fragment_length.is_some())?;
       extensions.max_fragment_length = Some(MaxFragmentLength::decode(dw)?);
-    }
-    ExtensionTy::OidFilters => {
-      return Err(TlsError::MismatchedExtension.into());
     }
     ExtensionTy::Padding => {
       duplicated_error(extensions.padding)?;
@@ -328,6 +332,9 @@ fn manage_extension<'de>(
     ExtensionTy::UseSrtp => {
       duplicated_error(extensions.use_srtp)?;
       extensions.use_srtp = true;
+    }
+    ExtensionTy::OidFilters => {
+      return Err(TlsError::MismatchedExtension.into());
     }
   }
   Ok(())

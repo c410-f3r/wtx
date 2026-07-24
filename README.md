@@ -52,7 +52,7 @@ These numbers provide an estimate of the expected waiting times when developing 
 
 Taking aside very few exceptions, `WTX` does not have built-in cryptographic algorithms, as such, it is necessary to select a backend when working with features that require them.
 
-* `crypto-aws-lc-rs`
+* `crypto-alr` (aws-lc-rs)
 * `crypto-graviola`
 * `crypto-ring`
 * `crypto-ruco` (Rust Crypto)

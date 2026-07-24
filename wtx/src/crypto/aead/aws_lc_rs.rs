@@ -1,12 +1,12 @@
 use crate::crypto::{
-  AEAD_NONCE_LEN, Aes128GcmAwsLcRs, Aes256GcmAwsLcRs, Chacha20Poly1305AwsLcRs, CryptoError,
+  AEAD_NONCE_LEN, Aes128GcmAlr, Aes256GcmAlr, Chacha20Poly1305Alr, CryptoError,
   aead::{AEAD_TAG_LEN, Aead},
 };
 use aws_lc_rs::aead::{
   AES_128_GCM, AES_256_GCM, Aad, Algorithm, CHACHA20_POLY1305, LessSafeKey, Nonce, UnboundKey,
 };
 
-impl Aead for Aes128GcmAwsLcRs {
+impl Aead for Aes128GcmAlr {
   type Secret = [u8; 16];
 
   #[inline]
@@ -44,7 +44,7 @@ impl Aead for Aes128GcmAwsLcRs {
   }
 }
 
-impl Aead for Aes256GcmAwsLcRs {
+impl Aead for Aes256GcmAlr {
   type Secret = [u8; 32];
 
   #[inline]
@@ -82,7 +82,7 @@ impl Aead for Aes256GcmAwsLcRs {
   }
 }
 
-impl Aead for Chacha20Poly1305AwsLcRs {
+impl Aead for Chacha20Poly1305Alr {
   type Secret = [u8; 32];
 
   #[inline]

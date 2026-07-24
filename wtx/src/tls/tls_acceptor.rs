@@ -1,16 +1,15 @@
 use crate::{
   codec::{Decode as _, Encode as _},
   collections::{ArrayVectorCopy, SingleTypeStorage},
-  crypto::SignatureTy,
   misc::Lease,
   net::Stream,
   rng::CryptoRng,
   tls::{
     AlertDescription, Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH,
-    HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError,
-    TlsMode, TlsStream,
+    HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme, TlsBuffer,
+    TlsConfig, TlsError, TlsMode, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_fatal, write_payloads},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_reply, write_payloads},
     protocol::{
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
@@ -29,6 +28,7 @@ use crate::{
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::TlsHash,
   },
+  x509::PublicKeyTy,
 };
 
 /// TLS Acceptor
@@ -174,7 +174,7 @@ where
     };
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
-    manage_err::<_, _, true>(kss, rslt, &mut self.stream).await?;
+    manage_err(true, kss, rslt, &mut self.stream).await?;
     _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
@@ -232,15 +232,15 @@ where
     let signature = self.config.lease().inner.secret_key.peek(
       &mut (&mut self.buffer.writer_buffer).into(),
       |secret_key| {
-        let mut sign_key = output.signature_ty.sign_key_from_pkcs8(*secret_key)?;
+        let mut dsk = output.signature_scheme.handshake_st().sign_key_from_pkcs8(*secret_key)?;
         let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
-        sign_key.sign(&mut self.rng, &msg)
+        dsk.sign(&msg, &mut self.rng)
       },
     )??;
     {
       let certificate_verify = Handshake::new(
         HandshakeType::CertificateVerify,
-        CertificateVerify::new(output.signature_ty, signature.as_ref()),
+        CertificateVerify::new(output.signature_scheme, signature.as_ref()),
       );
       certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
       self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
@@ -275,7 +275,11 @@ where
     let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
     let hs = Handshake::<&[u8]>::decode(&mut dw)?;
     if hs.msg_type != HandshakeType::Finished {
-      return Err(TlsError::InvalidHandshake.into());
+      self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
+      return tls_error_reply(
+        TlsError::ClientExpectedFinished,
+        AlertDescription::UnexpectedMessage,
+      );
     }
     *dw.bytes_mut() = hs.data;
     *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
@@ -366,13 +370,12 @@ where
     }
     let leaf_sig_ty =
       self.config.lease().inner.public_key.first().ok_or(TlsError::EmptySetOfCertificates)?.0;
-    let signature_ty = seek_signature_ty(
+    let signature_scheme = seek_signature_scheme(
       &client_hello.data.tls_config().signature_algorithms.signature_schemes,
+      &self.config.lease().signature_algorithms().signature_schemes,
       &[leaf_sig_ty],
+      TlsError::ServerHasNoCompatibleAlgorithmTy,
     )?;
-    if let Some(elem) = &client_hello.data.tls_config().signature_algorithms_cert {
-      let _ = seek_signature_ty_cert(&elem.supported_groups, &[leaf_sig_ty])?;
-    }
     let legacy_session_id = *client_hello.data.legacy_session_id();
     let agreement = key_share.group.agreement(&mut self.rng)?;
     let ephemeral_pk = agreement.public_key()?;
@@ -399,7 +402,7 @@ where
     self
       .key_schedule
       .handshake_secret::<false>(secret.as_ref(), &self.transcript_hash.clone().finalize())?;
-    Ok(NegotiateOutput { alpn, max_fragment_length, signature_ty })
+    Ok(NegotiateOutput { alpn, max_fragment_length, signature_scheme })
   }
 }
 
@@ -420,7 +423,7 @@ pub struct TlsAcceptOutput<RNG, S, TM> {
 struct NegotiateOutput {
   alpn: Option<Alpn>,
   max_fragment_length: Option<MaxFragmentLength>,
-  signature_ty: SignatureTy,
+  signature_scheme: SignatureScheme,
 }
 
 fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Result<Option<Alpn>> {
@@ -428,12 +431,12 @@ fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Res
     return Ok(None);
   };
   if server.protocol_name_list.is_empty() {
-    return tls_error_fatal(TlsError::EmptyNegotiatedAlpnServer, AlertDescription::InternalError);
+    return tls_error_reply(TlsError::EmptyNegotiatedAlpnServer, AlertDescription::InternalError);
   }
   let mut rslt = None;
   for client_el in &client.protocol_name_list {
     if client_el.is_empty() {
-      return tls_error_fatal(TlsError::EmptyNegotiatedAlpnClient, AlertDescription::DecodeError);
+      return tls_error_reply(TlsError::EmptyNegotiatedAlpnClient, AlertDescription::DecodeError);
     }
     if rslt.is_none() && server.protocol_name_list.contains(client_el) {
       let mut alpn = Alpn::default();
@@ -444,7 +447,7 @@ fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Res
   if let Some(elem) = rslt {
     Ok(Some(elem))
   } else {
-    tls_error_fatal(
+    tls_error_reply(
       TlsError::MismatchedNegotiatedAlpnServer,
       AlertDescription::NoApplicationProtocol,
     )
@@ -477,34 +480,20 @@ where
   Err(TlsError::ServerHasNoCompatibleKeyShare.into())
 }
 
-fn seek_signature_ty<'client, 'rslt, 'server>(
-  client: &'client [SignatureTy],
-  server: &'server [SignatureTy],
-) -> crate::Result<SignatureTy>
-where
-  'client: 'rslt,
-  'server: 'rslt,
-{
-  for server_el in server {
-    if client.iter().any(|client_el| client_el == server_el) {
-      return Ok(*server_el);
+fn seek_signature_scheme(
+  client_signature_schemes: &[SignatureScheme],
+  server_signature_schemes: &[SignatureScheme],
+  server_public_key_tys: &[PublicKeyTy],
+  err: TlsError,
+) -> crate::Result<SignatureScheme> {
+  for server_signature_scheme in server_signature_schemes {
+    if !client_signature_schemes.contains(server_signature_scheme) {
+      continue;
+    }
+    let public_key_ty = server_signature_scheme.cert_pkt();
+    if server_public_key_tys.contains(&public_key_ty) {
+      return Ok(*server_signature_scheme);
     }
   }
-  Err(TlsError::ServerHasNoCompatibleAlgorithmTy.into())
-}
-
-fn seek_signature_ty_cert<'client, 'rslt, 'server>(
-  client: &'client [SignatureTy],
-  server: &'server [SignatureTy],
-) -> crate::Result<SignatureTy>
-where
-  'client: 'rslt,
-  'server: 'rslt,
-{
-  for server_el in server {
-    if client.iter().any(|client_el| client_el == server_el) {
-      return Ok(*server_el);
-    }
-  }
-  Err(TlsError::ServerHasNoCompatibleAlgorithmTyForCert.into())
+  Err(err.into())
 }

@@ -1,17 +1,14 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, U32, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ExplicitOpt, Len, SEQUENCE_TAG, U32, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
-  x509::{AlgorithmIdentifier, X509Error},
+  x509::{
+    AlgorithmIdentifier, EXPLICIT_TAG0, EXPLICIT_TAG1, EXPLICIT_TAG2, EXPLICIT_TAG3, X509Error,
+  },
 };
-
-const TAG_HASH_ALGORITHM: u8 = 160;
-const TAG_MASK_GEN_ALGORITHM: u8 = 161;
-const TAG_SALT_LENGTH: u8 = 162;
-const TAG_TRAILER_FIELD: u8 = 163;
 
 /// RSA metadata
 #[derive(Debug, PartialEq)]
@@ -37,10 +34,10 @@ where
       return Err(X509Error::InvalidRsassaPssParams.into());
     };
     dw.bytes = value;
-    let hash_algorithm = Opt::decode(dw, TAG_HASH_ALGORITHM)?.0;
-    let mask_gen_algorithm = Opt::decode(dw, TAG_MASK_GEN_ALGORITHM)?.0;
-    let salt_length: Option<U32> = Opt::decode(dw, TAG_SALT_LENGTH)?.0;
-    let trailer_field: Option<U32> = Opt::decode(dw, TAG_TRAILER_FIELD)?.0;
+    let hash_algorithm = ExplicitOpt::<_, EXPLICIT_TAG0>::decode(dw)?.0;
+    let mask_gen_algorithm = ExplicitOpt::<_, EXPLICIT_TAG1>::decode(dw)?.0;
+    let salt_length: Option<U32> = ExplicitOpt::<_, EXPLICIT_TAG2>::decode(dw)?.0;
+    let trailer_field: Option<U32> = ExplicitOpt::<_, EXPLICIT_TAG3>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self {
       hash_algorithm,
@@ -58,10 +55,10 @@ where
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.hash_algorithm).encode(local_ew, TAG_HASH_ALGORITHM)?;
-      Opt(&self.mask_gen_algorithm).encode(local_ew, TAG_MASK_GEN_ALGORITHM)?;
-      Opt(&self.salt_length.map(U32::from_u32)).encode(local_ew, TAG_SALT_LENGTH)?;
-      Opt(&self.trailer_field.map(U32::from_u32)).encode(local_ew, TAG_TRAILER_FIELD)?;
+      ExplicitOpt::<_, EXPLICIT_TAG0>(self.hash_algorithm.as_ref()).encode(local_ew)?;
+      ExplicitOpt::<_, EXPLICIT_TAG1>(self.mask_gen_algorithm.as_ref()).encode(local_ew)?;
+      ExplicitOpt::<_, EXPLICIT_TAG2>(self.salt_length.map(U32::from_u32)).encode(local_ew)?;
+      ExplicitOpt::<_, EXPLICIT_TAG3>(self.trailer_field.map(U32::from_u32)).encode(local_ew)?;
       Ok(())
     })
   }

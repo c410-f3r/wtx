@@ -1,7 +1,7 @@
 use crate::{crypto::Hash, misc::unlikely_elem};
 use aws_lc_rs::digest::{Context, SHA1_FOR_LEGACY_USE_ONLY, SHA256, SHA384};
 
-impl Hash for crate::crypto::HashSha1AwsLcRs {
+impl Hash for crate::crypto::Sha1Alr {
   type Digest = [u8; 20];
 
   #[inline]
@@ -20,7 +20,7 @@ impl Hash for crate::crypto::HashSha1AwsLcRs {
   }
 }
 
-impl Hash for crate::crypto::HashSha256AwsLcRs {
+impl Hash for crate::crypto::Sha256Alr {
   type Digest = [u8; 32];
 
   #[inline]
@@ -39,7 +39,7 @@ impl Hash for crate::crypto::HashSha256AwsLcRs {
   }
 }
 
-impl Hash for crate::crypto::HashSha384AwsLcRs {
+impl Hash for crate::crypto::Sha384Alr {
   type Digest = [u8; 48];
 
   #[inline]

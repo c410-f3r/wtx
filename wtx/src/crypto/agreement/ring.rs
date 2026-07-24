@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{Agreement, CryptoError, P256Ring, P384Ring, X25519Ring},
+  crypto::{Agreement, CryptoError, EcdhP256Ring, EcdhP384Ring, X25519Ring},
   rng::CryptoRng,
 };
 use ring::{
@@ -10,7 +10,7 @@ use ring::{
   rand::SystemRandom,
 };
 
-impl Agreement for P256Ring {
+impl Agreement for EcdhP256Ring {
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 32];
 
@@ -41,7 +41,7 @@ impl Agreement for P256Ring {
   }
 }
 
-impl Agreement for P384Ring {
+impl Agreement for EcdhP384Ring {
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 48];
 

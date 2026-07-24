@@ -11,6 +11,10 @@ pub enum TlsError {
   BadPreKeyShare,
   /// Bad signature
   BadSignature,
+
+  /// Expected Finished record
+  ClientExpectedFinished,
+
   /// Digest Check Failed
   DigestCheckFailed,
   /// Diffie–Hellman error
@@ -21,6 +25,8 @@ pub enum TlsError {
   DuplicatedClientHelloParameters,
   /// Duplicated Encrypted Extensions Parameters
   DuplicatedEncryptedExtensionsParameters,
+  /// Empty Certificate Authorities
+  EmptyCertificateAuthorities,
   /// Invalid Negotiated ALPN
   EmptyNegotiatedAlpnClient,
   /// Invalid Negotiated ALPN
@@ -39,6 +45,8 @@ pub enum TlsError {
   InvalidSlice,
   /// Invalid certificate
   InvalidCertificate,
+  /// Invalid certificate authorities
+  InvalidCertificateAuthorities,
   /// Invalid certificate request
   InvalidCertificateRequest,
   /// Invalid Certificate Type
@@ -113,6 +121,8 @@ pub enum TlsError {
   InvalidU16Prefix,
   /// Invalid u24 prefix
   InvalidU24Prefix,
+  /// For example, public key is PSS but signature is RSAE
+  MismatchedCertificatePkAndSignature,
   /// Mismatch Extension
   MismatchedExtension,
   /// Invalid Negotiated ALPN
@@ -139,12 +149,10 @@ pub enum TlsError {
   UnencryptedRecord,
   /// Unknown name type
   UnknownNameType,
+  /// Unknown Signature Scheme
+  UnknownSignatureScheme,
   /// Unknown Webpki Signature Scheme
   UnknownWebpkiSignatureScheme,
-  /// Unsupported Cipher Suite
-  UnsupportedCipherSuite,
-  /// mTLS is not supported
-  UnsupportedMtls,
   /// Can not receive certificate records once a PSK was accepted
   CertRecordInAcceptedPsk,
   /// Secret mismatch
@@ -163,12 +171,16 @@ pub enum TlsError {
   UnexpectedAfterHandshakeInnerRecord,
   /// Only an outer `ApplicationData` is allowed after the handshake
   UnexpectedAfterHandshakeOuterRecord,
+  /// Unsupported Cipher Suite
+  UnsupportedCipherSuite,
   /// Unsupported extension
   UnsupportedExtension,
-  /// Only TLS 1.3 is supported
-  UnsupportedTlsVersion(Option<ProtocolVersion>),
+  /// mTLS is not supported
+  UnsupportedMtls,
   /// Only TLS 1.2 is supported due to legacy reasons
   UnsupportedRecTlsVersion(ProtocolVersion),
+  /// Only TLS 1.3 is supported
+  UnsupportedTlsVersion(Option<ProtocolVersion>),
   /// Wrong alert
   WrongAlert,
 }

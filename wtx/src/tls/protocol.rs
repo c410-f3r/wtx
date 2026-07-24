@@ -1,6 +1,7 @@
 pub(crate) mod alert;
 pub(crate) mod alpn;
 pub(crate) mod certificate;
+pub(crate) mod certificate_authorities;
 pub(crate) mod certificate_request;
 pub(crate) mod certificate_verify;
 pub(crate) mod cipher_suite;
@@ -27,5 +28,6 @@ pub(crate) mod server_name;
 pub(crate) mod server_name_list;
 pub(crate) mod signature_algorithms;
 pub(crate) mod signature_algorithms_cert;
+pub(crate) mod signature_scheme;
 pub(crate) mod supported_groups;
 pub(crate) mod u24;

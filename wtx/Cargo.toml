@@ -10,7 +10,6 @@ graviola = { default-features = false, optional = true, version = "0.4" }
 hashbrown = { default-features = false, optional = true, version = "0.17" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
-matchit = { default-features = false, optional = true, version = "0.9" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
 pin-project-lite = { default-features = false, optional = true, version = "0.2" }
@@ -46,6 +45,7 @@ hkdf = { default-features = false, optional = true, version = "0.13" }
 hmac = { default-features = false, optional = true, version = "0.13" }
 p256 = { default-features = false, optional = true, version = "0.14" }
 p384 = { default-features = false, optional = true, version = "0.14" }
+pkcs1 = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 pkcs8 = { default-features = false, optional = true, version = "0.11" }
 rand_core = { default-features = false, optional = true, version = "0.10" }
 rsa = { default-features = false, optional = true, version = "0.10.0-rc.18" }
@@ -68,7 +68,7 @@ ccadb = ["x509"]
 client-api-framework = []
 crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel?/std", "std"]
 crypto = []
-crypto-aws-lc-rs = ["dep:aws-lc-rs", "crypto"]
+crypto-alr = ["dep:aws-lc-rs", "crypto"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
 crypto-ruco = [
   "dep:aead",
@@ -98,12 +98,14 @@ crypto-ruco = [
   "p384?/ecdh",
   "p384?/ecdsa",
   "p384?/pkcs8",
+  "dep:pkcs1",
   "dep:pkcs8",
   "rand_core",
   "dep:rsa",
   "rsa/encoding",
   "dep:sha1",
   "dep:sha2",
+  "sha2/oid",
   "dep:signature",
   "dep:spki",
   "dep:x25519-dalek",
@@ -158,7 +160,7 @@ std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/
 tls = ["secret", "x509"]
 tokio = ["pin-project-lite", "dep:tokio", "tokio?/io-util", "tokio?/net", "tokio?/rt", "std", "tokio?/sync", "tokio?/time"]
 tracing = ["dep:tracing", "tracing?/attributes"]
-tracing-subscriber = ["dep:tracing-subscriber", "tracing-subscriber?/env-filter", "tracing-subscriber?/fmt"]
+tracing-subscriber = ["std", "dep:tracing-subscriber", "tracing-subscriber?/env-filter"] # `env-filter` requires std
 tracing-tree = ["std", "dep:tracing-tree"]
 uuid = ["dep:uuid"]
 web-socket = ["crypto", "http", "httparse", "tls"]

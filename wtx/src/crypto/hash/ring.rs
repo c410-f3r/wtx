@@ -1,7 +1,7 @@
 use crate::{crypto::Hash, misc::unlikely_elem};
 use ring::digest::{Context, SHA1_FOR_LEGACY_USE_ONLY, SHA256, SHA384};
 
-impl Hash for crate::crypto::HashSha1Ring {
+impl Hash for crate::crypto::Sha1Ring {
   type Digest = [u8; 20];
 
   #[inline]
@@ -20,7 +20,7 @@ impl Hash for crate::crypto::HashSha1Ring {
   }
 }
 
-impl Hash for crate::crypto::HashSha256Ring {
+impl Hash for crate::crypto::Sha256Ring {
   type Digest = [u8; 32];
 
   #[inline]
@@ -39,7 +39,7 @@ impl Hash for crate::crypto::HashSha256Ring {
   }
 }
 
-impl Hash for crate::crypto::HashSha384Ring {
+impl Hash for crate::crypto::Sha384Ring {
   type Digest = [u8; 48];
 
   #[inline]

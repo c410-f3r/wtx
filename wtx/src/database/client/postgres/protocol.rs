@@ -1,7 +1,7 @@
 use crate::{
   codec::{Base64Alphabet, U64String, encode_base64_into_buffer},
   collections::Vector,
-  crypto::{Hash as _, Hmac as _, HmacSha256Global, Sha256HashGlobal},
+  crypto::{Hash as _, Hmac as _, HmacSha256Global, Sha256Global},
   database::{
     RecordValues,
     client::postgres::{Config, Oid, Postgres, PostgresEncodeWrapper, PostgresError, Ty},
@@ -272,7 +272,7 @@ pub(crate) fn sasl_second(
       };
 
       let client_signature = {
-        let stored_client_key: [u8; 32] = Sha256HashGlobal::digest([client_key.as_slice()]);
+        let stored_client_key: [u8; 32] = Sha256Global::digest([client_key.as_slice()]);
         let mut hmac = HmacSha256Global::from_key(&stored_client_key)?;
         hmac.update(auth_data);
         hmac.finalize()

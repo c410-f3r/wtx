@@ -1,6 +1,6 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, ImplicitOpt, Len, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
@@ -33,13 +33,11 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for AuthorityKeyId
       return Err(X509Error::InvalidExtensionAuthorityKeyIdentifier.into());
     };
     dw.bytes = value;
-    let key_identifier = Opt::decode(dw, KEY_IDENTIFIER_TAG)?.0;
-    dw.decode_aux.tag = Some(AUTHORITY_CERT_ISSUER_TAG);
+    let key_identifier = ImplicitOpt::<_, KEY_IDENTIFIER_TAG>::decode(dw)?.0;
     let authority_cert_issuer: Option<GeneralNames<&[u8]>> =
-      Opt::decode(dw, AUTHORITY_CERT_ISSUER_TAG)?.0;
-    dw.decode_aux.tag = None;
+      ImplicitOpt::<_, AUTHORITY_CERT_ISSUER_TAG>::decode(dw)?.0;
     let authority_cert_serial_number: Option<SerialNumber> =
-      Opt::decode(dw, AUTHORITY_CERT_SERIAL_NUMBER_TAG)?.0;
+      ImplicitOpt::<_, AUTHORITY_CERT_SERIAL_NUMBER_TAG>::decode(dw)?.0;
     if authority_cert_issuer.is_some() || authority_cert_serial_number.is_some() {
       return Err(X509Error::InvalidExtensionAuthorityKeyIdentifier.into());
     }
@@ -52,7 +50,7 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for AuthorityKeyIdentifier {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.key_identifier).encode(local_ew, KEY_IDENTIFIER_TAG)
+      ImplicitOpt::<_, KEY_IDENTIFIER_TAG>(&self.key_identifier).encode(local_ew)
     })
   }
 }

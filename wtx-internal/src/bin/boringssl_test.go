@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -69,30 +70,72 @@ func TestNames(t *testing.T) {
 	addServerPaddingTests()
 
 	begin := []string{
+		// ALPS is not implemented
+		"ExtraClientEncryptedExtension-",
+		// SCT is not implemented
+		"SignedCertificateTimestampListEmpty",
+		// OCSP is deprecated
+		"UnsolicitedCertificateExtensions-",
 		// Not implemented
-		"ALPS-", "FallbackSCSV",
+		"FallbackSCSV",
+		
+		// Legacy
+		"TLS1-",
 		// Others
-		"BadRSAClientKeyExchange-", "DelegatedCredentials-", "TLS1-",
+		"BadRSAClientKeyExchange-", "DelegatedCredentials-",
 		// Unsupported signatures
 		"MinimumVersion-",
 	}
 	both := []string{
-		// Not implemented
-		"CBC", "ClientAuth", "DTLS", "ECH", "GREASE", "HRR", "QUIC",
+		// ALPS is not implemented
+		"ALPS",
+		// mTLS is not implemented
+		"ClientAuth",
+		// CBC is not implemented
+		"CBC",
+		// DTLS is not implemented
+		"DTLS",
+		// ECH is not implemented
+		"ECH",
+		// Grease is not implemented
+		"GREASE",
+		// HRR is not implemented
+		"HRR",
+		// OCSP is deprecated
+		"OCSP",
+		// QUIC is not implemented
+		"QUIC",
+		// Post Quantum is not implemented
+		"MLKEM", "ML-DSA-",
+		// Raw public key is not implemented
+		"RawPublicKey",
+
+		// Unsupported signatures
+		"ECDSA_P521", "RSA_PKCS1", "RSA_PSS_SHA512",
+
 		// Legacy
-		"3DES", "ChannelID", "DSS", "MD5", "NPN", "RC4", "SHA1", "SSL3", "-TLS1-", "TLS11", "TLS12", "V2ClientHello",
+		"3DES", "ChannelID", "DSS", "ExtendedMasterSecret", "MD5", "NPN", "RC4", "SHA1", "SSL3", "-TLS1-", "TLS11", "TLS12", "V2ClientHello",
 		// Others
 		"-HintMismatch-",
 	}
 	end := []string{"-TLS1"}
 
 	individuals := []string{
-		// TLS 1.2
-		"NoCheckClientCertificateTypes",
-		// Tls 1.3 fallback to TLS 1.2
-		"ClientHelloVersionTooHigh",
+		// It is necessary to first send them to actually eval the tests, which isn't optimal because WTX does not support TLS 1.2
+		"EMS-Forbidden-TLS13", "RenegotiationInfo-Forbidden-TLS13",
+		// BOGO expects a graceful shutdown. WTX abruptly closes the connection
+		"StrayHelloRequest-TLS13",
+
+		// OCSP is deprecated
+		"SendNoExtensionsOnIntermediate-TLS13",
+		// SCT is not implemented
+		"SendUnsolicitedSCTOnCertificate-TLS13",
+		// Legacy
+		"ClientHelloVersionTooHigh", "NoCheckClientCertificateTypes",
 		// Resumption
 		"IgnoreLegacyVersion-TLS13",
+		// Ed25519 is already enabled by default
+		"Client-VerifyDefault-Ed25519-TLS13"
 	}
 
 	for _, tc := range testCases {
@@ -112,6 +155,10 @@ func TestNames(t *testing.T) {
 		} else if tc.config.MaxVersion <= VersionTLS12 {
 			shouldIgnore = true
 		} else if tc.resumeConfig != nil && tc.resumeConfig.MaxVersion <= VersionTLS12 {
+			shouldIgnore = true
+		} else if tc.config.ClientAuth != 0 {
+			shouldIgnore = true
+		} else if slices.Contains(tc.flags, "-require-any-client-certificate") {
 			shouldIgnore = true
 		}
 		if shouldIgnore {

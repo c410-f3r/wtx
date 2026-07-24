@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{CryptoError, Hmac, HmacSha256AwsLcRs, HmacSha384AwsLcRs},
+  crypto::{CryptoError, Hmac, HmacSha256Alr, HmacSha384Alr},
   misc::unlikely_elem,
 };
 use aws_lc_rs::{
@@ -7,7 +7,7 @@ use aws_lc_rs::{
   hmac::{Context, HMAC_SHA256, HMAC_SHA384, Key},
 };
 
-impl Hmac for HmacSha256AwsLcRs {
+impl Hmac for HmacSha256Alr {
   type Digest = [u8; 32];
 
   #[inline]
@@ -37,7 +37,7 @@ impl Hmac for HmacSha256AwsLcRs {
   }
 }
 
-impl Hmac for HmacSha384AwsLcRs {
+impl Hmac for HmacSha384Alr {
   type Digest = [u8; 48];
 
   #[inline]

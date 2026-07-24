@@ -8,7 +8,7 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, HELLO_RETRY_REQUEST, TlsError,
     de::De,
-    misc::{tls_error_fatal, u8_chunk, u16_chunk},
+    misc::{tls_error_reply, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
@@ -77,7 +77,7 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     let legacy_session_id_echo = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
     let Ok(0) = <u8 as Decode<'de, De>>::decode(dw) else {
-      return tls_error_fatal(
+      return tls_error_reply(
         TlsError::InvalidLegacyCompressionMethod,
         AlertDescription::DecodeError,
       );

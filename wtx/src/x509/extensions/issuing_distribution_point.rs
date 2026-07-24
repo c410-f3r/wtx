@@ -1,7 +1,7 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Boolean, Len, Opt, SEQUENCE_TAG, asn1_writer,
-    decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Boolean, ImplicitOpt, Len, SEQUENCE_TAG,
+    asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
@@ -42,14 +42,15 @@ where
       return Err(X509Error::InvalidExtensionIssuingDistributionPoint.into());
     };
     dw.bytes = value;
-    let distribution_point = Opt::decode(dw, DISTRIBUTION_POINT_TAG)?.0;
+    let distribution_point = ImplicitOpt::<_, DISTRIBUTION_POINT_TAG>::decode(dw)?.0;
     let only_contains_user_certs: Option<Boolean> =
-      Opt::decode(dw, ONLY_CONTAINS_USER_CERTS_TAG)?.0;
-    let only_contains_ca_certs: Option<Boolean> = Opt::decode(dw, ONLY_CONTAINS_CA_CERTS_TAG)?.0;
-    let only_some_reasons = Opt::decode(dw, ONLY_SOME_REASONS_TAG)?.0;
-    let indirect_crl: Option<Boolean> = Opt::decode(dw, INDIRECT_CRL_TAG)?.0;
+      ImplicitOpt::<_, ONLY_CONTAINS_USER_CERTS_TAG>::decode(dw)?.0;
+    let only_contains_ca_certs: Option<Boolean> =
+      ImplicitOpt::<_, ONLY_CONTAINS_CA_CERTS_TAG>::decode(dw)?.0;
+    let only_some_reasons = ImplicitOpt::<_, ONLY_SOME_REASONS_TAG>::decode(dw)?.0;
+    let indirect_crl: Option<Boolean> = ImplicitOpt::<_, INDIRECT_CRL_TAG>::decode(dw)?.0;
     let only_contains_attribute_certs: Option<Boolean> =
-      Opt::decode(dw, ONLY_CONTAINS_ATTRIBUTE_CERTS_TAG)?.0;
+      ImplicitOpt::<_, ONLY_CONTAINS_ATTRIBUTE_CERTS_TAG>::decode(dw)?.0;
     dw.bytes = rest;
     Ok(Self {
       distribution_point,
@@ -69,14 +70,17 @@ where
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.distribution_point).encode(local_ew, DISTRIBUTION_POINT_TAG)?;
-      Opt(self.only_contains_user_certs.map(Boolean))
-        .encode(local_ew, ONLY_CONTAINS_USER_CERTS_TAG)?;
-      Opt(self.only_contains_ca_certs.map(Boolean)).encode(local_ew, ONLY_CONTAINS_CA_CERTS_TAG)?;
-      Opt(&self.only_some_reasons).encode(local_ew, ONLY_SOME_REASONS_TAG)?;
-      Opt(&self.indirect_crl.map(Boolean)).encode(local_ew, INDIRECT_CRL_TAG)?;
-      Opt(&self.only_contains_attribute_certs.map(Boolean))
-        .encode(local_ew, ONLY_CONTAINS_ATTRIBUTE_CERTS_TAG)?;
+      ImplicitOpt::<_, DISTRIBUTION_POINT_TAG>(&self.distribution_point).encode(local_ew)?;
+      ImplicitOpt::<_, ONLY_CONTAINS_USER_CERTS_TAG>(self.only_contains_user_certs.map(Boolean))
+        .encode(local_ew)?;
+      ImplicitOpt::<_, ONLY_CONTAINS_CA_CERTS_TAG>(self.only_contains_ca_certs.map(Boolean))
+        .encode(local_ew)?;
+      ImplicitOpt::<_, ONLY_SOME_REASONS_TAG>(&self.only_some_reasons).encode(local_ew)?;
+      ImplicitOpt::<_, INDIRECT_CRL_TAG>(&self.indirect_crl.map(Boolean)).encode(local_ew)?;
+      ImplicitOpt::<_, ONLY_CONTAINS_ATTRIBUTE_CERTS_TAG>(
+        &self.only_contains_attribute_certs.map(Boolean),
+      )
+      .encode(local_ew)?;
       Ok(())
     })
   }

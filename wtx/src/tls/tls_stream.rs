@@ -8,7 +8,7 @@ use crate::{
     AlertDescription, AlertLevel, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,
     TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
-    misc::{manage_err, read_after_handshake_data, tls_error_fatal, write_payloads},
+    misc::{manage_err, read_after_handshake_data, tls_error_reply, write_payloads},
     protocol::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
@@ -223,7 +223,7 @@ where
       )
       .await;
       let kss = key_schedule.write_mut().state_mut();
-      manage_err::<_, _, false>(kss, rslt, stream).await
+      manage_err(true, kss, rslt, stream).await
     });
     poll_fn(|cx| match read_fut.as_mut().poll(cx) {
       Poll::Ready(res) => Poll::Ready(res),
@@ -316,11 +316,11 @@ where
     (AlertLevel::Warning, AlertDescription::UserCanceled) => {
       *aux.2 = aux.2.wrapping_add(1);
       if *aux.2 >= 5 {
-        return tls_error_fatal(TlsError::TooManyWarningAlerts, AlertDescription::DecodeError);
+        return tls_error_reply(TlsError::TooManyWarningAlerts, AlertDescription::DecodeError);
       }
       Ok(false)
     }
-    _ => tls_error_fatal(TlsError::WrongAlert, AlertDescription::DecodeError),
+    _ => tls_error_reply(TlsError::WrongAlert, AlertDescription::DecodeError),
   }
 }
 
@@ -339,7 +339,7 @@ where
 {
   *aux.3 = aux.3.wrapping_add(1);
   if *aux.3 >= 5 {
-    return tls_error_fatal(TlsError::TooManyKeyUpdates, AlertDescription::DecodeError);
+    return tls_error_reply(TlsError::TooManyKeyUpdates, AlertDescription::DecodeError);
   }
   if let Some(elem) = key_update {
     let kss = aux.1.state_mut();

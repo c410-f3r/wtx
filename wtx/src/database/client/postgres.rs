@@ -155,15 +155,15 @@ mod array {
   }
 }
 
-#[cfg(feature = "crypto")]
+#[cfg(feature = "x509")]
 mod crypto {
   use crate::{
     codec::{Decode, Encode},
-    crypto::SignatureTy,
     database::{
       Typed,
       client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
     },
+    x509::SignatureTy,
   };
 
   impl<'de, E> Decode<'de, Postgres<E>> for SignatureTy
@@ -173,7 +173,7 @@ mod crypto {
     #[inline]
     fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
       let string = <&str as Decode<'de, Postgres<E>>>::decode(dw)?;
-      Ok(Self::try_from(string.as_bytes())?)
+      Ok(Self::try_from(string)?)
     }
   }
 

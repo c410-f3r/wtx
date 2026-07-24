@@ -102,6 +102,14 @@ impl From<digest::MacError> for Error {
 }
 
 #[cfg(feature = "crypto-ruco")]
+impl From<pkcs1::Error> for Error {
+  #[inline]
+  fn from(from: pkcs1::Error) -> Self {
+    Self::Pkcs1Error(from.into())
+  }
+}
+
+#[cfg(feature = "crypto-ruco")]
 impl From<pkcs8::Error> for Error {
   #[inline]
   fn from(from: pkcs8::Error) -> Self {

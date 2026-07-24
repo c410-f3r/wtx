@@ -16,7 +16,7 @@
 mod boringssl_options;
 
 use crate::boringssl_options::OptionsIter;
-use boringssl_options::{Options, cert_der_from_pem_file};
+use boringssl_options::{Options, cert_pem_from_pem_file};
 use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
@@ -29,7 +29,7 @@ use wtx::{
     AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig,
     TlsConnectorBuilder, TlsError, TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
   },
-  x509::CvTrustAnchor,
+  x509::{Certificate, CvTrustAnchor},
 };
 
 #[tokio::main]
@@ -117,13 +117,21 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       }
       TlsError::BadSignature => ":BAD_SIGNATURE:",
       TlsError::DigestCheckFailed => ":DIGEST_CHECK_FAILED:",
+      TlsError::MissingSignatureAlgorithms => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
+      TlsError::ServerHasNoCompatibleAlgorithmTy => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
+      TlsError::UnknownSignatureScheme => ":WRONG_SIGNATURE_TYPE:",
       TlsError::UnsupportedCipherSuite => ":WRONG_CIPHER_RETURNED:",
+      TlsError::UnsupportedExtension => ":ERROR_PARSING_EXTENSION:",
+      TlsError::MismatchedCertificatePkAndSignature => ":WRONG_SIGNATURE_TYPE:",
       _ => ":FIXME:",
     },
-    Err(wtx::Error::TlsErrorFatal(err, _)) => match err {
+    Err(wtx::Error::TlsErrorReply(err, _)) => match err {
+      TlsError::ClientExpectedFinished => ":UNEXPECTED_MESSAGE:",
+      TlsError::EmptyCertificateAuthorities => ":ERROR_PARSING_EXTENSION:",
       TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
       TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
+      TlsError::InvalidExtensionTy => ":UNEXPECTED_EXTENSION:",
       TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
       TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
       TlsError::InvalidNegotiatedServerName => ":UNEXPECTED_EXTENSION:",
@@ -200,10 +208,12 @@ where
   TM: TlsMode,
 {
   let mut cfg = TlsConfig::new(TM::default(), Instant::now_date_time().unwrap());
-  let (trust_anchor, _) = cert_der_from_pem_file(&options.trusted_cert_file);
+  let pem = cert_pem_from_pem_file(&options.trusted_cert_file);
+  let mut buffer = Vector::new();
+  let trust_anchor = Certificate::<&[u8]>::from_pem(&mut buffer, pem.as_bytes()).unwrap();
   cfg
     .trust_anchors_mut()
-    .push(CvTrustAnchor::from_certificate_ref(&trust_anchor).unwrap())
+    .push(CvTrustAnchor::from_certificate_ref(&trust_anchor.0).unwrap())
     .unwrap();
   *cfg.max_fragment_length_mut() = options.max_fragment;
   for protocol in &options.protocols {
@@ -222,6 +232,10 @@ where
       .push(ServerName::from_name(options.host_name.as_str().try_into().unwrap()))
       .unwrap();
   }
+  if let Some(el) = options.verify_prefs {
+    cfg.signature_algorithms_mut().signature_schemes.clear();
+    cfg.signature_algorithms_mut().signature_schemes.push(el).unwrap();
+  }
   cfg
 }
 
@@ -231,11 +245,11 @@ where
 {
   let mut rng = ChaCha20::from_std_random().unwrap();
   let secret_context = SecretContext::new(&mut rng).unwrap();
-  let mut cfg = TlsConfig::from_keys_der(
+  let mut cfg = TlsConfig::from_keys_pem(
     TM::default(),
-    [options.cert_der.as_slice()],
+    options.cert_pem.as_bytes(),
     &mut rng,
-    (secret_context, &mut options.key_der.clone()),
+    (secret_context, &mut options.key_pem.clone().into_bytes()),
   )
   .unwrap();
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
@@ -257,6 +271,10 @@ where
       .protocol_name_list
       .push("invalid".as_bytes().try_into().unwrap())
       .unwrap();
+  }
+  if let Some(el) = options.signing_prefs {
+    cfg.signature_algorithms_mut().signature_schemes.clear();
+    cfg.signature_algorithms_mut().signature_schemes.push(el).unwrap();
   }
   cfg
 }

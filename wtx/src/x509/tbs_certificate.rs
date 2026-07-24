@@ -1,7 +1,7 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, INTEGER_TAG, Len, Opt, SEQUENCE_TAG,
-    asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, ExplicitOpt, INTEGER_TAG, ImplicitOpt,
+    Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
@@ -70,9 +70,9 @@ where
     let spki_range_end = tbs_range_end.wrapping_sub(dw.bytes.len());
     dw.decode_aux.spki_range = spki_range_begin.try_into()?..spki_range_end.try_into()?;
 
-    let issuer_unique_id = Opt::decode(dw, ISSUER_UID_TAG)?.0;
-    let subject_unique_id = Opt::decode(dw, SUBJECT_UID_TAG)?.0;
-    let extensions = Opt::decode(dw, EXPLICIT_TAG3)?.0;
+    let issuer_unique_id = ImplicitOpt::<_, ISSUER_UID_TAG>::decode(dw)?.0;
+    let subject_unique_id = ImplicitOpt::<_, SUBJECT_UID_TAG>::decode(dw)?.0;
+    let extensions = ExplicitOpt::<_, EXPLICIT_TAG3>::decode(dw)?.0;
     dw.bytes = rest;
 
     Ok(Self {
@@ -104,9 +104,9 @@ where
       self.validity.encode(local_ew)?;
       self.subject.encode(local_ew)?;
       self.subject_public_key_info.encode(local_ew)?;
-      Opt(&self.issuer_unique_id).encode(local_ew, ISSUER_UID_TAG)?;
-      Opt(&self.subject_unique_id).encode(local_ew, SUBJECT_UID_TAG)?;
-      Opt(&self.extensions).encode(local_ew, EXPLICIT_TAG3)?;
+      ImplicitOpt::<_, ISSUER_UID_TAG>(&self.issuer_unique_id).encode(local_ew)?;
+      ImplicitOpt::<_, SUBJECT_UID_TAG>(&self.subject_unique_id).encode(local_ew)?;
+      ExplicitOpt::<_, EXPLICIT_TAG3>(&self.extensions).encode(local_ew)?;
       Ok(())
     })
   }

@@ -268,8 +268,12 @@ fn evaluate_test_case<'bytes>(
   trusted_certs: &mut Vector<CvTrustAnchor<&'bytes [u8]>>,
   untrusted_intermediates: &mut Vector<CvCertificate<&'bytes [u8], false>>,
 ) {
-  let unsupported =
-    ["bettertls::pathbuilding::tc71", "bettertls::pathbuilding::tc77", "online", "webpki"];
+  let unsupported = [
+    "bettertls::pathbuilding::tc71",
+    "bettertls::pathbuilding::tc77",
+    "online::fastly.com",
+    "webpki",
+  ];
   if unsupported.iter().any(|el| testcase.id.starts_with(el)) {
     return;
   }
