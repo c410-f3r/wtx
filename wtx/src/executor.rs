@@ -17,9 +17,9 @@ pub use no_std_runtime::NoStdRuntime;
 #[cfg(feature = "tokio")]
 pub use tokio_executor::{TokioExecutor, TokioSpawnFutureFuture};
 #[cfg(feature = "std")]
+use {crate::net::ToSocketAddrs, core::net::SocketAddr};
+#[cfg(feature = "std")]
 pub use {
-  crate::net::ToSocketAddrs,
-  core::net::SocketAddr,
   std_executor::{StdExecutor, StdSpawnFuture, StdSpawnLocalFuture},
   std_runtime::{SpawnFuture, StdRuntime},
 };
