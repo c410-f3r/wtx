@@ -1,4 +1,4 @@
-//! TLS client that reads and writes records in different tasks.
+//! TLS client that makes a HTTP/1.1 through the use of different tasks.
 //!
 //! Special records aren't automatically handled by the system in concurrent scenarios because
 //! there are multiple ways to synchronize resources. In this example, special records are managed

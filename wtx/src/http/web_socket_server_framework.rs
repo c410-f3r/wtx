@@ -4,7 +4,7 @@ use crate::{
   collections::Vector,
   executor::{Executor, Runtime as _},
   http::Router,
-  net::{StreamReader, StreamWriter, TcpListener, TcpParams, Uri},
+  net::{StreamReader, StreamWriter, TcpListener as _, TcpParams, Uri},
   rng::{CryptoRng, CryptoSeedableRng},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsMode},
@@ -182,8 +182,6 @@ where
   EC: Clone + Fn(ER) + 'static,
   ER: From<crate::Error> + 'static,
   EX: Clone + Executor + 'static,
-  EX::TcpListener: 'static,
-  EX::TcpStream: 'static,
   RC: Clone + Fn() -> Result<EX::LocalRuntime, ER> + 'static,
   RNG: CryptoRng + CryptoSeedableRng + 'static,
   TM: TlsMode + 'static,
@@ -201,14 +199,12 @@ where
     EC: Send,
     ER: Send,
     EX: Send,
-    EX::TcpListener: Send,
     EX::TcpStream: Send,
     RC: Send,
     RNG: Send,
     TM: Send + Sync,
     WSR: WebSocketRouter<CO, ER, EX, TM> + Send + Sync + 'static,
     WSR::call(..): Send,
-    <EX::TcpListener as TcpListener>::accept(..): Send,
     <EX::TcpStream as StreamReader>::read(..): Send,
     <EX::TcpStream as StreamWriter>::write_all(..): Send,
     <EX::TcpStream as StreamWriter>::write_all_vectored(..): Send,
@@ -273,7 +269,8 @@ where
       let thread_uri = Uri::new(String::from(addr));
       let thread_web_socket_router = web_socket_router.clone();
       join_handles.push(std::thread::spawn(move || {
-        thread_local_runtime_cb()?.block_on(async move {
+        let lc = thread_local_runtime_cb()?;
+        lc.block_on(async {
           let hostname = thread_uri.hostname_with_implied_port();
           let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
           loop {
@@ -288,7 +285,7 @@ where
             else {
               continue;
             };
-            let _jh = thread_executor.spawn_local(conn_fut(cp));
+            let _jh = thread_executor.spawn_local(conn_fut(cp), &lc);
           }
         })
       }))?;
@@ -303,7 +300,12 @@ where
   ///
   /// You must call this method from within an existing async environment.
   #[inline]
-  pub async fn run_local<WSR>(mut self, addr: &str, wsr: WSR) -> Result<(), ER>
+  pub async fn run_local<WSR>(
+    mut self,
+    addr: &str,
+    lc: &EX::LocalRuntime,
+    wsr: WSR,
+  ) -> Result<(), ER>
   where
     WSR: WebSocketRouter<CO, ER, EX, TM> + 'static,
   {
@@ -323,7 +325,7 @@ where
       else {
         continue;
       };
-      let _jh = self.executor.spawn_local(conn_fut(cp));
+      let _jh = self.executor.spawn_local(conn_fut(cp), lc);
     }
   }
 }

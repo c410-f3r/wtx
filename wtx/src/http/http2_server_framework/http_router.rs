@@ -12,7 +12,7 @@ use core::{marker::PhantomData, ops::ControlFlow};
 pub struct HttpRouter<D, EN, ER, M, S> {
   pub(crate) en: EN,
   pub(crate) middlewares: M,
-  pub(crate) phantom: PhantomData<(D, ER, S)>,
+  pub(crate) phantom: PhantomData<fn() -> (D, ER, S)>,
   pub(crate) router: Router<(ArrayVectorCopy<RouteMatch, 4>, OperationMode)>,
 }
 
