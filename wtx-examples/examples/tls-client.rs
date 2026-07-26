@@ -1,4 +1,4 @@
-//! TLS client that reads and writes records.
+//! TLS client that makes a HTTP/1.1 request.
 
 extern crate tokio;
 extern crate wtx;

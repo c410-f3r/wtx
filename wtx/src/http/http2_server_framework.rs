@@ -231,14 +231,13 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
 
 impl<DA, EC, ER, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM>
 where
-  EC: Clone + Fn(ER) + Send + 'static,
-  DA: Clone + Send + Sync + 'static,
-  EX: Clone + Executor + Send + 'static,
-  EX::TcpListener: Send + 'static,
-  EX::TcpStream: Send + 'static,
+  EC: Clone + Fn(ER) + 'static,
+  DA: Clone + 'static,
+  ER: From<crate::Error> + 'static,
+  EX: Clone + Executor + 'static,
   RC: Clone + Fn() -> Result<EX::LocalRuntime, ER> + 'static,
-  RNG: CryptoRng + CryptoSeedableRng + Send + 'static,
-  TM: TlsMode + Send + Sync + 'static,
+  RNG: CryptoRng + CryptoSeedableRng + 'static,
+  TM: TlsMode + 'static,
 {
   /// Starts the server distributing connections across multiple tasks.
   ///
@@ -252,21 +251,26 @@ where
     hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
   ) -> Result<(), ER>
   where
+    DA: Send + Sync,
+    EC: Send,
     EX::SpawnFuture<()>: Send,
     EN: EndpointNode<DA, ER, LocalStream<EX, TM>, auto(..): Send, manual(..): Send>
       + Send
       + Sync
       + 'static,
-    ER: From<crate::Error> + Send + Sync + 'static,
+    ER: Send,
+    EX: Send,
     M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
     M::Aux: Send,
-    <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
-    <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
+    RNG: Send,
+    TM: Send + Sync,
+    <EX as Executor>::TcpStream: Send,
+    <EX::TcpStream as Stream>::ReadHalfOwned: Send,
+    <EX::TcpStream as Stream>::WriteHalfOwned: Send,
     <EX::TcpStream as StreamReader>::read(..): Send,
     <EX::TcpStream as StreamWriter>::write_all(..): Send,
     <EX::TcpStream as StreamWriter>::write_all_vectored(..): Send,
     <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read(..): Send,
-    <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read_skip(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all_vectored(..): Send,
   {
@@ -339,21 +343,16 @@ where
     hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
   ) -> Result<(), ER>
   where
-    EC: Clone + Fn(ER) + Send + 'static,
-    EN: EndpointNode<DA, ER, LocalStream<EX, TM>, auto(..): Send, manual(..): Send>
-      + Send
-      + Sync
-      + 'static,
-    ER: From<crate::Error> + Send + Sync + 'static,
-    M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
+    DA: Send,
+    EC: Send,
+    EN: EndpointNode<DA, ER, LocalStream<EX, TM>> + Send + Sync + 'static,
+    ER: Send,
+    EX: Send,
+    M: Middleware<DA, ER> + Send + Sync + 'static,
     M::Aux: Send,
     RC: Send,
     RNG: Send,
     TM: Send + Sync,
-    <EX as Executor>::SpawnFuture<()>: Send,
-    <EX as Executor>::TcpStream: Send + 'static,
-    <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
-    <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
   {
     use crate::collections::Vector;
     use alloc::string::String;
@@ -371,13 +370,14 @@ where
       let thread_executor = self.executor.clone();
       let thread_hrc = self.hrc;
       let thread_http_router = http_router.clone();
-      let thread_local_runtime_cb: RC = self.local_runtime_cb.clone();
+      let thread_local_runtime_cb = self.local_runtime_cb.clone();
       let mut thread_rng = RNG::from_crypto_rng(&mut self.rng)?;
       let thread_tcp_params = self.tcp_params;
       let thread_tls_config = self.tls_config.clone();
       let thread_uri = Uri::new(String::from(addr));
       join_handles.push(std::thread::spawn(move || {
-        thread_local_runtime_cb()?.block_on(async move {
+        let lc = Arc::new(thread_local_runtime_cb()?);
+        lc.block_on(async {
           let hostname = thread_uri.hostname_with_implied_port();
           let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
           let xorshift = &mut Xorshift64::from_simple_seed()?;
@@ -391,42 +391,51 @@ where
             else {
               continue;
             };
-            let _conn_jh = thread_executor.spawn_local(async move {
-              let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
-              let (frame_reader, http2, ip) = match fut.await {
-                Err(err) => {
-                  (cp.error_cb)(err.into());
-                  return;
-                }
-                Ok(elem) => elem,
-              };
-              let _frame_reader_jh = cp.executor.spawn_local(frame_reader);
-              loop {
-                let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
-                  http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
-                ) {
-                  Ok(Some(el)) => el,
-                  Ok(None) => break,
+            let conn_runtime = lc.clone();
+            let _conn_jh = thread_executor.spawn_local(
+              async move {
+                let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+                let (frame_reader, http2, ip) = match fut.await {
                   Err(err) => {
-                    http2.send_go_away(Http2ErrorCode::NoError).await;
-                    (cp.error_cb)(err);
-                    break;
+                    (cp.error_cb)(err.into());
+                    return;
                   }
+                  Ok(elem) => elem,
                 };
-                let stream_data = cp.data.clone();
-                let stream_error_cb = cp.error_cb.clone();
-                let stream_http_router = cp.http_router.clone();
-                let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
-                  headers_aux,
-                  ip,
-                  opt,
-                  server_stream,
-                  stream_data,
-                  stream_error_cb,
-                  stream_http_router,
-                ));
-              }
-            });
+                let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_runtime);
+                loop {
+                  let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+                    http2
+                      .stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req))
+                      .await,
+                  ) {
+                    Ok(Some(el)) => el,
+                    Ok(None) => break,
+                    Err(err) => {
+                      http2.send_go_away(Http2ErrorCode::NoError).await;
+                      (cp.error_cb)(err);
+                      break;
+                    }
+                  };
+                  let stream_data = cp.data.clone();
+                  let stream_error_cb = cp.error_cb.clone();
+                  let stream_http_router = cp.http_router.clone();
+                  let _stream_jh = cp.executor.spawn_local(
+                    stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+                      headers_aux,
+                      ip,
+                      opt,
+                      server_stream,
+                      stream_data,
+                      stream_error_cb,
+                      stream_http_router,
+                    ),
+                    &conn_runtime,
+                  );
+                }
+              },
+              &lc,
+            );
           }
         })
       }))?;
@@ -445,20 +454,11 @@ where
     mut self,
     addr: &str,
     hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
+    lc: Arc<EX::LocalRuntime>,
   ) -> Result<(), ER>
   where
-    EC: Clone + Fn(ER) + Send + 'static,
-    EN: EndpointNode<DA, ER, LocalStream<EX, TM>, auto(..): Send, manual(..): Send>
-      + Send
-      + Sync
-      + 'static,
-    ER: From<crate::Error> + Send + Sync + 'static,
-    M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
-    M::Aux: Send,
-    <EX as Executor>::SpawnFuture<()>: Send,
-    <EX as Executor>::TcpStream: Send + 'static,
-    <EX::TcpStream as Stream>::ReadHalfOwned: Send + 'static,
-    <EX::TcpStream as Stream>::WriteHalfOwned: Send + 'static,
+    EN: EndpointNode<DA, ER, LocalStream<EX, TM>> + 'static,
+    M: Middleware<DA, ER> + 'static,
   {
     let http_router = Arc::new(hr);
     let uri = Uri::new(addr);
@@ -474,42 +474,49 @@ where
       else {
         continue;
       };
-      let _conn_jh = self.executor.spawn_local(async move {
-        let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
-        let (frame_reader, http2, ip) = match fut.await {
-          Err(err) => {
-            (cp.error_cb)(err.into());
-            return;
-          }
-          Ok(elem) => elem,
-        };
-        let _frame_reader_jh = cp.executor.spawn_local(frame_reader);
-        loop {
-          let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
-            http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
-          ) {
-            Ok(Some(el)) => el,
-            Ok(None) => break,
+      let conn_lc = lc.clone();
+      let _conn_jh = self.executor.spawn_local(
+        async move {
+          let fut = http2::<EX, _, _>(cp.hrc, cp.rng, cp.stream, cp.tls_config, cp.xorshift);
+          let (frame_reader, http2, ip) = match fut.await {
             Err(err) => {
-              http2.send_go_away(Http2ErrorCode::NoError).await;
-              (cp.error_cb)(err);
-              break;
+              (cp.error_cb)(err.into());
+              return;
             }
+            Ok(elem) => elem,
           };
-          let stream_data = cp.data.clone();
-          let stream_error_cb = cp.error_cb.clone();
-          let stream_http_router = cp.http_router.clone();
-          let _stream_jh = cp.executor.spawn_local(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
-            headers_aux,
-            ip,
-            opt,
-            server_stream,
-            stream_data,
-            stream_error_cb,
-            stream_http_router,
-          ));
-        }
-      });
+          let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_lc);
+          loop {
+            let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+              http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
+            ) {
+              Ok(Some(el)) => el,
+              Ok(None) => break,
+              Err(err) => {
+                http2.send_go_away(Http2ErrorCode::NoError).await;
+                (cp.error_cb)(err);
+                break;
+              }
+            };
+            let stream_data = cp.data.clone();
+            let stream_error_cb = cp.error_cb.clone();
+            let stream_http_router = cp.http_router.clone();
+            let _stream_jh = cp.executor.spawn_local(
+              stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+                headers_aux,
+                ip,
+                opt,
+                server_stream,
+                stream_data,
+                stream_error_cb,
+                stream_http_router,
+              ),
+              &conn_lc,
+            );
+          }
+        },
+        &*lc,
+      );
     }
   }
 }
@@ -544,7 +551,7 @@ where
   DA: Clone,
   EX: Clone + Executor,
   RNG: CryptoRng + CryptoSeedableRng,
-  TM: TlsMode + Send + 'static,
+  TM: TlsMode,
 {
   Ok(ConnParams {
     data: data.clone(),

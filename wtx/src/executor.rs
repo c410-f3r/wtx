@@ -11,14 +11,13 @@ mod std_runtime;
 #[cfg(feature = "tokio")]
 mod tokio_executor;
 
-#[cfg(feature = "std")]
-use crate::net::ToSocketAddrs;
 use crate::net::{TcpListener, TcpStream};
-use core::net::SocketAddr;
 pub use executor_error::ExecutorError;
 pub use no_std_runtime::NoStdRuntime;
 #[cfg(feature = "tokio")]
 pub use tokio_executor::{TokioExecutor, TokioSpawnFutureFuture};
+#[cfg(feature = "std")]
+use {crate::net::ToSocketAddrs, core::net::SocketAddr};
 #[cfg(feature = "std")]
 pub use {
   std_executor::{StdExecutor, StdSpawnFuture, StdSpawnLocalFuture},
@@ -66,7 +65,7 @@ pub trait Executor: Default {
     F::Output: Send + 'static;
 
   /// `!Send` version of [`Self::spawn`]
-  fn spawn_local<F>(&self, future: F) -> Self::SpawnLocalFuture<F::Output>
+  fn spawn_local<F>(&self, future: F, lc: &Self::LocalRuntime) -> Self::SpawnLocalFuture<F::Output>
   where
     F: Future + 'static,
     F::Output: 'static;

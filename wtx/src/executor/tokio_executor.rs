@@ -34,7 +34,7 @@ impl Executor for TokioExecutor {
   }
 
   #[inline]
-  fn spawn_local<F>(&self, future: F) -> Self::SpawnLocalFuture<F::Output>
+  fn spawn_local<F>(&self, future: F, _: &Self::LocalRuntime) -> Self::SpawnLocalFuture<F::Output>
   where
     F: Future + 'static,
     F::Output: 'static,

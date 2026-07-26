@@ -36,7 +36,7 @@ impl Executor for StdExecutor {
   }
 
   #[inline]
-  fn spawn_local<F>(&self, _future: F) -> Self::SpawnLocalFuture<F::Output>
+  fn spawn_local<F>(&self, _future: F, _: &Self::LocalRuntime) -> Self::SpawnLocalFuture<F::Output>
   where
     F: Future + 'static,
     F::Output: 'static,
