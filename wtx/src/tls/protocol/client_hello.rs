@@ -12,7 +12,7 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
-    misc::{tls_error_reply, u8_chunk, u16_chunk},
+    misc::{decode_extension_ty, tls_error_reply, u8_chunk, u16_chunk},
     protocol::{
       alpn::Alpn, certificate_authorities::CertificateAuthorities, extension::Extension,
       extension_ty::ExtensionTy, key_share_client_hello::KeyShareClientHello,
@@ -106,21 +106,11 @@ where
       );
     };
     u16_chunk(dw, err, |local_dw| {
-      let mut seen_unknowns = ArrayVectorCopy::<u16, 5>::new();
+      let mut seen_unknowns = ArrayVectorCopy::new();
       while !local_dw.bytes().is_empty() {
-        let tag: u16 = Decode::<'_, De>::decode(local_dw)?;
-        let Ok(extension_ty) = ExtensionTy::try_from(tag) else {
-          if seen_unknowns.contains(&tag) {
-            return tls_error_reply(
-              TlsError::DuplicatedClientHelloParameters,
-              AlertDescription::DecodeError,
-            );
-          }
-          seen_unknowns.push(tag)?;
-          u16_chunk(local_dw, err, |_bytes| Ok(()))?;
+        let Some(extension_ty) = decode_extension_ty(local_dw, err, &mut seen_unknowns)? else {
           continue;
         };
-
         u16_chunk(local_dw, err, |local_local_dw| {
           manage_extension(local_local_dw, extension_ty, &mut extensions)
         })?;

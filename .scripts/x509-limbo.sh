@@ -5,7 +5,7 @@ set -euxo pipefail
 BACKENDS=("wtx/crypto-alr wtx/_hack" "wtx/crypto-graviola" "wtx/crypto-ring" "wtx/crypto-ruco")
 
 if [ ! -e "limbo.json" ]; then
-    curl -L -o limbo.json https://raw.githubusercontent.com/C2SP/x509-limbo/refs/heads/main/limbo.json
+    curl -L -o limbo.json https://raw.githubusercontent.com/C2SP/x509-limbo/3e000feb51285a8153509129a62248a6b4883181/limbo.json
 fi
 
 for backend in "${BACKENDS[@]}"; do

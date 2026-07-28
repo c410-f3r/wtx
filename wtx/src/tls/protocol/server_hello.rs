@@ -8,7 +8,7 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, HELLO_RETRY_REQUEST, TlsError,
     de::De,
-    misc::{tls_error_reply, u8_chunk, u16_chunk},
+    misc::{decode_extension_ty, tls_error_reply, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
@@ -85,8 +85,11 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     let mut key_share_opt = None;
     let mut supported_versions_opt = None;
     u16_chunk(dw, err, |local_dw| {
+      let mut seen_unknowns = ArrayVectorCopy::new();
       while !local_dw.bytes().is_empty() {
-        let extension_ty = ExtensionTy::decode(local_dw)?;
+        let Some(extension_ty) = decode_extension_ty(local_dw, err, &mut seen_unknowns)? else {
+          continue;
+        };
         u16_chunk(local_dw, err, |local_local_dw| {
           manage_extension(
             local_local_dw,

@@ -1,5 +1,5 @@
 use crate::calendar::{
-  Date, DateTime, DayOfYear, Duration, DynTz, Hour, Nanosecond, Sixty, Time, TimeZone, Utc, Year,
+  Date, DateTime, DayOfYear, DynTz, Hour, Nanosecond, SigDuration, Sixty, Time, TimeZone, Utc, Year,
 };
 
 fn _2025_04_20_14_20_30_1234() -> DateTime<Utc> {
@@ -21,32 +21,32 @@ fn add_and_sub() {
 
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(3600 + 60 + 1).unwrap(),
+    SigDuration::from_seconds(3600 + 60 + 1).unwrap(),
     instance(2014, 5, 6, 8, 9, 10, 0, Utc)
   );
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(-(3600 + 60 + 1)).unwrap(),
+    SigDuration::from_seconds(-(3600 + 60 + 1)).unwrap(),
     instance(2014, 5, 6, 6, 7, 8, 0, Utc)
   );
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(86399).unwrap(),
+    SigDuration::from_seconds(86399).unwrap(),
     instance(2014, 5, 7, 7, 8, 8, 0, Utc)
   );
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(86_400 * 10).unwrap(),
+    SigDuration::from_seconds(86_400 * 10).unwrap(),
     instance(2014, 5, 16, 7, 8, 9, 0, Utc)
   );
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(-86_400 * 10).unwrap(),
+    SigDuration::from_seconds(-86_400 * 10).unwrap(),
     instance(2014, 4, 26, 7, 8, 9, 0, Utc)
   );
   test!(
     instance(2014, 5, 6, 7, 8, 9, 0, Utc),
-    Duration::from_seconds(86_400 * 10).unwrap(),
+    SigDuration::from_seconds(86_400 * 10).unwrap(),
     instance(2014, 5, 16, 7, 8, 9, 0, Utc)
   );
 }
@@ -64,20 +64,20 @@ fn add_days_with_tzs() {
   let west = DynTz::from_minutes(-5 * 60).unwrap();
 
   assert_eq!(
-    &base(east).add(Duration::from_days(5).unwrap()).unwrap().iso8601(),
+    &base(east).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(),
     "2014-05-11T07:08:09+09:00"
   );
   assert_eq!(
-    &base(west).add(Duration::from_days(5).unwrap()).unwrap().iso8601(),
+    &base(west).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(),
     "2014-05-11T07:08:09-05:00"
   );
 
   assert_eq!(
-    &base(east).add(Duration::from_days(35).unwrap()).unwrap().iso8601(),
+    &base(east).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(),
     "2014-06-10T07:08:09+09:00"
   );
   assert_eq!(
-    &base(west).add(Duration::from_days(35).unwrap()).unwrap().iso8601(),
+    &base(west).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(),
     "2014-06-10T07:08:09-05:00"
   );
 }

@@ -10,7 +10,7 @@ mod tests;
 use crate::{
   calendar::{
     CalendarError, CalendarToken, CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_NON_LEAP_YEAR,
-    DAYS_PER_QUADCENTURY, Day, DayOfYear, Duration, Month, SECONDS_PER_DAY, Weekday,
+    DAYS_PER_QUADCENTURY, Day, DayOfYear, Month, SECONDS_PER_DAY, SigDuration, Weekday,
     YEARS_PER_QUADCENTURY, Year,
   },
   collections::{ArrayString, ArrayStringU8},
@@ -157,7 +157,7 @@ impl Date {
   /// Adds the number of whole days in the given `duration` to the current date.
   #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
-  pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn add(self, duration: SigDuration) -> Result<Self, CalendarError> {
     if duration.is_zero() {
       return Ok(self);
     }
@@ -241,7 +241,7 @@ impl Date {
     reason = "the number of days will never reach `i64::MAX`"
   )]
   #[inline]
-  pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn sub(self, duration: SigDuration) -> Result<Self, CalendarError> {
     let days = -duration.days();
     if days < i32i64(i32::MIN) || days > i32i64(i32::MAX) {
       return Err(CalendarError::ArithmeticOverflow);

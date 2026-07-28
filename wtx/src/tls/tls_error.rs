@@ -11,10 +11,8 @@ pub enum TlsError {
   BadPreKeyShare,
   /// Bad signature
   BadSignature,
-
   /// Expected Finished record
   ClientExpectedFinished,
-
   /// Digest Check Failed
   DigestCheckFailed,
   /// Diffie–Hellman error

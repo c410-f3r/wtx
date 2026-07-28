@@ -11,11 +11,11 @@ use crate::{
 use core::fmt::{Debug, Formatter};
 
 /// Responsible for deriving keys used for encryption.
-#[derive(Debug)]
 pub struct KeySchedule {
   cipher_suite: CipherSuite,
   common_hkdf: TlsHkdf,
   common_secret: ArrayVectorCopy<u8, MAX_HASH_LEN>,
+  exporter_secret: ArrayVectorCopy<u8, MAX_HASH_LEN>,
   read: KeyScheduleRead,
   write: KeyScheduleWrite,
 }
@@ -29,21 +29,24 @@ impl KeySchedule {
       cipher_suite,
       common_hkdf: cipher_suite.hkdf_extract(None, &[]),
       common_secret: cipher_suite.zeroed_hash(),
+      exporter_secret: ArrayVectorCopy::new(),
       read: KeyScheduleRead {
         state: KeyScheduleState {
-          counter,
           cipher_key: ArrayVectorCopy::new(),
           cipher_suite,
+          counter,
           iv,
+          raw_traffic_secret: ArrayVectorCopy::new(),
           traffic_secret: cipher_suite.hkdf_extract(None, &[]),
         },
       },
       write: KeyScheduleWrite {
         state: KeyScheduleState {
-          counter,
           cipher_key: ArrayVectorCopy::new(),
           cipher_suite,
+          counter,
           iv,
+          raw_traffic_secret: ArrayVectorCopy::new(),
           traffic_secret: cipher_suite.hkdf_extract(None, &[]),
         },
       },
@@ -59,6 +62,29 @@ impl KeySchedule {
   pub(crate) fn early_secret(&mut self) -> crate::Result<()> {
     self.hkdf_extract(&self.cipher_suite.zeroed_hash());
     self.common_secret = derive_secret_derived(self.cipher_suite, &self.common_hkdf)?;
+    Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn export_keying_material(
+    &self,
+    context: Option<&[u8]>,
+    label: &[u8],
+    output: &mut [u8],
+  ) -> crate::Result<()> {
+    let exporter_hkdf = self.cipher_suite.hkdf_from_prk(&self.exporter_secret)?;
+    let empty_hash = self.cipher_suite.hash_digest([&[][..]]);
+    let derived_secret = hkdf_expand_label::<MAX_HASH_LEN>(
+      Some(empty_hash.lease()),
+      label,
+      self.cipher_suite.hash_len(),
+      &exporter_hkdf,
+    )?;
+    let context_hash = self.cipher_suite.hash_digest([context.unwrap_or(&[])]);
+    let derived_hkdf = self.cipher_suite.hkdf_from_prk(&derived_secret)?;
+    let concatenated =
+      hkdf_array(Some(context_hash.lease()), b"exporter", output.len().try_into()?)?;
+    derived_hkdf.expand(concatenated.as_slice(), output)?;
     Ok(())
   }
 
@@ -96,7 +122,18 @@ impl KeySchedule {
     };
     self.hkdf_extract(&self.cipher_suite.zeroed_hash());
     self.calculate_traffic_secrets(tuple, transcript_hash)?;
+    self.exporter_secret = derive_secret(
+      self.cipher_suite,
+      Some(transcript_hash.lease()),
+      b"exp master",
+      &self.common_hkdf,
+    )?;
     Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn read(&self) -> &KeyScheduleRead {
+    &self.read
   }
 
   #[inline]
@@ -118,6 +155,11 @@ impl KeySchedule {
   #[inline]
   pub(crate) fn split_mut(&mut self) -> (&mut KeyScheduleRead, &mut KeyScheduleWrite) {
     (&mut self.read, &mut self.write)
+  }
+
+  #[inline]
+  pub(crate) fn write(&self) -> &KeyScheduleWrite {
+    &self.write
   }
 
   #[inline]
@@ -143,6 +185,13 @@ impl KeySchedule {
   }
 }
 
+impl Debug for KeySchedule {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("KeySchedule").finish()
+  }
+}
+
 impl Default for KeySchedule {
   #[inline]
   fn default() -> Self {
@@ -155,6 +204,11 @@ pub(crate) struct KeyScheduleRead {
 }
 
 impl KeyScheduleRead {
+  #[inline]
+  pub(crate) const fn state(&self) -> &KeyScheduleState {
+    &self.state
+  }
+
   #[inline]
   pub(crate) const fn state_mut(&mut self) -> &mut KeyScheduleState {
     &mut self.state
@@ -169,10 +223,11 @@ impl Debug for KeyScheduleRead {
 }
 
 pub(crate) struct KeyScheduleState {
-  counter: u64,
   cipher_key: ArrayVectorCopy<u8, MAX_CIPHER_KEY_LEN>,
   cipher_suite: CipherSuite,
+  counter: u64,
   iv: [u8; IV_LEN],
+  raw_traffic_secret: ArrayVectorCopy<u8, MAX_HASH_LEN>,
   traffic_secret: TlsHkdf,
 }
 
@@ -230,6 +285,11 @@ impl KeyScheduleState {
     nonce(self.counter, &self.iv)
   }
 
+  #[inline]
+  pub(crate) fn raw_traffic_secret(&self) -> &[u8] {
+    self.raw_traffic_secret.as_slice()
+  }
+
   #[inline(always)]
   fn update(
     &mut self,
@@ -246,6 +306,7 @@ impl KeyScheduleState {
       (Some(el), None) => derive_secret(cipher_suite, None, label, el)?,
       (Some(lhs), Some(rhs)) => derive_secret(cipher_suite, Some(rhs.lease()), label, lhs)?,
     };
+    self.raw_traffic_secret = secret;
     self.traffic_secret = cipher_suite.hkdf_from_prk(&secret)?;
     let cipher_key_len = cipher_suite.cipher_key_len();
     let iv = hkdf_expand_label(None, b"iv", IV_LEN.try_into()?, &self.traffic_secret)?;
@@ -261,6 +322,11 @@ pub(crate) struct KeyScheduleWrite {
 }
 
 impl KeyScheduleWrite {
+  #[inline]
+  pub(crate) const fn state(&self) -> &KeyScheduleState {
+    &self.state
+  }
+
   #[inline]
   pub(crate) const fn state_mut(&mut self) -> &mut KeyScheduleState {
     &mut self.state
@@ -296,18 +362,17 @@ fn derive_secret_derived(
 }
 
 #[inline]
-fn hkdf_expand_label<const LENGTH: usize>(
+fn hkdf_array(
   context: Option<&[u8]>,
-  label: &'static [u8],
-  output_len: u8,
-  secret: &TlsHkdf,
-) -> crate::Result<ArrayVectorCopy<u8, LENGTH>> {
+  label: &[u8],
+  output_len: u16,
+) -> crate::Result<ArrayVectorCopy<u8, MAX_LABEL_LEN>> {
   let label_len = 6u8.try_add(label.len().try_into()?)?;
   let mut concatenated = ArrayVectorCopy::<_, MAX_LABEL_LEN>::new();
   match context {
     None => {
       let _ = concatenated.extend_from_copyable_slices([
-        u16::from(output_len).to_be_bytes().as_slice(),
+        output_len.to_be_bytes().as_slice(),
         &label_len.to_be_bytes(),
         b"tls13 ",
         label,
@@ -316,7 +381,7 @@ fn hkdf_expand_label<const LENGTH: usize>(
     }
     Some(value) => {
       let _ = concatenated.extend_from_copyable_slices([
-        u16::from(output_len).to_be_bytes().as_slice(),
+        output_len.to_be_bytes().as_slice(),
         &label_len.to_be_bytes(),
         b"tls13 ",
         label,
@@ -325,6 +390,17 @@ fn hkdf_expand_label<const LENGTH: usize>(
       ])?;
     }
   }
+  Ok(concatenated)
+}
+
+#[inline]
+fn hkdf_expand_label<const LENGTH: usize>(
+  context: Option<&[u8]>,
+  label: &[u8],
+  output_len: u8,
+  secret: &TlsHkdf,
+) -> crate::Result<ArrayVectorCopy<u8, LENGTH>> {
+  let concatenated = hkdf_array(context, label, output_len.into())?;
   let mut output = ArrayVectorCopy::from_array([0; LENGTH]);
   output.truncate(output_len);
   secret.expand(concatenated.as_slice(), &mut output)?;

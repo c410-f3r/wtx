@@ -92,7 +92,12 @@ impl TryFrom<u16> for ExtensionTy {
       49 => Self::PostHandshakeAuth,
       50 => Self::SignatureAlgorithmsCert,
       51 => Self::KeyShare,
-      _ => return tls_error_reply(TlsError::InvalidExtensionTy, AlertDescription::DecodeError),
+      _ => {
+        return tls_error_reply(
+          TlsError::InvalidExtensionTy,
+          AlertDescription::UnsupportedExtension,
+        );
+      }
     })
   }
 }
