@@ -128,6 +128,7 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
     },
     Err(wtx::Error::TlsErrorReply(err, _)) => match err {
       TlsError::ClientExpectedFinished => ":UNEXPECTED_MESSAGE:",
+      TlsError::DiffieHellmanError => ":BAD_ECPOINT:",
       TlsError::EmptyCertificateAuthorities => ":ERROR_PARSING_EXTENSION:",
       TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
       TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
@@ -161,6 +162,30 @@ where
   let mut quench_writes = false;
   let mut _sent_key_update = false;
   let mut sent_shutdown = false;
+
+  if options.export_keying_material > 0 {
+    let mut export_buf = vec![0u8; options.export_keying_material];
+    let context = if options.export_keying_material_context_used {
+      Some(options.export_keying_material_context.as_bytes())
+    } else {
+      None
+    };
+    tls_stream.export_keying_material(
+      context,
+      options.export_keying_material_label.as_bytes(),
+      &mut export_buf,
+    )?;
+    tls_stream.write_all(&export_buf).await?;
+  }
+
+  if options.export_traffic_secrets {
+    let (read_secret, write_secret) = tls_stream.export_traffic_secrets();
+    let (read_secret_vec, write_secret_vec) = (read_secret.to_vec(), write_secret.to_vec());
+    let read_len = u16::try_from(read_secret_vec.len()).unwrap();
+    tls_stream.write_all(&read_len.to_le_bytes()).await?;
+    tls_stream.write_all(&read_secret_vec).await?;
+    tls_stream.write_all(&write_secret_vec).await?;
+  }
 
   if options.send_key_update && !_sent_key_update {
     tls_stream.refresh_traffic_keys().await?;

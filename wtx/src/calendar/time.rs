@@ -4,9 +4,9 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, Duration, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond,
-    NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Sixty,
-    misc::nanosecond_string, nanosecond::Nanosecond,
+    CalendarError, CalendarToken, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond,
+    NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, SigDuration,
+    Sixty, misc::nanosecond_string, nanosecond::Nanosecond,
   },
   collections::{ArrayString, ArrayStringU8},
   misc::int_conv::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
@@ -91,7 +91,7 @@ impl Time {
 
   /// Computes `self + duration`, returning an error if an overflow occurred.
   #[inline]
-  pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn add(self, duration: SigDuration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_add(duration);
     if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);
@@ -138,7 +138,7 @@ impl Time {
   /// in the integral number of days ignored from the addition.
   #[inline]
   #[must_use]
-  pub const fn overflowing_add(self, duration: Duration) -> (Self, i64) {
+  pub const fn overflowing_add(self, duration: SigDuration) -> (Self, i64) {
     if duration.is_zero() {
       return (self, 0);
     }
@@ -178,7 +178,7 @@ impl Time {
   /// Subtracts the given `duration` from the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the subtraction.
   #[inline]
-  pub const fn overflowing_sub(self, duration: Duration) -> (Self, i64) {
+  pub const fn overflowing_sub(self, duration: SigDuration) -> (Self, i64) {
     let (time, rhs) = self.overflowing_add(duration.neg());
     #[expect(clippy::arithmetic_side_effects, reason = "`rhs` will never reach `i64::MAX`")]
     (time, -rhs)
@@ -200,7 +200,7 @@ impl Time {
 
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
-  pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn sub(self, duration: SigDuration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_sub(duration);
     if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);

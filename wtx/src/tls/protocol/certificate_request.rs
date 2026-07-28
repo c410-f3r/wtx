@@ -7,7 +7,7 @@ use crate::{
   tls::{
     TlsError,
     de::De,
-    misc::{u8_chunk, u16_chunk},
+    misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, signature_algorithms::SignatureAlgorithms,
     },
@@ -30,8 +30,11 @@ impl<'de> Decode<'de, De> for CertificateRequest {
     let certificate_request_context = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let mut signature_algorithms = None;
     u16_chunk(dw, err, |local_dw| {
+      let mut seen_unknowns = ArrayVectorCopy::new();
       while !local_dw.bytes().is_empty() {
-        let extension_ty = ExtensionTy::decode(local_dw)?;
+        let Some(extension_ty) = decode_extension_ty(local_dw, err, &mut seen_unknowns)? else {
+          continue;
+        };
         u16_chunk(local_dw, err, |local_local_dw| {
           manage_extension(local_local_dw, extension_ty, &mut signature_algorithms)
         })?;

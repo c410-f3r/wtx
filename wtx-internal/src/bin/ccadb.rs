@@ -6,7 +6,7 @@ use std::{
   io::BufReader,
 };
 use wtx::{
-  calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
+  calendar::{Date, DateTime, Instant, SigDuration, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, Vector},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
@@ -179,7 +179,7 @@ impl<'any> CertificateMetadata<'any> {
     let Some(distrust_for_tls_after_date) = self.distrust_for_tls_after_date() else {
       return true;
     };
-    let days = Duration::from_days(398).unwrap();
+    let days = SigDuration::from_days(398).unwrap();
     Instant::now_date_time().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
   }
 

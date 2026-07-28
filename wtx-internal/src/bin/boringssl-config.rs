@@ -21,7 +21,8 @@ struct Config {
 
 fn disabled_tests() -> HashMap<&'static str, &'static str> {
   [
-   ("NoFallbackSCSV", "UNSUPPORTED"),
+    ("Client-VerifyDefault-Ed25519-TLS13", "UNSUPPORTED"),
+    ("NoFallbackSCSV", "UNSUPPORTED"),
     ("SendFallbackSCSV", "UNSUPPORTED"),
     ("ClientCertificateTypes", "UNSUPPORTED"),
     ("CheckClientCertificateTypes", "UNSUPPORTED"),

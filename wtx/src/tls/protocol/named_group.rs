@@ -3,7 +3,10 @@ use crate::{
   crypto::{Agreement, EcdhP256Global, EcdhP384Global, X25519Global},
   misc::Lease,
   rng::CryptoRng,
-  tls::{de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper},
+  tls::{
+    AlertDescription, TlsError, de::De, misc::tls_error_reply,
+    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+  },
 };
 
 pub(crate) type NamedGroupAgreement = NamedGroupParam<EcdhP256Global, EcdhP384Global, X25519Global>;
@@ -61,16 +64,36 @@ impl Encode<De> for NamedGroup {
 }
 
 impl NamedGroupAgreement {
-  pub(crate) fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<NamedGroupSs> {
+  pub(crate) fn diffie_hellman<const IS_CLIENT: bool>(
+    self,
+    other_participant_pk: &[u8],
+  ) -> crate::Result<NamedGroupSs> {
+    let description =
+      if IS_CLIENT { AlertDescription::BadRecordMac } else { AlertDescription::IllegalParameter };
     Ok(match self {
       NamedGroupParam::Secp256r1(elem) => {
-        NamedGroupSs::Secp256r1(elem.diffie_hellman(other_participant_pk)?)
+        NamedGroupSs::Secp256r1(match elem.diffie_hellman(other_participant_pk) {
+          Ok(el) => el,
+          Err(_err) => {
+            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+          }
+        })
       }
       NamedGroupParam::Secp384r1(elem) => {
-        NamedGroupSs::Secp384r1(elem.diffie_hellman(other_participant_pk)?)
+        NamedGroupSs::Secp384r1(match elem.diffie_hellman(other_participant_pk) {
+          Ok(el) => el,
+          Err(_err) => {
+            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+          }
+        })
       }
       NamedGroupParam::X25519(elem) => {
-        NamedGroupSs::X25519(elem.diffie_hellman(other_participant_pk)?)
+        NamedGroupSs::X25519(match elem.diffie_hellman(other_participant_pk) {
+          Ok(el) => el,
+          Err(_err) => {
+            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+          }
+        })
       }
     })
   }

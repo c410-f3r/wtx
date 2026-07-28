@@ -11,6 +11,7 @@ use crate::{
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
       alert::Alert,
+      extension_ty::ExtensionTy,
       handshake::{Handshake, HandshakeType},
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
@@ -27,6 +28,27 @@ use core::{hint::cold_path, num::NonZeroUsize};
 pub(crate) fn build_header(ty: RecordContentType, len: u16) -> [u8; 5] {
   let [b0, n1] = len.to_be_bytes();
   [ty.into(), 3, 3, b0, n1]
+}
+
+pub(crate) fn decode_extension_ty(
+  dw: &mut TlsDecodeWrapper<'_>,
+  err: TlsError,
+  seen_unknowns: &mut ArrayVectorCopy<u16, 5>,
+) -> crate::Result<Option<ExtensionTy>> {
+  let tag: u16 = Decode::<'_, De>::decode(dw)?;
+  if let Ok(el) = ExtensionTy::try_from(tag) {
+    Ok(Some(el))
+  } else {
+    if seen_unknowns.contains(&tag) {
+      return tls_error_reply(
+        TlsError::DuplicatedClientHelloParameters,
+        AlertDescription::DecodeError,
+      );
+    }
+    seen_unknowns.push(tag)?;
+    u16_chunk(dw, err, |_bytes| Ok(()))?;
+    Ok(None)
+  }
 }
 
 #[inline]

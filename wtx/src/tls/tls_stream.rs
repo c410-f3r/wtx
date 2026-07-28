@@ -85,6 +85,26 @@ where
     self.connection_state
   }
 
+  /// Exports keying material
+  #[inline]
+  pub fn export_keying_material(
+    &self,
+    context: Option<&[u8]>,
+    label: &[u8],
+    output: &mut [u8],
+  ) -> crate::Result<()> {
+    self.key_schedule.export_keying_material(context, label, output)
+  }
+
+  /// Exports the read and write application traffic secrets.
+  #[inline]
+  pub fn export_traffic_secrets(&self) -> (&[u8], &[u8]) {
+    (
+      self.key_schedule.read().state().raw_traffic_secret(),
+      self.key_schedule.write().state().raw_traffic_secret(),
+    )
+  }
+
   /// Returns the last received [`NewSessionTicket`], if any.
   ///
   /// NO-OP if `IS_CLIENT` is `false`.

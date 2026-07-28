@@ -2,11 +2,12 @@
 
 use crate::{
   codec::{Decode, Encode},
+  collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
     MaxFragmentLength, TlsError,
     de::De,
-    misc::u16_chunk,
+    misc::{decode_extension_ty, u16_chunk},
     protocol::{
       alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
@@ -56,8 +57,11 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
     let mut server_name = None;
     let mut supported_groups = None;
     u16_chunk(dw, err, |local_dw| {
+      let mut seen_unknowns = ArrayVectorCopy::new();
       while !local_dw.bytes().is_empty() {
-        let extension_ty = ExtensionTy::decode(local_dw)?;
+        let Some(extension_ty) = decode_extension_ty(local_dw, err, &mut seen_unknowns)? else {
+          continue;
+        };
         u16_chunk(local_dw, err, |local_local_dw| {
           manage_extension(
             &mut alpn,

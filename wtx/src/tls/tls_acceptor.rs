@@ -379,7 +379,7 @@ where
     let legacy_session_id = *client_hello.data.legacy_session_id();
     let agreement = key_share.group.agreement(&mut self.rng)?;
     let ephemeral_pk = agreement.public_key()?;
-    let secret = agreement.diffie_hellman(key_share.opaque)?;
+    let secret = agreement.diffie_hellman::<false>(key_share.opaque)?;
     let writer_buffer = &mut self.buffer.writer_buffer;
     let server_hello_rec = Record::new(
       RecordContentType::Handshake,

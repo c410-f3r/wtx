@@ -312,7 +312,7 @@ where
     self.transcript_hash = self.key_schedule.cipher_suite().hash_new();
     self.transcript_hash.update(self.buffer.writer_buffer.get(5..).unwrap_or_default());
     self.transcript_hash.update(plaintext);
-    let shared_secret = secret.diffie_hellman(server_hello.data.key_share().opaque)?;
+    let shared_secret = secret.diffie_hellman::<true>(server_hello.data.key_share().opaque)?;
     self
       .key_schedule
       .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
