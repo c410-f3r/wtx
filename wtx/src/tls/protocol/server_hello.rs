@@ -8,7 +8,7 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, HELLO_RETRY_REQUEST, TlsError,
     de::De,
-    misc::{decode_extension_ty, tls_error_reply, u8_chunk, u16_chunk},
+    misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
@@ -77,10 +77,10 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     let legacy_session_id_echo = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
     let Ok(0) = <u8 as Decode<'de, De>>::decode(dw) else {
-      return tls_error_reply(
+      return Err(crate::Error::TlsErrorReply(
         TlsError::InvalidLegacyCompressionMethod,
         AlertDescription::DecodeError,
-      );
+      ));
     };
     let mut key_share_opt = None;
     let mut supported_versions_opt = None;
@@ -113,7 +113,10 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
     Ok(Self {
       cipher_suite,
       is_hello_retry_request,
-      key_share: key_share_opt.ok_or(TlsError::MissingKeyShares)?,
+      key_share: key_share_opt.ok_or(crate::Error::TlsErrorReply(
+        TlsError::MissingKeyShares,
+        AlertDescription::MissingExtension,
+      ))?,
       legacy_session_id_echo,
       legacy_version,
       random,
@@ -183,7 +186,10 @@ fn manage_extension<'de>(
     | ExtensionTy::StatusRequest
     | ExtensionTy::SupportedGroups
     | ExtensionTy::UseSrtp => {
-      return Err(TlsError::MismatchedExtension.into());
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::MismatchedExtension,
+        AlertDescription::BadRecordMac,
+      ));
     }
   }
   Ok(())

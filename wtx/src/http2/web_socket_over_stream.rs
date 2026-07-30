@@ -1,7 +1,7 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collections::{ArrayVectorU8, SingleTypeStorage, Vector},
+  collections::{ArrayVectorU16, SingleTypeStorage, Vector},
   futures::JoinArrayVector,
   http::{Headers, StatusCode},
   http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
@@ -98,7 +98,7 @@ where
     mask_frame::<_, _, false>(frame, self.no_masking, &mut self.rng);
     let (header, payload) = frame.header_and_payload();
     let common_stream = self.stream.lease_mut().common();
-    let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
+    let results = JoinArrayVector::new(ArrayVectorU16::<_, 2>::from_array([
       common_stream.send_data(header, false),
       common_stream.send_data(payload.lease(), false),
     ]))
@@ -160,7 +160,7 @@ where
   TM: TlsMode,
 {
   let common_stream = stream.common();
-  let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
+  let results = JoinArrayVector::new(ArrayVectorU16::<_, 2>::from_array([
     common_stream.send_data(header, false),
     common_stream.send_data(payload, false),
   ]))

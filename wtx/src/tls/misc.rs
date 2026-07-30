@@ -6,17 +6,17 @@ use crate::{
   misc::{TryArithmetic as _, unlikely_elem},
   net::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
-    AlertDescription, CHANGE_CIPHER_SPEC, SERVER_SIG_CTX, TlsError,
+    AlertDescription, CHANGE_CIPHER_SPEC, RECORD_HEADER_LEN, SERVER_SIG_CTX, TlsError,
     de::De,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
       alert::Alert,
       extension_ty::ExtensionTy,
-      handshake::{Handshake, HandshakeType},
+      handshake_ty::HandshakeTy,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
       protocol_version::ProtocolVersion,
-      record_content_type::RecordContentType,
+      record_content_ty::RecordContentTy,
       u24::U24,
     },
     read_record_info::ReadRecordInfo,
@@ -25,7 +25,7 @@ use crate::{
 };
 use core::{hint::cold_path, num::NonZeroUsize};
 
-pub(crate) fn build_header(ty: RecordContentType, len: u16) -> [u8; 5] {
+pub(crate) fn build_header(ty: RecordContentTy, len: u16) -> [u8; RECORD_HEADER_LEN] {
   let [b0, n1] = len.to_be_bytes();
   [ty.into(), 3, 3, b0, n1]
 }
@@ -40,10 +40,10 @@ pub(crate) fn decode_extension_ty(
     Ok(Some(el))
   } else {
     if seen_unknowns.contains(&tag) {
-      return tls_error_reply(
+      return Err(crate::Error::TlsErrorReply(
         TlsError::DuplicatedClientHelloParameters,
         AlertDescription::DecodeError,
-      );
+      ));
     }
     seen_unknowns.push(tag)?;
     u16_chunk(dw, err, |_bytes| Ok(()))?;
@@ -64,16 +64,16 @@ where
   let Some(header) = reader_buffer.read_header::<_, 5>(stream_reader).await? else {
     return Ok(None);
   };
-  if CHECK_CCS && header == [RecordContentType::ChangeCipherSpec.into(), 3, 3, 0, 1] {
+  if CHECK_CCS && header == [RecordContentTy::ChangeCipherSpec.into(), 3, 3, 0, 1] {
     reader_buffer.read_payload(1, stream_reader).await?;
     return Ok(Some(ReadRecordInfo {
-      inner_ty: RecordContentType::ChangeCipherSpec,
-      outer_ty: RecordContentType::ChangeCipherSpec,
+      inner_ty: RecordContentTy::ChangeCipherSpec,
+      outer_ty: RecordContentTy::ChangeCipherSpec,
       plaintext_len: 1,
     }));
   }
   let [b0, b1, b2, b3, b4] = header;
-  let outer_ty = RecordContentType::try_from(b0)?;
+  let outer_ty = RecordContentTy::try_from(b0)?;
   let protocol_version = {
     let data = [b1, b2];
     let dw = &mut TlsDecodeWrapper::from_bytes(&data);
@@ -92,7 +92,10 @@ where
   }
   if len > max_allowed_len {
     cold_path();
-    return tls_error_reply(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::ReceivedRecordIsTooLarge,
+      AlertDescription::RecordOverflow,
+    ));
   }
   reader_buffer.read_payload(len.into(), stream_reader).await?;
   let mut trails: u16 = 0;
@@ -101,14 +104,20 @@ where
     let secret = elem.cipher_key();
     let record = reader_buffer.current_mut();
     if elem.cipher_suite().aes_decrypt(&header, record, nonce, secret).is_err() {
-      return tls_error_reply(TlsError::UnencryptedRecord, AlertDescription::BadRecordMac);
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::UnencryptedRecord,
+        AlertDescription::BadRecordMac,
+      ));
     }
     elem.increment_counter();
     let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
-      return Err(crate::crypto::CryptoError::InvalidAesData.into());
+      return Err(TlsError::InvalidAesData.into());
     };
     if plaintext.len() > max_fragment_length.into() {
-      return tls_error_reply(TlsError::ReceivedRecordIsTooLarge, AlertDescription::RecordOverflow);
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::ReceivedRecordIsTooLarge,
+        AlertDescription::RecordOverflow,
+      ));
     }
     trails = 17;
     if *maybe_ty == 0 {
@@ -118,9 +127,9 @@ where
         let local_len = plaintext.len().wrapping_sub(idx);
         trails = trails.try_add(local_len.try_into()?)?;
       }
-      RecordContentType::try_from(inner_ty)?
+      RecordContentTy::try_from(inner_ty)?
     } else {
-      RecordContentType::try_from(*maybe_ty)?
+      RecordContentTy::try_from(*maybe_ty)?
     }
   } else {
     outer_ty
@@ -205,40 +214,45 @@ where
       closed_conn_cb(&mut aux);
       return Ok(None);
     };
-    let RecordContentType::ApplicationData = rri.outer_ty else {
+    let RecordContentTy::ApplicationData = rri.outer_ty else {
       cold_path();
       return Err(TlsError::UnexpectedAfterHandshakeOuterRecord.into());
     };
     let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
     match rri.inner_ty {
-      RecordContentType::Alert => {
+      RecordContentTy::Alert => {
         cold_path();
         let alert = Alert::decode(&mut TlsDecodeWrapper::from_bytes(plaintext))?;
         if alert_cb.call((&mut aux, alert, stream_reader)).await? {
           return Ok(None);
         }
       }
-      RecordContentType::ApplicationData => {
+      RecordContentTy::ApplicationData => {
         *plaintext_len = rri.plaintext_len;
         let written = transfer_after_handshake_data(&mut bytes, plaintext, |len| {
           *plaintext_consumed = len.get();
         });
         return Ok(written);
       }
-      RecordContentType::ChangeCipherSpec => {
+      RecordContentTy::ChangeCipherSpec => {
         cold_path();
         return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
       }
-      RecordContentType::Handshake => {
+      RecordContentTy::Handshake => {
         cold_path();
         let mut maybe_handshakes = plaintext;
         while !maybe_handshakes.is_empty() {
           let mut dw = TlsDecodeWrapper::from_bytes(maybe_handshakes);
-          let hs = Handshake::<&[u8]>::decode(&mut dw)?;
+          let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
+          let len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
+          let Some((hs_data, after)) = dw.bytes().split_at_checked(len) else {
+            return Err(TlsError::InvalidHandshake.into());
+          };
+          *dw.bytes_mut() = after;
           maybe_handshakes = dw.bytes();
-          match hs.msg_type {
-            HandshakeType::KeyUpdate => {
-              let remote_ku = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs.data))?;
+          match msg_type {
+            HandshakeTy::KeyUpdate => {
+              let remote_ku = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs_data))?;
               ksr.state_mut().rotate()?;
               let resend = matches!(remote_ku.request_update, KeyUpdateRequest::UpdateRequested);
               key_update_cb
@@ -249,22 +263,16 @@ where
                 ))
                 .await?;
             }
-            HandshakeType::NewSessionTicket => {
-              if !IS_CLIENT {
-                return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
-              }
-              let local_dw = &mut TlsDecodeWrapper::from_bytes(hs.data);
-              *new_session_ticket = Some(NewSessionTicket::decode(local_dw)?);
-            }
-            HandshakeType::Certificate
-            | HandshakeType::CertificateRequest
-            | HandshakeType::CertificateVerify
-            | HandshakeType::ClientHello
-            | HandshakeType::EncryptedExtensions
-            | HandshakeType::EndOfEarlyData
-            | HandshakeType::Finished
-            | HandshakeType::MessageHash
-            | HandshakeType::ServerHello => {
+            HandshakeTy::NewSessionTicket => manage_nst::<IS_CLIENT>(hs_data, new_session_ticket)?,
+            HandshakeTy::Certificate
+            | HandshakeTy::CertificateRequest
+            | HandshakeTy::CertificateVerify
+            | HandshakeTy::ClientHello
+            | HandshakeTy::EncryptedExtensions
+            | HandshakeTy::EndOfEarlyData
+            | HandshakeTy::Finished
+            | HandshakeTy::MessageHash
+            | HandshakeTy::ServerHello => {
               return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
             }
           }
@@ -278,40 +286,6 @@ pub(crate) fn server_sig_msg(transcript: &[u8]) -> crate::Result<ArrayVectorCopy
   let mut msg = ArrayVectorCopy::<u8, 146>::from_array([b' '; 64]);
   let _ = msg.extend_from_copyable_slices([SERVER_SIG_CTX.as_bytes(), transcript])?;
   Ok(msg)
-}
-
-pub(crate) fn tls_error_reply<T>(
-  tls_error: TlsError,
-  description: AlertDescription,
-) -> crate::Result<T> {
-  Err(crate::Error::TlsErrorReply(tls_error, description))
-}
-
-#[inline(always)]
-fn transfer_after_handshake_data(
-  bytes: &mut MaybeUninitSlice<'_, u8>,
-  plaintext: &[u8],
-  non_empty_cb: impl FnOnce(NonZeroUsize),
-) -> Option<NonZeroUsize> {
-  // SAFETY: No data is uninitialized, quite the opposite.
-  let all_mut = unsafe { bytes.all_mut() };
-  let all_mut_len = all_mut.len();
-  let plaintext_len = plaintext.len();
-  if let Some(all_mut_partial) = all_mut.get_mut(..plaintext_len) {
-    let _ = all_mut_partial.write_copy_of_slice(plaintext);
-    // SAFETY: `plaintext` is always is a non-empty slice
-    let len = unsafe { NonZeroUsize::new_unchecked(plaintext_len) };
-    non_empty_cb(len);
-    return Some(len);
-  }
-  if let Some(plaintext_partial @ [_not_empty, ..]) = plaintext.get(..all_mut_len) {
-    let _ = all_mut.write_copy_of_slice(plaintext_partial);
-    // SAFETY: The above check just confirmed that all_mut_len is greater than zero
-    let len = unsafe { NonZeroUsize::new_unchecked(all_mut_len) };
-    non_empty_cb(len);
-    return Some(len);
-  }
-  None
 }
 
 #[inline]
@@ -382,7 +356,7 @@ where
 
 #[inline]
 pub(crate) async fn write_payloads<SW>(
-  inner_ty: RecordContentType,
+  inner_ty: RecordContentTy,
   ksw: &mut KeyScheduleWrite,
   max_fragment_length_send: u16,
   payloads: &[&[u8]],
@@ -402,7 +376,7 @@ where
     total_unwritten = total_unwritten.wrapping_sub(record_data_len);
     let len_usize = record_data_len.wrapping_add(1).wrapping_add(AEAD_TAG_LEN);
     let len = len_usize.try_into().unwrap_or_default();
-    let header = build_header(RecordContentType::ApplicationData, len);
+    let header = build_header(RecordContentTy::ApplicationData, len);
     let plaintext_begin_idx = writer_buffer.len().wrapping_add(header.len());
     writer_buffer.extend_from_copyable_slice(header.as_slice())?;
     let mut needed = record_data_len;
@@ -455,4 +429,51 @@ where
   let rslt = cb(dw)?;
   *dw.bytes_mut() = after;
   Ok(rslt)
+}
+
+#[inline]
+fn manage_nst<const IS_CLIENT: bool>(
+  hs_data: &[u8],
+  new_session_ticket: &mut Option<NewSessionTicket<crate::collections::ShortBoxSlice<u16, u8>>>,
+) -> Result<(), crate::Error> {
+  if !IS_CLIENT {
+    return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
+  }
+  let local_dw = &mut TlsDecodeWrapper::from_bytes(hs_data);
+  let nst = NewSessionTicket::<ShortBoxSliceU16<_>>::decode(local_dw)?;
+  if nst.opaque().is_empty() {
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::EmptyNewSessionTicket,
+      AlertDescription::DecodeError,
+    ));
+  }
+  *new_session_ticket = Some(nst);
+  Ok(())
+}
+
+#[inline(always)]
+fn transfer_after_handshake_data(
+  bytes: &mut MaybeUninitSlice<'_, u8>,
+  plaintext: &[u8],
+  non_empty_cb: impl FnOnce(NonZeroUsize),
+) -> Option<NonZeroUsize> {
+  // SAFETY: No data is uninitialized, quite the opposite.
+  let all_mut = unsafe { bytes.all_mut() };
+  let all_mut_len = all_mut.len();
+  let plaintext_len = plaintext.len();
+  if let Some(all_mut_partial) = all_mut.get_mut(..plaintext_len) {
+    let _ = all_mut_partial.write_copy_of_slice(plaintext);
+    // SAFETY: `plaintext` is always is a non-empty slice
+    let len = unsafe { NonZeroUsize::new_unchecked(plaintext_len) };
+    non_empty_cb(len);
+    return Some(len);
+  }
+  if let Some(plaintext_partial @ [_not_empty, ..]) = plaintext.get(..all_mut_len) {
+    let _ = all_mut.write_copy_of_slice(plaintext_partial);
+    // SAFETY: The above check just confirmed that all_mut_len is greater than zero
+    let len = unsafe { NonZeroUsize::new_unchecked(all_mut_len) };
+    non_empty_cb(len);
+    return Some(len);
+  }
+  None
 }

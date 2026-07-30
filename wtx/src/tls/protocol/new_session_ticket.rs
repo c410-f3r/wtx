@@ -3,10 +3,10 @@ use crate::{
   collections::{ArrayVectorCopy, ArrayVectorU8},
   misc::{
     Lease,
-    counter_writer::{CounterWriterBytesTy, u8_write},
+    counter_writer::{CounterWriterBytesTy, u8_write, u16_write},
   },
   tls::{
-    TlsError,
+    AlertDescription, TlsError,
     de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::extension_ty::ExtensionTy,
@@ -97,7 +97,7 @@ where
       local_ew.buffer().extend_from_copyable_slice(self.ticket_nonce.lease())?;
       crate::Result::Ok(())
     })?;
-    u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
+    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       local_ew.buffer().extend_from_copyable_slice(self.opaque.lease())?;
       crate::Result::Ok(())
     })?;
@@ -132,6 +132,9 @@ fn manage_extension(
     | ExtensionTy::StatusRequest
     | ExtensionTy::SupportedGroups
     | ExtensionTy::SupportedVersions
-    | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
+    | ExtensionTy::UseSrtp => Err(crate::Error::TlsErrorReply(
+      TlsError::MismatchedExtension,
+      AlertDescription::BadRecordMac,
+    )),
   }
 }

@@ -8,12 +8,12 @@ use crate::{
     AlertDescription, AlertLevel, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,
     TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
-    misc::{manage_err, read_after_handshake_data, tls_error_reply, write_payloads},
+    misc::{manage_err, read_after_handshake_data, write_payloads},
     protocol::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
-      record_content_type::RecordContentType,
+      record_content_ty::RecordContentTy,
     },
   },
 };
@@ -288,7 +288,7 @@ where
       return Ok(());
     }
     write_payloads(
-      RecordContentType::ApplicationData,
+      RecordContentTy::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length_send,
       &[bytes],
@@ -308,7 +308,7 @@ where
       return Ok(());
     }
     write_payloads(
-      RecordContentType::ApplicationData,
+      RecordContentTy::ApplicationData,
       self.key_schedule.write_mut(),
       self.max_fragment_length_send,
       bytes,
@@ -336,11 +336,14 @@ where
     (AlertLevel::Warning, AlertDescription::UserCanceled) => {
       *aux.2 = aux.2.wrapping_add(1);
       if *aux.2 >= 5 {
-        return tls_error_reply(TlsError::TooManyWarningAlerts, AlertDescription::DecodeError);
+        return Err(crate::Error::TlsErrorReply(
+          TlsError::TooManyWarningAlerts,
+          AlertDescription::DecodeError,
+        ));
       }
       Ok(false)
     }
-    _ => tls_error_reply(TlsError::WrongAlert, AlertDescription::DecodeError),
+    _ => Err(crate::Error::TlsErrorReply(TlsError::WrongAlert, AlertDescription::DecodeError)),
   }
 }
 
@@ -359,7 +362,10 @@ where
 {
   *aux.3 = aux.3.wrapping_add(1);
   if *aux.3 >= 5 {
-    return tls_error_reply(TlsError::TooManyKeyUpdates, AlertDescription::DecodeError);
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::TooManyKeyUpdates,
+      AlertDescription::DecodeError,
+    ));
   }
   if let Some(elem) = key_update {
     let kss = aux.1.state_mut();

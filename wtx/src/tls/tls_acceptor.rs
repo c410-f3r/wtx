@@ -9,17 +9,18 @@ use crate::{
     HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme, TlsBuffer,
     TlsConfig, TlsError, TlsMode, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, tls_error_reply, write_payloads},
+    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, write_payloads},
     protocol::{
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
       client_hello::ClientHello,
       encrypted_extensions::EncryptedExtensions,
       finished::Finished,
-      handshake::{Handshake, HandshakeType},
+      handshake::Handshake,
+      handshake_ty::HandshakeTy,
       key_share_entry::KeyShareEntry,
       record::Record,
-      record_content_type::RecordContentType,
+      record_content_ty::RecordContentTy,
       server_hello::ServerHello,
     },
     read_record_info::ReadRecordInfo,
@@ -155,7 +156,7 @@ where
       };
       _trace!(target: crate::tls::_TARGET_HS, "Write Records");
       write_payloads(
-        RecordContentType::Handshake,
+        RecordContentTy::Handshake,
         self.key_schedule.write_mut(),
         self.max_fragment_length_send,
         payloads,
@@ -165,7 +166,7 @@ where
       .await?;
       buffer.truncate(indices.first().copied().unwrap_or_default());
       let mut last_rri = self.fetch_rec_from_stream::<true, false>(true).await?;
-      if last_rri.outer_ty == RecordContentType::ChangeCipherSpec {
+      if last_rri.outer_ty == RecordContentTy::ChangeCipherSpec {
         last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
       }
       _trace!(target: crate::tls::_TARGET_HS, "Read Finished: {:?}", &last_rri);
@@ -200,7 +201,7 @@ where
     &mut self,
     rri: &ReadRecordInfo,
   ) -> crate::Result<ArrayVectorCopy<usize, 4>> {
-    let RecordContentType::Handshake = rri.outer_ty else {
+    let RecordContentTy::Handshake = rri.outer_ty else {
       return Err(TlsError::InvalidHandshake.into());
     };
     let output = self.negotiate(rri)?;
@@ -209,7 +210,7 @@ where
     let mut curr_idx = reader_buffer.len();
     let mut indices = ArrayVectorCopy::new();
     let encrypted_extensions = Handshake::new(
-      HandshakeType::EncryptedExtensions,
+      HandshakeTy::EncryptedExtensions,
       EncryptedExtensions::new(output.alpn, output.max_fragment_length, None, None),
     );
     encrypted_extensions.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
@@ -222,7 +223,7 @@ where
       cert_list.push(CertificateEntry::new(bytes))?;
     }
     {
-      let ty = HandshakeType::Certificate;
+      let ty = HandshakeTy::Certificate;
       let certificate = Handshake::new(ty, Certificate::new(cert_list, &[]));
       certificate.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
       self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
@@ -239,7 +240,7 @@ where
     )??;
     {
       let certificate_verify = Handshake::new(
-        HandshakeType::CertificateVerify,
+        HandshakeTy::CertificateVerify,
         CertificateVerify::new(output.signature_scheme, signature.as_ref()),
       );
       certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
@@ -252,7 +253,7 @@ where
       .write_mut()
       .state_mut()
       .create_finished_verify_data(self.transcript_hash.clone().finalize().lease())?;
-    let finished = Handshake::new(HandshakeType::Finished, Finished::new(verify_data.as_slice()));
+    let finished = Handshake::new(HandshakeTy::Finished, Finished::new(verify_data.as_slice()));
     finished.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
     self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
 
@@ -265,8 +266,8 @@ where
   /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn manage_final_client_record(&mut self, rri: &ReadRecordInfo) -> crate::Result<()> {
-    if rri.outer_ty != RecordContentType::ApplicationData
-      || rri.inner_ty != RecordContentType::Handshake
+    if rri.outer_ty != RecordContentTy::ApplicationData
+      || rri.inner_ty != RecordContentTy::Handshake
     {
       return Err(TlsError::InvalidHandshake.into());
     }
@@ -274,12 +275,12 @@ where
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
     let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
     let hs = Handshake::<&[u8]>::decode(&mut dw)?;
-    if hs.msg_type != HandshakeType::Finished {
+    if hs.msg_type != HandshakeTy::Finished {
       self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
-      return tls_error_reply(
+      return Err(crate::Error::TlsErrorReply(
         TlsError::ClientExpectedFinished,
         AlertDescription::UnexpectedMessage,
-      );
+      ));
     }
     *dw.bytes_mut() = hs.data;
     *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
@@ -382,10 +383,10 @@ where
     let secret = agreement.diffie_hellman::<false>(key_share.opaque)?;
     let writer_buffer = &mut self.buffer.writer_buffer;
     let server_hello_rec = Record::new(
-      RecordContentType::Handshake,
+      RecordContentTy::Handshake,
       ProtocolVersion::Tls12,
       Handshake::new(
-        HandshakeType::ServerHello,
+        HandshakeTy::ServerHello,
         ServerHello::new(
           cipher_suite,
           false,
@@ -431,12 +432,18 @@ fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Res
     return Ok(None);
   };
   if server.protocol_name_list.is_empty() {
-    return tls_error_reply(TlsError::EmptyNegotiatedAlpnServer, AlertDescription::InternalError);
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::EmptyNegotiatedAlpnServer,
+      AlertDescription::InternalError,
+    ));
   }
   let mut rslt = None;
   for client_el in &client.protocol_name_list {
     if client_el.is_empty() {
-      return tls_error_reply(TlsError::EmptyNegotiatedAlpnClient, AlertDescription::DecodeError);
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::EmptyNegotiatedAlpnClient,
+        AlertDescription::DecodeError,
+      ));
     }
     if rslt.is_none() && server.protocol_name_list.contains(client_el) {
       let mut alpn = Alpn::default();
@@ -447,10 +454,10 @@ fn seek_alpn(client_opt: &Option<Alpn>, server_opt: &Option<Alpn>) -> crate::Res
   if let Some(elem) = rslt {
     Ok(Some(elem))
   } else {
-    tls_error_reply(
+    Err(crate::Error::TlsErrorReply(
       TlsError::MismatchedNegotiatedAlpnServer,
       AlertDescription::NoApplicationProtocol,
-    )
+    ))
   }
 }
 

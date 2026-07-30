@@ -5,7 +5,7 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, u8_write, u16_write},
   tls::{
-    TlsError,
+    AlertDescription, TlsError,
     de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
@@ -109,7 +109,10 @@ fn manage_extension(
     | ExtensionTy::SupportedGroups
     | ExtensionTy::SupportedVersions
     | ExtensionTy::UseSrtp => {
-      return Err(TlsError::MismatchedExtension.into());
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::MismatchedExtension,
+        AlertDescription::BadRecordMac,
+      ));
     }
   }
   Ok(())

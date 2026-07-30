@@ -154,7 +154,8 @@ fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -
     | "-expect-secure-renegotiation"
     | "-expect-session-id"
     | "-expect-tls13-downgrade"
-    | "-no-legacy-server-connect" // Always ignored
+    | "-no-legacy-server-connect"
+    | "-no-ticket"
     | "-ocsp-response"
     | "-on-resume-expect-no-offer-early-data" => {
       println!("Ignored: {arg}");
@@ -167,6 +168,7 @@ fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -
     | "-expect-peer-signature-algorithm"
     | "-expect-peer-verify-pref"
     | "-expect-server-name"
+    | "-expect-session-miss"
     | "-expect-signed-cert-timestamps"
     | "-expect-ticket-age-skew"
     | "-handshaker-path"

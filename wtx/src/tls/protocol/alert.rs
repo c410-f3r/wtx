@@ -2,8 +2,8 @@ use crate::{
   codec::{Decode, Encode},
   crypto::AEAD_TAG_LEN,
   tls::{
-    TlsError, de::De, key_schedule::KeyScheduleState,
-    protocol::record_content_type::RecordContentType, tls_decode_wrapper::TlsDecodeWrapper,
+    RECORD_HEADER_LEN, TlsError, de::De, key_schedule::KeyScheduleState,
+    protocol::record_content_ty::RecordContentTy, tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -125,10 +125,10 @@ impl Alert {
   pub(crate) fn record_bytes(
     self,
     kss: &mut KeyScheduleState,
-  ) -> crate::Result<[u8; 5 + 2 + 1 + 16]> {
+  ) -> crate::Result<[u8; RECORD_HEADER_LEN + 2 + 1 + 16]> {
     let [a0, a1] = self.data_bytes();
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 19];
-    let mut encrypted = [a0, a1, RecordContentType::Alert.into()];
+    let header = [RecordContentTy::ApplicationData.into(), 3, 3, 0, 19];
+    let mut encrypted = [a0, a1, RecordContentTy::Alert.into()];
     let nonce = kss.nonce();
     let secret = kss.cipher_key();
     let tag = kss.cipher_suite().aes_encrypt(&header, &mut encrypted, nonce, secret)?;
@@ -144,7 +144,7 @@ impl Alert {
 
   pub(crate) fn record_bytes_unencrypted(self) -> [u8; 5 + 2] {
     let [a0, a1] = self.data_bytes();
-    [RecordContentType::Alert.into(), 3, 3, 0, 2, a0, a1]
+    [RecordContentTy::Alert.into(), 3, 3, 0, 2, a0, a1]
   }
 
   fn data_bytes(self) -> [u8; 2] {

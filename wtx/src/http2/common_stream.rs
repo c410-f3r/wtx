@@ -1,6 +1,6 @@
 use crate::{
   _AFTER_CLOSE_TIMEOUT_MS,
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, ArrayVectorU16, Vector},
   futures::{Sleep, TryJoinArrayVector},
   http::{Headers, StatusCode, U31},
   http2::{
@@ -206,16 +206,21 @@ where
   ///
   /// Returns [`None`] if `data` is empty. This method will abort early if any sending result is
   /// not [`Http2SendStatus::Ok`].
+  ///
+  /// `N` should contain the elements yield by `data`, otherwise an overflow will occur.
   #[inline]
-  pub async fn send_data_concurrent<const N: usize>(
+  pub async fn send_data_concurrent<'bytes, I, const N: usize>(
     &self,
-    mut data: ArrayVectorU8<&[u8], N>,
-  ) -> crate::Result<Option<Http2SendStatus>> {
-    let Some(last) = data.pop() else {
-      return Ok(None);
-    };
-    let mut futures = ArrayVectorU8::<_, N>::new();
-    for elem in data {
+    data: I,
+  ) -> crate::Result<Option<Http2SendStatus>>
+  where
+    I: IntoIterator<Item = &'bytes [u8]>,
+    I::IntoIter: ExactSizeIterator,
+  {
+    let mut iter = data.into_iter();
+    let take = iter.len().saturating_sub(1);
+    let mut futures = ArrayVectorU16::<_, N>::new();
+    for elem in iter.by_ref().take(take) {
       futures.push(self.send_data(elem, false))?;
     }
     drop(
@@ -227,7 +232,10 @@ where
       })
       .await?,
     );
-    Ok(Some(self.send_data(last, true).await?))
+    if let Some(elem) = iter.next() {
+      return Ok(Some(self.send_data(elem, true).await?));
+    }
+    Ok(None)
   }
 
   /// Calls [`Self::send_data`] sequentially on each data element terminating the stream in the

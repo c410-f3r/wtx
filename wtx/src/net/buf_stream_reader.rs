@@ -105,6 +105,12 @@ impl BufStreamReader {
     &self.buffer
   }
 
+  /// Mutable version of [`Self::filled`].
+  #[inline]
+  pub fn filled_mut(&mut self) -> &mut [u8] {
+    &mut self.buffer
+  }
+
   /// The filled but unread region.
   #[inline]
   pub fn following(&self) -> &[u8] {

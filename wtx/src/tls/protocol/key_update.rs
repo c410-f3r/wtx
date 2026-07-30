@@ -2,8 +2,8 @@ use crate::{
   codec::{Decode, Encode},
   crypto::AEAD_TAG_LEN,
   tls::{
-    TlsError, de::De, key_schedule::KeyScheduleState,
-    protocol::record_content_type::RecordContentType, tls_decode_wrapper::TlsDecodeWrapper,
+    RECORD_HEADER_LEN, TlsError, de::De, key_schedule::KeyScheduleState,
+    protocol::record_content_ty::RecordContentTy, tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
@@ -31,10 +31,10 @@ impl KeyUpdate {
   pub(crate) fn record_bytes(
     self,
     kss: &mut KeyScheduleState,
-  ) -> crate::Result<[u8; 5 + 1 + 1 + 16]> {
+  ) -> crate::Result<[u8; RECORD_HEADER_LEN + 1 + 1 + 16]> {
     let [a0] = self.data_bytes();
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, 18];
-    let mut encrypted = [a0, RecordContentType::ApplicationData.into()];
+    let header = [RecordContentTy::ApplicationData.into(), 3, 3, 0, 18];
+    let mut encrypted = [a0, RecordContentTy::ApplicationData.into()];
     let nonce = kss.nonce();
     let secret = kss.cipher_key();
     let tag = kss.cipher_suite().aes_encrypt(&header, &mut encrypted, nonce, secret)?;

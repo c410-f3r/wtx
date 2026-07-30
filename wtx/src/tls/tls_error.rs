@@ -29,12 +29,16 @@ pub enum TlsError {
   EmptyNegotiatedAlpnClient,
   /// Invalid Negotiated ALPN
   EmptyNegotiatedAlpnServer,
+  /// Empty New Session Ticket
+  EmptyNewSessionTicket,
   /// Empty set of certificates
   EmptySetOfCertificates,
   /// Incompatible ALPN
   IncompatibleAlpn,
   /// Incompatible Certificate Types
   IncompatibleCertificateTypes,
+  /// Invalid AES data
+  InvalidAesData,
   /// Invalid Alert
   InvalidAlert,
   /// Invalid array
@@ -105,6 +109,8 @@ pub enum TlsError {
   InvalidServerHello,
   /// Invalid Legacy Session Id Echo
   InvalidLegacySessionIdEcho,
+  /// Invalid Psk Key Exchange Mode
+  InvalidPskKeyExchangeMode,
   /// Invalid Raw Public Key
   InvalidRawPublicKey,
   /// Invalid server name
@@ -147,6 +153,8 @@ pub enum TlsError {
   UnencryptedRecord,
   /// Unknown name type
   UnknownNameType,
+  /// Unoffered Extension
+  UnofferedExtension,
   /// Unknown Signature Scheme
   UnknownSignatureScheme,
   /// Unknown Webpki Signature Scheme
@@ -179,6 +187,12 @@ pub enum TlsError {
   UnsupportedRecTlsVersion(ProtocolVersion),
   /// Only TLS 1.3 is supported
   UnsupportedTlsVersion(Option<ProtocolVersion>),
+  /// Unknown Named Group
+  UnknownNamedGroup,
+  /// Unknown handshake type
+  UnknownHandshakeTy,
+  /// Unknown record content type
+  UnknownRecordContentType,
   /// Wrong alert
   WrongAlert,
 }

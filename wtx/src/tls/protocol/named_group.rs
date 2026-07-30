@@ -4,8 +4,8 @@ use crate::{
   misc::Lease,
   rng::CryptoRng,
   tls::{
-    AlertDescription, TlsError, de::De, misc::tls_error_reply,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    AlertDescription, TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper,
+    tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
@@ -21,21 +21,21 @@ pub(crate) type NamedGroupSs = NamedGroupParam<
   <X25519Global as Agreement>::SharedSecret,
 >;
 
-create_enum! {
-  /// Specifies the group or curve used for key exchange mechanisms.
-  #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-  pub enum NamedGroup<u16> {
-    /// Secp256r1
-    Secp256r1 = (23),
-    /// Secp384r1
-    Secp384r1 = (24),
-    /// X25519
-    #[default]
-    X25519 = (29),
-  }
+/// Specifies the group or curve used for key exchange mechanisms.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum NamedGroup {
+  /// Secp256r1
+  Secp256r1 = 23,
+  /// Secp384r1
+  Secp384r1 = 24,
+  /// X25519
+  #[default]
+  X25519 = 29,
 }
 
 impl NamedGroup {
+  pub(crate) const PRIORITY: [Self; 3] = [Self::X25519, Self::Secp256r1, Self::Secp384r1];
+
   pub(crate) fn agreement<RNG>(self, rng: &mut RNG) -> crate::Result<NamedGroupAgreement>
   where
     RNG: CryptoRng,
@@ -45,6 +45,10 @@ impl NamedGroup {
       NamedGroup::Secp384r1 => NamedGroupAgreement::Secp384r1(EcdhP384Global::generate(rng)?),
       NamedGroup::X25519 => NamedGroupAgreement::X25519(X25519Global::generate(rng)?),
     })
+  }
+
+  pub(crate) const fn len() -> usize {
+    3
   }
 }
 
@@ -63,6 +67,30 @@ impl Encode<De> for NamedGroup {
   }
 }
 
+impl From<NamedGroup> for u16 {
+  #[inline]
+  fn from(value: NamedGroup) -> Self {
+    match value {
+      NamedGroup::Secp256r1 => 23,
+      NamedGroup::Secp384r1 => 24,
+      NamedGroup::X25519 => 29,
+    }
+  }
+}
+
+impl TryFrom<u16> for NamedGroup {
+  type Error = crate::Error;
+  #[inline]
+  fn try_from(value: u16) -> crate::Result<Self> {
+    Ok(match value {
+      23 => NamedGroup::Secp256r1,
+      24 => NamedGroup::Secp384r1,
+      29 => NamedGroup::X25519,
+      _ => return Err(TlsError::UnknownNamedGroup.into()),
+    })
+  }
+}
+
 impl NamedGroupAgreement {
   pub(crate) fn diffie_hellman<const IS_CLIENT: bool>(
     self,
@@ -75,7 +103,7 @@ impl NamedGroupAgreement {
         NamedGroupSs::Secp256r1(match elem.diffie_hellman(other_participant_pk) {
           Ok(el) => el,
           Err(_err) => {
-            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+            return Err(crate::Error::TlsErrorReply(TlsError::DiffieHellmanError, description));
           }
         })
       }
@@ -83,7 +111,7 @@ impl NamedGroupAgreement {
         NamedGroupSs::Secp384r1(match elem.diffie_hellman(other_participant_pk) {
           Ok(el) => el,
           Err(_err) => {
-            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+            return Err(crate::Error::TlsErrorReply(TlsError::DiffieHellmanError, description));
           }
         })
       }
@@ -91,7 +119,7 @@ impl NamedGroupAgreement {
         NamedGroupSs::X25519(match elem.diffie_hellman(other_participant_pk) {
           Ok(el) => el,
           Err(_err) => {
-            return tls_error_reply(TlsError::DiffieHellmanError, description)?;
+            return Err(crate::Error::TlsErrorReply(TlsError::DiffieHellmanError, description));
           }
         })
       }

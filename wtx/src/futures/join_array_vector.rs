@@ -1,4 +1,4 @@
-use crate::collections::ArrayVectorU8;
+use crate::collections::ArrayVectorU16;
 use core::{
   mem,
   pin::Pin,
@@ -14,8 +14,8 @@ pub struct JoinArrayVector<F, const N: usize>
 where
   F: Future,
 {
-  futures: ArrayVectorU8<F, N>,
-  outputs: ArrayVectorU8<Option<F::Output>, N>,
+  futures: ArrayVectorU16<F, N>,
+  outputs: ArrayVectorU16<Option<F::Output>, N>,
 }
 
 impl<F, const N: usize> JoinArrayVector<F, N>
@@ -24,9 +24,9 @@ where
 {
   /// Creates a new instance
   #[inline]
-  pub const fn new(futures: ArrayVectorU8<F, N>) -> Self {
+  pub const fn new(futures: ArrayVectorU16<F, N>) -> Self {
     // FIXME(STABLE): Fill with `None`
-    Self { futures, outputs: ArrayVectorU8::new() }
+    Self { futures, outputs: ArrayVectorU16::new() }
   }
 }
 
@@ -34,7 +34,7 @@ impl<F, const N: usize> Future for JoinArrayVector<F, N>
 where
   F: Future,
 {
-  type Output = ArrayVectorU8<F::Output, N>;
+  type Output = ArrayVectorU16<F::Output, N>;
 
   #[inline]
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -59,7 +59,7 @@ where
       }
     }
     if is_finished {
-      let mut results = ArrayVectorU8::new();
+      let mut results = ArrayVectorU16::new();
       for elem in mem::take(outputs) {
         #[expect(
           clippy::unwrap_used,
@@ -85,8 +85,8 @@ where
   F: Future<Output = Result<T, E>>,
 {
   cb: C,
-  futures: ArrayVectorU8<F, N>,
-  outputs: ArrayVectorU8<Option<T>, N>,
+  futures: ArrayVectorU16<F, N>,
+  outputs: ArrayVectorU16<Option<T>, N>,
 }
 
 impl<C, E, F, T, const N: usize> TryJoinArrayVector<C, E, F, T, N>
@@ -95,9 +95,9 @@ where
 {
   /// Creates a new instance
   #[inline]
-  pub const fn new(futures: ArrayVectorU8<F, N>, cb: C) -> Self {
+  pub const fn new(futures: ArrayVectorU16<F, N>, cb: C) -> Self {
     // FIXME(STABLE): Fill with `None`
-    Self { cb, futures, outputs: ArrayVectorU8::new() }
+    Self { cb, futures, outputs: ArrayVectorU16::new() }
   }
 }
 
@@ -106,7 +106,7 @@ where
   C: FnMut(T) -> Result<T, E>,
   F: Future<Output = Result<T, E>>,
 {
-  type Output = Result<ArrayVectorU8<T, N>, E>;
+  type Output = Result<ArrayVectorU16<T, N>, E>;
 
   #[inline]
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -131,7 +131,7 @@ where
       }
     }
     if is_finished {
-      let mut results = ArrayVectorU8::new();
+      let mut results = ArrayVectorU16::new();
       for elem in mem::take(outputs) {
         #[expect(
           clippy::unwrap_used,
@@ -148,7 +148,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::ArrayVectorU8, futures::JoinArrayVector};
+  use crate::{collections::ArrayVectorU16, futures::JoinArrayVector};
   use core::{
     pin::Pin,
     task::{Context, Poll},
@@ -156,11 +156,11 @@ mod tests {
 
   #[wtx::test]
   async fn polls_array_vector() {
-    let futures = ArrayVectorU8::<_, 2>::from([One, One]);
+    let futures = ArrayVectorU16::<_, 2>::from([One, One]);
     let fut = &mut JoinArrayVector::new(futures);
-    assert_eq!((&mut *fut).await, ArrayVectorU8::from([1, 1]));
-    assert_eq!((&mut *fut).await, ArrayVectorU8::new());
-    assert_eq!((&mut *fut).await, ArrayVectorU8::new());
+    assert_eq!((&mut *fut).await, ArrayVectorU16::from([1, 1]));
+    assert_eq!((&mut *fut).await, ArrayVectorU16::new());
+    assert_eq!((&mut *fut).await, ArrayVectorU16::new());
   }
 
   struct One;

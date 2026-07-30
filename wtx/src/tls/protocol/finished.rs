@@ -9,7 +9,7 @@ use crate::{
     TlsError,
     de::De,
     key_schedule::KeyScheduleState,
-    protocol::{handshake::HandshakeType, record_content_type::RecordContentType},
+    protocol::{handshake_ty::HandshakeTy, record_content_ty::RecordContentTy},
     tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
   },
@@ -35,12 +35,12 @@ impl<'any> Finished<'any> {
   ) -> crate::Result<ArrayVectorCopy<u8, { 5 + 4 + MAX_HASH_LEN + 1 + 16 }>> {
     let verify_len: u8 = data_bytes.len().try_into()?;
     let payload_len: u8 = verify_len.try_add(21)?;
-    let header = [RecordContentType::ApplicationData.into(), 3, 3, 0, payload_len];
+    let header = [RecordContentTy::ApplicationData.into(), 3, 3, 0, payload_len];
     let mut encrypted = ArrayVectorCopy::<u8, { 4 + MAX_HASH_LEN + 1 }>::new();
     let _ = encrypted.extend_from_copyable_slices([
-      &[HandshakeType::Finished.into(), 0, 0, verify_len],
+      &[HandshakeTy::Finished.into(), 0, 0, verify_len],
       data_bytes,
-      &[RecordContentType::Handshake.into()],
+      &[RecordContentTy::Handshake.into()],
     ])?;
     let nonce = kss.nonce();
     let secret = kss.cipher_key();

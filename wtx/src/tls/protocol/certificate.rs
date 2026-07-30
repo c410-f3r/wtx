@@ -7,7 +7,7 @@ use crate::{
     CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write, u24_write, u24_write_iter,
   },
   tls::{
-    MAX_CERTIFICATES, TlsError,
+    AlertDescription, MAX_CERTIFICATES, TlsError,
     de::De,
     misc::{u8_chunk, u16_chunk, u24_chunk, u24_list},
     protocol::extension_ty::ExtensionTy,
@@ -136,6 +136,9 @@ fn manage_extension(
     | ExtensionTy::SignatureAlgorithmsCert
     | ExtensionTy::SupportedGroups
     | ExtensionTy::SupportedVersions
-    | ExtensionTy::UseSrtp => Err(TlsError::MismatchedExtension.into()),
+    | ExtensionTy::UseSrtp => Err(crate::Error::TlsErrorReply(
+      TlsError::MismatchedExtension,
+      AlertDescription::BadRecordMac,
+    )),
   }
 }

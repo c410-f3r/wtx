@@ -7,7 +7,7 @@ use crate::{
     TlsMode, TlsStreamBridgeData,
     key_schedule::KeyScheduleWrite,
     misc::write_payloads,
-    protocol::{alert::Alert, key_update::KeyUpdate, record_content_type::RecordContentType},
+    protocol::{alert::Alert, key_update::KeyUpdate, record_content_ty::RecordContentTy},
   },
 };
 use core::{hint::cold_path, sync::atomic::Ordering};
@@ -120,7 +120,7 @@ where
       return Ok(());
     }
     write_payloads(
-      RecordContentType::ApplicationData,
+      RecordContentTy::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length_send,
       &[bytes],
@@ -140,7 +140,7 @@ where
       return Ok(());
     }
     write_payloads(
-      RecordContentType::ApplicationData,
+      RecordContentTy::ApplicationData,
       &mut self.ksw,
       self.max_fragment_length_send,
       bytes,

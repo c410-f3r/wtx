@@ -455,7 +455,7 @@ impl HpackEncoder {
         (has_value, idx, name)
       }
       HpackHeaderBasic::Scheme => {
-        let name = ":path";
+        let name = ":scheme";
         let (has_value, idx) = match value {
           "http" => (true, 6),
           "https" => (true, 7),
