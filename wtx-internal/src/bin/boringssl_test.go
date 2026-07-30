@@ -89,29 +89,44 @@ func TestNames(t *testing.T) {
 	both := []string{
 		// ALPS is not implemented
 		"ALPS",
+		// Certificate compression in not implemented
+		"CertCompression",
 		// mTLS is not implemented
 		"ClientAuth",
 		// CBC is not implemented
 		"CBC",
 		// DTLS is not implemented
 		"DTLS",
+		// 0-RTT is not supported
+		"EarlyData",
 		// ECH is not implemented
 		"ECH",
 		// Grease is not implemented
 		"GREASE",
+		// Hello Retry Request is not implemented
+		"HelloRetryRequest",
 		// HRR is not implemented
 		"HRR",
 		// OCSP is deprecated
 		"OCSP",
+		// PAKE is not implemented
+		"PAKE",
 		// QUIC is not implemented
 		"QUIC",
 		// Post Quantum is not implemented
-		"MLKEM", "ML-DSA-",
+		"MLKEM", "ML-DSA-", "PostQuantum",
 		// Raw public key is not implemented
-		"RawPublicKey",
+		"RawPublicKey", "RPK",
+		// Ticket Request is not implemented
+		"TicketFlags",
+
+		// Unrelated
+		"JDK11",
 
 		// Unsupported signatures
 		"ECDSA_P521", "RSA_PKCS1", "RSA_PSS_SHA512",
+		// Unsupported key exchanges
+		"Kyber", "P-521",
 
 		// Legacy
 		"3DES", "ChannelID", "DSS", "ExtendedMasterSecret", "MD5", "NPN", "RC4", "SHA1", "SSL3", "-TLS1-", "TLS11", "TLS12", "V2ClientHello",
@@ -125,7 +140,10 @@ func TestNames(t *testing.T) {
 		"EMS-Forbidden-TLS13", "RenegotiationInfo-Forbidden-TLS13",
 		// BOGO expects a graceful shutdown. WTX abruptly closes the connection
 		"StrayHelloRequest-TLS13",
-
+		// Ed25519 is already enabled by default
+		"Client-VerifyDefault-Ed25519-TLS13",
+		// Legacy extensions are ignored, regardless if they are valid or not
+		"PointFormat-EncryptedExtensions-TLS13",
 		// OCSP is deprecated
 		"SendNoExtensionsOnIntermediate-TLS13",
 		// SCT is not implemented
@@ -134,8 +152,11 @@ func TestNames(t *testing.T) {
 		"ClientHelloVersionTooHigh", "NoCheckClientCertificateTypes",
 		// Resumption
 		"IgnoreLegacyVersion-TLS13",
-		// Ed25519 is already enabled by default
-		"Client-VerifyDefault-Ed25519-TLS13"
+		// In a TLS 1.3 only implementation, even TLS 1.2 extensions are unknown.
+		//
+		// AFAICT, the only way to differentiate between legacy and actual unknowns is to support
+		// legacy extensions identifiers, which doesn't seem worthwhile.
+		"UnknownExtension-Client-TLS13", "UnknownUnencryptedExtension-Client-TLS13",
 	}
 
 	for _, tc := range testCases {

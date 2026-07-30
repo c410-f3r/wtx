@@ -110,6 +110,9 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
   let reason = match &rslt {
     Ok(_) => return,
     Err(wtx::Error::TlsError(err)) => match err {
+      // Client
+      TlsError::MissingKeyShares => ":MISSING_KEY_SHARE:",
+
       TlsError::AbortedHandshake(alert)
         if alert.description() == AlertDescription::HandshakeFailure =>
       {
@@ -117,31 +120,41 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       }
       TlsError::BadSignature => ":BAD_SIGNATURE:",
       TlsError::DigestCheckFailed => ":DIGEST_CHECK_FAILED:",
+      TlsError::InvalidAesData => ":BAD_DECRYPT:",
+      TlsError::MismatchedCertificatePkAndSignature => ":WRONG_SIGNATURE_TYPE:",
       TlsError::MissingSignatureAlgorithms => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
       TlsError::ServerHasNoCompatibleAlgorithmTy => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
+      TlsError::UnexpectedAfterHandshakeOuterRecord => ":INVALID_OUTER_RECORD_TYPE:",
+      TlsError::UnknownNamedGroup => ":WRONG_CURVE:",
       TlsError::UnknownSignatureScheme => ":WRONG_SIGNATURE_TYPE:",
       TlsError::UnsupportedCipherSuite => ":WRONG_CIPHER_RETURNED:",
       TlsError::UnsupportedExtension => ":ERROR_PARSING_EXTENSION:",
-      TlsError::MismatchedCertificatePkAndSignature => ":WRONG_SIGNATURE_TYPE:",
       _ => ":FIXME:",
     },
     Err(wtx::Error::TlsErrorReply(err, _)) => match err {
       TlsError::ClientExpectedFinished => ":UNEXPECTED_MESSAGE:",
-      TlsError::DiffieHellmanError => ":BAD_ECPOINT:",
+      TlsError::DiffieHellmanError => ":WRONG_CURVE:",
       TlsError::EmptyCertificateAuthorities => ":ERROR_PARSING_EXTENSION:",
       TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
       TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
+      TlsError::EmptyNewSessionTicket => ":DECODE_ERROR:",
       TlsError::InvalidExtensionTy => ":UNEXPECTED_EXTENSION:",
       TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
       TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
       TlsError::InvalidNegotiatedServerName => ":UNEXPECTED_EXTENSION:",
+      TlsError::MismatchedExtension => ":UNEXPECTED_EXTENSION:",
       TlsError::MismatchedNegotiatedAlpnClient => ":INVALID_ALPN_PROTOCOL:",
       TlsError::MismatchedNegotiatedAlpnServer => ":NO_APPLICATION_PROTOCOL:",
+      TlsError::MissingKeyShares => ":MISSING_KEY_SHARE:",
+      TlsError::MissingSupportedGroups => ":NO_SHARED_GROUP:",
       TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
       TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
       TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
+      TlsError::UnknownHandshakeTy => ":UNEXPECTED_MESSAGE:",
+      TlsError::UnknownRecordContentType => ":BAD_DECRYPT:",
+      TlsError::UnofferedExtension => ":UNEXPECTED_EXTENSION:",
       TlsError::WrongAlert => ":BAD_ALERT:",
       _ => ":FIXME:",
     },
@@ -201,10 +214,11 @@ where
     }
   }
 
-  let mut buffer = Vector::from_iterator((0..options.read_size.max(1024)).map(|_| 0))?;
+  let read_size = options.read_size.min(2048);
+  let mut buffer = Vector::from_iterator((0..read_size).map(|_| 0))?;
 
   loop {
-    let len = match tls_stream.read(buffer.get_mut(..options.read_size).unwrap().into()).await {
+    let len = match tls_stream.read(buffer.get_mut(..read_size).unwrap().into()).await {
       Ok(None) => return Ok(()),
       Ok(Some(len)) => len.get(),
       Err(err) => return Err(err),

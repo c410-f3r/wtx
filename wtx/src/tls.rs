@@ -74,8 +74,8 @@ pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};
 pub use tls_buffer::TlsBuffer;
 pub use tls_config::TlsConfig;
 pub use tls_connector::{
-  ManageClientRecordsState, ManageRemainingServerRecordsInput, ManageRemainingServerRecordsState,
-  TlsConnectOutput, TlsConnector,
+  ClientRecordsState, ManageRemainingServerRecordsInput, ServerRecordsState, TlsConnectOutput,
+  TlsConnector,
 };
 pub use tls_connector_builder::TlsConnectorBuilder;
 pub use tls_error::TlsError;
@@ -96,6 +96,7 @@ const MAX_ALPN_LEN: usize = 4;
 const MAX_CERTIFICATES: usize = 3;
 const MAX_CIPHER_KEY_LEN: usize = 32;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
+const RECORD_HEADER_LEN: usize = 5;
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 const _TARGET: &str = "tls";
 const _TARGET_HS: &str = "tls-hs";

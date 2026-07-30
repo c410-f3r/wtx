@@ -322,7 +322,7 @@ where
       signature_algorithms_cert: Some(SignatureAlgorithmsCert::new(ArrayVectorCopy::from_array(
         SignatureScheme::PRIORITY,
       ))),
-      supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::all())),
+      supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::PRIORITY)),
       trust_anchors: Vector::new(),
       mode,
     }

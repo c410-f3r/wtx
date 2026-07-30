@@ -6,7 +6,7 @@ use crate::{
   },
   misc::{Lease, TryArithmetic as _, char_slice},
 };
-use core::{ptr, slice};
+use core::{hint::cold_path, ptr, slice};
 
 /// Unsized slices like `str` or `[T]`.
 pub(crate) trait LinearStorageSlice: Lease<Self> {
@@ -40,6 +40,10 @@ pub(crate) trait LinearStorageSlice: Lease<Self> {
 
   /// Removes and returns the logical unit at the given index.
   fn remove<LSM>(lsm: &mut LSM, idx: LSM::Len) -> Option<Self::Unit>
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>;
+
+  fn swap_remove<LSM>(lsm: &mut LSM, idx: LSM::Len) -> Option<Self::Unit>
   where
     LSM: LinearStorageMut<Self::Data, Slice = Self>;
 
@@ -124,6 +128,14 @@ impl LinearStorageSlice for str {
       lsm.set_len(new_len);
     }
     Some(ret)
+  }
+
+  #[inline]
+  fn swap_remove<LSM>(_: &mut LSM, _: LSM::Len) -> Option<Self::Unit>
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>,
+  {
+    None
   }
 
   #[inline]
@@ -224,6 +236,40 @@ impl<T> LinearStorageSlice for [T] {
       };
     }
     Some(ret)
+  }
+
+  #[inline]
+  fn swap_remove<LSM>(lsm: &mut LSM, idx: LSM::Len) -> Option<Self::Unit>
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>,
+  {
+    let len = lsm.len();
+    if idx >= len {
+      cold_path();
+      return None;
+    }
+    let idx_usize = idx.usize();
+    let new_len = len.wrapping_sub(LSM::Len::ONE);
+    // SAFETY: We replace self[index] with the last element. Note that if the
+    // bounds check above succeeds there must be a last element (which
+    // can be self[index] itself).
+    let value_src = unsafe { lsm.as_ptr().add(idx_usize) };
+    // SAFETY: See above safety comment
+    let value = unsafe { ptr::read(value_src) };
+    let base_ptr = lsm.as_ptr_mut();
+    // SAFETY: See above safety comment
+    let base_src = unsafe { base_ptr.add(new_len.usize()) };
+    // SAFETY: See above safety comment
+    let base_dst = unsafe { base_ptr.add(idx_usize) };
+    // SAFETY: See above safety comment
+    unsafe {
+      ptr::copy(base_src, base_dst, 1);
+    }
+    // SAFETY: See above safety comment
+    unsafe {
+      lsm.set_len(new_len);
+    }
+    Some(value)
   }
 
   #[inline]

@@ -5,21 +5,21 @@ use crate::{
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
     de::De,
-    protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType},
+    protocol::{protocol_version::ProtocolVersion, record_content_ty::RecordContentTy},
     tls_encode_wrapper::TlsEncodeWrapper,
   },
 };
 
 #[derive(Debug)]
 pub(crate) struct Record<T> {
-  ty: RecordContentType,
+  ty: RecordContentTy,
   legacy_record_version: ProtocolVersion,
   opaque: T,
 }
 
 impl<T> Record<T> {
   pub(crate) fn new(
-    ty: RecordContentType,
+    ty: RecordContentTy,
     legacy_record_version: ProtocolVersion,
     opaque: T,
   ) -> Self {

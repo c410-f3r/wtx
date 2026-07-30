@@ -400,6 +400,22 @@ macro_rules! split_at_spare_mut {
   };
 }
 
+macro_rules! swap_remove_doc {
+  ($struct:literal) => {
+    concat!(
+      "Removes an element from the vector and returns it.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator([1, 2, 3]).unwrap();\n",
+      "assert_eq!(instance.swap_remove(0).unwrap(), 1);\n",
+      "assert_eq!(instance.as_slice(), &[3, 2]);\n",
+      "```"
+    )
+  };
+}
+
 macro_rules! truncate_doc {
   ($struct:literal, $new:literal, $slice:literal) => {
     concat!(

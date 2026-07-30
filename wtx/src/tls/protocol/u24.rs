@@ -12,7 +12,7 @@ impl<'de> Decode<'de, De> for U24 {
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, b1, b2, rest @ ..] = dw.bytes() else {
-      return Err(TlsError::InvalidU16Prefix.into());
+      return Err(TlsError::InvalidU24Prefix.into());
     };
     *dw.bytes_mut() = rest;
     Ok(Self(u32::from_be_bytes([0, *b0, *b1, *b2])))

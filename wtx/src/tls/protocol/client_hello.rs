@@ -12,13 +12,14 @@ use crate::{
   tls::{
     AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
     de::De,
-    misc::{decode_extension_ty, tls_error_reply, u8_chunk, u16_chunk},
+    misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       alpn::Alpn, certificate_authorities::CertificateAuthorities, extension::Extension,
       extension_ty::ExtensionTy, key_share_client_hello::KeyShareClientHello,
       key_share_entry::KeyShareEntry, named_group::NamedGroupAgreement,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsClient,
-      server_name_list::ServerNameList, signature_algorithms::SignatureAlgorithms,
+      psk_key_exchange_modes::PskKeyExchangeModes, server_name_list::ServerNameList,
+      signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
     tls_config::TlsConfigInner,
@@ -100,10 +101,10 @@ where
       }
     }
     let _legacy_compression_methods @ Ok([1, 0]) = <[u8; 2] as Decode<'de, De>>::decode(dw) else {
-      return tls_error_reply(
+      return Err(crate::Error::TlsErrorReply(
         TlsError::InvalidLegacyCompressionMethods,
         AlertDescription::IllegalParameter,
-      );
+      ));
     };
     u16_chunk(dw, err, |local_dw| {
       let mut seen_unknowns = ArrayVectorCopy::new();
@@ -124,7 +125,10 @@ where
       return Err(TlsError::MissingSignatureAlgorithms.into());
     };
     let Some(supported_groups) = extensions.supported_groups else {
-      return Err(TlsError::MissingSupportedGroups.into());
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::MissingSupportedGroups,
+        AlertDescription::MissingExtension,
+      ));
     };
     let Some(key_shares) = extensions.key_shares else {
       return Err(TlsError::MissingKeyShares.into());
@@ -209,6 +213,7 @@ where
       Extension::new(ExtensionTy::SupportedGroups, &self.tls_config.lease().inner.supported_groups)
         .encode(local_ew)?;
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;
+      Extension::new(ExtensionTy::PskKeyExchangeModes, PskKeyExchangeModes {}).encode(local_ew)?;
       crate::Result::Ok(())
     })?;
     Ok(())
@@ -217,10 +222,10 @@ where
 
 fn duplicated_error(is_some: bool) -> crate::Result<()> {
   if is_some {
-    return tls_error_reply(
+    return Err(crate::Error::TlsErrorReply(
       TlsError::DuplicatedClientHelloParameters,
       AlertDescription::DecodeError,
-    );
+    ));
   }
   Ok(())
 }
@@ -241,10 +246,10 @@ fn manage_extension<'de>(
       extensions.certificate_authorities = true;
       let certificate_authorities = CertificateAuthorities::<&[u8]>::decode(dw)?;
       if certificate_authorities.authorities.is_empty() {
-        return tls_error_reply(
+        return Err(crate::Error::TlsErrorReply(
           TlsError::EmptyCertificateAuthorities,
           AlertDescription::DecodeError,
-        );
+        ));
       }
     }
     ExtensionTy::ClientCertificateType => {
@@ -280,8 +285,8 @@ fn manage_extension<'de>(
       extensions.pre_shared_key = true;
     }
     ExtensionTy::PskKeyExchangeModes => {
-      duplicated_error(extensions.psk_key_exchange_modes)?;
-      extensions.psk_key_exchange_modes = true;
+      duplicated_error(extensions.psk_key_exchange_modes.is_some())?;
+      extensions.psk_key_exchange_modes = Some(PskKeyExchangeModes {});
     }
     ExtensionTy::KeyShare => {
       duplicated_error(extensions.key_shares.is_some())?;
@@ -324,7 +329,10 @@ fn manage_extension<'de>(
       extensions.use_srtp = true;
     }
     ExtensionTy::OidFilters => {
-      return Err(TlsError::MismatchedExtension.into());
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::MismatchedExtension,
+        AlertDescription::BadRecordMac,
+      ));
     }
   }
   Ok(())
@@ -343,7 +351,7 @@ struct Extensions<'de> {
   padding: bool,
   post_handshake_auth: bool,
   pre_shared_key: bool,
-  psk_key_exchange_modes: bool,
+  psk_key_exchange_modes: Option<PskKeyExchangeModes>,
   server_certificate_type: bool,
   server_name: Option<ServerNameList>,
   signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
