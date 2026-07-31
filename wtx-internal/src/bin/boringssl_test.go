@@ -72,12 +72,14 @@ func TestNames(t *testing.T) {
 	begin := []string{
 		// ALPS is not implemented
 		"ExtraClientEncryptedExtension-",
+		// Not implemented
+		"FallbackSCSV",
+		// Pre Shared Key is not implemented
+		"PSK-",
 		// SCT is not implemented
 		"SignedCertificateTimestampListEmpty",
 		// OCSP is deprecated
 		"UnsolicitedCertificateExtensions-",
-		// Not implemented
-		"FallbackSCSV",
 		
 		// Legacy
 		"TLS1-",
@@ -114,7 +116,7 @@ func TestNames(t *testing.T) {
 		// QUIC is not implemented
 		"QUIC",
 		// Post Quantum is not implemented
-		"MLKEM", "ML-DSA-", "PostQuantum",
+		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa2-202603",
 		// Raw public key is not implemented
 		"RawPublicKey", "RPK",
 		// Ticket Request is not implemented

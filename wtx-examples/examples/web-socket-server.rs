@@ -9,7 +9,7 @@ use wtx::{
   collections::Vector,
   misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
+  tls::{TlsAcceptor, TlsConfig},
   web_socket::{OpCode, WebSocketAcceptor, WebSocketPayloadOrigin},
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
@@ -26,7 +26,6 @@ async fn main() -> wtx::Result<()> {
     let _jh = tokio::spawn(async move {
       let fut = async {
         let tls_config = TlsConfig::from_keys_pem(
-          TlsModeVerified::default(),
           PUBLIC_KEY.try_into()?,
           &mut conn_rng,
           (conn_secret_context, &mut SECRET_KEY.clone()),

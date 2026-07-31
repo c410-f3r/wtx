@@ -649,7 +649,7 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TM>(
 {
   let stream_fun = async {
     if let Some(local_rrb) = opt {
-      let req = Request::http2(server_stream.method(), local_rrb);
+      let req = Request::new(server_stream.method(), local_rrb);
       log_req(&ip, &req);
       let manual_stream = ManualStream {
         data: stream_data,

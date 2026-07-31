@@ -48,7 +48,7 @@ pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
 pub use ppm::Ppm;
 #[cfg(feature = "secret")]
-pub use secret::{Secret, SecretContext};
+pub use secret::{Secret, SecretContext, SecretPeek};
 pub use sensitive_bytes::SensitiveBytes;
 pub use try_arithmetic::*;
 pub use usize::Usize;

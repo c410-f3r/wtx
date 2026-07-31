@@ -7,7 +7,7 @@ use wtx::{
     http2_client_pool::Http2ClientPoolBuilder,
   },
   misc::{AsciiGeneric, from_utf8_basic, into_rslt, str_split_once1, tracing_tree_init},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::TlsConfig,
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
@@ -34,7 +34,7 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
   if let Some(elem) = data {
     msg_buffer.body.extend_from_copyable_slice(elem.as_bytes())?;
   }
-  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
+  let tls_config = TlsConfig::from_ccadb()?;
   let client = Http2ClientPoolBuilder::tokio(1, tls_config)?.build();
   let res = client
     .send_req_recv_res(&mut Vector::new(), ReqBuilder::new(method, msg_buffer).into_request())

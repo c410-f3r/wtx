@@ -13,7 +13,8 @@ use crate::{
 
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
-pub struct Http2ClientPoolBuilder<EX, TM> {
+pub struct Http2ClientPoolBuilder<AUX, EX, TM> {
+  aux_fn: fn() -> AUX,
   disable_auto_sni: bool,
   executor: EX,
   hrp: HttpRecvParams,
@@ -23,7 +24,7 @@ pub struct Http2ClientPoolBuilder<EX, TM> {
   tls_config: TlsConfig<TM>,
 }
 
-impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
+impl<EX, TM> Http2ClientPoolBuilder<(), EX, TM> {
   /// Creates a new builder with the maximum number of connections delimited by `len`.
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
@@ -36,6 +37,7 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   ) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     Ok(Self {
+      aux_fn: || {},
       disable_auto_sni: false,
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
@@ -48,7 +50,7 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
 }
 
 #[cfg(feature = "tokio")]
-impl<TM> Http2ClientPoolBuilder<crate::executor::TokioExecutor, TM> {
+impl<TM> Http2ClientPoolBuilder<(), crate::executor::TokioExecutor, TM> {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
   pub fn tokio(len: usize, tls_config: TlsConfig<TM>) -> crate::Result<Self> {
@@ -62,7 +64,7 @@ impl<TM> Http2ClientPoolBuilder<crate::executor::TokioExecutor, TM> {
   }
 }
 
-impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
+impl<AUX, EX, TM> Http2ClientPoolBuilder<AUX, EX, TM> {
   /// If `true`, then the SNI TLS extension won't be added with the hostname of the URL.
   #[inline]
   pub const fn disable_auto_sni_mut(&mut self) -> &mut bool {
@@ -81,6 +83,21 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
     &mut self.rng
   }
 
+  /// Function that returns auxiliary data.
+  #[inline]
+  pub fn set_aux_fn<_AUX>(self, value: fn() -> _AUX) -> Http2ClientPoolBuilder<_AUX, EX, TM> {
+    Http2ClientPoolBuilder {
+      aux_fn: value,
+      disable_auto_sni: self.disable_auto_sni,
+      executor: self.executor,
+      hrp: self.hrp,
+      len: self.len,
+      rng: self.rng,
+      tcp_params: self.tcp_params,
+      tls_config: self.tls_config,
+    }
+  }
+
   /// See [`TcpParams`].
   #[inline]
   pub const fn tcp_params_mut(&mut self) -> &mut TcpParams {
@@ -88,17 +105,18 @@ impl<EX, TM> Http2ClientPoolBuilder<EX, TM> {
   }
 }
 
-impl<EX, TM> Http2ClientPoolBuilder<EX, TM>
+impl<AUX, EX, TM> Http2ClientPoolBuilder<AUX, EX, TM>
 where
-  Http2RM<EX, TM>: ResourceManager,
+  Http2RM<AUX, EX, TM>: ResourceManager,
 {
   /// Creates a new client with inner parameters.
   #[inline]
-  pub fn build(self) -> Http2ClientPool<EX, TM> {
+  pub fn build(self) -> Http2ClientPool<AUX, EX, TM> {
     Http2ClientPool {
       pool: SimplePool::new(
         self.len,
         Http2RM {
+          aux_fn: self.aux_fn,
           disable_auto_sni: self.disable_auto_sni,
           executor: self.executor,
           hrp: self.hrp,

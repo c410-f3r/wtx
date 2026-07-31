@@ -1,9 +1,6 @@
 use crate::{
   executor::Executor,
-  http::{
-    HttpRecvParams,
-    http2_client_pool::{Http2ClientPoolResource, Http2Resource},
-  },
+  http::{HttpRecvParams, http2_client_pool::Http2ClientPoolResource},
   http2::{Http2, Http2Buffer},
   net::{Stream, StreamReader, StreamWriter, TcpParams, Uri, UriRef},
   pool::ResourceManager,
@@ -15,7 +12,8 @@ use core::fmt::Debug;
 
 /// Resource manager for `ClientPool`.
 #[derive(Debug)]
-pub struct Http2RM<EX, TM> {
+pub struct Http2RM<AUX, EX, TM> {
+  pub(crate) aux_fn: fn() -> AUX,
   pub(crate) disable_auto_sni: bool,
   pub(crate) executor: EX,
   pub(crate) hrp: HttpRecvParams,
@@ -24,7 +22,7 @@ pub struct Http2RM<EX, TM> {
   pub(crate) tls_config: AsyncMutex<TlsConfig<TM>>,
 }
 
-impl<EX, TM> Http2RM<EX, TM>
+impl<AUX, EX, TM> Http2RM<AUX, EX, TM>
 where
   EX: Executor,
   TM: TlsMode,
@@ -47,7 +45,7 @@ where
   }
 }
 
-impl<EX, TM> ResourceManager for Http2RM<EX, TM>
+impl<AUX, EX, TM> ResourceManager for Http2RM<AUX, EX, TM>
 where
   EX: Executor,
   EX::TcpStream: 'static,
@@ -61,14 +59,14 @@ where
   type CreateAux = str;
   type Error = crate::Error;
   type RecycleAux = str;
-  type Resource = Http2Resource<<EX::TcpStream as Stream>::WriteHalfOwned, TM>;
+  type Resource = Http2ClientPoolResource<AUX, <EX::TcpStream as Stream>::WriteHalfOwned, TM>;
 
   #[inline]
   async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     let tls_stream = self.tls_stream(aux).await?;
     let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
-    Ok(Http2ClientPoolResource { client: tuple.1 })
+    Ok(Http2ClientPoolResource { aux: (self.aux_fn)(), client: tuple.1 })
   }
 
   #[inline]

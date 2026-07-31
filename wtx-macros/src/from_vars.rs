@@ -13,10 +13,12 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
 
   let mut field_infos = Vec::new();
   for field in fields {
+    let ty_inference = try_ty_inference(&field.ty);
     field_infos.push(FieldInfo {
       custom_fn: custom_function(&field.attrs)?,
       ident: field.ident.as_ref().ok_or(crate::Error::InvalidStruct)?,
-      is_optional: is_option_type(&field.ty),
+      is_optional: matches!(ty_inference, TyInference::Option),
+      is_primitive_num: matches!(ty_inference, TyInference::PrimitiveNumber),
     });
   }
 
@@ -33,6 +35,10 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
       if let Some(custom_fn) = &field_info.custom_fn {
         quote::quote! {
           #upper => #var = Some(#custom_fn(value)?),
+        }
+      } else if field_info.is_primitive_num {
+        quote::quote! {
+          #upper => #var = Some(core::str::FromStr::from_str(value.as_str())?),
         }
       } else {
         quote::quote! {
@@ -85,19 +91,46 @@ fn custom_function(attrs: &[Attribute]) -> crate::Result<Option<syn::Path>> {
   Ok(None)
 }
 
-fn is_option_type(ty: &Type) -> bool {
+fn try_ty_inference(ty: &Type) -> TyInference {
   if let Type::Path(type_path) = ty
-    && let Some(path_segment) = type_path.path.segments.last()
-    && path_segment.ident == "Option"
+    && let Some(segment) = type_path.path.segments.last()
   {
-    true
-  } else {
-    false
+    let ident = segment.ident.to_string();
+    if matches!(
+      ident.as_str(),
+      "f32"
+        | "f64"
+        | "i128"
+        | "i16"
+        | "i32"
+        | "i64"
+        | "i8"
+        | "isize"
+        | "u128"
+        | "u16"
+        | "u32"
+        | "u64"
+        | "u8"
+        | "usize"
+    ) {
+      return TyInference::PrimitiveNumber;
+    }
+    if ident == "Option" {
+      return TyInference::Option;
+    }
   }
+  TyInference::None
+}
+
+enum TyInference {
+  None,
+  Option,
+  PrimitiveNumber,
 }
 
 struct FieldInfo<'ident> {
   custom_fn: Option<syn::Path>,
   ident: &'ident syn::Ident,
   is_optional: bool,
+  is_primitive_num: bool,
 }

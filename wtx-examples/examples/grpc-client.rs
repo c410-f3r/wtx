@@ -10,7 +10,7 @@ use wtx::{
   codec::format::QuickProtobuf,
   grpc::GrpcClient,
   http::{MsgBufferStr, http2_client_pool::Http2ClientPoolBuilder},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::TlsConfig,
 };
 use wtx_examples::{
   ROOT_CA,
@@ -21,11 +21,7 @@ use wtx_examples::{
 async fn main() -> wtx::Result<()> {
   let uri = "https://127.0.0.1:9000/wtx.GenericService/generic_method";
   let mut client = GrpcClient::new(
-    Http2ClientPoolBuilder::tokio(
-      1,
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
-    )?
-    .build(),
+    Http2ClientPoolBuilder::tokio(1, TlsConfig::from_trust_anchors_pem([ROOT_CA])?)?.build(),
     QuickProtobuf,
   );
   let res = client

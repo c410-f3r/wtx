@@ -4,11 +4,9 @@ use crate::{
   net::{StreamReader, StreamWriter},
   rng::{ChaCha20, CryptoSeedableRng},
   tests::{_PUBLIC_KEY, _ROOT_CA, _SECRET_KEY, _uri},
-  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeUnverified},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder},
 };
 use std::net::TcpListener;
-
-const TM: TlsModeUnverified = TlsModeUnverified::new();
 
 #[cfg_attr(miri, ignore)]
 #[wtx::test]
@@ -22,7 +20,7 @@ async fn simple_connection(runtime: &StdRuntime) {
   let _client_jh = runtime
     .spawn(async move {
       let mut tls_stream = TlsConnectorBuilder::std(uri)
-        .build(TlsConfig::from_trust_anchors_pem(TM, [_ROOT_CA]).unwrap(), &mut client_rng)
+        .build(TlsConfig::from_trust_anchors_pem([_ROOT_CA]).unwrap(), &mut client_rng)
         .await
         .unwrap()
         .connect()
@@ -37,7 +35,7 @@ async fn simple_connection(runtime: &StdRuntime) {
   let stream = listener.accept().unwrap().0;
   let secret = (SecretContext::new(&mut server_rng).unwrap(), &mut _SECRET_KEY.clone()[..]);
   let mut tls_stream = TlsAcceptor::new(
-    TlsConfig::from_keys_pem(TM, _PUBLIC_KEY, &mut server_rng, secret).unwrap(),
+    TlsConfig::from_keys_pem(_PUBLIC_KEY, &mut server_rng, secret).unwrap(),
     &mut server_rng,
     stream,
   )

@@ -16,12 +16,6 @@ impl<MD> Request<MD> {
     Self { method, msg_data }
   }
 
-  /// Constructor that defaults to an HTTP/2 version.
-  #[inline]
-  pub const fn http2(method: Method, msg_data: MD) -> Self {
-    Self { method, msg_data }
-  }
-
   /// Creates a new [`Response`] using the inner buffer as well as the given `status_code`.
   #[inline]
   pub fn into_response(self, status_code: StatusCode) -> Response<MD> {
@@ -37,5 +31,15 @@ where
   #[inline]
   pub fn clear(&mut self) {
     self.msg_data.clear();
+  }
+}
+
+impl<MD> Default for Request<MD>
+where
+  MD: Default,
+{
+  #[inline]
+  fn default() -> Self {
+    Self { method: Method::default(), msg_data: MD::default() }
   }
 }

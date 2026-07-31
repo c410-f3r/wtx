@@ -10,7 +10,7 @@ use wtx::{
   misc::from_utf8_basic,
   net::{Stream, Uri},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder},
 };
 
 #[tokio::main]
@@ -19,7 +19,7 @@ async fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
   let hb = Http2Buffer::new(&mut rng);
   let hrp = HttpRecvParams::with_optioned_params();
-  let tls_config = TlsConfig::from_ccadb(TlsModeVerified::default())?;
+  let tls_config = TlsConfig::from_ccadb()?;
   let tcr = TlsConnectorBuilder::tokio(&uri).build(tls_config, rng).await?.connect().await?;
   let (frame_reader, http2) = Http2::connect(hb, hrp, tcr.tls_stream.into_split()?).await?;
   let _jh = tokio::spawn(frame_reader);

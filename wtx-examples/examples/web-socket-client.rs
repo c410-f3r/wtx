@@ -8,7 +8,7 @@ use wtx::{
   collections::Vector,
   net::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
 use wtx_examples::{ROOT_CA, uri_from_args};
@@ -17,10 +17,7 @@ use wtx_examples::{ROOT_CA, uri_from_args};
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new(uri_from_args());
   let tls_connector = TlsConnectorBuilder::tokio(uri)
-    .build(
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
-      ChaCha20::from_getrandom()?,
-    )
+    .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_getrandom()?)
     .await?;
   let mut ws = WebSocketConnector::default().connect(tls_connector).await?;
   let mut buffer = Vector::new();

@@ -4,7 +4,7 @@ use wtx::{
   http::http2_server_framework::{Http2ServerFramework, HttpRouter, State, VerbatimParams, get},
   misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::TlsConfig,
 };
 
 pub static FULL_CHAIN: &[u8] = include_bytes!("../../../.certs/fullchain.pem");
@@ -14,7 +14,6 @@ fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_std_random().unwrap();
   let secret_context = SecretContext::new(&mut rng).unwrap();
   let tls_config = TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
     FULL_CHAIN.try_into()?,
     &mut rng,
     (secret_context, &mut SECRET_KEY.clone()),

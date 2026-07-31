@@ -20,7 +20,6 @@ use boringssl_options::{Options, cert_pem_from_pem_file};
 use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
-  calendar::Instant,
   collections::Vector,
   misc::SecretContext,
   net::{StreamReader, StreamWriter as _, Uri},
@@ -246,7 +245,7 @@ fn make_client_cfg<TM>(options: &Options) -> TlsConfig<TM>
 where
   TM: TlsMode,
 {
-  let mut cfg = TlsConfig::new(TM::default(), Instant::now_date_time().unwrap());
+  let mut cfg = TlsConfig::new().unwrap().set_tls_mode(TM::default());
   let pem = cert_pem_from_pem_file(&options.trusted_cert_file);
   let mut buffer = Vector::new();
   let trust_anchor = Certificate::<&[u8]>::from_pem(&mut buffer, pem.as_bytes()).unwrap();
@@ -285,12 +284,12 @@ where
   let mut rng = ChaCha20::from_std_random().unwrap();
   let secret_context = SecretContext::new(&mut rng).unwrap();
   let mut cfg = TlsConfig::from_keys_pem(
-    TM::default(),
     options.cert_pem.as_bytes(),
     &mut rng,
     (secret_context, &mut options.key_pem.clone().into_bytes()),
   )
-  .unwrap();
+  .unwrap()
+  .set_tls_mode(TM::default());
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
   if options.select_empty_alpn {
     *cfg.alpn_mut() = Some(Alpn::default());

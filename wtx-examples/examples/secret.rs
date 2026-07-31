@@ -23,7 +23,7 @@ fn main() -> wtx::Result<()> {
   std::thread::spawn(|| {
     let buffer = &mut Vector::new();
     SECRET.wait().peek(&mut buffer.into(), |_data| {
-      // Sign documents, pass API keys, etc...
+      // Make API requests, decrypt AES, sign documents, do a flip, etc...
     })?;
     wtx::Result::Ok(())
   })

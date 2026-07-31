@@ -1,12 +1,13 @@
 create_enum! {
   /// HTTP method
-  #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+  #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
   pub enum Method<u8> {
     /// Connect
     Connect = (0, "CONNECT" | "connect"),
     /// Delete
     Delete = (1, "DELETE" | "delete"),
     /// Get
+    #[default]
     Get = (2, "GET" | "get"),
     /// Head
     Head = (3, "HEAD" | "head"),

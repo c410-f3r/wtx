@@ -4,7 +4,7 @@ use crate::{
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsModeUnverified},
+  tls::TlsConfig,
 };
 
 #[cfg_attr(miri, ignore)]
@@ -19,7 +19,7 @@ async fn send_recv(uri: UriRef<'_>) {
     StdExecutor::default(),
     1,
     ChaCha20::from_std_random().unwrap(),
-    TlsConfig::from_ccadb(TlsModeUnverified::default()).unwrap().into(),
+    TlsConfig::from_ccadb().unwrap().into(),
   )
   .unwrap()
   .build();
