@@ -228,7 +228,7 @@ where
           _trace_span!("New server stream", stream_id = %stream_id),
           stream_id,
         ),
-        cb(Request::http2(method, &mut sorp.msg_buffer), protocol),
+        cb(Request::new(method, &mut sorp.msg_buffer), protocol),
       ))))
     })
     .await

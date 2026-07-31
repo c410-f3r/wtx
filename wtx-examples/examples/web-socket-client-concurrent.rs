@@ -15,7 +15,7 @@ use wtx::{
   net::Uri,
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AsyncMutex},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
+  tls::{TlsConfig, TlsConnectorBuilder},
   web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
 use wtx_examples::{ROOT_CA, uri_from_args};
@@ -24,10 +24,7 @@ use wtx_examples::{ROOT_CA, uri_from_args};
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new(uri_from_args());
   let tls_connector = TlsConnectorBuilder::tokio(uri)
-    .build(
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
-      ChaCha20::from_getrandom()?,
-    )
+    .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_getrandom()?)
     .await?;
   let ws = WebSocketConnector::default().connect(tls_connector).await?;
   let (stream_bridge, mut stream_reader, stream_writer) = ws.into_split()?;

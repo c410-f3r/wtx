@@ -123,7 +123,7 @@ mod http_client_pool {
     collections::Vector,
     http::{
       HttpClient, MsgBufferString, MsgData, Request, Response,
-      http2_client_pool::{Http2ClientPool, Http2RM, Http2Resource},
+      http2_client_pool::{Http2ClientPool, Http2ClientPoolResource, Http2RM},
     },
     http2::{ClientStream, Http2RecvStatus},
     misc::Lease,
@@ -132,15 +132,15 @@ mod http_client_pool {
     tls::TlsMode,
   };
 
-  impl<EX, SW, TM> HttpClient for Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM> HttpClient for Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     type ReqId = ClientStream<SW, TM>;
@@ -178,15 +178,15 @@ mod http_client_pool {
     }
   }
 
-  impl<EX, SW, TM> HttpClient for &Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM> HttpClient for &Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     type ReqId = ClientStream<SW, TM>;

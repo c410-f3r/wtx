@@ -173,7 +173,7 @@ where
         .to_be_bytes()
         .as_slice(),
       {
-        let mut cipher_suites = ArrayVectorCopy::<_, { 2 * CipherSuite::ALL.len() }>::new();
+        let mut cipher_suites = ArrayVectorCopy::<_, { 2 * CipherSuite::PRIORITY.len() }>::new();
         for cipher_suite in &self.tls_config.lease().inner.cipher_suites {
           cipher_suites.extend_from_copyable_slice(&u16::from(*cipher_suite).to_be_bytes())?;
         }

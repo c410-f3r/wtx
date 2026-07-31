@@ -16,7 +16,7 @@ use wtx::{
   },
   misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::TlsConfig,
 };
 use wtx_examples::{
   PUBLIC_KEY, SECRET_KEY,
@@ -28,7 +28,6 @@ fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
   let secret_context = SecretContext::new(&mut rng)?;
   let tls_config = TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
     PUBLIC_KEY.try_into()?,
     &mut rng,
     (secret_context, &mut SECRET_KEY.clone()),

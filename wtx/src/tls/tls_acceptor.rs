@@ -232,8 +232,8 @@ where
     }
     let signature = self.config.lease().inner.secret_key.peek(
       &mut (&mut self.buffer.writer_buffer).into(),
-      |secret_key| {
-        let mut dsk = output.signature_scheme.handshake_st().sign_key_from_pkcs8(*secret_key)?;
+      |sp| {
+        let mut dsk = output.signature_scheme.handshake_st().sign_key_from_pkcs8(sp.data())?;
         let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
         dsk.sign(&msg, &mut self.rng)
       },

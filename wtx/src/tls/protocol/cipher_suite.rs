@@ -30,7 +30,7 @@ pub enum CipherSuite {
 }
 
 impl CipherSuite {
-  pub(crate) const ALL: [Self; 3] =
+  pub(crate) const PRIORITY: [Self; 3] =
     [Self::Aes128GcmSha256, Self::Aes256GcmSha384, Self::Chacha20Poly1305Sha256];
 
   #[inline]

@@ -11,7 +11,7 @@ use wtx::{
   collections::{ArrayVectorCopy, HashSet, Vector},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   net::UriRef,
-  tls::{TlsConfig, TlsModeVerified},
+  tls::TlsConfig,
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
 
@@ -22,7 +22,7 @@ static EXCLUDED_FINGERPRINTS: &[&str] =
 async fn main() {
   let csv = {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
-    Http2ClientPoolBuilder::tokio(1, TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap())
+    Http2ClientPoolBuilder::tokio(1, TlsConfig::from_ccadb().unwrap())
       .unwrap()
       .build()
       .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(UriRef::new(uri)).into_request())

@@ -38,12 +38,11 @@ fn main() -> wtx::Result<()> {
     PostgresRM::tokio(
       ChaCha20::from_crypto_rng(&mut rng)?,
       secret_context.clone(),
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
+      TlsConfig::from_trust_anchors_pem([ROOT_CA])?,
       &mut uri,
     )?,
   );
   let tls_config = TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
     PUBLIC_KEY.try_into()?,
     &mut rng,
     (secret_context, &mut SECRET_KEY.clone()),

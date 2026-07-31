@@ -47,14 +47,11 @@ pub async fn postgres_client(
   use wtx::{
     database::client::postgres::{ClientBuffer, Config, PostgresClient},
     rng::{ChaCha20, CryptoSeedableRng as _},
-    tls::{TlsConfig, TlsConnectorBuilder, TlsModeVerified},
+    tls::{TlsConfig, TlsConnectorBuilder},
   };
   let uri = wtx::net::Uri::new(uri_str);
   let mut tls_connector = TlsConnectorBuilder::tokio(uri)
-    .build(
-      TlsConfig::from_trust_anchors_pem(TlsModeVerified::default(), [ROOT_CA])?,
-      ChaCha20::from_getrandom()?,
-    )
+    .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_getrandom()?)
     .await?;
   PostgresClient::connect(
     ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),

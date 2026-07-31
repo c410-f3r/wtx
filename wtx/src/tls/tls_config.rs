@@ -7,7 +7,7 @@ use crate::{
   rng::CryptoRng,
   tls::{
     Alpn, CipherSuite, MaxFragmentLength, NamedGroup, ServerNameList, SignatureScheme,
-    TlsModePlainText,
+    TlsModePlainText, TlsModeVerified,
     protocol::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
@@ -19,7 +19,7 @@ use core::fmt::Debug;
 
 /// TLS Configuration
 ///
-/// The is a non-trivial structure that should be constructed only once in your application.
+/// This is a non-trivial structure that should be constructed only once in your application.
 pub struct TlsConfig<TM> {
   pub(crate) inner: TlsConfigInner<ShortBoxSliceU16<u8>, TM>,
 }
@@ -28,16 +28,16 @@ impl TlsConfig<TlsModePlainText> {
   /// Placeholder used in locals where data is expected to be unencrypted.
   #[inline]
   pub fn plaintext() -> Self {
-    Self::new(TlsModePlainText::default(), DateTime::default())
+    Self { inner: TlsConfigInner::new(TlsModePlainText::default(), DateTime::default()) }
   }
 }
 
-impl<TM> TlsConfig<TM> {
+impl TlsConfig<TlsModeVerified> {
   /// New instance that doesn't incorporate any initial certificate, which will likely make
   /// connections fail. However, it is still possible to add certificates using mutable methods.
   #[inline]
-  pub fn new(mode: TM, validation_time: DateTime<Utc>) -> Self {
-    Self { inner: TlsConfigInner::new(mode, validation_time) }
+  pub fn new() -> crate::Result<Self> {
+    Ok(Self { inner: TlsConfigInner::new(TlsModeVerified::default(), Instant::now_date_time()?) })
   }
 
   /// Set of filtered certificates from CCADB generally suitable for web scenarios.
@@ -45,12 +45,12 @@ impl<TM> TlsConfig<TM> {
   /// Fetches the current timestamp to verify certificates
   #[cfg(feature = "ccadb")]
   #[inline]
-  pub fn from_ccadb(mode: TM) -> crate::Result<Self> {
+  pub fn from_ccadb() -> crate::Result<Self> {
     let mut trust_anchors = Vector::new();
     for elem in crate::x509::CCADB {
       trust_anchors.push(CvTrustAnchor::_from_raw(*elem)?)?;
     }
-    let mut this = Self::new(mode, Instant::now_date_time()?);
+    let mut this = Self::new()?;
     this.inner.trust_anchors = trust_anchors;
     Ok(this)
   }
@@ -60,7 +60,6 @@ impl<TM> TlsConfig<TM> {
   /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_keys_der<'pk, RNG>(
-    mode: TM,
     public_keys: impl IntoIterator<Item = &'pk [u8]>,
     rng: &mut RNG,
     (secret_context, secret_key): (SecretContext, &mut [u8]),
@@ -68,7 +67,7 @@ impl<TM> TlsConfig<TM> {
   where
     RNG: CryptoRng,
   {
-    let mut this = Self::new(mode, Instant::now_date_time()?);
+    let mut this = Self::new()?;
     let mut public_key = Vector::new();
     for pk in public_keys {
       public_key.push(public_key_from_der(pk)?)?;
@@ -83,7 +82,6 @@ impl<TM> TlsConfig<TM> {
   /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_keys_pem<RNG>(
-    mode: TM,
     public_keys: &[u8],
     rng: &mut RNG,
     (secret_context, secret_key): (SecretContext, &mut [u8]),
@@ -91,7 +89,7 @@ impl<TM> TlsConfig<TM> {
   where
     RNG: CryptoRng,
   {
-    let mut this = Self::new(mode, Instant::now_date_time()?);
+    let mut this = Self::new()?;
     let mut buffer = Vector::new();
     this.inner.public_key = public_key_from_pem(&mut buffer, public_keys)?;
     buffer.clear();
@@ -112,7 +110,6 @@ impl<TM> TlsConfig<TM> {
   /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_trust_anchors_pem<'bytes>(
-    mode: TM,
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
   ) -> crate::Result<Self> {
     let mut buffer = Vector::new();
@@ -121,11 +118,21 @@ impl<TM> TlsConfig<TM> {
       let certificate = Certificate::<&[u8]>::from_pem(&mut buffer, trust_anchor)?.0;
       vector.push(CvTrustAnchor::from_certificate_ref(&certificate)?)?;
     }
-    let mut this = Self::new(mode, Instant::now_date_time()?);
+    let mut this = Self::new()?;
     this.inner.trust_anchors = vector;
     Ok(this)
   }
 
+  /// Adjusts the validation time of [`CvPolicy`] that regulates certificate expiration.
+  ///
+  /// Taking aside [`Self::plaintext`], all other constructors implicitly fetch the current time.
+  #[inline]
+  pub fn from_validation_time(validation_time: DateTime<Utc>) -> Self {
+    Self { inner: TlsConfigInner::new(TlsModeVerified::default(), validation_time) }
+  }
+}
+
+impl<TM> TlsConfig<TM> {
   /// See [`Alpn`].
   #[inline]
   pub const fn alpn(&self) -> &Option<Alpn> {
@@ -140,7 +147,9 @@ impl<TM> TlsConfig<TM> {
 
   /// See [`CipherSuite`].
   #[inline]
-  pub const fn cipher_suites(&self) -> &ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }> {
+  pub const fn cipher_suites(
+    &self,
+  ) -> &ArrayVectorCopy<CipherSuite, { CipherSuite::PRIORITY.len() }> {
     &self.inner.cipher_suites
   }
 
@@ -148,7 +157,7 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub const fn cipher_suites_mut(
     &mut self,
-  ) -> &mut ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }> {
+  ) -> &mut ArrayVectorCopy<CipherSuite, { CipherSuite::PRIORITY.len() }> {
     &mut self.inner.cipher_suites
   }
 
@@ -215,6 +224,28 @@ impl<TM> TlsConfig<TM> {
   #[inline]
   pub fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
     &mut self.inner.server_name
+  }
+
+  /// See [`ServerNameList`].
+  #[inline]
+  pub fn set_tls_mode<_TM>(self, value: _TM) -> TlsConfig<_TM> {
+    TlsConfig {
+      inner: TlsConfigInner {
+        alpn: self.inner.alpn,
+        cipher_suites: self.inner.cipher_suites,
+        cv_policy: self.inner.cv_policy,
+        max_fragment_length: self.inner.max_fragment_length,
+        max_fragment_length_send: self.inner.max_fragment_length_send,
+        mode: value,
+        public_key: self.inner.public_key,
+        secret_key: self.inner.secret_key,
+        server_name: self.inner.server_name,
+        signature_algorithms: self.inner.signature_algorithms,
+        signature_algorithms_cert: self.inner.signature_algorithms_cert,
+        supported_groups: self.inner.supported_groups,
+        trust_anchors: self.inner.trust_anchors,
+      },
+    }
   }
 
   /// Every instance of [`TlsConfig`] is already pre-filled with a list of signature algorithms.
@@ -287,10 +318,11 @@ where
 #[derive(Debug)]
 pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) alpn: Option<Alpn>,
-  pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::ALL.len() }>,
+  pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::PRIORITY.len() }>,
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) max_fragment_length_send: Option<MaxFragmentLength>,
+  pub(crate) mode: TM,
   pub(crate) public_key: Vector<(PublicKeyTy, B)>,
   pub(crate) secret_key: Secret,
   pub(crate) server_name: Option<ServerNameList>,
@@ -298,7 +330,6 @@ pub(crate) struct TlsConfigInner<B, TM> {
   pub(crate) signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
   pub(crate) supported_groups: SupportedGroups,
   pub(crate) trust_anchors: Vector<CvTrustAnchor<B>>,
-  pub(crate) mode: TM,
 }
 
 impl<B, TM> TlsConfigInner<B, TM>
@@ -309,7 +340,7 @@ where
   fn new(mode: TM, validation_time: DateTime<Utc>) -> Self {
     Self {
       alpn: None,
-      cipher_suites: ArrayVectorCopy::from_array(CipherSuite::ALL),
+      cipher_suites: ArrayVectorCopy::from_array(CipherSuite::PRIORITY),
       cv_policy: CvPolicy::new(validation_time),
       max_fragment_length: None,
       max_fragment_length_send: None,

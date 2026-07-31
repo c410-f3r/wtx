@@ -219,7 +219,7 @@ mod http_client_pool {
       },
       pkg::{Package, PkgsAux},
     },
-    http::http2_client_pool::{Http2ClientPool, Http2RM, Http2Resource},
+    http::http2_client_pool::{Http2ClientPool, Http2ClientPoolResource, Http2RM},
     http2::{ClientStream, Http2},
     misc::LeaseMut,
     net::StreamWriter,
@@ -227,16 +227,16 @@ mod http_client_pool {
     tls::TlsMode,
   };
 
-  impl<EX, SW, TM, TP> ReceivingTransport<TP> for Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM, TP> ReceivingTransport<TP> for Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
     TP: LeaseMut<HttpParams>,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     #[inline]
@@ -260,16 +260,16 @@ mod http_client_pool {
       Ok(())
     }
   }
-  impl<EX, SW, TM, TP> SendingTransport<TP> for Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM, TP> SendingTransport<TP> for Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
     TP: LeaseMut<HttpParams>,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     #[inline]
@@ -313,14 +313,14 @@ mod http_client_pool {
       .await
     }
   }
-  impl<EX, SW, TM, TP> Transport<TP> for Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM, TP> Transport<TP> for Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
@@ -328,16 +328,16 @@ mod http_client_pool {
     type ReqId = ClientStream<SW, TM>;
   }
 
-  impl<EX, SW, TM, TP> ReceivingTransport<TP> for &Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM, TP> ReceivingTransport<TP> for &Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
     TP: LeaseMut<HttpParams>,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     #[inline]
@@ -361,16 +361,16 @@ mod http_client_pool {
       Ok(())
     }
   }
-  impl<EX, SW, TM, TP> SendingTransport<TP> for &Http2ClientPool<EX, TM>
+  impl<AUX, EX, SW, TM, TP> SendingTransport<TP> for &Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
     TM: TlsMode,
     TP: LeaseMut<HttpParams>,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     #[inline]
@@ -414,14 +414,15 @@ mod http_client_pool {
       .await
     }
   }
-  impl<EX, SW, TM, TP> Transport<TP> for &Http2ClientPool<EX, TM>
+
+  impl<AUX, EX, SW, TM, TP> Transport<TP> for &Http2ClientPool<AUX, EX, TM>
   where
     SW: StreamWriter,
-    Http2RM<EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2Resource<SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TM>,
       >,
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;

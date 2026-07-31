@@ -133,12 +133,12 @@ where
           continue;
         }
         let decrypt_rslt =
-          session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new().into(), |el| {
+          session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new().into(), |sp| {
             Aes128GcmGlobal::decrypt_base64_to_buffer(
               name.as_bytes(),
               &mut cookie_def.value,
               value.as_bytes(),
-              el.as_ref().try_into()?,
+              sp.data().try_into()?,
             )
           });
         req.msg_data.body.truncate(idx);

@@ -6,7 +6,7 @@ use wtx::{
   collections::Vector,
   net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModeVerified},
+  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder},
   web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin},
 };
 
@@ -15,7 +15,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let mut ws = WebSocketConnector::default()
     .connect(
       TlsConnectorBuilder::tokio(uri_ref)
-        .build(TlsConfig::from_ccadb(TlsModeVerified::default())?, ChaCha20::from_std_random()?)
+        .build(TlsConfig::from_ccadb()?, ChaCha20::from_std_random()?)
         .await?,
     )
     .await?;

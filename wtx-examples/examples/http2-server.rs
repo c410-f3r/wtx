@@ -12,7 +12,7 @@ use wtx::{
   misc::SecretContext,
   net::{Stream, Uri},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsAcceptor, TlsConfig, TlsModeVerified},
+  tls::{TlsAcceptor, TlsConfig},
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
@@ -25,7 +25,6 @@ async fn main() -> wtx::Result<()> {
   let secret_context = SecretContext::new(&mut rng)?;
   let hb = Http2Buffer::new(&mut rng);
   let tls_config = TlsConfig::from_keys_pem(
-    TlsModeVerified::default(),
     PUBLIC_KEY.try_into()?,
     &mut rng,
     (secret_context, &mut SECRET_KEY.clone()),
