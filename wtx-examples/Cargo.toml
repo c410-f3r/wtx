@@ -98,6 +98,12 @@ path = "examples/tls-client-concurrent.rs"
 required-features = ["tls-client-concurrent"]
 
 [[example]]
+name = "tls-context"
+path = "examples/tls-context.rs"
+required-features = ["tls-context"]
+
+
+[[example]]
 name = "tls-server"
 path = "examples/tls-server.rs"
 required-features = ["tls-server"]
@@ -157,6 +163,7 @@ http2-server-framework-session = ["serde", "serde_json", "tokio", "wtx/argon2", 
 secret = ["wtx/getrandom", "wtx/secret"]
 tls-client = ["tokio", "wtx/ccadb", "wtx/crypto-ring", "wtx/getrandom", "wtx/tls", "wtx/tokio"]
 tls-client-concurrent = ["tokio", "wtx/ccadb", "wtx/crypto-ring", "wtx/getrandom", "wtx/tls", "wtx/tokio"]
+tls-context = ["wtx/getrandom", "wtx/tls"]
 tls-server = ["tokio", "wtx/crypto-ring", "wtx/getrandom", "wtx/tls", "wtx/tokio"]
 web-socket-client = ["tokio", "wtx/crypto-ring", "wtx/getrandom", "wtx/tokio", "wtx/web-socket"]
 web-socket-client-concurrent = ["tokio", "wtx/crypto-ring", "wtx/getrandom", "wtx/tokio", "wtx/web-socket"]

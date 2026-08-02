@@ -116,7 +116,7 @@ func TestNames(t *testing.T) {
 		// QUIC is not implemented
 		"QUIC",
 		// Post Quantum is not implemented
-		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa2-202603",
+		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa1-202603", "cnsa2-202603",
 		// Raw public key is not implemented
 		"RawPublicKey", "RPK",
 		// Ticket Request is not implemented

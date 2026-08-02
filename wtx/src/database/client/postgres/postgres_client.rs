@@ -21,41 +21,41 @@ use crate::{
   misc::Lease,
   net::{ConnectionState, Stream, StreamWriter as _, Uri},
   rng::CryptoRng,
-  tls::{TlsConfig, TlsConnector, TlsMode, TlsServerEndPoint, TlsStream},
+  tls::{TlsConfig, TlsConnector, TlsCtx, TlsServerEndPoint, TlsStream},
 };
 use core::marker::PhantomData;
 
 /// Executor
 #[derive(Debug)]
-pub struct PostgresClient<E, S, TM> {
+pub struct PostgresClient<E, S, TCX> {
   pub(crate) cs: ConnectionState,
   pub(crate) cb: ClientBuffer,
   pub(crate) phantom: PhantomData<fn() -> E>,
-  pub(crate) stream: TlsStream<S, TM, true>,
+  pub(crate) stream: TlsStream<S, TCX, true>,
 }
 
-impl<E, S, TM> PostgresClient<E, S, TM>
+impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
   E: From<crate::Error>,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Connects with an unencrypted stream.
   #[inline]
-  pub async fn connect<RNG, STR, TC, U>(
+  pub async fn connect<RNG, STR, TCG, U>(
     mut client_buffer: ClientBuffer,
     config: &Config<'_>,
-    mut tls_connector: TlsConnector<RNG, S, TC, U>,
+    mut tls_connector: TlsConnector<RNG, S, TCG, U>,
   ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
     STR: Lease<str>,
-    TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+    TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
     U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
   {
     client_buffer.clear();
     let ClientBuffer { common, conn_params: _ } = &mut client_buffer;
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       let mut output = tls_connector.connect().await?;
       return Self::do_connect(
         client_buffer,
@@ -89,7 +89,7 @@ where
 
   /// See [`Batch`].
   #[inline]
-  pub fn batch(&mut self) -> Batch<'_, E, S, TM> {
+  pub fn batch(&mut self) -> Batch<'_, E, S, TCX> {
     Batch::new(self)
   }
 
@@ -103,7 +103,7 @@ where
     cb: ClientBuffer,
     config: &Config<'_>,
     rng: &mut RNG,
-    stream: TlsStream<S, TM, true>,
+    stream: TlsStream<S, TCX, true>,
     tls_server_end_point: TlsServerEndPoint,
   ) -> crate::Result<Self>
   where
@@ -124,11 +124,11 @@ where
   }
 }
 
-impl<E, S, TM> DbClient for PostgresClient<E, S, TM>
+impl<E, S, TCX> DbClient for PostgresClient<E, S, TCX>
 where
   E: From<crate::Error>,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   type Database = Postgres<E>;
 

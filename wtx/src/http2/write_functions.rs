@@ -43,7 +43,7 @@ use crate::{
   },
   misc::Usize,
   net::StreamWriter,
-  tls::{TlsMode, TlsStreamWriter},
+  tls::{TlsCtx, TlsStreamWriter},
 };
 use core::{
   future::poll_fn,
@@ -216,18 +216,18 @@ pub(crate) fn push_trailers(
 ///
 /// * Control frames like Settings or `WindowUpdate` are out of scope.
 /// * At most one continuation frame can be sent
-pub(crate) async fn send_msg<SW, TM, const IS_CLIENT: bool>(
+pub(crate) async fn send_msg<SW, TCX, const IS_CLIENT: bool>(
   data: &[u8],
   enc_buffer: &mut Vector<u8>,
   headers: &Headers,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   mut cb: impl FnMut(Http2DataPartsMut<'_, IS_CLIENT>),
 ) -> crate::Result<Http2SendStatus>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   enc_buffer.clear();
   let fut = async {
@@ -286,14 +286,14 @@ where
   rslt
 }
 
-pub(crate) async fn write_frames<SW, TM, const IS_CLIENT: bool>(
+pub(crate) async fn write_frames<SW, TCX, const IS_CLIENT: bool>(
   (header, data): (&[u8], &[u8]),
   frames: &ArrayVectorU8<FrameParams, 4>,
-  stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
+  stream_writer: &mut TlsStreamWriter<SW, TCX, IS_CLIENT>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   fn get<'bytes>(
     (header, data): (&'bytes [u8], &'bytes [u8]),

@@ -5,7 +5,7 @@ use crate::{
   net::{ConnectionState, Stream, StreamCommon, StreamReader, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
-    AlertDescription, AlertLevel, TlsBuffer, TlsError, TlsMode, TlsStreamBridge, TlsStreamReader,
+    AlertDescription, AlertLevel, TlsBuffer, TlsCtx, TlsError, TlsStreamBridge, TlsStreamReader,
     TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
     misc::{manage_err, read_after_handshake_data, write_payloads},
@@ -21,6 +21,7 @@ use alloc::boxed::Box;
 use core::{
   future::poll_fn,
   hint::cold_path,
+  marker::PhantomData,
   num::NonZeroUsize,
   pin::{Pin, pin},
   task::{Poll, ready},
@@ -31,7 +32,7 @@ use core::{
 ///
 /// This structure assumes a previously established handshake.
 #[derive(Debug)]
-pub struct TlsStream<S, TM, const IS_CLIENT: bool> {
+pub struct TlsStream<S, TCX, const IS_CLIENT: bool> {
   pub(crate) buffer: TlsBuffer,
   pub(crate) connection_state: ConnectionState,
   pub(crate) key_schedule: KeySchedule,
@@ -39,18 +40,20 @@ pub struct TlsStream<S, TM, const IS_CLIENT: bool> {
   pub(crate) max_fragment_length: u16,
   pub(crate) max_fragment_length_send: u16,
   pub(crate) new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
+  pub(crate) phantom: PhantomData<TCX>,
   pub(crate) plaintext_consumed: usize,
   pub(crate) plaintext_len: usize,
+  pub(crate) split_begin: usize,
+  pub(crate) split_len: usize,
   pub(crate) stream: S,
   pub(crate) timer: Pin<Box<Sleep>>,
-  pub(crate) _tm: TM,
   pub(crate) warning_alerts: u8,
 }
 
-impl<S, TM, const IS_CLIENT: bool> TlsStream<S, TM, IS_CLIENT>
+impl<S, TCX, const IS_CLIENT: bool> TlsStream<S, TCX, IS_CLIENT>
 where
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Creates a new instance with a stream that supposedly already performed a handshake.
   #[inline]
@@ -60,7 +63,6 @@ where
     max_fragment_length: u16,
     max_fragment_length_send: u16,
     stream: S,
-    tm: TM,
   ) -> crate::Result<Self> {
     Ok(Self {
       buffer,
@@ -70,11 +72,13 @@ where
       max_fragment_length,
       max_fragment_length_send,
       new_session_ticket: None,
+      phantom: PhantomData,
       plaintext_consumed: 0,
       plaintext_len: 0,
-      timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
+      split_begin: 0,
+      split_len: 0,
       stream,
-      _tm: tm,
+      timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
       warning_alerts: 0,
     })
   }
@@ -147,14 +151,14 @@ where
   }
 }
 
-impl<S, TM, const IS_CLIENT: bool> Stream for TlsStream<S, TM, IS_CLIENT>
+impl<S, TCX, const IS_CLIENT: bool> Stream for TlsStream<S, TCX, IS_CLIENT>
 where
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   type BridgeOwned = TlsStreamBridge<IS_CLIENT>;
-  type ReadHalfOwned = TlsStreamReader<S::ReadHalfOwned, TM, IS_CLIENT>;
-  type WriteHalfOwned = TlsStreamWriter<S::WriteHalfOwned, TM, IS_CLIENT>;
+  type ReadHalfOwned = TlsStreamReader<S::ReadHalfOwned, TCX, IS_CLIENT>;
+  type WriteHalfOwned = TlsStreamWriter<S::WriteHalfOwned, TCX, IS_CLIENT>;
 
   #[inline]
   fn into_split(
@@ -178,7 +182,6 @@ where
         reader_waker.clone(),
         stream_bridge,
         stream_reader,
-        self._tm.clone(),
       )?,
       TlsStreamWriter::new(
         connection_state,
@@ -186,19 +189,18 @@ where
         self.max_fragment_length_send,
         reader_waker,
         stream_writer,
-        self._tm,
         self.buffer.writer_buffer,
       ),
     ))
   }
 }
 
-impl<S, TM, const IS_CLIENT: bool> StreamCommon for TlsStream<S, TM, IS_CLIENT> {}
+impl<S, TCX, const IS_CLIENT: bool> StreamCommon for TlsStream<S, TCX, IS_CLIENT> {}
 
-impl<S, TM, const IS_CLIENT: bool> StreamReader for TlsStream<S, TM, IS_CLIENT>
+impl<S, TCX, const IS_CLIENT: bool> StreamReader for TlsStream<S, TCX, IS_CLIENT>
 where
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[inline]
   async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
@@ -210,16 +212,18 @@ where
       max_fragment_length,
       max_fragment_length_send: _,
       new_session_ticket,
+      phantom: _,
       plaintext_consumed,
       plaintext_len,
+      split_begin,
+      split_len,
       stream,
       timer,
-      _tm,
       warning_alerts,
     } = self;
     let local_connection_state = *connection_state;
     let mut read_fut = pin!(async {
-      if TM::TY.is_plain_text() {
+      if TCX::TY.is_plain_text() {
         return stream.read(bytes).await;
       }
       if connection_state.cannot_read() {
@@ -236,6 +240,8 @@ where
         plaintext_consumed,
         plaintext_len,
         &mut buffer.reader_buffer,
+        split_begin,
+        split_len,
         stream,
         alert_cb,
         closed_conn_cb,
@@ -273,14 +279,14 @@ where
   }
 }
 
-impl<S, TM, const IS_CLIENT: bool> StreamWriter for TlsStream<S, TM, IS_CLIENT>
+impl<S, TCX, const IS_CLIENT: bool> StreamWriter for TlsStream<S, TCX, IS_CLIENT>
 where
   S: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       return self.stream.write_all(bytes).await;
     }
     if self.connection_state.cannot_write() {
@@ -300,7 +306,7 @@ where
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       return self.stream.write_all_vectored(bytes).await;
     }
     if self.connection_state.cannot_write() {

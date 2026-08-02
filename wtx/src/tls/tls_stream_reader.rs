@@ -6,7 +6,7 @@ use crate::{
   net::{BufStreamReader, ConnectionState, StreamCommon, StreamReader},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
-    TlsMode, TlsStreamBridge, TlsStreamBridgeData,
+    TlsCtx, TlsStreamBridge, TlsStreamBridgeData,
     key_schedule::KeyScheduleRead,
     misc::read_after_handshake_data,
     protocol::{alert::Alert, key_update::KeyUpdate, new_session_ticket::NewSessionTicket},
@@ -16,6 +16,7 @@ use alloc::boxed::Box;
 use core::{
   future::poll_fn,
   hint::cold_path,
+  marker::PhantomData,
   num::NonZeroUsize,
   pin::{Pin, pin},
   sync::atomic::Ordering,
@@ -25,22 +26,24 @@ use core::{
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct TlsStreamReader<SR, TM, const IS_CLIENT: bool> {
+pub struct TlsStreamReader<SR, TCX, const IS_CLIENT: bool> {
   connection_state: Arc<AtomicU8>,
   ksr: KeyScheduleRead,
   max_fragment_length: u16,
   new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
+  phantom: PhantomData<TCX>,
   plaintext_consumed: usize,
   plaintext_len: usize,
   reader_buffer: BufStreamReader,
   reader_waker: Arc<AtomicWaker>,
+  split_begin: usize,
+  split_len: usize,
   stream_bridge: TlsStreamBridge<IS_CLIENT>,
   stream_reader: SR,
   timer: Pin<Box<Sleep>>,
-  _tm: TM,
 }
 
-impl<SR, TM, const IS_CLIENT: bool> TlsStreamReader<SR, TM, IS_CLIENT> {
+impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
   #[inline]
   pub(crate) fn new(
     connection_state: Arc<AtomicU8>,
@@ -53,21 +56,22 @@ impl<SR, TM, const IS_CLIENT: bool> TlsStreamReader<SR, TM, IS_CLIENT> {
     reader_waker: Arc<AtomicWaker>,
     stream_bridge: TlsStreamBridge<IS_CLIENT>,
     stream_reader: SR,
-    _tm: TM,
   ) -> crate::Result<Self> {
     Ok(Self {
       connection_state,
       ksr,
       max_fragment_length,
       new_session_ticket,
+      phantom: PhantomData,
       plaintext_consumed,
       plaintext_len,
       reader_buffer,
       reader_waker,
+      split_begin: 0,
+      split_len: 0,
       stream_bridge,
       stream_reader,
       timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
-      _tm,
     })
   }
 
@@ -100,12 +104,12 @@ impl<SR, TM, const IS_CLIENT: bool> TlsStreamReader<SR, TM, IS_CLIENT> {
   }
 }
 
-impl<SR, TM, const IS_CLIENT: bool> StreamCommon for TlsStreamReader<SR, TM, IS_CLIENT> {}
+impl<SR, TCX, const IS_CLIENT: bool> StreamCommon for TlsStreamReader<SR, TCX, IS_CLIENT> {}
 
-impl<SR, TM, const IS_CLIENT: bool> StreamReader for TlsStreamReader<SR, TM, IS_CLIENT>
+impl<SR, TCX, const IS_CLIENT: bool> StreamReader for TlsStreamReader<SR, TCX, IS_CLIENT>
 where
   SR: StreamReader,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[inline]
   async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
@@ -114,17 +118,19 @@ where
       ksr,
       max_fragment_length,
       new_session_ticket,
+      phantom: _,
       plaintext_consumed,
       plaintext_len,
       reader_buffer,
       reader_waker,
+      split_begin,
+      split_len,
       stream_bridge,
       stream_reader,
       timer,
-      _tm,
     } = self;
     let mut read_fut = pin!(async {
-      if TM::TY.is_plain_text() {
+      if TCX::TY.is_plain_text() {
         return stream_reader.read(bytes).await;
       }
       read_after_handshake_data::<_, _, IS_CLIENT>(
@@ -136,6 +142,8 @@ where
         plaintext_consumed,
         plaintext_len,
         reader_buffer,
+        split_begin,
+        split_len,
         stream_reader,
         alert_cb,
         closed_conn_cb,

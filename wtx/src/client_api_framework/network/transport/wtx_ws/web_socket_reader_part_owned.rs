@@ -9,17 +9,17 @@ use crate::{
   },
   misc::LeaseMut,
   net::StreamReader,
-  tls::TlsMode,
+  tls::TlsCtx,
   web_socket::{
     WebSocketPayloadOrigin, WebSocketReaderOwned, web_socket_compression::NegotiatedWsCompression,
   },
 };
 
-impl<NC, SR, TM, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, SR, TM, true>
+impl<NC, SR, TCX, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, SR, TCX, true>
 where
   NC: NegotiatedWsCompression,
   SR: StreamReader,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<WsParams>,
 {
   #[inline]
@@ -39,7 +39,7 @@ where
   }
 }
 
-impl<NC, SR, TM, TP> Transport<TP> for WebSocketReaderOwned<NC, SR, TM, true>
+impl<NC, SR, TCX, TP> Transport<TP> for WebSocketReaderOwned<NC, SR, TCX, true>
 where
   NC: NegotiatedWsCompression,
   SR: StreamReader,

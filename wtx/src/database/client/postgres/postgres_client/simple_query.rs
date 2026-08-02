@@ -16,15 +16,15 @@ use crate::{
   misc::{Either, Usize},
   net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
   sync::AtomicU64,
-  tls::{TlsMode, TlsStream},
+  tls::{TlsCtx, TlsStream},
 };
 use core::{ops::Range, sync::atomic::Ordering};
 
-impl<E, S, TM> PostgresClient<E, S, TM>
+impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
   E: From<crate::Error>,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
   pub(crate) async fn simple_query_execute<'exec, B>(
@@ -34,7 +34,7 @@ where
     read_buffer: &'exec mut BufStreamReader,
     records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
     stmts: &'exec mut PostgresStatements,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
     values_params: &'exec mut Vector<(bool, Range<usize>)>,
     mut cb: impl FnMut(PostgresRecord<'_, E>) -> Result<(), E>,
   ) -> Result<(), E>

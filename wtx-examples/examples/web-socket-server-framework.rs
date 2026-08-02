@@ -8,23 +8,17 @@ use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
   http::WebSocketServerFramework,
-  misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::{SkCtx, TlsConfig},
   web_socket::{OpCode, WebSocket, WebSocketPayloadOrigin},
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
-type LocalWebSocket = WebSocket<(), TcpStream, TlsModeVerified, false>;
+type LocalWebSocket = WebSocket<(), TcpStream, SkCtx, false>;
 
 fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
-  let secret_context = SecretContext::new(&mut rng)?;
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, &mut SECRET_KEY.clone()),
-  )?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let router = (("/echo", echo),);
   WebSocketServerFramework::tokio(tls_config)?
     .set_error_cb(|err| eprintln!("Error: {err}"))

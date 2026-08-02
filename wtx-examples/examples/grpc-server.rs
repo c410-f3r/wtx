@@ -14,7 +14,6 @@ use wtx::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, State, post},
   },
-  misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::TlsConfig,
 };
@@ -26,12 +25,7 @@ use wtx_examples::{
 
 fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_getrandom()?;
-  let secret_context = SecretContext::new(&mut rng)?;
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, &mut SECRET_KEY.clone()),
-  )?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let router = HttpRouter::new(
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,

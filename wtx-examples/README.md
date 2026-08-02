@@ -4,4 +4,4 @@ This crate (`wtx-examples`) provides common auxiliary functionalities for the ac
 
 ## TLS
 
-All examples have TLS enabled by default. If you want to work with plaintext for testing purposes, just change `TlsModeVerified` to `TlsModePlainText`. Any associated crypto feature or `TlsConfig` configuration should also be adjusted, for example, it doesn't make sense to add certificates if the connection will always be unencrypted.
+All examples have TLS enabled by default. If you want to work with plaintext for testing purposes, just change `SkCtx` to `PlaintextCtx`. Any associated crypto feature or `TlsConfig` configuration should also be adjusted, for example, it doesn't make sense to add certificates if the connection will always be unencrypted.

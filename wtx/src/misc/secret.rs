@@ -16,23 +16,16 @@ const CTX_LEN: usize = cfg_select! {
   _ => 2048
 };
 
-#[cfg(all(feature = "secret-0", not(feature = "secret-32768")))]
-type PeekCbBytesTy<'any> = &'any [u8];
-#[cfg(not(all(feature = "secret-0", not(feature = "secret-32768"))))]
-type PeekCbBytesTy<'any> = SensitiveBytes<&'any mut [u8]>;
-
 /// Long-lived sensitive data.
 ///
 /// Holds encrypted heap-allocated memory that is decrypted on demand.
 ///
 /// ***Tries*** to provide a layer of protection against Spectre, Meltdown, `RowHammer`,
-/// `RAMbleed`, etc. Moreover, secrets probably won't be swapped out to the swap area.
-///
-/// At the current time, does not make use of hardware solutions like TEE.
+/// `RAMbleed`, etc.
 pub struct Secret {
-  _protected: Protected,
-  _salt: [u8; 32],
-  _secret_context: SecretContext,
+  protected: Protected,
+  salt: [u8; 32],
+  secret_context: SecretContext,
 }
 
 impl Secret {
@@ -49,33 +42,26 @@ impl Secret {
   {
     let mut data_wrapper = SensitiveBytes::new(data);
     let mut salt = [0; 32];
-    let protected = if cfg!(all(feature = "secret-0", not(feature = "secret-32768"))) {
-      let mut protected = Protected::zeroed(data_wrapper.len());
-      copy_iter(&data_wrapper, &mut protected);
-      protected
-    } else {
-      rng.fill_slice(&mut salt);
-      let nonce = gen_aead_nonce(rng);
-      let tag = Aes256GcmGlobal::encrypt_parts(
-        &[],
-        nonce,
-        &mut data_wrapper,
-        gen_secret_key(&salt, &secret_context).as_bytes(),
-      )?;
-      let all_len = nonce.len().wrapping_add(data_wrapper.len()).wrapping_add(tag.len());
-      let mut protected = Protected::zeroed(all_len);
-      if let [
-        a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
-        content @ ..,
-        b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
-      ] = &mut *protected {
-        copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
-        copy_iter(&data_wrapper, content);
-        copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
-      }
-      protected
-    };
-    Ok(Self { _protected: protected, _salt: salt, _secret_context: secret_context })
+    rng.fill_slice(&mut salt);
+    let nonce = gen_aead_nonce(rng);
+    let tag = Aes256GcmGlobal::encrypt_parts(
+      &[],
+      nonce,
+      &mut data_wrapper,
+      gen_secret_key(&salt, &secret_context).as_bytes(),
+    )?;
+    let all_len = nonce.len().wrapping_add(data_wrapper.len()).wrapping_add(tag.len());
+    let mut protected = Protected::zeroed(all_len);
+    if let [
+      a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+      content @ ..,
+      b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
+    ] = &mut *protected {
+      copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
+      copy_iter(&data_wrapper, content);
+      copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
+    }
+    Ok(Self { protected, salt, secret_context })
   }
 
   /// Decrypts secret temporally.
@@ -92,7 +78,7 @@ impl Secret {
   #[inline]
   pub fn peek<'buffer, 'sp, 'this, B, T>(
     &'this self,
-    _buffer: &'buffer mut SuffixGuard<B>,
+    buffer: &'buffer mut SuffixGuard<B>,
     fun: impl FnOnce(SecretPeek<'sp>) -> T,
   ) -> crate::Result<T>
   where
@@ -101,20 +87,13 @@ impl Secret {
     for<'any> B:
       LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize> + TryExtend<&'any [u8]>,
   {
-    cfg_select! {
-      all(feature = "secret-0", not(feature = "secret-32768")) => {
-        Ok(fun(SecretPeek(&*self._protected)))
-      },
-      _ => {
-        _buffer.inner_mut().try_extend(&self._protected)?;
-        let plaintext = Aes256GcmGlobal::decrypt_in_place(
-          &[],
-          _buffer.curr_mut(),
-          gen_secret_key(&self._salt, &self._secret_context).as_bytes(),
-        )?;
-        Ok(fun(SecretPeek(SensitiveBytes::new(plaintext))))
-      }
-    }
+    buffer.inner_mut().try_extend(&self.protected)?;
+    let plaintext = Aes256GcmGlobal::decrypt_in_place(
+      &[],
+      buffer.curr_mut(),
+      gen_secret_key(&self.salt, &self.secret_context).as_bytes(),
+    )?;
+    Ok(fun(SecretPeek(SensitiveBytes::new(plaintext))))
   }
 }
 
@@ -129,9 +108,9 @@ impl Default for Secret {
   #[inline]
   fn default() -> Self {
     Self {
-      _protected: Protected::zeroed(0),
-      _salt: [0; 32],
-      _secret_context: SecretContext(Arc::new(Protected::zeroed(0))),
+      protected: Protected::zeroed(0),
+      salt: [0; 32],
+      secret_context: SecretContext(Arc::new(Protected::zeroed(0))),
     }
   }
 }
@@ -163,7 +142,7 @@ impl Debug for SecretContext {
 }
 
 /// Element returned by [`Secret::peek`].
-pub struct SecretPeek<'any>(PeekCbBytesTy<'any>);
+pub struct SecretPeek<'any>(SensitiveBytes<&'any mut [u8]>);
 
 impl<'any> SecretPeek<'any> {
   /// Inner content

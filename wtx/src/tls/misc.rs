@@ -23,7 +23,7 @@ use crate::{
     tls_decode_wrapper::TlsDecodeWrapper,
   },
 };
-use core::{hint::cold_path, num::NonZeroUsize};
+use core::{hint::cold_path, num::NonZeroUsize, ops::Range};
 
 pub(crate) fn build_header(ty: RecordContentTy, len: u16) -> [u8; RECORD_HEADER_LEN] {
   let [b0, n1] = len.to_be_bytes();
@@ -140,6 +140,52 @@ where
   Ok(Some(rri))
 }
 
+#[inline]
+pub(crate) fn handshake_bytes_adjust(
+  reader_buffer: &mut BufStreamReader,
+  rri: &ReadRecordInfo,
+  (split_begin, split_len): (&mut usize, &mut usize),
+) {
+  let ant_end_idx = reader_buffer.antecedent_end_idx();
+  if *split_len == 0 {
+    *split_begin = ant_end_idx;
+    *split_len = rri.plaintext_len;
+  } else {
+    cold_path();
+    let dest = split_begin.wrapping_add(*split_len);
+    let src_begin = ant_end_idx;
+    let src_end = ant_end_idx.wrapping_add(rri.plaintext_len);
+    reader_buffer.buffer_mut().copy_within(src_begin..src_end, dest);
+    *split_len = split_len.wrapping_add(rri.plaintext_len);
+  }
+}
+
+#[inline]
+pub(crate) fn handshake_bytes_decode<'rb>(
+  reader_buffer: &'rb BufStreamReader,
+  (split_begin, split_len): (&mut usize, &mut usize),
+) -> crate::Result<Option<(HandshakeTy, Range<usize>, TlsDecodeWrapper<'rb>)>> {
+  let end_idx = split_begin.wrapping_add(*split_len);
+  let plaintext = reader_buffer.filled().get(*split_begin..end_idx).unwrap_or_default();
+  if plaintext.len() < 4 {
+    cold_path();
+    return Ok(None);
+  }
+  let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
+  let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
+  let len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
+  let total_len = 4usize.wrapping_add(len);
+  if *split_len < total_len {
+    cold_path();
+    return Ok(None);
+  }
+  *dw.bytes_mut() = dw.bytes().get(..len).unwrap_or_default();
+  let range = *split_begin..split_begin.wrapping_add(total_len);
+  *split_begin = split_begin.wrapping_add(range.len());
+  *split_len = split_len.wrapping_sub(range.len());
+  Ok(Some((msg_type, range, dw)))
+}
+
 pub(crate) async fn manage_err<SW, T>(
   has_sent_ccs: bool,
   kss: &mut KeyScheduleState,
@@ -180,6 +226,8 @@ pub(crate) async fn read_after_handshake_data<A, SR, const IS_CLIENT: bool>(
   plaintext_consumed: &mut usize,
   plaintext_len: &mut usize,
   reader_buffer: &mut BufStreamReader,
+  split_begin: &mut usize,
+  split_len: &mut usize,
   stream_reader: &mut SR,
   mut alert_cb: impl for<'any> FnMutFut<
     (&'any mut A, Alert, &'any mut SR),
@@ -240,19 +288,13 @@ where
       }
       RecordContentTy::Handshake => {
         cold_path();
-        let mut maybe_handshakes = plaintext;
-        while !maybe_handshakes.is_empty() {
-          let mut dw = TlsDecodeWrapper::from_bytes(maybe_handshakes);
-          let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
-          let len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
-          let Some((hs_data, after)) = dw.bytes().split_at_checked(len) else {
-            return Err(TlsError::InvalidHandshake.into());
-          };
-          *dw.bytes_mut() = after;
-          maybe_handshakes = dw.bytes();
+        *reader_buffer.forbid_clear_mut() = true;
+        handshake_bytes_adjust(reader_buffer, &rri, (split_begin, split_len));
+        while let Some(tuple) = handshake_bytes_decode(reader_buffer, (split_begin, split_len))? {
+          let (msg_type, _range, mut dw) = tuple;
           match msg_type {
             HandshakeTy::KeyUpdate => {
-              let remote_ku = KeyUpdate::decode(&mut TlsDecodeWrapper::from_bytes(hs_data))?;
+              let remote_ku = KeyUpdate::decode(&mut dw)?;
               ksr.state_mut().rotate()?;
               let resend = matches!(remote_ku.request_update, KeyUpdateRequest::UpdateRequested);
               key_update_cb
@@ -263,7 +305,9 @@ where
                 ))
                 .await?;
             }
-            HandshakeTy::NewSessionTicket => manage_nst::<IS_CLIENT>(hs_data, new_session_ticket)?,
+            HandshakeTy::NewSessionTicket => {
+              manage_nst::<IS_CLIENT>(dw.bytes(), new_session_ticket)?;
+            }
             HandshakeTy::Certificate
             | HandshakeTy::CertificateRequest
             | HandshakeTy::CertificateVerify
@@ -276,6 +320,9 @@ where
               return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
             }
           }
+          *reader_buffer.forbid_clear_mut() = false;
+          *split_begin = 0;
+          *split_len = 0;
         }
       }
     }
@@ -439,8 +486,8 @@ fn manage_nst<const IS_CLIENT: bool>(
   if !IS_CLIENT {
     return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
   }
-  let local_dw = &mut TlsDecodeWrapper::from_bytes(hs_data);
-  let nst = NewSessionTicket::<ShortBoxSliceU16<_>>::decode(local_dw)?;
+  let dw = &mut TlsDecodeWrapper::from_bytes(hs_data);
+  let nst = NewSessionTicket::<ShortBoxSliceU16<_>>::decode(dw)?;
   if nst.opaque().is_empty() {
     return Err(crate::Error::TlsErrorReply(
       TlsError::EmptyNewSessionTicket,

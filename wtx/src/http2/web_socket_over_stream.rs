@@ -8,7 +8,7 @@ use crate::{
   misc::LeaseMut,
   net::StreamWriter,
   rng::Xorshift64,
-  tls::{TlsMode, TlsStreamBridge},
+  tls::{TlsCtx, TlsStreamBridge},
   web_socket::{
     Frame, FrameMut, OpCode, WebSocketBridge,
     read_frame::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
@@ -25,11 +25,11 @@ pub struct WebSocketOverStream<S> {
   stream: S,
 }
 
-impl<S, SW, TM> WebSocketOverStream<S>
+impl<S, SW, TCX> WebSocketOverStream<S>
 where
-  S: LeaseMut<ServerStream<SW, TM>> + SingleTypeStorage<Item = (SW, TM)>,
+  S: LeaseMut<ServerStream<SW, TCX>> + SingleTypeStorage<Item = (SW, TCX)>,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Creates a new instance sending an `Ok` status codes that confirms the WebSocket handshake.
   #[inline]
@@ -123,14 +123,14 @@ fn extend_buffer(
   Ok((rfi, before))
 }
 
-async fn recv_data<SW, TM>(
+async fn recv_data<SW, TCX>(
   buffer: &mut Vector<u8>,
   no_masking: bool,
-  stream: &mut ServerStream<SW, TM>,
+  stream: &mut ServerStream<SW, TCX>,
 ) -> crate::Result<(ReadFrameInfo, bool)>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let (before, is_eos, rfi) = match stream
     .common()
@@ -150,14 +150,14 @@ where
   Ok((rfi, is_eos))
 }
 
-async fn write_control_frame_cb<SW, TM>(
-  stream: &mut ServerStream<SW, TM>,
+async fn write_control_frame_cb<SW, TCX>(
+  stream: &mut ServerStream<SW, TCX>,
   header: &[u8],
   payload: &[u8],
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let common_stream = stream.common();
   let results = JoinArrayVector::new(ArrayVectorU16::<_, 2>::from_array([

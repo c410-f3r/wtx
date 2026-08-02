@@ -14,7 +14,7 @@ use crate::{
   rng::{ChaCha20, CryptoSeedableRng},
   sync::{Arc, AtomicBool},
   tests::_uri,
-  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModePlainText},
+  tls::{PlaintextCtx, TlsAcceptor, TlsConfig, TlsConnectorBuilder},
   web_socket::{
     Frame, OpCode, WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin,
     WsCompression, web_socket_compression::NegotiatedWsCompression,
@@ -25,8 +25,7 @@ use std::net::{TcpListener, TcpStream};
 
 static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 
-type LocalWebSocket<NC, const IS_CLIENT: bool> =
-  WebSocket<NC, TcpStream, TlsModePlainText, IS_CLIENT>;
+type LocalWebSocket<NC, const IS_CLIENT: bool> = WebSocket<NC, TcpStream, PlaintextCtx, IS_CLIENT>;
 
 #[cfg_attr(miri, ignore)]
 #[cfg(feature = "zlib-rs")]

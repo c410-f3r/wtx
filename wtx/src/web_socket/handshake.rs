@@ -25,7 +25,7 @@ use crate::{
   misc::{Lease, bytes_split1},
   net::{Stream, StreamWriter as _, Uri},
   rng::{CryptoRng, Rng, SeedableRng as _, Xorshift64},
-  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsMode},
+  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsCtx, TlsCtxSk},
   web_socket::{
     WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketError, WsCompression,
     web_socket_compression::NegotiatedWsCompression,
@@ -45,15 +45,15 @@ where
 {
   /// Reads external data to establish an WebSocket connection.
   #[inline]
-  pub async fn accept<RNG, S, TC, TM>(
+  pub async fn accept<RNG, S, TCG, TCX>(
     mut self,
-    tls_acceptor: TlsAcceptor<RNG, S, TC>,
-  ) -> Result<WebSocket<C::NegotiatedCompression, S, TM, false>, E>
+    tls_acceptor: TlsAcceptor<RNG, S, TCG>,
+  ) -> Result<WebSocket<C::NegotiatedCompression, S, TCX, false>, E>
   where
     RNG: CryptoRng,
     S: Stream,
-    TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
-    TM: TlsMode,
+    TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
+    TCX: TlsCtxSk,
   {
     self.wsb.clear();
     let mut tls_stream = tls_acceptor.accept().await?.tls_stream;
@@ -125,16 +125,16 @@ where
 {
   /// Sends data to establish an WebSocket connection.
   #[inline]
-  pub async fn connect<RNG, S, STR, TC, TM, U>(
+  pub async fn connect<RNG, S, STR, TCG, TCX, U>(
     mut self,
-    tls_connector: TlsConnector<RNG, S, TC, U>,
-  ) -> Result<WebSocket<C::NegotiatedCompression, S, TM, true>, E>
+    tls_connector: TlsConnector<RNG, S, TCG, U>,
+  ) -> Result<WebSocket<C::NegotiatedCompression, S, TCX, true>, E>
   where
     RNG: CryptoRng,
     S: Stream,
     STR: Lease<str>,
-    TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
-    TM: TlsMode,
+    TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
+    TCX: TlsCtx,
     U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
   {
     self.wsb.clear();

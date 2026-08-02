@@ -21,12 +21,11 @@ use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
-  misc::SecretContext,
   net::{StreamReader, StreamWriter as _, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{
-    AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, TlsAcceptor, TlsConfig,
-    TlsConnectorBuilder, TlsError, TlsMode, TlsModeUnverified, TlsModeVerified, TlsStream,
+    AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, SkCtx, TlsAcceptor, TlsConfig,
+    TlsConnectorBuilder, TlsCtx, TlsCtxSk, TlsError, TlsStream, UnverifiedCtx,
   },
   x509::{Certificate, CvTrustAnchor},
 };
@@ -38,14 +37,14 @@ async fn main() {
   for _ in OptionsIter::new(env::args().skip(1), &mut options) {}
   if options.is_client {
     if boringssl_options::verify_cert(&options) {
-      let tls_config = make_client_cfg::<TlsModeVerified>(&options);
+      let tls_config = make_client_cfg(SkCtx::default(), &options);
       exec_tests::<_, true>(options, tls_config).await;
     } else {
-      let tls_config = make_client_cfg::<TlsModeUnverified>(&options);
+      let tls_config = make_client_cfg(UnverifiedCtx::default(), &options);
       exec_tests::<_, true>(options, tls_config).await;
     }
   } else {
-    let tls_config = make_server_cfg::<TlsModeVerified>(&options);
+    let tls_config = make_server_cfg(&options);
     exec_tests::<_, false>(options, tls_config).await;
   }
 }
@@ -71,9 +70,9 @@ fn check_handshake_params(
   }
 }
 
-async fn exec_tests<TM, const IS_CLIENT: bool>(options: Options, mut tls_config: TlsConfig<TM>)
+async fn exec_tests<TCX, const IS_CLIENT: bool>(options: Options, tls_config: TlsConfig<TCX>)
 where
-  TM: TlsMode,
+  TCX: TlsCtxSk,
 {
   for idx in 0..=options.resume_count {
     let uri = Uri::new(format!("localhost:{}", options.port));
@@ -96,11 +95,6 @@ where
         manage_after_handshake(&options, false, &mut rslt.tls_stream).await
       };
       handle_err(&options, fun.await);
-    }
-    if options.is_client {
-      tls_config = make_client_cfg(&options);
-    } else {
-      tls_config = make_server_cfg(&options);
     }
   }
 }
@@ -138,6 +132,7 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
       TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
       TlsError::EmptyNewSessionTicket => ":DECODE_ERROR:",
+      TlsError::ExcessHandshakeData => ":UNEXPECTED_MESSAGE:",
       TlsError::InvalidExtensionTy => ":UNEXPECTED_EXTENSION:",
       TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
       TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
@@ -148,6 +143,7 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::MissingKeyShares => ":MISSING_KEY_SHARE:",
       TlsError::MissingSupportedGroups => ":NO_SHARED_GROUP:",
       TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
+      TlsError::ServerHasNoCompatibleKeyShare => ":UNEXPECTED_MESSAGE:",
       TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
       TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
@@ -163,13 +159,13 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
   quit(reason);
 }
 
-async fn manage_after_handshake<const IS_CLIENT: bool, TM>(
+async fn manage_after_handshake<const IS_CLIENT: bool, TCX>(
   options: &Options,
   mut _sent_message: bool,
-  tls_stream: &mut TlsStream<TcpStream, TM, IS_CLIENT>,
+  tls_stream: &mut TlsStream<TcpStream, TCX, IS_CLIENT>,
 ) -> wtx::Result<()>
 where
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let mut quench_writes = false;
   let mut _sent_key_update = false;
@@ -241,11 +237,11 @@ where
   }
 }
 
-fn make_client_cfg<TM>(options: &Options) -> TlsConfig<TM>
+fn make_client_cfg<TCX>(ctx: TCX, options: &Options) -> TlsConfig<TCX>
 where
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
-  let mut cfg = TlsConfig::new().unwrap().set_tls_mode(TM::default());
+  let mut cfg = TlsConfig::new(ctx).unwrap();
   let pem = cert_pem_from_pem_file(&options.trusted_cert_file);
   let mut buffer = Vector::new();
   let trust_anchor = Certificate::<&[u8]>::from_pem(&mut buffer, pem.as_bytes()).unwrap();
@@ -277,19 +273,11 @@ where
   cfg
 }
 
-fn make_server_cfg<TM>(options: &Options) -> TlsConfig<TM>
-where
-  TM: TlsMode,
-{
+fn make_server_cfg(options: &Options) -> TlsConfig<SkCtx> {
   let mut rng = ChaCha20::from_std_random().unwrap();
-  let secret_context = SecretContext::new(&mut rng).unwrap();
-  let mut cfg = TlsConfig::from_keys_pem(
-    options.cert_pem.as_bytes(),
-    &mut rng,
-    (secret_context, &mut options.key_pem.clone().into_bytes()),
-  )
-  .unwrap()
-  .set_tls_mode(TM::default());
+  let mut cfg =
+    TlsConfig::from_keys_pem(options.cert_pem.as_bytes(), &mut rng, options.key_pem.as_bytes())
+      .unwrap();
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
   if options.select_empty_alpn {
     *cfg.alpn_mut() = Some(Alpn::default());

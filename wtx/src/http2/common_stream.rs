@@ -13,24 +13,24 @@ use crate::{
   misc::{Usize, span::Span},
   net::StreamWriter,
   sync::Arc,
-  tls::TlsMode,
+  tls::TlsCtx,
 };
 use core::{future::poll_fn, mem, pin::pin, task::Poll, time::Duration};
 
 /// Groups common client and server operations as well as low level methods that deal with
 /// individual frames.
 #[derive(Debug)]
-pub struct CommonStream<'instance, SW, TM, const IS_CLIENT: bool> {
-  pub(crate) inner: &'instance Arc<Http2Inner<SW, TM, IS_CLIENT>>,
+pub struct CommonStream<'instance, SW, TCX, const IS_CLIENT: bool> {
+  pub(crate) inner: &'instance Arc<Http2Inner<SW, TCX, IS_CLIENT>>,
   pub(crate) linger: bool,
   pub(crate) span: &'instance Span,
   pub(crate) stream_id: U31,
 }
 
-impl<SW, TM, const IS_CLIENT: bool> CommonStream<'_, SW, TM, IS_CLIENT>
+impl<SW, TCX, const IS_CLIENT: bool> CommonStream<'_, SW, TCX, IS_CLIENT>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Removes internal elements that are no longer necessary after the end of the stream.
   #[inline]

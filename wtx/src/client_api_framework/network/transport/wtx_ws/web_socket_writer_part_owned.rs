@@ -13,15 +13,15 @@ use crate::{
   collections::Vector,
   misc::LeaseMut,
   net::StreamWriter,
-  tls::TlsMode,
+  tls::TlsCtx,
   web_socket::{Frame, WebSocketWriterOwned, web_socket_compression::NegotiatedWsCompression},
 };
 
-impl<NC, SW, TM, TP> SendingTransport<TP> for WebSocketWriterOwned<NC, SW, TM, true>
+impl<NC, SW, TCX, TP> SendingTransport<TP> for WebSocketWriterOwned<NC, SW, TCX, true>
 where
   NC: NegotiatedWsCompression,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<WsParams>,
 {
   #[inline]
@@ -50,7 +50,7 @@ where
   }
 }
 
-impl<NC, SW, TM, TP> Transport<TP> for WebSocketWriterOwned<NC, SW, TM, true>
+impl<NC, SW, TCX, TP> Transport<TP> for WebSocketWriterOwned<NC, SW, TCX, true>
 where
   NC: NegotiatedWsCompression,
   SW: StreamWriter,
@@ -60,14 +60,14 @@ where
   type ReqId = ();
 }
 
-async fn cb<NC, SW, TM>(
+async fn cb<NC, SW, TCX>(
   mut frame: Frame<&mut Vector<u8>>,
-  trans: &mut WebSocketWriterOwned<NC, SW, TM, true>,
+  trans: &mut WebSocketWriterOwned<NC, SW, TCX, true>,
 ) -> crate::Result<()>
 where
   NC: NegotiatedWsCompression,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   trans.write_frame(&mut frame).await?;
   Ok(())

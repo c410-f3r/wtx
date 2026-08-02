@@ -9,7 +9,6 @@ use wtx::{
   collections::Vector,
   http::{HttpRecvParams, Response, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
-  misc::SecretContext,
   net::{Stream, Uri},
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsAcceptor, TlsConfig},
@@ -22,13 +21,8 @@ async fn main() -> wtx::Result<()> {
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).await?;
   let (stream, _) = listener.accept().await?;
   let mut rng = ChaCha20::from_getrandom()?;
-  let secret_context = SecretContext::new(&mut rng)?;
   let hb = Http2Buffer::new(&mut rng);
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, &mut SECRET_KEY.clone()),
-  )?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let tls_stream = TlsAcceptor::new(tls_config, rng, stream).accept().await?.tls_stream;
   let hrp = HttpRecvParams::with_optioned_params();
   let (frame_reader, http2) = Http2::accept(hb, hrp, tls_stream.into_split()?).await?;

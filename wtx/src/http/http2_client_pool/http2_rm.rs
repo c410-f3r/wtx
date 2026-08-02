@@ -6,28 +6,28 @@ use crate::{
   pool::ResourceManager,
   rng::ChaCha20,
   sync::{AsyncMutex, AtomicCell},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsMode, TlsStream},
+  tls::{TlsConfig, TlsConnectorBuilder, TlsCtx, TlsStream},
 };
 use core::fmt::Debug;
 
 /// Resource manager for `ClientPool`.
 #[derive(Debug)]
-pub struct Http2RM<AUX, EX, TM> {
+pub struct Http2RM<AUX, EX, TCX> {
   pub(crate) aux_fn: fn() -> AUX,
   pub(crate) disable_auto_sni: bool,
   pub(crate) executor: EX,
   pub(crate) hrp: HttpRecvParams,
   pub(crate) rng: AtomicCell<ChaCha20>,
   pub(crate) tcp_params: TcpParams,
-  pub(crate) tls_config: AsyncMutex<TlsConfig<TM>>,
+  pub(crate) tls_config: AsyncMutex<TlsConfig<TCX>>,
 }
 
-impl<AUX, EX, TM> Http2RM<AUX, EX, TM>
+impl<AUX, EX, TCX> Http2RM<AUX, EX, TCX>
 where
   EX: Executor,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
-  async fn tls_stream(&self, aux: &str) -> crate::Result<TlsStream<EX::TcpStream, TM, true>> {
+  async fn tls_stream(&self, aux: &str) -> crate::Result<TlsStream<EX::TcpStream, TCX, true>> {
     let uri = UriRef::new(aux);
     let mut tls_config = self.tls_config.lock().await;
     if !self.disable_auto_sni {
@@ -45,11 +45,11 @@ where
   }
 }
 
-impl<AUX, EX, TM> ResourceManager for Http2RM<AUX, EX, TM>
+impl<AUX, EX, TCX> ResourceManager for Http2RM<AUX, EX, TCX>
 where
   EX: Executor,
   EX::TcpStream: 'static,
-  TM: Clone + Send + TlsMode + 'static,
+  TCX: Send + TlsCtx + 'static,
   <EX::TcpStream as Stream>::ReadHalfOwned: Send,
   <EX::TcpStream as Stream>::WriteHalfOwned: Send,
   <<EX::TcpStream as Stream>::ReadHalfOwned as StreamReader>::read(..): Send,
@@ -59,7 +59,7 @@ where
   type CreateAux = str;
   type Error = crate::Error;
   type RecycleAux = str;
-  type Resource = Http2ClientPoolResource<AUX, <EX::TcpStream as Stream>::WriteHalfOwned, TM>;
+  type Resource = Http2ClientPoolResource<AUX, <EX::TcpStream as Stream>::WriteHalfOwned, TCX>;
 
   #[inline]
   async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -90,7 +90,7 @@ where
   }
 }
 
-fn push_server_name<S, TM>(tc: &mut TlsConfig<TM>, uri: &Uri<S>) -> crate::Result<()>
+fn push_server_name<S, TCX>(tc: &mut TlsConfig<TCX>, uri: &Uri<S>) -> crate::Result<()>
 where
   S: crate::misc::Lease<str>,
 {

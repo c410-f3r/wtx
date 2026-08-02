@@ -14,7 +14,7 @@ pub fn is_web_socket_handshake(
 }
 
 #[cfg(any(feature = "http2-client-pool", feature = "http2-server-framework"))]
-pub(crate) fn push_h2_alpn<TM>(tc: &mut crate::tls::TlsConfig<TM>) -> crate::Result<()> {
+pub(crate) fn push_h2_alpn<TCX>(tc: &mut crate::tls::TlsConfig<TCX>) -> crate::Result<()> {
   tc.alpn_mut().get_or_insert_default().protocol_name_list.push("h2".as_bytes().try_into()?)?;
   Ok(())
 }

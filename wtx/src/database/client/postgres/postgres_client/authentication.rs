@@ -19,13 +19,13 @@ use crate::{
   misc::{bytes_split1, from_utf8_basic},
   net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
   rng::CryptoRng,
-  tls::{TlsMode, TlsServerEndPoint, TlsStream},
+  tls::{TlsCtx, TlsServerEndPoint, TlsStream},
 };
 
-impl<E, S, TM> PostgresClient<E, S, TM>
+impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Connection parameters
   ///
@@ -145,7 +145,7 @@ where
     (method_bytes, method_header): (&[u8], &[u8]),
     read_buffer: &mut BufStreamReader,
     rng: &mut RNG,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
     tls_server_end_point: TlsServerEndPoint,
   ) -> crate::Result<()>
   where

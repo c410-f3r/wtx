@@ -7,7 +7,7 @@ use {
     collections::{ArrayStringU8, Vector},
     net::Uri,
     rng::{ChaCha20, CryptoSeedableRng as _},
-    tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
+    tls::{PlaintextCtx, TlsConfig, TlsConnectorBuilder},
     web_socket::{
       Frame, OpCode, WebSocket, WebSocketConnector, WebSocketPayloadOrigin,
       web_socket_compression::{NegotiatedZlibRs, ZlibRs},
@@ -21,7 +21,7 @@ use {
 pub async fn autobahn_case_conn(
   case: u32,
   host: &str,
-) -> wtx::Result<WebSocket<Option<NegotiatedZlibRs>, TcpStream, TlsModePlainText, true>> {
+) -> wtx::Result<WebSocket<Option<NegotiatedZlibRs>, TcpStream, PlaintextCtx, true>> {
   let uri =
     ArrayStringU8::<128>::try_from(format_args!("http://{host}/runCase?case={case}&agent=wtx"))?;
   WebSocketConnector::default()

@@ -7,7 +7,6 @@ extern crate wtx_examples;
 use tokio::net::TcpListener;
 use wtx::{
   collections::Vector,
-  misc::SecretContext,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsAcceptor, TlsConfig},
   web_socket::{OpCode, WebSocketAcceptor, WebSocketPayloadOrigin},
@@ -18,18 +17,13 @@ use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 async fn main() -> wtx::Result<()> {
   let listener = TcpListener::bind(&host_from_args()).await?;
   let mut rng = ChaCha20::from_getrandom()?;
-  let secret_context = SecretContext::new(&mut rng)?;
   loop {
     let mut conn_rng = ChaCha20::from_crypto_rng(&mut rng)?;
-    let conn_secret_context = secret_context.clone();
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let fut = async {
-        let tls_config = TlsConfig::from_keys_pem(
-          PUBLIC_KEY.try_into()?,
-          &mut conn_rng,
-          (conn_secret_context, &mut SECRET_KEY.clone()),
-        )?;
+        let tls_config =
+          TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut conn_rng, SECRET_KEY)?;
         let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default()
           .accept(TlsAcceptor::new(tls_config, conn_rng, stream))

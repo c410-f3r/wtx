@@ -9,7 +9,7 @@ use crate::{
   net::{Stream as _, UriRef, UriString},
   rng::{ChaCha20, CryptoSeedableRng, SeedableRng, Xorshift64},
   tests::_uri,
-  tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder, TlsModePlainText},
+  tls::{PlaintextCtx, TlsAcceptor, TlsConfig, TlsConnectorBuilder},
 };
 use core::time::Duration;
 use std::net::{TcpListener, TcpStream};
@@ -112,7 +112,7 @@ fn server(uri: &UriString, runtime: &StdRuntime) {
 }
 
 async fn stream_server(
-  server: &mut Http2<TcpStream, TlsModePlainText, false>,
+  server: &mut Http2<TcpStream, PlaintextCtx, false>,
   mut cb: impl FnMut(Request<&mut MsgBufferString>),
 ) {
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
@@ -123,7 +123,7 @@ async fn stream_server(
 }
 
 async fn stream_client(
-  client: &mut Http2<TcpStream, TlsModePlainText, true>,
+  client: &mut Http2<TcpStream, PlaintextCtx, true>,
   msg_buffer: MsgBufferString,
   uri: UriRef<'_>,
 ) -> MsgBufferString {

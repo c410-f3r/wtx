@@ -59,7 +59,7 @@ impl TcpListener for std::net::TcpListener {
   #[inline]
   async fn accept(&self, tcp_params: TcpParams) -> crate::Result<(Self::TcpStream, SocketAddr)> {
     let rslt = (*self).accept()?;
-    rslt.0.set_nodelay(tcp_params.tcp_nodelay)?;
+    rslt.0.set_nodelay(tcp_params.tcp_nodelay())?;
     Ok(rslt)
   }
 }
@@ -76,7 +76,7 @@ impl TcpStream for std::net::TcpStream {
       Ok(std::net::TcpStream::connect(socket_addr)?)
     })
     .await?;
-    stream.set_nodelay(tcp_params.tcp_nodelay)?;
+    stream.set_nodelay(tcp_params.tcp_nodelay())?;
     Ok(stream)
   }
 

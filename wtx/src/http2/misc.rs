@@ -18,7 +18,7 @@ use crate::{
   misc::Usize,
   net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   sync::AtomicU8,
-  tls::{TlsMode, TlsStreamWriter},
+  tls::{TlsCtx, TlsStreamWriter},
 };
 use core::{
   mem,
@@ -113,20 +113,20 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
   Poll::Pending
 }
 
-pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_RECV: bool>(
+pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_RECV: bool>(
   error_code: Http2ErrorCode,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
 ) where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
-  async fn close<SW, TM, const IS_CLIENT: bool>(
+  async fn close<SW, TCX, const IS_CLIENT: bool>(
     error_code: Http2ErrorCode,
-    inner: &Http2Inner<SW, TM, IS_CLIENT>,
+    inner: &Http2Inner<SW, TCX, IS_CLIENT>,
     last_stream_id: U31,
   ) where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     let mut lock = inner.wd.lock().await;
     do_send_go_away(error_code, last_stream_id, &mut *lock).await;
@@ -134,13 +134,13 @@ pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_R
     wake_tasks(&mut *inner.hd.lock().await);
   }
 
-  async fn do_send_go_away<SW, TM, const IS_CLIENT: bool>(
+  async fn do_send_go_away<SW, TCX, const IS_CLIENT: bool>(
     error_code: Http2ErrorCode,
     last_stream_id: U31,
-    stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
+    stream_writer: &mut TlsStreamWriter<SW, TCX, IS_CLIENT>,
   ) where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     let gaf = GoAwayFrame::new(error_code, last_stream_id);
     let _rslt = stream_writer.write_all(&gaf.bytes()).await;
@@ -182,12 +182,12 @@ pub(crate) async fn manage_termination<SW, TM, const IS_CLIENT: bool, const IS_R
 }
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
-pub(crate) async fn process_higher_operation_err<SW, TM, const IS_CLIENT: bool>(
+pub(crate) async fn process_higher_operation_err<SW, TCX, const IS_CLIENT: bool>(
   err: &crate::Error,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
 ) where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   match err {
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
@@ -332,14 +332,14 @@ where
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
-pub(crate) async fn send_reset_stream<SW, TM, const IS_CLIENT: bool>(
+pub(crate) async fn send_reset_stream<SW, TCX, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   stream_id: U31,
 ) -> bool
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let rsf = ResetStreamFrame::new(error_code, stream_id);
   let mut has_stored = false;
@@ -413,13 +413,13 @@ pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result
   Ok(pad_len)
 }
 
-pub(crate) async fn write_array<SW, TM, const N: usize, const IS_CLIENT: bool>(
+pub(crate) async fn write_array<SW, TCX, const N: usize, const IS_CLIENT: bool>(
   array: [&[u8]; N],
-  stream_writer: &mut TlsStreamWriter<SW, TM, IS_CLIENT>,
+  stream_writer: &mut TlsStreamWriter<SW, TCX, IS_CLIENT>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   _trace!("Sending frame(s): {:?}", {
     let process = |elem: &mut Option<_>, frame: &[u8]| {

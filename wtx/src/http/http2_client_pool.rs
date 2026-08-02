@@ -19,16 +19,16 @@ pub use http2_rm::Http2RM;
 ///
 /// Currently supports only one domain with multiple connections.
 #[derive(Debug)]
-pub struct Http2ClientPool<AUX, EX, TM>
+pub struct Http2ClientPool<AUX, EX, TCX>
 where
-  Http2RM<AUX, EX, TM>: ResourceManager,
+  Http2RM<AUX, EX, TCX>: ResourceManager,
 {
-  pool: SimplePool<Http2RM<AUX, EX, TM>>,
+  pool: SimplePool<Http2RM<AUX, EX, TCX>>,
 }
 
-impl<AUX, EX, TM, R> Http2ClientPool<AUX, EX, TM>
+impl<AUX, EX, TCX, R> Http2ClientPool<AUX, EX, TCX>
 where
-  Http2RM<AUX, EX, TM>:
+  Http2RM<AUX, EX, TCX>:
     ResourceManager<CreateAux = str, Error = crate::Error, RecycleAux = str, Resource = R>,
 {
   /// Returns a guard that contains the internal elements.

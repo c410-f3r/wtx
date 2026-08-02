@@ -16,26 +16,26 @@ use crate::{
   },
   misc::{Either, Usize},
   net::{Stream, StreamWriter as _},
-  tls::TlsMode,
+  tls::TlsCtx,
 };
 
 const MAX_STMTS: usize = 4;
 
 /// Sends multiple statements at once and awaits them when flushed.
 #[derive(Debug)]
-pub struct Batch<'exec, E, S, TM> {
-  client: &'exec mut PostgresClient<E, S, TM>,
+pub struct Batch<'exec, E, S, TCX> {
+  client: &'exec mut PostgresClient<E, S, TCX>,
   initial_len: usize,
   stmt_cmd_ids: ArrayVectorCopy<(u64, bool), MAX_STMTS>,
 }
 
-impl<'exec, E, S, TM> Batch<'exec, E, S, TM>
+impl<'exec, E, S, TCX> Batch<'exec, E, S, TCX>
 where
   E: From<crate::Error>,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
-  pub(crate) fn new(client: &'exec mut PostgresClient<E, S, TM>) -> Self {
+  pub(crate) fn new(client: &'exec mut PostgresClient<E, S, TCX>) -> Self {
     let PostgresClient { cb, .. } = client;
     let ClientBuffer { common, .. } = cb;
     let CommonClientBuffer { read_buffer, records_params, values_params, .. } = common;
@@ -71,7 +71,7 @@ where
     let mut values_params_offset = 0;
     'stmts: loop {
       let Some((stmt_cmd_id, is_already_known)) = stmt_cmd_ids_iter.next() else {
-        let msg = PostgresClient::<E, S, TM>::fetch_msg(cs, read_buffer, stream).await?;
+        let msg = PostgresClient::<E, S, TCX>::fetch_msg(cs, read_buffer, stream).await?;
         if let MessageTy::ReadyForQuery = msg.ty {
           break 'stmts;
         }
@@ -82,7 +82,7 @@ where
           .get_by_stmt_cmd_id_mut(stmt_cmd_id)
           .ok_or_else(|| E::from(crate::Error::ProgrammingError))?
       } else {
-        PostgresClient::<E, S, TM>::await_stmt_prepare::<false>(
+        PostgresClient::<E, S, TCX>::await_stmt_prepare::<false>(
           cs,
           read_buffer,
           stmt_cmd_id,
@@ -92,10 +92,10 @@ where
         )
         .await?
       };
-      PostgresClient::<E, S, TM>::await_stmt_bind(cs, read_buffer, stream).await?;
+      PostgresClient::<E, S, TCX>::await_stmt_bind(cs, read_buffer, stream).await?;
 
       'rows: loop {
-        let msg = PostgresClient::<E, S, TM>::fetch_msg(cs, read_buffer, stream).await?;
+        let msg = PostgresClient::<E, S, TCX>::fetch_msg(cs, read_buffer, stream).await?;
         match msg.ty {
           MessageTy::CommandComplete(rows_len) => {
             if !B::IS_UNIT {
@@ -164,20 +164,20 @@ where
     let sw = read_buffer.buffer_mut();
     if !is_already_known {
       let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
-      PostgresClient::<E, S, TM>::write_stmt_prepare::<_, false>(
+      PostgresClient::<E, S, TCX>::write_stmt_prepare::<_, false>(
         sw,
         &rv,
         stmt_cmd,
         &stmt_cmd_id_array,
       )?;
     }
-    PostgresClient::<E, S, TM>::write_stmt_bind::<_, false>(rv, &stmt_cmd_id_array, sw)?;
+    PostgresClient::<E, S, TCX>::write_stmt_bind::<_, false>(rv, &stmt_cmd_id_array, sw)?;
     self.stmt_cmd_ids.push((stmt_cmd_id, is_already_known))?;
     Ok(())
   }
 }
 
-impl<E, S, TM> Drop for Batch<'_, E, S, TM> {
+impl<E, S, TCX> Drop for Batch<'_, E, S, TCX> {
   #[inline]
   fn drop(&mut self) {
     let read_buffer = &mut self.client.cb.common.read_buffer;

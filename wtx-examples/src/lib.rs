@@ -28,7 +28,7 @@ pub static PUBLIC_KEY: &[u8] = include_bytes!("../../.certs/cert.pem");
 /// Secret key
 ///
 /// !!! Secret keys shouldn't be static. This is only used for demonstration purposes !!!
-pub static SECRET_KEY: &[u8; 119] = include_bytes!("../../.certs/key.pem");
+pub static SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
@@ -41,7 +41,7 @@ pub async fn postgres_client(
   wtx::database::client::postgres::PostgresClient<
     wtx::Error,
     tokio::net::TcpStream,
-    wtx::tls::TlsModeVerified,
+    wtx::tls::TrustedCtx,
   >,
 > {
   use wtx::{

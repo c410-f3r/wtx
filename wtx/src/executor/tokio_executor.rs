@@ -59,7 +59,7 @@ impl TcpListener for tokio::net::TcpListener {
   #[inline]
   async fn accept(&self, tcp_params: TcpParams) -> crate::Result<(Self::TcpStream, SocketAddr)> {
     let rslt = (*self).accept().await?;
-    rslt.0.set_nodelay(tcp_params.tcp_nodelay)?;
+    rslt.0.set_nodelay(tcp_params.tcp_nodelay())?;
     Ok(rslt)
   }
 }
@@ -91,7 +91,7 @@ impl TcpStream for tokio::net::TcpStream {
       Ok(tokio::net::TcpStream::connect(socket_addr).await?)
     })
     .await?;
-    stream.set_nodelay(tcp_params.tcp_nodelay)?;
+    stream.set_nodelay(tcp_params.tcp_nodelay())?;
     Ok(stream)
   }
 

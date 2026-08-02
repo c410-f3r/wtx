@@ -18,14 +18,14 @@ use crate::{
   http2::{ClientStream, Http2},
   misc::LeaseMut,
   net::StreamWriter,
-  tls::TlsMode,
+  tls::TlsCtx,
 };
 use core::mem;
 
-impl<SW, TM, TP> ReceivingTransport<TP> for Http2<SW, TM, true>
+impl<SW, TCX, TP> ReceivingTransport<TP> for Http2<SW, TCX, true>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<HttpParams>,
 {
   #[inline]
@@ -41,10 +41,10 @@ where
     Ok(())
   }
 }
-impl<SW, TM, TP> SendingTransport<TP> for Http2<SW, TM, true>
+impl<SW, TCX, TP> SendingTransport<TP> for Http2<SW, TCX, true>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<HttpParams>,
 {
   #[inline]
@@ -72,13 +72,13 @@ where
     send_pkg(self, pkg, pkgs_aux).await
   }
 }
-impl<SW, TM, TP> Transport<TP> for Http2<SW, TM, true>
+impl<SW, TCX, TP> Transport<TP> for Http2<SW, TCX, true>
 where
   SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Inner = Self;
-  type ReqId = ClientStream<SW, TM>;
+  type ReqId = ClientStream<SW, TCX>;
 }
 
 fn manage_params<A, DRSR, TP>(
@@ -112,15 +112,15 @@ where
   Ok(())
 }
 
-async fn recv<A, DRSR, SW, TM, TP>(
-  client: &mut Http2<SW, TM, true>,
+async fn recv<A, DRSR, SW, TCX, TP>(
+  client: &mut Http2<SW, TCX, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  req_id: ClientStream<SW, TM>,
+  req_id: ClientStream<SW, TCX>,
 ) -> Result<(), A::Error>
 where
   A: Api,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<HttpParams>,
 {
   let log_data = pkgs_aux.log_data;
@@ -145,15 +145,15 @@ where
   Ok(())
 }
 
-async fn send_bytes<A, DRSR, SW, TM, TP>(
+async fn send_bytes<A, DRSR, SW, TCX, TP>(
   bytes: Option<&[u8]>,
-  client: &mut Http2<SW, TM, true>,
+  client: &mut Http2<SW, TCX, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-) -> Result<ClientStream<SW, TM>, A::Error>
+) -> Result<ClientStream<SW, TCX>, A::Error>
 where
   A: Api,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<HttpParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
@@ -174,16 +174,16 @@ where
   }
 }
 
-async fn send_pkg<A, DRSR, P, SW, TM, TP>(
-  client: &mut Http2<SW, TM, true>,
+async fn send_pkg<A, DRSR, P, SW, TCX, TP>(
+  client: &mut Http2<SW, TCX, true>,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-) -> Result<ClientStream<SW, TM>, A::Error>
+) -> Result<ClientStream<SW, TCX>, A::Error>
 where
   A: Api,
-  P: Package<A, DRSR, Http2<SW, TM, true>, TP>,
+  P: Package<A, DRSR, Http2<SW, TCX, true>, TP>,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
   TP: LeaseMut<HttpParams>,
 {
   manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
@@ -224,19 +224,19 @@ mod http_client_pool {
     misc::LeaseMut,
     net::StreamWriter,
     pool::ResourceManager,
-    tls::TlsMode,
+    tls::TlsCtx,
   };
 
-  impl<AUX, EX, SW, TM, TP> ReceivingTransport<TP> for Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> ReceivingTransport<TP> for Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
     TP: LeaseMut<HttpParams>,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     #[inline]
@@ -260,16 +260,16 @@ mod http_client_pool {
       Ok(())
     }
   }
-  impl<AUX, EX, SW, TM, TP> SendingTransport<TP> for Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> SendingTransport<TP> for Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
     TP: LeaseMut<HttpParams>,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     #[inline]
@@ -313,31 +313,31 @@ mod http_client_pool {
       .await
     }
   }
-  impl<AUX, EX, SW, TM, TP> Transport<TP> for Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> Transport<TP> for Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
-    type Inner = Http2<SW, TM, true>;
-    type ReqId = ClientStream<SW, TM>;
+    type Inner = Http2<SW, TCX, true>;
+    type ReqId = ClientStream<SW, TCX>;
   }
 
-  impl<AUX, EX, SW, TM, TP> ReceivingTransport<TP> for &Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> ReceivingTransport<TP> for &Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
     TP: LeaseMut<HttpParams>,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     #[inline]
@@ -361,16 +361,16 @@ mod http_client_pool {
       Ok(())
     }
   }
-  impl<AUX, EX, SW, TM, TP> SendingTransport<TP> for &Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> SendingTransport<TP> for &Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
     TP: LeaseMut<HttpParams>,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     #[inline]
@@ -415,18 +415,18 @@ mod http_client_pool {
     }
   }
 
-  impl<AUX, EX, SW, TM, TP> Transport<TP> for &Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX, TP> Transport<TP> for &Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
-    type Inner = Http2<SW, TM, true>;
-    type ReqId = ClientStream<SW, TM>;
+    type Inner = Http2<SW, TCX, true>;
+    type ReqId = ClientStream<SW, TCX>;
   }
 }

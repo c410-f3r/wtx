@@ -25,7 +25,7 @@ impl DynSigningKey {
   /// Calls the signing method that corresponds to the current instance variant and the selected
   /// crypto backend.
   #[inline]
-  pub fn sign<RNG>(&mut self, msg: &[u8], rng: &mut RNG) -> crate::Result<DynSigningOutput>
+  pub fn sign<RNG>(&self, msg: &[u8], rng: &mut RNG) -> crate::Result<DynSigningOutput>
   where
     RNG: CryptoRng,
   {

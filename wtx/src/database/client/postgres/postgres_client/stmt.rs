@@ -17,19 +17,19 @@ use crate::{
   },
   misc::unlikely_elem,
   net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
-  tls::{TlsMode, TlsStream},
+  tls::{TlsCtx, TlsStream},
 };
 
-impl<E, S, TM> PostgresClient<E, S, TM>
+impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
   E: From<crate::Error>,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   pub(crate) async fn await_stmt_bind(
     cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(), E>
   where
     S: Stream,
@@ -48,7 +48,7 @@ where
     stmt_cmd_id: u64,
     stmt_cmd_id_array: U64String,
     stmts: &'stmts mut PostgresStatements,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<PostgresStatementMut<'stmts>, E>
   where
     S: Stream,
@@ -129,7 +129,7 @@ where
     read_buffer: &mut BufStreamReader,
     rv: RV,
     stmt_cmd_id_array: &U64String,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,
@@ -148,13 +148,13 @@ where
     rv: &RV,
     sc: SC,
     stmts: &'stmts mut PostgresStatements,
-    stream: &mut TlsStream<S, TM, true>,
+    stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(u64, U64String, PostgresStatementMut<'stmts>), E>
   where
     RV: RecordValues<Postgres<E>>,
     S: Stream,
     SC: StmtCmd,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
     let stmt_cmd_id_array = u64_string(stmt_cmd_id);

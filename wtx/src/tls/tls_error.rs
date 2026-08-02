@@ -33,6 +33,8 @@ pub enum TlsError {
   EmptyNewSessionTicket,
   /// Empty set of certificates
   EmptySetOfCertificates,
+  /// Trailing Data In Handshake
+  ExcessHandshakeData,
   /// Incompatible ALPN
   IncompatibleAlpn,
   /// Incompatible Certificate Types
@@ -159,8 +161,6 @@ pub enum TlsError {
   UnknownSignatureScheme,
   /// Unknown Webpki Signature Scheme
   UnknownWebpkiSignatureScheme,
-  /// Can not receive certificate records once a PSK was accepted
-  CertRecordInAcceptedPsk,
   /// Secret mismatch
   SecretMismatch,
   /// The server has a set of suites that the client don't support

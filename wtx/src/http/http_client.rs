@@ -77,15 +77,15 @@ mod http2 {
     http2::{ClientStream, Http2, Http2RecvStatus},
     misc::Lease,
     net::StreamWriter,
-    tls::TlsMode,
+    tls::TlsCtx,
   };
 
-  impl<SW, TM> HttpClient for Http2<SW, TM, true>
+  impl<SW, TCX> HttpClient for Http2<SW, TCX, true>
   where
     SW: StreamWriter,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
-    type ReqId = ClientStream<SW, TM>;
+    type ReqId = ClientStream<SW, TCX>;
 
     #[inline]
     async fn recv_res(&self, mut req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
@@ -129,21 +129,21 @@ mod http_client_pool {
     misc::Lease,
     net::StreamWriter,
     pool::ResourceManager,
-    tls::TlsMode,
+    tls::TlsCtx,
   };
 
-  impl<AUX, EX, SW, TM> HttpClient for Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX> HttpClient for Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    TCX: TlsCtx,
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
-    type ReqId = ClientStream<SW, TM>;
+    type ReqId = ClientStream<SW, TCX>;
 
     #[inline]
     async fn recv_res(&self, req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
@@ -178,18 +178,18 @@ mod http_client_pool {
     }
   }
 
-  impl<AUX, EX, SW, TM> HttpClient for &Http2ClientPool<AUX, EX, TM>
+  impl<AUX, EX, SW, TCX> HttpClient for &Http2ClientPool<AUX, EX, TCX>
   where
     SW: StreamWriter,
-    TM: TlsMode,
-    Http2RM<AUX, EX, TM>: ResourceManager<
+    TCX: TlsCtx,
+    Http2RM<AUX, EX, TCX>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = Http2ClientPoolResource<AUX, SW, TM>,
+        Resource = Http2ClientPoolResource<AUX, SW, TCX>,
       >,
   {
-    type ReqId = ClientStream<SW, TM>;
+    type ReqId = ClientStream<SW, TCX>;
 
     #[inline]
     async fn recv_res(&self, mut req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
