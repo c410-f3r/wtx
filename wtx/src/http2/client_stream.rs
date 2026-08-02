@@ -13,14 +13,14 @@ use crate::{
   misc::{Lease, span::Span},
   net::StreamWriter,
   sync::Arc,
-  tls::TlsMode,
+  tls::TlsCtx,
 };
 use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
-pub struct ClientStream<SW, TM> {
-  inner: Arc<Http2Inner<SW, TM, true>>,
+pub struct ClientStream<SW, TCX> {
+  inner: Arc<Http2Inner<SW, TCX, true>>,
   linger: bool,
   span: Span,
   stream_id: U31,
@@ -28,9 +28,9 @@ pub struct ClientStream<SW, TM> {
   windows: Windows,
 }
 
-impl<SW, TM> ClientStream<SW, TM> {
+impl<SW, TCX> ClientStream<SW, TCX> {
   pub(crate) const fn new(
-    inner: Arc<Http2Inner<SW, TM, true>>,
+    inner: Arc<Http2Inner<SW, TCX, true>>,
     linger: bool,
     span: Span,
     stream_id: U31,
@@ -39,14 +39,14 @@ impl<SW, TM> ClientStream<SW, TM> {
   }
 }
 
-impl<SW, TM> ClientStream<SW, TM>
+impl<SW, TCX> ClientStream<SW, TCX>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, SW, TM, true> {
+  pub const fn common(&mut self) -> CommonStream<'_, SW, TCX, true> {
     let Self { inner, linger, span, stream_id, windows: _ } = self;
     CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }

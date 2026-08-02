@@ -276,15 +276,15 @@ mod postgres {
     },
     misc::Lease,
     net::Stream,
-    tls::TlsMode,
+    tls::TlsCtx,
   };
   use alloc::string::String;
 
-  impl<E, STREAM, TM> SchemaManagement for PostgresClient<E, STREAM, TM>
+  impl<E, STREAM, TCX> SchemaManagement for PostgresClient<E, STREAM, TCX>
   where
     E: From<crate::Error>,
     STREAM: Stream,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     #[inline]
     async fn all_elements(

@@ -23,11 +23,11 @@ use wtx::{
   misc::SecretContext,
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::{SkCtx, TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TlsModeVerified>>;
+type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
 
 fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
@@ -42,11 +42,7 @@ fn main() -> wtx::Result<()> {
       &mut uri,
     )?,
   );
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, &mut SECRET_KEY.clone()),
-  )?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let router = HttpRouter::paths(wtx::paths!(
     ("/db/{id}", get(db)),
     ("/json", json(Method::Post, deserialization_and_serialization)),
@@ -88,7 +84,7 @@ async fn hello() -> &'static str {
 }
 
 async fn stream(
-  mut manual_stream: ManualStream<LocalPool, ServerStream<OwnedWriteHalf, TlsModeVerified>>,
+  mut manual_stream: ManualStream<LocalPool, ServerStream<OwnedWriteHalf, SkCtx>>,
 ) -> wtx::Result<()> {
   manual_stream.stream.common().send_go_away(Http2ErrorCode::NoError).await;
   Ok(())

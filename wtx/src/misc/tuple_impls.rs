@@ -262,21 +262,21 @@ macro_rules! impl_tuples {
         web_socket::{WebSocket, WsCompression},
       };
 
-      type LocalWs<T2, EX, TM> = WebSocket<
+      type LocalWs<T2, EX, TCX> = WebSocket<
         <T2 as WsCompression<false>>::NegotiatedCompression,
         <EX as Executor>::TcpStream,
-        TM,
+        TCX,
         false,
       >;
 
       $(
-        impl<$($T,)* CO, ER, EX, TM> WebSocketRouter<CO, ER, EX, TM> for (
+        impl<$($T,)* CO, ER, EX, TCX> WebSocketRouter<CO, ER, EX, TCX> for (
           $(
             (&'static str, $T),
           )*
         )
         where
-          $($T: FnFut<(Vector<u8>, LocalWs<CO, EX, TM>), Result = Result<(), ER>>,)*
+          $($T: FnFut<(Vector<u8>, LocalWs<CO, EX, TCX>), Result = Result<(), ER>>,)*
           CO: WsCompression<false>,
           ER: From<crate::Error>,
           EX: Executor,
@@ -286,7 +286,7 @@ macro_rules! impl_tuples {
             &self,
             matcher: &Router<u8>,
             path: String,
-            _ws: LocalWs<CO, EX, TM>,
+            _ws: LocalWs<CO, EX, TCX>,
           ) -> Result<(), ER> {
             let rslt = matcher.find(&path)?;
             match rslt.data() {

@@ -54,13 +54,13 @@ where
 
   /// Transforms itself into [`TlsConnector`] according to the internal parameters.
   #[inline]
-  pub async fn build<RNG, TC, TM>(
+  pub async fn build<RNG, TCG, TCX>(
     self,
-    config: TC,
+    config: TCG,
     rng: RNG,
-  ) -> crate::Result<TlsConnector<RNG, EX::TcpStream, TC, U>>
+  ) -> crate::Result<TlsConnector<RNG, EX::TcpStream, TCG, U>>
   where
-    TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+    TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
   {
     let addr = self.uri.lease().hostname_with_implied_port();
     let stream = EX::TcpStream::connect(addr, self.tcp_params).await?;

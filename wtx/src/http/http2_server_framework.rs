@@ -35,7 +35,7 @@ use crate::{
   net::{Stream, StreamReader, StreamWriter, TcpListener as _, TcpParams, TcpStream as _, Uri},
   rng::{CryptoRng, CryptoSeedableRng, SeedableRng as _, Xorshift64},
   sync::Arc,
-  tls::{TlsAcceptor, TlsConfig, TlsMode},
+  tls::{TlsAcceptor, TlsConfig, TlsCtx, TlsCtxSk},
 };
 use core::{mem, net::IpAddr, num::NonZeroUsize};
 pub use cors_middleware::{CorsMiddleware, OriginResponse};
@@ -63,17 +63,17 @@ pub use route_match::RouteMatch;
 pub use state::{State, StateClean, StateGeneric, StateTest};
 pub use verbatim_params::VerbatimParams;
 
-type ConnRsltTy<EX, TM, ER> = Option<(
-  LocalStream<EX, TM>,
+type ConnRsltTy<EX, TCX, ER> = Option<(
+  LocalStream<EX, TCX>,
   Result<(ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>), ER>,
 )>;
-type LocalStream<EX, TM> =
-  ServerStream<<<EX as Executor>::TcpStream as Stream>::WriteHalfOwned, TM>;
+type LocalStream<EX, TCX> =
+  ServerStream<<<EX as Executor>::TcpStream as Stream>::WriteHalfOwned, TCX>;
 type WriteHalf<EX> = <<EX as Executor>::TcpStream as Stream>::WriteHalfOwned;
 
 /// HTTP/2 Server Framework
 #[derive(Debug)]
-pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
+pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   data: DA,
   error_cb: EC,
   executor: EX,
@@ -82,17 +82,17 @@ pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   local_runtimes: Option<NonZeroUsize>,
   rng: RNG,
   tcp_params: TcpParams,
-  tls_config: Arc<TlsConfig<TM>>,
+  tls_config: Arc<TlsConfig<TCX>>,
 }
 
-impl<ERR, EX, RNG, TM>
+impl<ERR, EX, RNG, TCX>
   Http2ServerFramework<
     (),
     fn(ERR),
     EX,
     fn() -> Result<<EX as Executor>::LocalRuntime, ERR>,
     RNG,
-    TM,
+    TCX,
   >
 where
   ERR: From<crate::Error>,
@@ -102,7 +102,7 @@ where
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
   #[inline]
-  pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TCX>) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     let error_cb: fn(_) = |_| {};
     let local_runtime_cb: fn() -> _ = || Ok(EX::LocalRuntime::new()?);
@@ -121,21 +121,21 @@ where
 }
 
 #[cfg(feature = "tokio")]
-impl<ERR, TM>
+impl<ERR, TCX>
   Http2ServerFramework<
     (),
     fn(ERR),
     crate::executor::TokioExecutor,
     fn() -> Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime, ERR>,
     crate::rng::ChaCha20,
-    TM,
+    TCX,
   >
 where
   ERR: From<crate::Error>,
 {
   /// Calls [`Self::new`] using the elements provided by the tokio project
   #[inline]
-  pub fn tokio(tls_config: TlsConfig<TM>) -> crate::Result<Self> {
+  pub fn tokio(tls_config: TlsConfig<TCX>) -> crate::Result<Self> {
     Self::new(
       crate::executor::TokioExecutor::default(),
       crate::rng::ChaCha20::from_std_random()?,
@@ -144,7 +144,7 @@ where
   }
 }
 
-impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
+impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   /// Mutable Random Number Generator.
   #[inline]
   pub const fn rng_mut(&mut self) -> &mut RNG {
@@ -153,7 +153,7 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
 
   /// Shared data that is cloned across connections and streams.
   #[inline]
-  pub fn set_data<_DA>(self, value: _DA) -> Http2ServerFramework<_DA, EC, EX, RC, RNG, TM> {
+  pub fn set_data<_DA>(self, value: _DA) -> Http2ServerFramework<_DA, EC, EX, RC, RNG, TCX> {
     Http2ServerFramework {
       data: value,
       error_cb: self.error_cb,
@@ -169,7 +169,7 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
 
   /// Sets the error callback function.
   #[inline]
-  pub fn set_error_cb<_EC>(self, value: _EC) -> Http2ServerFramework<DA, _EC, EX, RC, RNG, TM> {
+  pub fn set_error_cb<_EC>(self, value: _EC) -> Http2ServerFramework<DA, _EC, EX, RC, RNG, TCX> {
     Http2ServerFramework {
       data: self.data,
       error_cb: value,
@@ -196,7 +196,7 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   pub fn set_local_runtime_cb<_RC>(
     self,
     value: _RC,
-  ) -> Http2ServerFramework<DA, EC, EX, _RC, RNG, TM> {
+  ) -> Http2ServerFramework<DA, EC, EX, _RC, RNG, TCX> {
     Http2ServerFramework {
       data: self.data,
       error_cb: self.error_cb,
@@ -229,7 +229,7 @@ impl<DA, EC, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM> {
   }
 }
 
-impl<DA, EC, ER, EX, RC, RNG, TM> Http2ServerFramework<DA, EC, EX, RC, RNG, TM>
+impl<DA, EC, ER, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX>
 where
   EC: Clone + Fn(ER) + 'static,
   DA: Clone + 'static,
@@ -237,7 +237,7 @@ where
   EX: Clone + Executor + 'static,
   RC: Clone + Fn() -> Result<EX::LocalRuntime, ER> + 'static,
   RNG: CryptoRng + CryptoSeedableRng + 'static,
-  TM: TlsMode + 'static,
+  TCX: TlsCtxSk + 'static,
 {
   /// Starts the server distributing connections across multiple tasks.
   ///
@@ -248,13 +248,13 @@ where
   pub async fn run<EN, M>(
     mut self,
     addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
+    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
   ) -> Result<(), ER>
   where
     DA: Send + Sync,
     EC: Send,
     EX::SpawnFuture<()>: Send,
-    EN: EndpointNode<DA, ER, LocalStream<EX, TM>, auto(..): Send, manual(..): Send>
+    EN: EndpointNode<DA, ER, LocalStream<EX, TCX>, auto(..): Send, manual(..): Send>
       + Send
       + Sync
       + 'static,
@@ -263,7 +263,7 @@ where
     M: Middleware<DA, ER, req(..): Send, res(..): Send> + Send + Sync + 'static,
     M::Aux: Send,
     RNG: Send,
-    TM: Send + Sync,
+    TCX: Send + Sync,
     <EX as Executor>::TcpStream: Send,
     <EX::TcpStream as Stream>::ReadHalfOwned: Send,
     <EX::TcpStream as Stream>::WriteHalfOwned: Send,
@@ -299,7 +299,7 @@ where
         };
         let _frame_reader_jh = cp.executor.spawn(frame_reader);
         loop {
-          let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+          let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
             http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
           ) {
             Ok(Some(el)) => el,
@@ -313,7 +313,7 @@ where
           let stream_data = cp.data.clone();
           let stream_error_cb = cp.error_cb.clone();
           let stream_http_router = cp.http_router.clone();
-          let _stream_jh = cp.executor.spawn(stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+          let _stream_jh = cp.executor.spawn(stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
             headers_aux,
             ip,
             opt,
@@ -340,19 +340,19 @@ where
   pub fn run_in_threads<EN, M>(
     mut self,
     addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
+    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
   ) -> Result<(), ER>
   where
     DA: Send,
     EC: Send,
-    EN: EndpointNode<DA, ER, LocalStream<EX, TM>> + Send + Sync + 'static,
+    EN: EndpointNode<DA, ER, LocalStream<EX, TCX>> + Send + Sync + 'static,
     ER: Send,
     EX: Send,
     M: Middleware<DA, ER> + Send + Sync + 'static,
     M::Aux: Send,
     RC: Send,
     RNG: Send,
-    TM: Send + Sync,
+    TCX: Send + Sync,
   {
     use crate::collections::Vector;
     use alloc::string::String;
@@ -404,7 +404,7 @@ where
                 };
                 let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_runtime);
                 loop {
-                  let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+                  let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
                     http2
                       .stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req))
                       .await,
@@ -421,7 +421,7 @@ where
                   let stream_error_cb = cp.error_cb.clone();
                   let stream_http_router = cp.http_router.clone();
                   let _stream_jh = cp.executor.spawn_local(
-                    stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+                    stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
                       headers_aux,
                       ip,
                       opt,
@@ -453,11 +453,11 @@ where
   pub async fn run_local<EN, M>(
     mut self,
     addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
+    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
     lc: Arc<EX::LocalRuntime>,
   ) -> Result<(), ER>
   where
-    EN: EndpointNode<DA, ER, LocalStream<EX, TM>> + 'static,
+    EN: EndpointNode<DA, ER, LocalStream<EX, TCX>> + 'static,
     M: Middleware<DA, ER> + 'static,
   {
     let http_router = Arc::new(hr);
@@ -487,7 +487,7 @@ where
           };
           let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_lc);
           loop {
-            let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TM>(
+            let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
               http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
             ) {
               Ok(Some(el)) => el,
@@ -502,7 +502,7 @@ where
             let stream_error_cb = cp.error_cb.clone();
             let stream_http_router = cp.http_router.clone();
             let _stream_jh = cp.executor.spawn_local(
-              stream_fut::<DA, EC, EN, ER, EX, M, TM>(
+              stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
                 headers_aux,
                 ip,
                 opt,
@@ -521,7 +521,7 @@ where
   }
 }
 
-struct ConnParams<DA, EC, EN, ER, EX, M, RNG, TM>
+struct ConnParams<DA, EC, EN, ER, EX, M, RNG, TCX>
 where
   EX: Executor,
 {
@@ -529,29 +529,29 @@ where
   error_cb: EC,
   executor: EX,
   hrc: HttpRecvParams,
-  http_router: Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>>,
+  http_router: Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>>,
   rng: RNG,
   stream: EX::TcpStream,
-  tls_config: Arc<TlsConfig<TM>>,
+  tls_config: Arc<TlsConfig<TCX>>,
   xorshift: Xorshift64,
 }
 
 #[inline]
-async fn conn_params<DA, EC, EN, ER, EX, M, RNG, TM>(
+async fn conn_params<DA, EC, EN, ER, EX, M, RNG, TCX>(
   (data, error_cb, executor, hrc): (&DA, &EC, &EX, HttpRecvParams),
-  (rng, tcp_params, tls_config): (&mut RNG, TcpParams, &Arc<TlsConfig<TM>>),
+  (rng, tcp_params, tls_config): (&mut RNG, TcpParams, &Arc<TlsConfig<TCX>>),
   (http_router, listener, xorshift): (
-    &Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>>,
+    &Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>>,
     &EX::TcpListener,
     &mut Xorshift64,
   ),
-) -> crate::Result<ConnParams<DA, EC, EN, ER, EX, M, RNG, TM>>
+) -> crate::Result<ConnParams<DA, EC, EN, ER, EX, M, RNG, TCX>>
 where
   EC: Clone,
   DA: Clone,
   EX: Clone + Executor,
   RNG: CryptoRng + CryptoSeedableRng,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   Ok(ConnParams {
     data: data.clone(),
@@ -567,16 +567,16 @@ where
 }
 
 #[inline]
-fn conn_rslt<ER, EX, TM>(
-  rslt: crate::Result<ConnRsltTy<EX, TM, ER>>,
+fn conn_rslt<ER, EX, TCX>(
+  rslt: crate::Result<ConnRsltTy<EX, TCX, ER>>,
 ) -> Result<
-  Option<(LocalStream<EX, TM>, ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>)>,
+  Option<(LocalStream<EX, TCX>, ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>)>,
   ER,
 >
 where
   ER: From<crate::Error>,
   EX: Executor,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   if let Some((server_stream, local_rslt)) = rslt.map_err(ER::from)? {
     let (headers_aux, opt) = local_rslt?;
@@ -587,17 +587,17 @@ where
 }
 
 #[inline]
-async fn http2<EX, RNG, TM>(
+async fn http2<EX, RNG, TCX>(
   hrc: HttpRecvParams,
   mut rng: RNG,
   stream: EX::TcpStream,
-  tls_config: Arc<TlsConfig<TM>>,
+  tls_config: Arc<TlsConfig<TCX>>,
   mut xorshift: Xorshift64,
-) -> crate::Result<(impl Future<Output = ()>, Http2<WriteHalf<EX>, TM, false>, IpAddr)>
+) -> crate::Result<(impl Future<Output = ()>, Http2<WriteHalf<EX>, TCX, false>, IpAddr)>
 where
   EX: Executor,
   RNG: CryptoRng,
-  TM: TlsMode,
+  TCX: TlsCtxSk,
 {
   let ip = stream.peer_addr()?.ip();
   let tar = TlsAcceptor::new(&*tls_config, &mut rng, stream).accept().await?;
@@ -615,8 +615,8 @@ fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
 
 #[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]
 #[inline]
-fn stream_cb<DA, EN, ER, EX, M, TM>(
-  http_router: &HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>,
+fn stream_cb<DA, EN, ER, EX, M, TCX>(
+  http_router: &HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
   req: Request<&mut MsgBufferString>,
 ) -> Result<(ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>), ER>
 where
@@ -631,21 +631,21 @@ where
 }
 
 #[inline]
-async fn stream_fut<DA, EC, EN, ER, EX, M, TM>(
+async fn stream_fut<DA, EC, EN, ER, EX, M, TCX>(
   headers_aux: ArrayVectorCopy<RouteMatch, 4>,
   ip: IpAddr,
   opt: Option<MsgBufferString>,
-  mut server_stream: LocalStream<EX, TM>,
+  mut server_stream: LocalStream<EX, TCX>,
   stream_data: DA,
   stream_error_cb: EC,
-  stream_http_router: Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TM>>>,
+  stream_http_router: Arc<HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>>,
 ) where
   EC: Fn(ER),
-  EN: EndpointNode<DA, ER, LocalStream<EX, TM>>,
+  EN: EndpointNode<DA, ER, LocalStream<EX, TCX>>,
   ER: From<crate::Error>,
   EX: Executor,
   M: Middleware<DA, ER>,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let stream_fun = async {
     if let Some(local_rrb) = opt {

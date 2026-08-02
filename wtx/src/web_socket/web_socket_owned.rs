@@ -3,7 +3,7 @@ use crate::{
   misc::LeaseMut,
   net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   rng::Xorshift64,
-  tls::{TlsMode, TlsStreamReader, TlsStreamWriter},
+  tls::{TlsCtx, TlsStreamReader, TlsStreamWriter},
   web_socket::{
     Frame, FrameMut, WebSocketPayloadOrigin,
     is_in_continuation_frame::IsInContinuationFrame,
@@ -17,7 +17,7 @@ use core::{marker::PhantomData, sync::atomic::Ordering};
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketReaderOwned<D, SR, TM, const IS_CLIENT: bool> {
+pub struct WebSocketReaderOwned<D, SR, TCX, const IS_CLIENT: bool> {
   pub(crate) is_in_continuation_frame: Option<IsInContinuationFrame>,
   pub(crate) max_payload_len: usize,
   pub(crate) nc: D,
@@ -28,14 +28,14 @@ pub struct WebSocketReaderOwned<D, SR, TM, const IS_CLIENT: bool> {
   pub(crate) reader_buffer: Vector<u8>,
   pub(crate) rng: Xorshift64,
   pub(crate) stream_bridge: WebSocketBridge<IS_CLIENT>,
-  pub(crate) stream_reader: TlsStreamReader<SR, TM, IS_CLIENT>,
+  pub(crate) stream_reader: TlsStreamReader<SR, TCX, IS_CLIENT>,
 }
 
-impl<D, SR, TM, const IS_CLIENT: bool> WebSocketReaderOwned<D, SR, TM, IS_CLIENT>
+impl<D, SR, TCX, const IS_CLIENT: bool> WebSocketReaderOwned<D, SR, TCX, IS_CLIENT>
 where
   D: WebSocketDecompression,
   SR: StreamReader,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Reads a frame from the stream.
   ///
@@ -74,20 +74,20 @@ where
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketWriterOwned<C, SW, TM, const IS_CLIENT: bool> {
+pub struct WebSocketWriterOwned<C, SW, TCX, const IS_CLIENT: bool> {
   pub(crate) nc: C,
   pub(crate) nc_rsv1: u8,
   pub(crate) no_masking: bool,
   pub(crate) rng: Xorshift64,
-  pub(crate) stream_writer: TlsStreamWriter<SW, TM, IS_CLIENT>,
+  pub(crate) stream_writer: TlsStreamWriter<SW, TCX, IS_CLIENT>,
   pub(crate) writer_buffer: Vector<u8>,
 }
 
-impl<C, SW, TM, const IS_CLIENT: bool> WebSocketWriterOwned<C, SW, TM, IS_CLIENT>
+impl<C, SW, TCX, const IS_CLIENT: bool> WebSocketWriterOwned<C, SW, TCX, IS_CLIENT>
 where
   C: WebSocketCompression,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Closes itself as well as the reader part
   #[inline]

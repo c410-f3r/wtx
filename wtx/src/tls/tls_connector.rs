@@ -1,22 +1,24 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
-  codec::{Decode, Encode as _},
+  codec::{Decode as _, Encode as _},
   collections::{ArrayVectorCopy, ArrayVectorU8, SingleTypeStorage},
   misc::Lease,
   net::{BufStreamReader, Stream, Uri},
   rng::CryptoRng,
   tls::{
     AlertDescription, CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath,
-    MAX_CERTIFICATES, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsError, TlsMode,
+    MAX_CERTIFICATES, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsCtx, TlsError,
     TlsServerEndPoint, TlsStream,
-    de::De,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg},
+    misc::{
+      fetch_rec_from_stream, handshake_bytes_adjust, handshake_bytes_decode, manage_err,
+      server_sig_msg,
+    },
     protocol::{
       alert::Alert, certificate::Certificate, certificate_verify::CertificateVerify,
       client_hello::ClientHello, encrypted_extensions::EncryptedExtensions, finished::Finished,
       handshake::Handshake, handshake_ty::HandshakeTy, named_group::NamedGroupAgreement,
-      record::Record, record_content_ty::RecordContentTy, server_hello::ServerHello, u24::U24,
+      record::Record, record_content_ty::RecordContentTy, server_hello::ServerHello,
     },
     read_record_info::ReadRecordInfo,
     tls_decode_wrapper::TlsDecodeWrapper,
@@ -25,7 +27,7 @@ use crate::{
   },
   x509::{CvEndEntity, CvIntermediate, PublicKeyTy, ServerName, SubjectPublicKeyInfo},
 };
-use core::{hint::cold_path, ops::Range};
+use core::ops::Range;
 
 /// Returned by [`TlsConnector::manage_client_records`].
 #[derive(Debug, PartialEq)]
@@ -59,9 +61,9 @@ pub struct ManageRemainingServerRecordsInput {
 ///
 /// Performs TLS handshakes for clients.
 #[derive(Debug)]
-pub struct TlsConnector<RNG, S, TC, U> {
+pub struct TlsConnector<RNG, S, TCG, U> {
   buffer: TlsBuffer,
-  config: TC,
+  config: TCG,
   handshake_path: HandshakePath,
   has_sent_ccs: bool,
   key_schedule: KeySchedule,
@@ -76,15 +78,15 @@ pub struct TlsConnector<RNG, S, TC, U> {
   uri: U,
 }
 
-impl<RNG, S, STR, TC, TM, U> TlsConnector<RNG, S, TC, U>
+impl<RNG, S, STR, TCG, TCX, U> TlsConnector<RNG, S, TCG, U>
 where
   STR: Lease<str>,
-  TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+  TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
   U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
 {
   /// It is preferable to construct instances through the builder.
   #[inline]
-  pub fn new(config: TC, rng: RNG, stream: S, uri: U) -> Self {
+  pub fn new(config: TCG, rng: RNG, stream: S, uri: U) -> Self {
     let cfg_ref = config.lease();
     let key_schedule = KeySchedule::default();
     let transcript_hash = key_schedule.cipher_suite().hash_new();
@@ -148,21 +150,21 @@ where
   }
 }
 
-impl<RNG, S, STR, TC, TM, U> TlsConnector<RNG, S, TC, U>
+impl<RNG, S, STR, TCG, TCX, U> TlsConnector<RNG, S, TCG, U>
 where
   RNG: CryptoRng,
   S: Stream,
   STR: Lease<str>,
-  TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
-  TM: TlsMode,
+  TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
+  TCX: TlsCtx,
   U: Lease<Uri<STR>> + SingleTypeStorage<Item = STR>,
 {
   /// High level operation that automatically performs a full asynchronous handshake.
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn connect(mut self) -> crate::Result<TlsConnectOutput<RNG, S, TM, U>> {
-    if TM::TY.is_plain_text() {
+  pub async fn connect(mut self) -> crate::Result<TlsConnectOutput<RNG, S, TCX, U>> {
+    if TCX::TY.is_plain_text() {
       return Ok(TlsConnectOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
@@ -174,7 +176,6 @@ where
           self.max_fragment_length,
           self.max_fragment_length_send,
           self.stream,
-          self.config.lease().mode().clone(),
         )?,
         uri: self.uri,
       });
@@ -233,7 +234,6 @@ where
         self.max_fragment_length,
         self.max_fragment_length_send,
         self.stream,
-        self.config.lease().mode().clone(),
       )?,
       uri: self.uri,
     })
@@ -331,6 +331,7 @@ where
     self
       .key_schedule
       .handshake_secret::<true>(shared_secret.as_ref(), &self.transcript_hash.clone().finalize())?;
+    self.split_begin = 0;
     self.split_len = 0;
     *self.buffer.reader_buffer.forbid_clear_mut() = false;
     self.buffer.reader_buffer.clear_if_exhausted();
@@ -361,20 +362,16 @@ where
       }
       RecordContentTy::Handshake => {}
     }
-
     handshake_bytes_adjust(
       &mut self.buffer.reader_buffer,
       rri,
       (&mut self.split_begin, &mut self.split_len),
     );
-    loop {
-      let Some((msg_type, range, mut dw)) = handshake_bytes_decode(
-        &self.buffer.reader_buffer,
-        (&mut self.split_begin, &mut self.split_len),
-      )?
-      else {
-        break;
-      };
+    let rec_data_end = self.split_begin.wrapping_add(rri.plaintext_len);
+    while let Some((msg_type, range, mut dw)) = handshake_bytes_decode(
+      &self.buffer.reader_buffer,
+      (&mut self.split_begin, &mut self.split_len),
+    )? {
       _trace!(target: crate::tls::_TARGET_HS, "Read handshake: {:?}", msg_type);
       let curr_handshake_bytes = self.buffer.reader_buffer.filled().get(range).unwrap_or_default();
       self.transcript_hash.update(curr_handshake_bytes);
@@ -431,6 +428,12 @@ where
           {
             return Err(TlsError::DigestCheckFailed.into());
           }
+          if self.split_begin < rec_data_end {
+            return Err(crate::Error::TlsErrorReply(
+              TlsError::ExcessHandshakeData,
+              AlertDescription::UnexpectedMessage,
+            ));
+          }
           return Ok(ServerRecordsState::Terminated(()));
         }
         HandshakeTy::ClientHello
@@ -446,7 +449,7 @@ where
     Ok(ServerRecordsState::NeedsMoreData)
   }
 
-  fn check_alpn(config: &TlsConfig<TM>, ee: &EncryptedExtensions) -> Option<crate::Error> {
+  fn check_alpn(config: &TlsConfig<TCX>, ee: &EncryptedExtensions) -> Option<crate::Error> {
     match (config.lease().alpn(), ee.alpn()) {
       (None, Some(_)) => Some(crate::Error::TlsErrorReply(
         TlsError::UnofferedExtension,
@@ -515,7 +518,7 @@ where
   }
 
   fn manage_certificate(
-    config: &TlsConfig<TM>,
+    config: &TlsConfig<TCX>,
     filled: &[u8],
     key_schedule: &KeySchedule,
     mrsri: &mut ManageRemainingServerRecordsInput,
@@ -546,7 +549,7 @@ where
       let sig = dw.decode_aux.tbs_cert(end_entity.certificate_bytes()).unwrap_or_default();
       CvEndEntity::from_certificate(cert, sig)?
     };
-    if !TM::TY.is_unverified() {
+    if !TCX::TY.is_unverified() {
       if let Some(sn_list) = &config.inner.server_name {
         let [sn] = sn_list.server_name_list.as_inner()?;
         let server_name = ServerName::from_domain(sn.name().as_bytes());
@@ -571,7 +574,7 @@ where
       cv_intermediates.push(cv_intermediate)?;
     }
     mrsri.transcript_digest = transcript_hash.clone().finalize();
-    if TM::TY.is_unverified() {
+    if TCX::TY.is_unverified() {
       return Ok(());
     }
     drop(cv_end_entity.validate_chain(
@@ -628,7 +631,7 @@ where
 
 /// Returned by [`TlsConnector::connect`].
 #[derive(Debug)]
-pub struct TlsConnectOutput<RNG, S, TM, U> {
+pub struct TlsConnectOutput<RNG, S, TCX, U> {
   /// See [`HandshakePath`].
   pub handshake_path: HandshakePath,
   /// See [`NamedGroup`].
@@ -638,7 +641,7 @@ pub struct TlsConnectOutput<RNG, S, TM, U> {
   /// See [`TlsServerEndPoint`]
   pub server_end_point: TlsServerEndPoint,
   /// See [`TlsStream`]
-  pub tls_stream: TlsStream<S, TM, true>,
+  pub tls_stream: TlsStream<S, TCX, true>,
   /// Uri
   pub uri: U,
 }
@@ -651,50 +654,4 @@ fn alert<T>(
   let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
   let dw = &mut TlsDecodeWrapper::from_bytes(plaintext);
   Ok(ServerRecordsState::Alert(Alert::decode(dw)?))
-}
-
-#[inline]
-fn handshake_bytes_adjust(
-  reader_buffer: &mut BufStreamReader,
-  rri: &ReadRecordInfo,
-  (split_begin, split_len): (&mut usize, &mut usize),
-) {
-  let ant_end_idx = reader_buffer.antecedent_end_idx();
-  if *split_len == 0 {
-    *split_begin = ant_end_idx;
-    *split_len = rri.plaintext_len;
-  } else {
-    cold_path();
-    let dest = split_begin.wrapping_add(*split_len);
-    let src_begin = ant_end_idx;
-    let src_end = ant_end_idx.wrapping_add(rri.plaintext_len);
-    reader_buffer.buffer_mut().copy_within(src_begin..src_end, dest);
-    *split_len = split_len.wrapping_add(rri.plaintext_len);
-  }
-}
-
-#[inline]
-fn handshake_bytes_decode<'rb>(
-  reader_buffer: &'rb BufStreamReader,
-  (split_begin, split_len): (&mut usize, &mut usize),
-) -> crate::Result<Option<(HandshakeTy, Range<usize>, TlsDecodeWrapper<'rb>)>> {
-  let end_idx = split_begin.wrapping_add(*split_len);
-  let plaintext = reader_buffer.filled().get(*split_begin..end_idx).unwrap_or_default();
-  if plaintext.len() < 4 {
-    cold_path();
-    return Ok(None);
-  }
-  let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
-  let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
-  let len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
-  let total_len = 4usize.wrapping_add(len);
-  if *split_len < total_len {
-    cold_path();
-    return Ok(None);
-  }
-  *dw.bytes_mut() = dw.bytes().get(..len).unwrap_or_default();
-  let range = *split_begin..split_begin.wrapping_add(total_len);
-  *split_begin = split_begin.wrapping_add(range.len());
-  *split_len = split_len.wrapping_sub(range.len());
-  Ok(Some((msg_type, range, dw)))
 }

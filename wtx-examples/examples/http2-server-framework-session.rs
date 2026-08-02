@@ -35,11 +35,11 @@ use wtx::{
   misc::{SecretContext, argon2_pwd},
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
-  tls::{TlsConfig, TlsModeVerified},
+  tls::{TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type DbPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TlsModeVerified>>;
+type DbPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
@@ -65,11 +65,7 @@ fn main() -> wtx::Result<()> {
       eprintln!("{err}");
     }
   });
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, &mut SECRET_KEY.clone()),
-  )?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let router = HttpRouter::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
     SessionMiddleware::new(Vector::new(), session_manager.clone(), db_pool.clone()),

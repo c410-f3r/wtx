@@ -7,7 +7,7 @@ use crate::{
   tls::{
     AlertDescription, Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH,
     HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme, TlsBuffer,
-    TlsConfig, TlsError, TlsMode, TlsStream,
+    TlsConfig, TlsCtx, TlsCtxSk, TlsError, TlsStream,
     key_schedule::KeySchedule,
     misc::{fetch_rec_from_stream, manage_err, server_sig_msg, write_payloads},
     protocol::{
@@ -24,7 +24,6 @@ use crate::{
       server_hello::ServerHello,
     },
     read_record_info::ReadRecordInfo,
-    tls_config::TlsConfigInner,
     tls_decode_wrapper::TlsDecodeWrapper,
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::TlsHash,
@@ -36,9 +35,9 @@ use crate::{
 ///
 /// Performs TLS handshakes for servers.
 #[derive(Debug)]
-pub struct TlsAcceptor<RNG, S, TC> {
+pub struct TlsAcceptor<RNG, S, TCG> {
   buffer: TlsBuffer,
-  config: TC,
+  config: TCG,
   handshake_path: HandshakePath,
   key_schedule: KeySchedule,
   max_fragment_length: u16,
@@ -49,13 +48,13 @@ pub struct TlsAcceptor<RNG, S, TC> {
   transcript_hash: TlsHash,
 }
 
-impl<RNG, S, TC, TM> TlsAcceptor<RNG, S, TC>
+impl<RNG, S, TCG, TCX> TlsAcceptor<RNG, S, TCG>
 where
-  TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+  TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
 {
   /// The main parameters are provided by the user.
   #[inline]
-  pub fn new(config: TC, rng: RNG, stream: S) -> Self {
+  pub fn new(config: TCG, rng: RNG, stream: S) -> Self {
     let cfg_ref = config.lease();
     let key_schedule = KeySchedule::default();
     let transcript_hash = key_schedule.cipher_suite().hash_new();
@@ -109,19 +108,19 @@ where
   }
 }
 
-impl<RNG, S, TC, TM> TlsAcceptor<RNG, S, TC>
+impl<RNG, S, TCG, TCX> TlsAcceptor<RNG, S, TCG>
 where
   RNG: CryptoRng,
   S: Stream,
-  TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
-  TM: TlsMode,
+  TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
+  TCX: TlsCtxSk,
 {
   /// High level operation that automatically performs a full asynchronous handshake.
   ///
   /// Low level operations must not be mixed with high level operations.
   #[inline]
-  pub async fn accept(mut self) -> crate::Result<TlsAcceptOutput<RNG, S, TM>> {
-    if TM::TY.is_plain_text() {
+  pub async fn accept(mut self) -> crate::Result<TlsAcceptOutput<RNG, S, TCX>> {
+    if TCX::TY.is_plain_text() {
       return Ok(TlsAcceptOutput {
         handshake_path: self.handshake_path,
         named_group: self.named_group,
@@ -132,7 +131,6 @@ where
           self.max_fragment_length,
           self.max_fragment_length_send,
           self.stream,
-          self.config.lease().mode().clone(),
         )?,
       });
     }
@@ -187,7 +185,6 @@ where
         self.max_fragment_length,
         self.max_fragment_length_send,
         self.stream,
-        self.config.lease().mode().clone(),
       )?,
     })
   }
@@ -230,18 +227,22 @@ where
       curr_idx = reader_buffer.len();
       let _rslt = indices.push(curr_idx);
     }
-    let signature = self.config.lease().inner.secret_key.peek(
-      &mut (&mut self.buffer.writer_buffer).into(),
-      |sp| {
-        let mut dsk = output.signature_scheme.handshake_st().sign_key_from_pkcs8(sp.data())?;
-        let msg = server_sig_msg(self.transcript_hash.clone().finalize().lease())?;
-        dsk.sign(&msg, &mut self.rng)
-      },
-    )??;
+    let signature;
+    let signature_ref = if TCX::TY.is_unverified() {
+      &[][..]
+    } else {
+      signature = self.config.lease().inner.ctx.sign(
+        &mut self.buffer.writer_buffer,
+        &server_sig_msg(self.transcript_hash.clone().finalize().lease())?,
+        &mut self.rng,
+        output.signature_scheme,
+      )?;
+      signature.as_ref()
+    };
     {
       let certificate_verify = Handshake::new(
         HandshakeTy::CertificateVerify,
-        CertificateVerify::new(output.signature_scheme, signature.as_ref()),
+        CertificateVerify::new(output.signature_scheme, signature_ref),
       );
       certificate_verify.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
       self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
@@ -282,6 +283,7 @@ where
         AlertDescription::UnexpectedMessage,
       ));
     }
+    let trailing_len = dw.bytes().len();
     *dw.bytes_mut() = hs.data;
     *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
     let finished = Finished::decode(&mut dw)?;
@@ -298,6 +300,12 @@ where
       return Err(TlsError::DigestCheckFailed.into());
     }
     self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
+    if trailing_len > 0 {
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::ExcessHandshakeData,
+        AlertDescription::UnexpectedMessage,
+      ));
+    }
     Ok(())
   }
 
@@ -321,13 +329,13 @@ where
   #[inline]
   fn negotiate(&mut self, rri: &ReadRecordInfo) -> crate::Result<NegotiateOutput>
   where
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     let current = self.buffer.reader_buffer.current();
     let client_hello_bytes = current.get(..rri.plaintext_len).unwrap_or_default();
-    let client_hello = Handshake::<ClientHello<_, TlsConfigInner<_, TM>>>::decode(
-      &mut TlsDecodeWrapper::from_bytes(client_hello_bytes),
-    )?;
+    let client_hello = Handshake::<ClientHello<_, _>>::decode(&mut TlsDecodeWrapper::from_bytes(
+      client_hello_bytes,
+    ))?;
     if !client_hello
       .data
       .supported_versions()
@@ -409,7 +417,7 @@ where
 
 /// Returned by [`TlsAcceptor::accept`].
 #[derive(Debug)]
-pub struct TlsAcceptOutput<RNG, S, TM> {
+pub struct TlsAcceptOutput<RNG, S, TCX> {
   /// See [`HandshakePath`].
   pub handshake_path: HandshakePath,
   /// See [`NamedGroup`].
@@ -417,7 +425,7 @@ pub struct TlsAcceptOutput<RNG, S, TM> {
   /// Random Number Generator
   pub rng: RNG,
   /// See [`TlsStream`]
-  pub tls_stream: TlsStream<S, TM, false>,
+  pub tls_stream: TlsStream<S, TCX, false>,
 }
 
 #[derive(Debug)]
@@ -484,7 +492,10 @@ where
     };
     return Ok(*client_el);
   }
-  Err(TlsError::ServerHasNoCompatibleKeyShare.into())
+  Err(crate::Error::TlsErrorReply(
+    TlsError::ServerHasNoCompatibleKeyShare,
+    AlertDescription::UnexpectedMessage,
+  ))
 }
 
 fn seek_signature_scheme(

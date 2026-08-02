@@ -19,7 +19,7 @@ use wtx::{
   executor::StdExecutor,
   http::http2_client_pool::{Http2ClientPool, Http2ClientPoolBuilder},
   net::Uri,
-  tls::{TlsConfig, TlsModePlainText},
+  tls::{TlsConfig, PlaintextCtx},
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 use core::time::Duration;
@@ -83,7 +83,7 @@ mod generic_web_socket_subscription {
 
 async fn http_pair() -> Pair<
   PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>,
-  Http2ClientPool<StdExecutor, TlsModePlainText>,
+  Http2ClientPool<StdExecutor, PlaintextCtx>,
 > {
   Pair::new(
     PkgsAux::from_minimum(

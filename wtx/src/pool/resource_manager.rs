@@ -118,44 +118,44 @@ pub(crate) mod database {
     pool::ResourceManager,
     rng::ChaCha20,
     sync::{Arc, AtomicCell},
-    tls::{TlsConfig, TlsConnectorBuilder, TlsMode},
+    tls::{TlsConfig, TlsConnectorBuilder, TlsCtx},
   };
   use core::{marker::PhantomData, mem};
 
   /// Manages generic database executors.
   #[derive(Debug)]
-  pub struct PostgresRM<ER, EX, TM> {
+  pub struct PostgresRM<ER, EX, TCX> {
     _executor: EX,
     max_stmts: usize,
     phantom: PhantomData<fn() -> ER>,
     rng: AtomicCell<ChaCha20>,
     secret: Secret,
     tcp_params: TcpParams,
-    tls_config: Arc<TlsConfig<TM>>,
+    tls_config: Arc<TlsConfig<TCX>>,
   }
 
   #[cfg(feature = "tokio")]
-  impl<ER, TM> PostgresRM<ER, crate::executor::TokioExecutor, TM> {
+  impl<ER, TCX> PostgresRM<ER, crate::executor::TokioExecutor, TCX> {
     /// [`Self::new`] with the elements provided by the tokio project.
     #[inline]
     pub fn tokio(
       rng: ChaCha20,
       secret_context: SecretContext,
-      tls_config: TlsConfig<TM>,
+      tls_config: TlsConfig<TCX>,
       uri: &mut [u8],
     ) -> crate::Result<Self> {
       Self::new(crate::executor::TokioExecutor::default(), rng, secret_context, tls_config, uri)
     }
   }
 
-  impl<ER, EX, TM> PostgresRM<ER, EX, TM> {
+  impl<ER, EX, TCX> PostgresRM<ER, EX, TCX> {
     /// Generic resource manager
     #[inline]
     pub fn new(
       executor: EX,
       mut rng: ChaCha20,
       secret_context: SecretContext,
-      tls_config: TlsConfig<TM>,
+      tls_config: TlsConfig<TCX>,
       uri: &mut [u8],
     ) -> crate::Result<Self> {
       let secret = Secret::new(uri, &mut rng, secret_context)?;
@@ -171,16 +171,16 @@ pub(crate) mod database {
     }
   }
 
-  impl<ER, EX, TM> ResourceManager for PostgresRM<ER, EX, TM>
+  impl<ER, EX, TCX> ResourceManager for PostgresRM<ER, EX, TCX>
   where
     ER: From<crate::Error>,
     EX: Executor,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     type CreateAux = ();
     type Error = ER;
     type RecycleAux = ();
-    type Resource = PostgresClient<ER, EX::TcpStream, TM>;
+    type Resource = PostgresClient<ER, EX::TcpStream, TCX>;
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {

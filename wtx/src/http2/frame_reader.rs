@@ -31,27 +31,27 @@ use crate::{
   },
   net::{BufStreamReader, StreamReader, StreamWriter},
   sync::Arc,
-  tls::{TlsMode, TlsStreamBridge, TlsStreamReader},
+  tls::{TlsCtx, TlsStreamBridge, TlsStreamReader},
 };
 use core::{future::poll_fn, hint::cold_path, mem, pin::pin, task::Poll};
 
-pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
-  inner: Arc<Http2Inner<SW, TM, IS_CLIENT>>,
+pub(crate) async fn frame_reader<SR, SW, TCX, const IS_CLIENT: bool>(
+  inner: Arc<Http2Inner<SW, TCX, IS_CLIENT>>,
   max_frame_len: u32,
   mut nrb: BufStreamReader,
   stream_bridge: TlsStreamBridge<IS_CLIENT>,
-  mut stream_reader: TlsStreamReader<SR, TM, IS_CLIENT>,
+  mut stream_reader: TlsStreamReader<SR, TCX, IS_CLIENT>,
 ) where
   SR: StreamReader,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let span = _trace_span!("Starting the reading of frames");
   let _e = span.enter();
   let mut tls_fut = pin!(stream_bridge.listen());
 
   loop {
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       let rslt = read_frame::<_, false>(max_frame_len, &mut nrb, &mut stream_reader).await;
       if !manage_iteration(&inner, &mut nrb, rslt, &mut stream_reader).await {
         break;
@@ -100,9 +100,9 @@ pub(crate) async fn frame_reader<SR, SW, TM, const IS_CLIENT: bool>(
   }
 }
 
-async fn finish<SW, TM, const IS_CLIENT: bool>(
+async fn finish<SW, TCX, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   nrb: &mut BufStreamReader,
 ) where
   SW: StreamWriter,
@@ -117,16 +117,16 @@ async fn finish<SW, TM, const IS_CLIENT: bool>(
 }
 
 // Returns `false` if the connection should be closed.
-async fn manage_iteration<SR, SW, TM, const IS_CLIENT: bool>(
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+async fn manage_iteration<SR, SW, TCX, const IS_CLIENT: bool>(
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   nrb: &mut BufStreamReader,
   rslt: crate::Result<Option<FrameInit>>,
-  stream_reader: &mut TlsStreamReader<SR, TM, IS_CLIENT>,
+  stream_reader: &mut TlsStreamReader<SR, TCX, IS_CLIENT>,
 ) -> bool
 where
   SR: StreamReader,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   let fi = match rslt {
     Err(err) => {
@@ -148,16 +148,16 @@ where
   true
 }
 
-async fn manage_fi<SR, SW, TM, const IS_CLIENT: bool>(
+async fn manage_fi<SR, SW, TCX, const IS_CLIENT: bool>(
   fi: FrameInit,
-  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   nrb: &mut BufStreamReader,
   stream_reader: &mut SR,
 ) -> crate::Result<()>
 where
   SR: StreamReader,
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   match fi.ty {
     FrameInitTy::Continuation => {

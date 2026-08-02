@@ -43,12 +43,12 @@ impl SignatureScheme {
   #[inline]
   pub(crate) fn cert_pkt(self) -> PublicKeyTy {
     match self {
-      Self::Ed25519 => PublicKeyTy::Ed25519,
       Self::EcdsaSecp256r1Sha256 => PublicKeyTy::EcdsaP256,
       Self::EcdsaSecp384r1Sha384 => PublicKeyTy::EcdsaP384,
-      Self::RsaPssRsaeSha256 | Self::RsaPssRsaeSha384 => PublicKeyTy::RsaPkcs1,
+      Self::Ed25519 => PublicKeyTy::Ed25519,
       Self::RsaPssPssSha256 => PublicKeyTy::RsaPssSha256,
       Self::RsaPssPssSha384 => PublicKeyTy::RsaPssSha384,
+      Self::RsaPssRsaeSha256 | Self::RsaPssRsaeSha384 => PublicKeyTy::RsaPkcs1,
     }
   }
 
@@ -58,9 +58,9 @@ impl SignatureScheme {
     match self {
       Self::EcdsaSecp256r1Sha256 => SignatureTy::EcdsaP256,
       Self::EcdsaSecp384r1Sha384 => SignatureTy::EcdsaP384,
+      Self::Ed25519 => SignatureTy::Ed25519,
       Self::RsaPssRsaeSha256 | Self::RsaPssPssSha256 => SignatureTy::RsaPssSha256,
       Self::RsaPssRsaeSha384 | Self::RsaPssPssSha384 => SignatureTy::RsaPssSha384,
-      Self::Ed25519 => SignatureTy::Ed25519,
     }
   }
 

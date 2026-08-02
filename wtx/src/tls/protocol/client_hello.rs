@@ -5,12 +5,12 @@ use crate::{
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, SingleTypeStorage, Vector},
   misc::{
-    Lease, Secret,
+    Lease,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
   tls::{
-    AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError, TlsMode,
+    AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError,
     de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
@@ -30,16 +30,16 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct ClientHello<G, TC> {
+pub(crate) struct ClientHello<G, TCG> {
   generic: G,
   legacy_session_id: ArrayVectorCopy<u8, 32>,
   random: [u8; 32],
   supported_versions: SupportedVersionsClient,
-  tls_config: TC,
+  tls_config: TCG,
 }
 
-impl<G, TC> ClientHello<G, TC> {
-  pub(crate) fn new<RNG>(generic: G, rng: &mut RNG, tls_config: TC) -> Self
+impl<G, TCG> ClientHello<G, TCG> {
+  pub(crate) fn new<RNG>(generic: G, rng: &mut RNG, tls_config: TCG) -> Self
   where
     RNG: CryptoRng,
   {
@@ -74,15 +74,13 @@ impl<G, TC> ClientHello<G, TC> {
     &self.supported_versions
   }
 
-  pub(crate) fn tls_config(&self) -> &TC {
+  pub(crate) fn tls_config(&self) -> &TCG {
     &self.tls_config
   }
 }
 
-impl<'de, TM> Decode<'de, De>
-  for ClientHello<KeyShareClientHello<&'de [u8]>, TlsConfigInner<&'de [u8], TM>>
-where
-  TM: TlsMode,
+impl<'de> Decode<'de, De>
+  for ClientHello<KeyShareClientHello<&'de [u8]>, TlsConfigInner<&'de [u8], ()>>
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -131,7 +129,10 @@ where
       ));
     };
     let Some(key_shares) = extensions.key_shares else {
-      return Err(TlsError::MissingKeyShares.into());
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::MissingKeyShares,
+        AlertDescription::MissingExtension,
+      ));
     };
     Ok(Self {
       generic: key_shares,
@@ -141,26 +142,25 @@ where
       tls_config: TlsConfigInner {
         alpn: extensions.alpn,
         cipher_suites,
+        ctx: (),
         cv_policy: CvPolicy::new(DateTime::default()),
         max_fragment_length: extensions.max_fragment_length,
         max_fragment_length_send: None,
         supported_groups,
         public_key: Vector::new(),
-        secret_key: Secret::default(),
         server_name: extensions.server_name,
         signature_algorithms,
         signature_algorithms_cert: extensions.signature_algorithms_cert,
         trust_anchors: Vector::new(),
-        mode: TM::default(),
       },
     })
   }
 }
 
-impl<TC, TM> Encode<De>
-  for ClientHello<&ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>, TC>
+impl<TCG, TCX> Encode<De>
+  for ClientHello<&ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>, TCG>
 where
-  TC: Lease<TlsConfig<TM>> + SingleTypeStorage<Item = TM>,
+  TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {

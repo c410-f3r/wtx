@@ -101,8 +101,14 @@ where
           socket2::Domain::IPV6
         };
         let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
-        if let Some(elem) = _tcp_params.reuse_address {
+        if let Some(elem) = _tcp_params.recv_buffer_size() {
+          socket.set_recv_buffer_size(*crate::misc::Usize::from_u32(elem))?;
+        }
+        if let Some(elem) = _tcp_params.reuse_address() {
           socket.set_reuse_address(elem)?;
+        }
+        if let Some(elem) = _tcp_params.send_buffer_size() {
+          socket.set_send_buffer_size(*crate::misc::Usize::from_u32(elem))?;
         }
         #[cfg(not(any(
           target_os = "cygwin",
@@ -110,14 +116,14 @@ where
           target_os = "solaris",
           target_os = "wasi"
         )))]
-        if let Some(elem) = _tcp_params.reuse_port {
+        if let Some(elem) = _tcp_params.reuse_port() {
           socket.set_reuse_port(elem)?;
         }
-        socket.set_tcp_nodelay(_tcp_params.tcp_nodelay)?;
+        socket.set_tcp_nodelay(_tcp_params.tcp_nodelay())?;
 
         // ***** THE ORDER IS IMPORTANT *****
         socket.bind(&socket_addr.into())?;
-        socket.listen(_tcp_params.listen)?;
+        socket.listen(_tcp_params.listen())?;
         // ***** THE ORDER IS IMPORTANT *****
 
         Ok(std::net::TcpListener::from(socket))

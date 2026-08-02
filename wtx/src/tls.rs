@@ -38,6 +38,7 @@ mod tls_buffer;
 mod tls_config;
 mod tls_connector;
 mod tls_connector_builder;
+mod tls_ctx;
 mod tls_decode_wrapper;
 mod tls_encode_wrapper;
 mod tls_error;
@@ -78,8 +79,13 @@ pub use tls_connector::{
   TlsConnector,
 };
 pub use tls_connector_builder::TlsConnectorBuilder;
+pub use tls_ctx::{
+  TlsCtx, TlsCtxSk, TlsCtxSkInput, TlsCtxSkLoader, enc_sk_ctx::EncSkCtx,
+  plaintext_ctx::PlaintextCtx, sk_ctx::SkCtx, trusted_ctx::TrustedCtx,
+  unverified_ctx::UnverifiedCtx,
+};
 pub use tls_error::TlsError;
-pub use tls_mode::*;
+pub use tls_mode::TlsMode;
 pub use tls_stream::TlsStream;
 pub use tls_stream_bridge::{TlsStreamBridge, TlsStreamBridgeData};
 pub use tls_stream_reader::TlsStreamReader;

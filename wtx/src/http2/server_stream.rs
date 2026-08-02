@@ -11,14 +11,14 @@ use crate::{
   misc::{Lease, LeaseMut, span::Span},
   net::StreamWriter,
   sync::Arc,
-  tls::TlsMode,
+  tls::TlsCtx,
 };
 use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Created when a server receives an initial stream.
 #[derive(Debug)]
-pub struct ServerStream<SW, TM> {
-  inner: Arc<Http2Inner<SW, TM, false>>,
+pub struct ServerStream<SW, TCX> {
+  inner: Arc<Http2Inner<SW, TCX, false>>,
   linger: bool,
   method: Method,
   protocol: Option<Protocol>,
@@ -26,13 +26,13 @@ pub struct ServerStream<SW, TM> {
   stream_id: U31,
 }
 
-impl<SW, TM> ServerStream<SW, TM>
+impl<SW, TCX> ServerStream<SW, TCX>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   pub(crate) const fn new(
-    inner: Arc<Http2Inner<SW, TM, false>>,
+    inner: Arc<Http2Inner<SW, TCX, false>>,
     linger: bool,
     method: Method,
     protocol: Option<Protocol>,
@@ -44,7 +44,7 @@ where
 
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, SW, TM, false> {
+  pub const fn common(&mut self) -> CommonStream<'_, SW, TCX, false> {
     let Self { inner, linger, method: _, protocol: _, span, stream_id } = self;
     CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }
@@ -147,25 +147,25 @@ where
   }
 }
 
-impl<SW, TM> Lease<ServerStream<SW, TM>> for ServerStream<SW, TM> {
+impl<SW, TCX> Lease<ServerStream<SW, TCX>> for ServerStream<SW, TCX> {
   #[inline]
-  fn lease(&self) -> &ServerStream<SW, TM> {
+  fn lease(&self) -> &ServerStream<SW, TCX> {
     self
   }
 }
 
-impl<SW, TM> LeaseMut<ServerStream<SW, TM>> for ServerStream<SW, TM> {
+impl<SW, TCX> LeaseMut<ServerStream<SW, TCX>> for ServerStream<SW, TCX> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut ServerStream<SW, TM> {
+  fn lease_mut(&mut self) -> &mut ServerStream<SW, TCX> {
     self
   }
 }
 
-impl<SW, TM> SingleTypeStorage for ServerStream<SW, TM> {
-  type Item = (SW, TM);
+impl<SW, TCX> SingleTypeStorage for ServerStream<SW, TCX> {
+  type Item = (SW, TCX);
 }
 
-impl<SW, TM> Clone for ServerStream<SW, TM> {
+impl<SW, TCX> Clone for ServerStream<SW, TCX> {
   #[inline]
   fn clone(&self) -> Self {
     Self {

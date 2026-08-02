@@ -9,7 +9,7 @@ use crate::{
   misc::EnvVars,
   net::TcpStream,
   rng::{ChaCha20, CryptoSeedableRng as _},
-  tls::{TlsConfig, TlsConnectorBuilder, TlsModePlainText},
+  tls::{PlaintextCtx, TlsConfig, TlsConnectorBuilder},
 };
 use alloc::string::String;
 
@@ -21,7 +21,7 @@ const MAX_STMTS: usize = 16;
 #[inline]
 pub fn database_test<ER, EX, FUT, TS>(
   migration_dir: Option<&'static str>,
-  cb: impl FnOnce(PostgresClient<ER, TS, TlsModePlainText>) -> FUT,
+  cb: impl FnOnce(PostgresClient<ER, TS, PlaintextCtx>) -> FUT,
 ) -> Result<FUT::Output, ER>
 where
   ER: From<crate::Error>,

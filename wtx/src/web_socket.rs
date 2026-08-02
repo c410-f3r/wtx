@@ -27,7 +27,7 @@ use crate::{
   misc::LeaseMut,
   net::{ConnectionState, Stream},
   rng::{SeedableRng as _, Xorshift64},
-  tls::{TlsMode, TlsStream, TlsStreamBridge},
+  tls::{TlsCtx, TlsStream, TlsStreamBridge},
   web_socket::web_socket_compression::NegotiatedWsCompression,
 };
 pub use close_code::CloseCode;
@@ -56,18 +56,18 @@ const RSV1_MASK: u8 = 0b0100_0000;
 const RSV2_MASK: u8 = 0b0010_0000;
 const RSV3_MASK: u8 = 0b0001_0000;
 
-type IntoSplitTy<NC, S, TM, const IS_CLIENT: bool> = (
+type IntoSplitTy<NC, S, TCX, const IS_CLIENT: bool> = (
   WebSocketBridge<IS_CLIENT>,
   WebSocketReaderOwned<
     <NC as NegotiatedWsCompression>::Decompression,
     <S as Stream>::ReadHalfOwned,
-    TM,
+    TCX,
     IS_CLIENT,
   >,
   WebSocketWriterOwned<
     <NC as NegotiatedWsCompression>::Compression,
     <S as Stream>::WriteHalfOwned,
-    TM,
+    TCX,
     IS_CLIENT,
   >,
 );
@@ -76,18 +76,18 @@ type IntoSplitTy<NC, S, TM, const IS_CLIENT: bool> = (
 ///
 /// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
-pub struct WebSocket<NC, S, TM, const IS_CLIENT: bool> {
+pub struct WebSocket<NC, S, TCX, const IS_CLIENT: bool> {
   is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
   nc: NC,
   nc_rsv1: u8,
   no_masking: bool,
   rng: Xorshift64,
-  stream: TlsStream<S, TM, IS_CLIENT>,
+  stream: TlsStream<S, TCX, IS_CLIENT>,
   wsb: WebSocketBuffer,
 }
 
-impl<NC, S, TM, const IS_CLIENT: bool> WebSocket<NC, S, TM, IS_CLIENT> {
+impl<NC, S, TCX, const IS_CLIENT: bool> WebSocket<NC, S, TCX, IS_CLIENT> {
   /// Sets whether to automatically close the connection when a received frame payload length
   /// exceeds `max_payload_len`. Defaults to `64 * 1024 * 1024` bytes (64 MiB).
   #[inline]
@@ -96,11 +96,11 @@ impl<NC, S, TM, const IS_CLIENT: bool> WebSocket<NC, S, TM, IS_CLIENT> {
   }
 }
 
-impl<NC, S, TM, const IS_CLIENT: bool> WebSocket<NC, S, TM, IS_CLIENT>
+impl<NC, S, TCX, const IS_CLIENT: bool> WebSocket<NC, S, TCX, IS_CLIENT>
 where
   NC: NegotiatedWsCompression,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
@@ -108,7 +108,7 @@ where
     nc: NC,
     no_masking: bool,
     rng: Xorshift64,
-    stream: TlsStream<S, TM, IS_CLIENT>,
+    stream: TlsStream<S, TCX, IS_CLIENT>,
     wsb: WebSocketBuffer,
   ) -> Self {
     let nc_rsv1 = nc.rsv1();
@@ -174,9 +174,9 @@ where
   pub fn split_mut(
     &mut self,
   ) -> (
-    WebSocketCommonMut<'_, NC, S, TM, IS_CLIENT>,
-    WebSocketReaderMut<'_, NC, S, TM, IS_CLIENT>,
-    WebSocketWriterMut<'_, NC, S, TM, IS_CLIENT>,
+    WebSocketCommonMut<'_, NC, S, TCX, IS_CLIENT>,
+    WebSocketReaderMut<'_, NC, S, TCX, IS_CLIENT>,
+    WebSocketWriterMut<'_, NC, S, TCX, IS_CLIENT>,
   ) {
     let WebSocket {
       is_in_continuation_frame,
@@ -223,15 +223,15 @@ where
   }
 }
 
-impl<NC, S, TM, const IS_CLIENT: bool> WebSocket<NC, S, TM, IS_CLIENT>
+impl<NC, S, TCX, const IS_CLIENT: bool> WebSocket<NC, S, TCX, IS_CLIENT>
 where
   NC: NegotiatedWsCompression,
   S: Stream,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Splits this instance into owned parts that can be used in concurrent scenarios.
   #[inline]
-  pub fn into_split(self) -> crate::Result<IntoSplitTy<NC, S, TM, IS_CLIENT>> {
+  pub fn into_split(self) -> crate::Result<IntoSplitTy<NC, S, TCX, IS_CLIENT>> {
     let WebSocket {
       is_in_continuation_frame,
       nc,

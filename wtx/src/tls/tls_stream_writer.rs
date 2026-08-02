@@ -4,30 +4,30 @@ use crate::{
   net::{ConnectionState, StreamCommon, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
-    TlsMode, TlsStreamBridgeData,
+    TlsCtx, TlsStreamBridgeData,
     key_schedule::KeyScheduleWrite,
     misc::write_payloads,
     protocol::{alert::Alert, key_update::KeyUpdate, record_content_ty::RecordContentTy},
   },
 };
-use core::{hint::cold_path, sync::atomic::Ordering};
+use core::{hint::cold_path, marker::PhantomData, sync::atomic::Ordering};
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct TlsStreamWriter<SW, TM, const IS_CLIENT: bool> {
+pub struct TlsStreamWriter<SW, TCX, const IS_CLIENT: bool> {
   connection_state: Arc<AtomicU8>,
   ksw: KeyScheduleWrite,
   max_fragment_length_send: u16,
+  phantom: PhantomData<TCX>,
   reader_waker: Arc<AtomicWaker>,
   stream_writer: SW,
-  _tm: TM,
   writer_buffer: Vector<u8>,
 }
 
-impl<SW, TM, const IS_CLIENT: bool> TlsStreamWriter<SW, TM, IS_CLIENT>
+impl<SW, TCX, const IS_CLIENT: bool> TlsStreamWriter<SW, TCX, IS_CLIENT>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[inline]
   pub(crate) const fn new(
@@ -36,16 +36,15 @@ where
     max_fragment_length_send: u16,
     reader_waker: Arc<AtomicWaker>,
     stream_writer: SW,
-    _tm: TM,
     writer_buffer: Vector<u8>,
   ) -> Self {
     Self {
       connection_state,
       ksw,
       max_fragment_length_send,
+      phantom: PhantomData,
       reader_waker,
       stream_writer,
-      _tm,
       writer_buffer,
     }
   }
@@ -103,16 +102,16 @@ where
   }
 }
 
-impl<SW, TM, const IS_CLIENT: bool> StreamCommon for TlsStreamWriter<SW, TM, IS_CLIENT> {}
+impl<SW, TCX, const IS_CLIENT: bool> StreamCommon for TlsStreamWriter<SW, TCX, IS_CLIENT> {}
 
-impl<SW, TM, const IS_CLIENT: bool> StreamWriter for TlsStreamWriter<SW, TM, IS_CLIENT>
+impl<SW, TCX, const IS_CLIENT: bool> StreamWriter for TlsStreamWriter<SW, TCX, IS_CLIENT>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       return self.stream_writer.write_all(bytes).await;
     }
     if self.connection_state().cannot_write() {
@@ -132,7 +131,7 @@ where
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    if TM::TY.is_plain_text() {
+    if TCX::TY.is_plain_text() {
       return self.stream_writer.write_all_vectored(bytes).await;
     }
     if self.connection_state().cannot_write() {

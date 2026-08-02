@@ -54,7 +54,7 @@ use crate::{
   misc::{Lease, LeaseMut, Usize},
   net::{ConnectionState, StreamReader, StreamWriter},
   sync::{Arc, AsyncMutex, AtomicU8},
-  tls::{TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
+  tls::{TlsCtx, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -82,14 +82,14 @@ pub(crate) type Sovrp = HashMap<U31, stream_receiver::StreamOverallRecvParams>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
-pub struct Http2<SW, TM, const IS_CLIENT: bool> {
-  inner: Arc<Http2Inner<SW, TM, IS_CLIENT>>,
+pub struct Http2<SW, TCX, const IS_CLIENT: bool> {
+  inner: Arc<Http2Inner<SW, TCX, IS_CLIENT>>,
 }
 
-impl<SW, TM, const IS_CLIENT: bool> Http2<SW, TM, IS_CLIENT>
+impl<SW, TCX, const IS_CLIENT: bool> Http2<SW, TCX, IS_CLIENT>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// See [`ConnectionState`].
   #[inline]
@@ -108,8 +108,8 @@ where
     mut hb: Http2Buffer,
     hrp: HttpRecvParams,
     stream_bridge: TlsStreamBridge<IS_CLIENT>,
-    stream_reader: TlsStreamReader<SR, TM, IS_CLIENT>,
-    mut stream_writer: TlsStreamWriter<SW, TM, IS_CLIENT>,
+    stream_reader: TlsStreamReader<SR, TCX, IS_CLIENT>,
+    mut stream_writer: TlsStreamWriter<SW, TCX, IS_CLIENT>,
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
@@ -151,10 +151,10 @@ where
   }
 }
 
-impl<SW, TM> Http2<SW, TM, false>
+impl<SW, TCX> Http2<SW, TCX, false>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
@@ -163,8 +163,8 @@ where
     hrp: HttpRecvParams,
     (stream_bridge, mut stream_reader, mut stream_writer): (
       TlsStreamBridge<false>,
-      TlsStreamReader<SR, TM, false>,
-      TlsStreamWriter<SW, TM, false>,
+      TlsStreamReader<SR, TCX, false>,
+      TlsStreamWriter<SW, TCX, false>,
     ),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
@@ -192,7 +192,7 @@ where
   pub async fn stream<T>(
     &self,
     mut cb: impl FnMut(Request<&mut MsgBufferString>, Option<Protocol>) -> T,
-  ) -> crate::Result<Option<(ServerStream<SW, TM>, T)>> {
+  ) -> crate::Result<Option<(ServerStream<SW, TCX>, T)>> {
     let Self { inner } = self;
     let mut is_registered = false;
     let mut lock_pin = pin!(inner.hd.lock());
@@ -235,10 +235,10 @@ where
   }
 }
 
-impl<SW, TM> Http2<SW, TM, true>
+impl<SW, TCX> Http2<SW, TCX, true>
 where
   SW: StreamWriter,
-  TM: TlsMode,
+  TCX: TlsCtx,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
@@ -247,8 +247,8 @@ where
     mut hrp: HttpRecvParams,
     (stream_bridge, stream_reader, stream_writer): (
       TlsStreamBridge<true>,
-      TlsStreamReader<SR, TM, true>,
-      TlsStreamWriter<SW, TM, true>,
+      TlsStreamReader<SR, TCX, true>,
+      TlsStreamWriter<SW, TCX, true>,
     ),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
@@ -262,7 +262,7 @@ where
 
   /// Opens a local stream.
   #[inline]
-  pub async fn stream(&self) -> crate::Result<ClientStream<SW, TM>> {
+  pub async fn stream(&self) -> crate::Result<ClientStream<SW, TCX>> {
     let Self { inner } = self;
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
@@ -290,27 +290,29 @@ where
   }
 }
 
-impl<SW, TM, const IS_CLIENT: bool> Lease<Http2<SW, TM, IS_CLIENT>> for Http2<SW, TM, IS_CLIENT> {
-  #[inline]
-  fn lease(&self) -> &Http2<SW, TM, IS_CLIENT> {
-    self
-  }
-}
-
-impl<SW, TM, const IS_CLIENT: bool> LeaseMut<Http2<SW, TM, IS_CLIENT>>
-  for Http2<SW, TM, IS_CLIENT>
+impl<SW, TCX, const IS_CLIENT: bool> Lease<Http2<SW, TCX, IS_CLIENT>>
+  for Http2<SW, TCX, IS_CLIENT>
 {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2<SW, TM, IS_CLIENT> {
+  fn lease(&self) -> &Http2<SW, TCX, IS_CLIENT> {
     self
   }
 }
 
-impl<SW, TM, const IS_CLIENT: bool> SingleTypeStorage for Http2<SW, TM, IS_CLIENT> {
+impl<SW, TCX, const IS_CLIENT: bool> LeaseMut<Http2<SW, TCX, IS_CLIENT>>
+  for Http2<SW, TCX, IS_CLIENT>
+{
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Http2<SW, TCX, IS_CLIENT> {
+    self
+  }
+}
+
+impl<SW, TCX, const IS_CLIENT: bool> SingleTypeStorage for Http2<SW, TCX, IS_CLIENT> {
   type Item = (Http2Buffer, SW);
 }
 
-impl<SW, TM, const IS_CLIENT: bool> Clone for Http2<SW, TM, IS_CLIENT> {
+impl<SW, TCX, const IS_CLIENT: bool> Clone for Http2<SW, TCX, IS_CLIENT> {
   #[inline]
   fn clone(&self) -> Self {
     Self { inner: self.inner.clone() }
@@ -318,8 +320,8 @@ impl<SW, TM, const IS_CLIENT: bool> Clone for Http2<SW, TM, IS_CLIENT> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Http2Inner<SW, TM, const IS_CLIENT: bool> {
+pub(crate) struct Http2Inner<SW, TCX, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
   pub(crate) is_conn_open: Arc<AtomicU8>,
-  pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TM, IS_CLIENT>>,
+  pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TCX, IS_CLIENT>>,
 }

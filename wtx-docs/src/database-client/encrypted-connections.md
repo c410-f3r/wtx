@@ -81,7 +81,7 @@ pub async fn postgres_client(
 ) -> wtx::Result<wtx::database::client::postgres::PostgresClient<
   wtx::Error,
   std::net::TcpStream,
-  wtx::tls::TlsModeVerified
+  wtx::tls::TrustedCtx
 >> {
   use std::net::TcpStream;
   use wtx::{

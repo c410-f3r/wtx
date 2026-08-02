@@ -97,7 +97,7 @@ mod postgres {
     http::session::{SessionKey, SessionState, SessionStore},
     net::Stream,
     pool::{ResourceManager, SimplePool},
-    tls::TlsMode,
+    tls::TlsCtx,
   };
 
   /// Expects the following SQL table definition in your database. Column names can NOT be changed.
@@ -113,12 +113,12 @@ mod postgres {
   ///
   /// Change `SOME_CUSTOM_TY` to any type you want, just make sure that it implements [`Decode`] and
   /// [`Encode`] in the Rust side.
-  impl<CS, E, S, TM> SessionStore<CS, E> for PostgresClient<E, S, TM>
+  impl<CS, E, S, TCX> SessionStore<CS, E> for PostgresClient<E, S, TCX>
   where
     CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
     E: From<crate::Error>,
     S: Stream,
-    TM: TlsMode,
+    TCX: TlsCtx,
   {
     #[inline]
     async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {

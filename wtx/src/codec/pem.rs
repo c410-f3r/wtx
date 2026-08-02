@@ -167,6 +167,10 @@ mod tests {
     soep5aC1gXLUZMEbdUklZCjkLPt9A1gHlFn+dKcf1zU=\n\
     -----END CERTIFICATE-----\n";
     let mut buffer = Vector::new();
-    let _pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(cert.as_bytes(), &mut buffer)).unwrap();
+    let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(cert.as_bytes(), &mut buffer)).unwrap();
+    let array = pem.data.into_inner().unwrap();
+    assert_eq!(array[0].0, "CERTIFICATE");
+    assert_eq!(array[0].1, 0..704);
+    assert_eq!(&buffer[array[0].1.clone()][..6], &[48, 130, 2, 188, 48, 130]);
   }
 }

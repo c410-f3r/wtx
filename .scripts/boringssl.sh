@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+BACKENDS=("wtx/crypto-ring")
+
 # Successful tests expect no output but this is is kept for debugging.
 #export RUST_LOG=trace
 
@@ -14,12 +16,16 @@ if [ ! -f "./boringssl-config.json" ]; then
     cargo run --bin boringssl-config --features boringssl-config
 fi
 
-cargo build --bin boringssl --features boringssl
-cd boringssl/ssl/test/runner
-go test -c
-./runner.test \
-    -num-workers 1 \
-    -pipe \
-    -shim-config ../../../../boringssl-config.json \
-    -shim-path ../../../../target/debug/boringssl \
-    -test.v
+for backend in "${BACKENDS[@]}"; do
+    echo -e "\e[0;33m***** Testing with '$backend' *****\e[0m"
+
+    cargo build --bin boringssl --features "boringssl $backend" --package wtx-internal
+    cd boringssl/ssl/test/runner
+    go test -c
+    ./runner.test \
+        -num-workers 1 \
+        -pipe \
+        -shim-config ../../../../boringssl-config.json \
+        -shim-path ../../../../target/debug/boringssl \
+        -test.v
+done;
