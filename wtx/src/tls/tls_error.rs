@@ -1,4 +1,7 @@
-use crate::tls::{Alert, ProtocolVersion};
+use crate::{
+  net::RoleTy,
+  tls::{Alert, ProtocolVersion, protocol::handshake_ty::HandshakeTy},
+};
 
 /// TLS errror
 #[derive(Clone, Copy, Debug)]
@@ -23,6 +26,8 @@ pub enum TlsError {
   DuplicatedClientHelloParameters,
   /// Duplicated Encrypted Extensions Parameters
   DuplicatedEncryptedExtensionsParameters,
+  /// Duplicated Key Shares
+  DuplicatedKeyShares,
   /// Empty Certificate Authorities
   EmptyCertificateAuthorities,
   /// Invalid Negotiated ALPN
@@ -34,9 +39,11 @@ pub enum TlsError {
   /// Empty set of certificates
   EmptySetOfCertificates,
   /// Trailing Data In Handshake
-  ExcessHandshakeData,
+  ExcessHandshakeData(RoleTy),
   /// Incompatible ALPN
   IncompatibleAlpn,
+  /// Incomplete Handshake
+  IncompleteHandshake,
   /// Incompatible Certificate Types
   IncompatibleCertificateTypes,
   /// Invalid AES data
@@ -145,12 +152,18 @@ pub enum TlsError {
   MissingSupportedVersions,
   /// No certificate received
   NoCertificate,
+  /// Pre Handshake Decoder Error
+  PreHandshakeDecError,
+  /// Post Handshake Decoder Error
+  PostHandshakeDecError(HandshakeTy),
   /// Record extrapolates the maximum fragment length
   ReceivedRecordIsTooLarge,
   /// Too many key updates
   TooManyKeyUpdates,
   /// Too many warning alerts
   TooManyWarningAlerts,
+  /// Trailing data in extension
+  TrailingDataInExtension,
   /// Record was supposed to be encrypted
   UnencryptedRecord,
   /// Unknown name type
@@ -187,10 +200,12 @@ pub enum TlsError {
   UnsupportedRecTlsVersion(ProtocolVersion),
   /// Only TLS 1.3 is supported
   UnsupportedTlsVersion(Option<ProtocolVersion>),
+  /// Unknown handshake type
+  UnknownHandshakeTy(u8),
   /// Unknown Named Group
   UnknownNamedGroup,
-  /// Unknown handshake type
-  UnknownHandshakeTy,
+  /// Unknown Protocol Version
+  UnknownProtocolVersion,
   /// Unknown record content type
   UnknownRecordContentType,
   /// Wrong alert

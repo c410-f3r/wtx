@@ -60,6 +60,7 @@ pub use protocol::{
   alert::{Alert, AlertDescription, AlertLevel},
   alpn::Alpn,
   cipher_suite::CipherSuite,
+  handshake_ty::HandshakeTy,
   max_fragment_length::MaxFragmentLength,
   named_group::{NamedGroup, NamedGroupParam},
   new_session_ticket::NewSessionTicket,

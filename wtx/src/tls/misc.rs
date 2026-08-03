@@ -12,6 +12,7 @@ use crate::{
     protocol::{
       alert::Alert,
       extension_ty::ExtensionTy,
+      handshake::Handshake,
       handshake_ty::HandshakeTy,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
@@ -24,6 +25,11 @@ use crate::{
   },
 };
 use core::{hint::cold_path, num::NonZeroUsize, ops::Range};
+
+const UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD: crate::Error = crate::Error::TlsErrorReply(
+  TlsError::UnexpectedAfterHandshakeInnerRecord,
+  AlertDescription::UnexpectedMessage,
+);
 
 pub(crate) fn build_header(ty: RecordContentTy, len: u16) -> [u8; RECORD_HEADER_LEN] {
   let [b0, n1] = len.to_be_bytes();
@@ -74,16 +80,16 @@ where
   }
   let [b0, b1, b2, b3, b4] = header;
   let outer_ty = RecordContentTy::try_from(b0)?;
-  let protocol_version = {
-    let data = [b1, b2];
-    let dw = &mut TlsDecodeWrapper::from_bytes(&data);
-    ProtocolVersion::try_from(<u16 as Decode<De>>::decode(dw)?)?
-  };
-  if IS_CH && protocol_version != ProtocolVersion::Tls1 {
-    return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
-  }
-  if !IS_CH && protocol_version != ProtocolVersion::Tls12 {
-    return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
+  let prot_version_num = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
+  if IS_CH {
+    if b1 != 3 {
+      return Err(crate::Error::TlsError(TlsError::UnknownProtocolVersion));
+    }
+  } else {
+    let protocol_version = ProtocolVersion::try_from(prot_version_num)?;
+    if protocol_version != ProtocolVersion::Tls12 {
+      return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
+    }
   }
   let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
   let mut max_allowed_len = max_fragment_length;
@@ -167,23 +173,23 @@ pub(crate) fn handshake_bytes_decode<'rb>(
 ) -> crate::Result<Option<(HandshakeTy, Range<usize>, TlsDecodeWrapper<'rb>)>> {
   let end_idx = split_begin.wrapping_add(*split_len);
   let plaintext = reader_buffer.filled().get(*split_begin..end_idx).unwrap_or_default();
-  if plaintext.len() < 4 {
+  if plaintext.len() < Handshake::<()>::HEADER_LEN {
     cold_path();
     return Ok(None);
   }
   let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
   let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
-  let len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
-  let total_len = 4usize.wrapping_add(len);
-  if *split_len < total_len {
+  let payload_len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
+  let rec_len = Handshake::<()>::HEADER_LEN.wrapping_add(payload_len);
+  if *split_len < rec_len {
     cold_path();
     return Ok(None);
   }
-  *dw.bytes_mut() = dw.bytes().get(..len).unwrap_or_default();
-  let range = *split_begin..split_begin.wrapping_add(total_len);
-  *split_begin = split_begin.wrapping_add(range.len());
-  *split_len = split_len.wrapping_sub(range.len());
-  Ok(Some((msg_type, range, dw)))
+  *dw.bytes_mut() = dw.bytes().get(..payload_len).unwrap_or_default();
+  let rec_range = *split_begin..split_begin.wrapping_add(rec_len);
+  *split_begin = split_begin.wrapping_add(rec_len);
+  *split_len = split_len.wrapping_sub(rec_len);
+  Ok(Some((msg_type, rec_range, dw)))
 }
 
 pub(crate) async fn manage_err<SW, T>(
@@ -214,6 +220,33 @@ where
     Ok(elem) => Ok(elem),
     Err(err) => Err(err),
   }
+}
+
+pub(crate) fn post_handshake_dec_error(
+  after_bytes: &[u8],
+  handshake_ty: HandshakeTy,
+) -> crate::Result<()> {
+  if !after_bytes.is_empty() {
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::PostHandshakeDecError(handshake_ty),
+      if handshake_ty.is_finished() {
+        AlertDescription::DecryptError
+      } else {
+        AlertDescription::DecodeError
+      },
+    ));
+  }
+  Ok(())
+}
+
+pub(crate) fn pre_handshake_dec_error(condition: bool) -> crate::Result<()> {
+  if condition {
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::PreHandshakeDecError,
+      AlertDescription::UnexpectedMessage,
+    ));
+  }
+  Ok(())
 }
 
 #[inline]
@@ -284,7 +317,7 @@ where
       }
       RecordContentTy::ChangeCipherSpec => {
         cold_path();
-        return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
+        return Err(UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD);
       }
       RecordContentTy::Handshake => {
         cold_path();
@@ -317,7 +350,7 @@ where
             | HandshakeTy::Finished
             | HandshakeTy::MessageHash
             | HandshakeTy::ServerHello => {
-              return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
+              return Err(UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD);
             }
           }
           *reader_buffer.forbid_clear_mut() = false;
@@ -484,7 +517,7 @@ fn manage_nst<const IS_CLIENT: bool>(
   new_session_ticket: &mut Option<NewSessionTicket<crate::collections::ShortBoxSlice<u16, u8>>>,
 ) -> Result<(), crate::Error> {
   if !IS_CLIENT {
-    return Err(TlsError::UnexpectedAfterHandshakeInnerRecord.into());
+    return Err(UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD);
   }
   let dw = &mut TlsDecodeWrapper::from_bytes(hs_data);
   let nst = NewSessionTicket::<ShortBoxSliceU16<_>>::decode(dw)?;

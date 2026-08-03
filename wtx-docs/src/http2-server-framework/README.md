@@ -11,7 +11,7 @@ A small and fast to compile framework that can interact with many built-in featu
 
 To use this functionality, it is necessary to activate the `http2-server-framework` feature.
 
-![HTTP/2 Benchmarks](https://i.imgur.com/lUOX3iM.png)
+![HTTP/2 Benchmarks](https://i.imgur.com/PlQ80nc.jpeg)
 
 ## Endpoints
 

@@ -9,13 +9,21 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct KeyShareEntry<B> {
-  pub(crate) group: NamedGroup,
-  pub(crate) opaque: B,
+  group: NamedGroup,
+  opaque: B,
 }
 
 impl<B> KeyShareEntry<B> {
   pub(crate) fn new(group: NamedGroup, opaque: B) -> Self {
     Self { group, opaque }
+  }
+
+  pub(crate) fn group(&self) -> NamedGroup {
+    self.group
+  }
+
+  pub(crate) fn opaque(&self) -> &B {
+    &self.opaque
   }
 }
 

@@ -2,14 +2,17 @@ use crate::{
   codec::{Decode as _, Encode as _},
   collections::{ArrayVectorCopy, SingleTypeStorage},
   misc::Lease,
-  net::Stream,
+  net::{RoleTy, Stream},
   rng::CryptoRng,
   tls::{
     AlertDescription, Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH,
     HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme, TlsBuffer,
     TlsConfig, TlsCtx, TlsCtxSk, TlsError, TlsStream,
     key_schedule::KeySchedule,
-    misc::{fetch_rec_from_stream, manage_err, server_sig_msg, write_payloads},
+    misc::{
+      fetch_rec_from_stream, manage_err, post_handshake_dec_error, pre_handshake_dec_error,
+      server_sig_msg, write_payloads,
+    },
     protocol::{
       certificate::{Certificate, CertificateEntry},
       certificate_verify::CertificateVerify,
@@ -267,6 +270,13 @@ where
   /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn manage_final_client_record(&mut self, rri: &ReadRecordInfo) -> crate::Result<()> {
+    let rslt = self.do_manage_final_client_record(rri);
+    self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
+    rslt
+  }
+
+  #[inline]
+  fn do_manage_final_client_record(&mut self, rri: &ReadRecordInfo) -> crate::Result<()> {
     if rri.outer_ty != RecordContentTy::ApplicationData
       || rri.inner_ty != RecordContentTy::Handshake
     {
@@ -277,7 +287,6 @@ where
     let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
     let hs = Handshake::<&[u8]>::decode(&mut dw)?;
     if hs.msg_type != HandshakeTy::Finished {
-      self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
       return Err(crate::Error::TlsErrorReply(
         TlsError::ClientExpectedFinished,
         AlertDescription::UnexpectedMessage,
@@ -287,6 +296,7 @@ where
     *dw.bytes_mut() = hs.data;
     *dw.cipher_suite_mut() = self.key_schedule.cipher_suite();
     let finished = Finished::decode(&mut dw)?;
+    post_handshake_dec_error(dw.bytes(), HandshakeTy::Finished)?;
     if self
       .key_schedule
       .read_mut()
@@ -299,10 +309,9 @@ where
     {
       return Err(TlsError::DigestCheckFailed.into());
     }
-    self.key_schedule.master_secret::<false>(&self.transcript_hash.clone().finalize())?;
     if trailing_len > 0 {
       return Err(crate::Error::TlsErrorReply(
-        TlsError::ExcessHandshakeData,
+        TlsError::ExcessHandshakeData(RoleTy::Server),
         AlertDescription::UnexpectedMessage,
       ));
     }
@@ -332,12 +341,14 @@ where
     TCX: TlsCtx,
   {
     let current = self.buffer.reader_buffer.current();
-    let client_hello_bytes = current.get(..rri.plaintext_len).unwrap_or_default();
-    let client_hello = Handshake::<ClientHello<_, _>>::decode(&mut TlsDecodeWrapper::from_bytes(
-      client_hello_bytes,
-    ))?;
+    let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();
+    let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
+    let handshake = Handshake::<&[u8]>::decode(&mut dw)?;
+    *dw.bytes_mut() = handshake.data;
+    pre_handshake_dec_error(handshake.rec_len() != rri.plaintext_len)?;
+    let client_hello = ClientHello::decode(&mut dw)?;
+    post_handshake_dec_error(dw.bytes(), HandshakeTy::ClientHello)?;
     if !client_hello
-      .data
       .supported_versions()
       .versions
       .iter()
@@ -345,28 +356,26 @@ where
       .any(|el| el == ProtocolVersion::Tls13)
     {
       return Err(
-        TlsError::UnsupportedTlsVersion(
-          client_hello.data.supported_versions().versions.last().copied(),
-        )
-        .into(),
+        TlsError::UnsupportedTlsVersion(client_hello.supported_versions().versions.last().copied())
+          .into(),
       );
     }
     let cipher_suite = seek_cipher_suite(
-      &client_hello.data.tls_config().cipher_suites,
+      &client_hello.tls_config().cipher_suites,
       &self.config.lease().inner.cipher_suites,
     )?;
     self.key_schedule.set_cipher_suite(cipher_suite);
     self.key_schedule.early_secret()?;
     self.transcript_hash = cipher_suite.hash_new();
-    self.transcript_hash.update(client_hello_bytes);
+    self.transcript_hash.update(plaintext);
     let key_share = seek_key_share(
-      &client_hello.data.generic().client_shares,
+      &client_hello.generic().client_shares,
       &self.config.lease().inner.supported_groups.named_group_list,
     )?;
-    let alpn = seek_alpn(&client_hello.data.tls_config().alpn, &self.config.lease().inner.alpn)?;
-    self.named_group = key_share.group;
+    let alpn = seek_alpn(&client_hello.tls_config().alpn, &self.config.lease().inner.alpn)?;
+    self.named_group = key_share.group();
 
-    let max_fragment_length = client_hello.data.tls_config().max_fragment_length;
+    let max_fragment_length = client_hello.tls_config().max_fragment_length;
     if let Some(client_mfg) = max_fragment_length {
       let client_num = client_mfg.num();
       if let Some(server_mfl) = self.config.lease().max_fragment_length()
@@ -380,15 +389,15 @@ where
     let leaf_sig_ty =
       self.config.lease().inner.public_key.first().ok_or(TlsError::EmptySetOfCertificates)?.0;
     let signature_scheme = seek_signature_scheme(
-      &client_hello.data.tls_config().signature_algorithms.signature_schemes,
+      &client_hello.tls_config().signature_algorithms.signature_schemes,
       &self.config.lease().signature_algorithms().signature_schemes,
       &[leaf_sig_ty],
       TlsError::ServerHasNoCompatibleAlgorithmTy,
     )?;
-    let legacy_session_id = *client_hello.data.legacy_session_id();
-    let agreement = key_share.group.agreement(&mut self.rng)?;
+    let legacy_session_id = *client_hello.legacy_session_id();
+    let agreement = key_share.group().agreement(&mut self.rng)?;
     let ephemeral_pk = agreement.public_key()?;
-    let secret = agreement.diffie_hellman::<false>(key_share.opaque)?;
+    let secret = agreement.diffie_hellman::<false>(key_share.opaque())?;
     let writer_buffer = &mut self.buffer.writer_buffer;
     let server_hello_rec = Record::new(
       RecordContentTy::Handshake,
@@ -398,7 +407,7 @@ where
         ServerHello::new(
           cipher_suite,
           false,
-          KeyShareEntry::new(key_share.group, ephemeral_pk.as_ref()),
+          KeyShareEntry::new(key_share.group(), ephemeral_pk.as_ref()),
           legacy_session_id,
           &mut self.rng,
         ),
@@ -487,7 +496,7 @@ where
   'server: 'rslt,
 {
   for server_el in server {
-    let Some(client_el) = client.iter().find(|client_el| client_el.group == *server_el) else {
+    let Some(client_el) = client.iter().find(|client_el| client_el.group() == *server_el) else {
       continue;
     };
     return Ok(*client_el);

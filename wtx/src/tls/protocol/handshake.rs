@@ -16,9 +16,17 @@ pub(crate) struct Handshake<T> {
 }
 
 impl<T> Handshake<T> {
+  pub(crate) const HEADER_LEN: usize = 4;
+
   #[inline]
   pub(crate) const fn new(msg_type: HandshakeTy, data: T) -> Self {
     Self { msg_type, data }
+  }
+}
+
+impl Handshake<&[u8]> {
+  pub(crate) fn rec_len(&self) -> usize {
+    Self::HEADER_LEN.wrapping_add(self.data.len())
   }
 }
 

@@ -23,7 +23,7 @@ where
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let mut client_shares = ArrayVectorU8::new();
+    let mut client_shares = ArrayVectorU8::<KeyShareEntry<B>, _>::new();
     *dw.bytes_mut() = u16_chunk(dw, TlsError::InvalidCipherSuite, |el| Ok(el.bytes()))?;
     while let [b0, b1, rest @ ..] = dw.bytes() {
       let group_rslt = NamedGroup::try_from(u16::from_be_bytes([*b0, *b1]));
@@ -32,6 +32,9 @@ where
       let Ok(group) = group_rslt else {
         continue;
       };
+      if client_shares.iter().find(|el| el.group() == group).is_some() {
+        return Err(TlsError::DuplicatedKeyShares.into());
+      }
       client_shares.push(KeyShareEntry::new(group, opaque.try_into().map_err(Into::into)?))?;
     }
     Ok(Self { client_shares })

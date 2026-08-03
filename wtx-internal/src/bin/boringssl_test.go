@@ -94,7 +94,7 @@ func TestNames(t *testing.T) {
 		// Certificate compression in not implemented
 		"CertCompression",
 		// mTLS is not implemented
-		"ClientAuth",
+		"ClientAuth", "UnknownExtensionInCertificateRequest-TLS13", "AlwaysSelectPSKIdentity-TLS13",
 		// CBC is not implemented
 		"CBC",
 		// DTLS is not implemented
@@ -106,7 +106,7 @@ func TestNames(t *testing.T) {
 		// Grease is not implemented
 		"GREASE",
 		// Hello Retry Request is not implemented
-		"HelloRetryRequest",
+		"HelloRetryRequest", "PartialClientFinishedWithSecondClientHello", "SecondClientHello", "SecondServerHello",
 		// HRR is not implemented
 		"HRR",
 		// OCSP is deprecated
@@ -119,6 +119,8 @@ func TestNames(t *testing.T) {
 		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa1-202603", "cnsa2-202603",
 		// Raw public key is not implemented
 		"RawPublicKey", "RPK",
+		// Resumption
+		"Resumption",
 		// Ticket Request is not implemented
 		"TicketFlags",
 

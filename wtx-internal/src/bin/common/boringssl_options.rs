@@ -203,7 +203,9 @@ fn check_implemented_arguments(
       options.check_close_notify = true;
     }
     "-curves" => {
-      let group = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()).unwrap();
+      let Ok(group) = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
+        return true;
+      };
       options.groups.get_or_insert(Vector::new()).push(group).unwrap();
     }
     "-expect-curve-id" => {
@@ -297,7 +299,9 @@ fn check_implemented_arguments(
       options.server_preference = true;
     }
     "-server-supported-groups-hint" => {
-      let group = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()).unwrap();
+      let Ok(group) = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
+        return true;
+      };
       options.server_supported_group_hint = Some(group);
     }
     "-server" => {
@@ -429,6 +433,7 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-on-resume-export-early-keying-material"
     | "-on-resume-verify-fail"
     | "-on-retry-expect-early-data-reason"
+    | "-peek-then-read"
     | "-psk"
     | "-renegotiate-freely"
     | "-require-any-client-certificate"
