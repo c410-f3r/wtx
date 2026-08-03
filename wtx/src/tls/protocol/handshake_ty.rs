@@ -1,19 +1,39 @@
 use crate::tls::{AlertDescription, TlsError};
 
 /// <https://datatracker.ietf.org/doc/html/rfc9846#appendix-B.3>
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) enum HandshakeTy {
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum HandshakeTy {
+  /// Client Hello
   ClientHello = 1,
+  /// Server Hello
   ServerHello = 2,
+  /// New Session Ticket
   NewSessionTicket = 4,
+  /// End Of Early Data
   EndOfEarlyData = 5,
+  /// Encrypted Extensions
   EncryptedExtensions = 8,
+  /// Certificate
   Certificate = 11,
+  /// Certificate Request
   CertificateRequest = 13,
+  /// Certificate Verify
   CertificateVerify = 15,
+  /// Finished
   Finished = 20,
+  /// Key Update
   KeyUpdate = 24,
+  /// Message Hash
   MessageHash = 254,
+}
+
+impl HandshakeTy {
+  /// Returns `true` if this instance [`HandshakeTy::Finished`].
+  #[inline]
+  #[must_use]
+  pub const fn is_finished(&self) -> bool {
+    matches!(self, Self::Finished)
+  }
 }
 
 impl From<HandshakeTy> for u8 {
@@ -54,7 +74,7 @@ impl TryFrom<u8> for HandshakeTy {
       254 => Self::MessageHash,
       _ => {
         return Err(crate::Error::TlsErrorReply(
-          TlsError::UnknownHandshakeTy,
+          TlsError::UnknownHandshakeTy(from),
           AlertDescription::UnexpectedMessage,
         ));
       }

@@ -16,11 +16,11 @@ async fn main() -> wtx::Result<()> {
   let secret_context = SecretContext::new(&mut rng)?;
 
   // Secure connection with an encrypted secret key
-  let _enc_sk = TlsConfig::from_keys_der([], &mut rng, Vector::new())?;
+  let _enc_sk = TlsConfig::from_keys_der([], &mut rng, (secret_context, &mut [][..]))?;
   // Unencrypted connection
   let _plaintext_ctx = TlsConfig::plaintext();
   // Secure connection with a plaintext secret key
-  let _sk = TlsConfig::from_keys_der([], &mut rng, (secret_context, &mut [][..]))?;
+  let _sk = TlsConfig::from_keys_der([], &mut rng, Vector::new())?;
   // Encrypted connection that does not verify certificates
   let _unverified_ctx = TlsConfig::unverified();
 

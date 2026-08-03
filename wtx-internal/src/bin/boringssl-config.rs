@@ -196,7 +196,6 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("Resume-Server-ExtraIdentityNoBinder-SecondBinder", "UNSUPPORTED"),
     ("Resume-Server-InvalidPSKBinder-SecondBinder", "UNSUPPORTED"),
     ("Resume-Server-PSKBinderFirstExtension-SecondBinder", "UNSUPPORTED"),
-    ("Resume-Server-OmitAllPSKsOnSecondClientHello", "UNSUPPORTED"),
     ("Renegotiate-Server-Forbidden", "UNSUPPORTED"),
     ("Renegotiate-Server-NoExt", "UNSUPPORTED"),
     ("Renegotiate-Server-NoExt-SCSV", "UNSUPPORTED"),
@@ -698,7 +697,6 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("TrailingMessageData-TLS13-CertificateRequest-TLS", "UNSUPPORTED"),
     ("TrailingMessageData-TLS13-ClientCertificate-TLS", "UNSUPPORTED"),
     ("TrailingMessageData-TLS13-ClientCertificateVerify-TLS", "UNSUPPORTED"),
-    ("NegotiatePSKResumption-TLS13", "UNSUPPORTED"),
     ("Client-ShortSessionID", "UNSUPPORTED"),
     ("Client-TooLongSessionID", "UNSUPPORTED"),
     ("TLS13SessionID-TLS13", "UNSUPPORTED"),
@@ -763,12 +761,17 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("*ALPS*", "UNSUPPORTED"),
     ("*CertCompression*", "UNSUPPORTED"),
     ("*ClientAuth*", "UNSUPPORTED"),
+    ("*UnknownExtensionInCertificateRequest-TLS13*", "UNSUPPORTED"),
+    ("*AlwaysSelectPSKIdentity-TLS13*", "UNSUPPORTED"),
     ("*CBC*", "UNSUPPORTED"),
     ("*DTLS*", "UNSUPPORTED"),
     ("*EarlyData*", "UNSUPPORTED"),
     ("*ECH*", "UNSUPPORTED"),
     ("*GREASE*", "UNSUPPORTED"),
     ("*HelloRetryRequest*", "UNSUPPORTED"),
+    ("*PartialClientFinishedWithSecondClientHello*", "UNSUPPORTED"),
+    ("*SecondClientHello*", "UNSUPPORTED"),
+    ("*SecondServerHello*", "UNSUPPORTED"),
     ("*HRR*", "UNSUPPORTED"),
     ("*OCSP*", "UNSUPPORTED"),
     ("*PAKE*", "UNSUPPORTED"),
@@ -780,6 +783,7 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("*cnsa2-202603*", "UNSUPPORTED"),
     ("*RawPublicKey*", "UNSUPPORTED"),
     ("*RPK*", "UNSUPPORTED"),
+    ("*Resumption*", "UNSUPPORTED"),
     ("*TicketFlags*", "UNSUPPORTED"),
     ("*JDK11*", "UNSUPPORTED"),
     ("*ECDSA_P521*", "UNSUPPORTED"),
@@ -822,12 +826,11 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
 fn error_map() -> HashMap<&'static str, Vector<&'static str>> {
   [
     (":BAD_ECPOINT:", Vector::from_iterator([":WRONG_CURVE:"]).unwrap()),
-    (":CLIENTHELLO_PARSE_FAILED:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
+    // All trailing errors after decoding are group into ":DECODE_ERROR:"
+    (":CLIENTHELLO_PARSE_FAILED:", Vector::from_iterator([":DECODE_ERROR:"]).unwrap()),
     (":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
-    (
-      ":EXCESS_HANDSHAKE_DATA:",
-      Vector::from_iterator([":BAD_DECRYPT:", ":UNEXPECTED_MESSAGE:"]).unwrap(),
-    ),
+    // After the first CCS is decoded all subsequent CCSs are treated as encrypted data
+    (":TOO_MANY_EMPTY_FRAGMENTS:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
     (":UNSUPPORTED_ALGORITHM:", Vector::from_iterator([":WRONG_SIGNATURE_TYPE:"]).unwrap()),
   ]
   .into_iter()

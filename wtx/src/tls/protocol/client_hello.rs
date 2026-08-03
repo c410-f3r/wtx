@@ -87,7 +87,9 @@ impl<'de> Decode<'de, De>
     let err = TlsError::InvalidClientHelloLength;
     let _legacy_version = <[u8; 2] as Decode<'_, De>>::decode(dw)?;
     let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
-    let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
+    let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into().map_err(|_err| {
+      crate::Error::TlsErrorReply(TlsError::InvalidLegacySessionId, AlertDescription::DecodeError)
+    })?;
     let mut cipher_suites = ArrayVectorCopy::new();
     let mut extensions = Extensions::default();
     {
@@ -230,6 +232,7 @@ fn duplicated_error(is_some: bool) -> crate::Result<()> {
   Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "up to the specification")]
 #[inline]
 fn manage_extension<'de>(
   dw: &mut TlsDecodeWrapper<'de>,
@@ -291,6 +294,9 @@ fn manage_extension<'de>(
     ExtensionTy::KeyShare => {
       duplicated_error(extensions.key_shares.is_some())?;
       extensions.key_shares = Some(KeyShareClientHello::<&[u8]>::decode(dw)?);
+      if !dw.bytes().is_empty() {
+        return Err(TlsError::TrailingDataInExtension.into());
+      }
     }
     ExtensionTy::ServerCertificateType => {
       duplicated_error(extensions.server_certificate_type)?;

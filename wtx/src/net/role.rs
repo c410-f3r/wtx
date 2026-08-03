@@ -26,3 +26,19 @@ pub enum RoleTy {
   /// The local instance is a server that listens for connections.
   Server,
 }
+
+impl RoleTy {
+  /// Returns `true` if this instance is [`RoleTy::Client`].
+  #[inline]
+  #[must_use]
+  pub const fn is_client(&self) -> bool {
+    matches!(self, Self::Client)
+  }
+
+  /// Returns `true` if this instance is [`RoleTy::Server`].
+  #[inline]
+  #[must_use]
+  pub const fn is_server(&self) -> bool {
+    matches!(self, Self::Server)
+  }
+}

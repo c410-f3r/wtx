@@ -17,7 +17,6 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-#[expect(dead_code, reason = "Future-proof mTLS")]
 pub(crate) struct CertificateRequest {
   pub(crate) certificate_request_context: ArrayVectorCopy<u8, 32>,
   pub(crate) signature_algorithms: SignatureAlgorithms,
@@ -27,7 +26,10 @@ impl<'de> Decode<'de, De> for CertificateRequest {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificateRequest;
-    let certificate_request_context = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
+    let crc: ArrayVectorCopy<u8, 32> = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
+    if !crc.is_empty() {
+      return Err(TlsError::InvalidCertificateRequest.into());
+    }
     let mut signature_algorithms = None;
     u16_chunk(dw, err, |local_dw| {
       let mut seen_unknowns = ArrayVectorCopy::new();
@@ -41,7 +43,10 @@ impl<'de> Decode<'de, De> for CertificateRequest {
       }
       Ok(())
     })?;
-    Ok(Self { certificate_request_context, signature_algorithms: signature_algorithms.ok_or(err)? })
+    Ok(Self {
+      certificate_request_context: crc,
+      signature_algorithms: signature_algorithms.ok_or(err)?,
+    })
   }
 }
 
@@ -76,7 +81,6 @@ fn duplicated_error(is_some: bool) -> crate::Result<()> {
   Ok(())
 }
 
-#[expect(dead_code, reason = "Future-proof mTLS")]
 #[inline]
 fn manage_extension(
   dw: &mut TlsDecodeWrapper<'_>,

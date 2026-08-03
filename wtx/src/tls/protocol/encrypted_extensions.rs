@@ -52,6 +52,9 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidEncryptedExtensions;
+    if dw.bytes().is_empty() {
+      return Err(crate::Error::TlsErrorReply(err, AlertDescription::DecodeError));
+    }
     let mut alpn = None;
     let mut max_fragment_length = None;
     let mut server_name = None;
@@ -155,7 +158,7 @@ fn manage_extension(
     | ExtensionTy::SupportedVersions => {
       return Err(crate::Error::TlsErrorReply(
         TlsError::MismatchedExtension,
-        AlertDescription::BadRecordMac,
+        AlertDescription::UnsupportedExtension,
       ));
     }
   }
