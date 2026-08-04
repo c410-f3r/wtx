@@ -1,7 +1,7 @@
 // https://fetch.spec.whatwg.org/#http-cors-protocol
 
 use crate::{
-  collections::Vector,
+  collections::{ShortBoxStrU8, Vector},
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, MsgBufferString, Request, Response,
     StatusCode,
@@ -9,13 +9,12 @@ use crate::{
   },
   misc::{AsciiGeneric, Intersperse, str_split1},
 };
-use alloc::string::String;
 use core::{ops::ControlFlow, str};
 
-type AllowHeaders = (bool, Vector<String>);
+type AllowHeaders = (bool, Vector<ShortBoxStrU8>);
 type AllowMethods = (bool, Vector<Method>);
-type AllowOrigins = (bool, Vector<String>);
-type ExposeHeaders = (bool, Vector<String>);
+type AllowOrigins = (bool, Vector<ShortBoxStrU8>);
+type ExposeHeaders = (bool, Vector<ShortBoxStrU8>);
 
 /// Used internally to manage the origins of CORS responses.
 #[derive(Debug)]
@@ -91,7 +90,7 @@ impl CorsMiddleware {
   pub fn allow_headers(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = String>,
+    specifics: impl IntoIterator<Item = ShortBoxStrU8>,
   ) -> crate::Result<Self> {
     if is_wildcard {
       self.allow_headers.0 = true;
@@ -135,7 +134,7 @@ impl CorsMiddleware {
   pub fn allow_origins(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = String>,
+    specifics: impl IntoIterator<Item = ShortBoxStrU8>,
   ) -> crate::Result<Self> {
     if is_wildcard {
       self.allow_origins.0 = true;
@@ -157,7 +156,7 @@ impl CorsMiddleware {
   pub fn expose_headers(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = String>,
+    specifics: impl IntoIterator<Item = ShortBoxStrU8>,
   ) -> crate::Result<Self> {
     if is_wildcard {
       self.expose_headers.0 = true;
@@ -186,7 +185,7 @@ impl CorsMiddleware {
       .1
       .iter()
       .enumerate()
-      .find_map(|(idx, el)| (el == origin).then_some((el.as_str(), idx)))
+      .find_map(|(idx, el)| (el.as_str() == origin).then_some((el.as_str(), idx)))
   }
 
   fn apply_allow_credentials(allow_credentials: bool, headers: &mut Headers) -> crate::Result<()> {
@@ -265,7 +264,7 @@ impl CorsMiddleware {
     if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
-        Intersperse::new(specifics.iter().map(String::as_str), || ","),
+        Intersperse::new(specifics.iter().map(ShortBoxStrU8::as_str), || ","),
       ))?;
       return Ok(());
     }
@@ -300,7 +299,7 @@ impl CorsMiddleware {
         Self::apply_allow_credentials(*allow_credentials, headers)?;
         Self::apply_allow_origin(
           true,
-          self.allow_origins.1.get(*idx).map(String::as_str).unwrap_or_default(),
+          self.allow_origins.1.get(*idx).map(ShortBoxStrU8::as_str).unwrap_or_default(),
           headers,
         )?;
         Self::apply_expose_headers(expose_headers, headers)?;
@@ -424,7 +423,7 @@ impl CorsMiddleware {
     if elem.is_empty() {
       return Ok(());
     }
-    if !self.allow_headers.1.iter().any(|el| el == elem) {
+    if !self.allow_headers.1.iter().any(|el| el.as_str() == elem) {
       return Err(crate::Error::from(Http2ServerFrameworkError::ForbiddenCorsHeader));
     }
     let _ = body.extend_from_copyable_slices([prefix, elem.as_bytes()])?;

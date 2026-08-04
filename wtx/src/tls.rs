@@ -109,4 +109,4 @@ const _TARGET: &str = "tls";
 const _TARGET_HS: &str = "tls-hs";
 
 /// The hash of the server's leaf certificate.
-pub type TlsServerEndPoint = ArrayVectorCopy<u8, { MAX_HASH_LEN }>;
+pub type TlsServerEndPoint = ArrayVectorCopy<u8, { crate::crypto::HashTy::MAX.len() }>;

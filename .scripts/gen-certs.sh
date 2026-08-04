@@ -12,15 +12,14 @@ db_file_init() {
     local remote_data_dir=$2
 
     echo "#!/usr/bin/env bash" > $local_file
-    echo "DATA_DIR=\"$remote_data_dir\"" >> $local_file
-    echo "echo \"$(cat $CERTS_DIR/root-ca.crt)\" > \$DATA_DIR/root-ca.crt" >> $local_file
-    echo "echo \"$(cat $CERTS_DIR/cert.pem)\" > \$DATA_DIR/cert.pem" >> $local_file
-    echo "echo \"$(cat $CERTS_DIR/key.pem)\" > \$DATA_DIR/key.pem" >> $local_file
+    echo "echo \"$(cat $CERTS_DIR/root-ca.crt)\" > $remote_data_dir/root-ca.crt" >> $local_file
+    echo "echo \"$(cat $CERTS_DIR/cert.pem)\" > $remote_data_dir/cert.pem" >> $local_file
+    echo "echo \"$(cat $CERTS_DIR/key.pem)\" > $remote_data_dir/key.pem" >> $local_file
 }
 
-openssl genpkey -algorithm ed25519 -out $CERTS_DIR/key.pem
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out $CERTS_DIR/key.pem
 openssl req -new -key $CERTS_DIR/key.pem -subj "/C=FI/CN=vahid" -out $CERTS_DIR/key.csr
-openssl genpkey -algorithm ed25519 -out $CERTS_DIR/root-ca.key
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out $CERTS_DIR/root-ca.key
 openssl req -x509 -sha256 -days 3650 -subj "/C=FI/CN=vahid Root CA" \
     -key $CERTS_DIR/root-ca.key \
     -out $CERTS_DIR/root-ca.crt \

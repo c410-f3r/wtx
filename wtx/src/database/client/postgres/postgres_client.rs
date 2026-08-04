@@ -76,6 +76,7 @@ where
     if buf != *b"S" {
       return Err(PostgresError::ServerDoesNotSupportEncryption.into());
     }
+    *tls_connector.hash_leaf_cert_mut() = true;
     let mut output = tls_connector.connect().await?;
     return Self::do_connect(
       client_buffer,

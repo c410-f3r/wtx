@@ -1,4 +1,4 @@
-use crate::crypto::{Hash, Sha1Ruco, Sha256Ruco, Sha384Ruco};
+use crate::crypto::{Hash, Sha1Ruco, Sha256Ruco, Sha384Ruco, Sha512Ruco};
 use digest::Digest;
 
 impl Hash for Sha1Ruco {
@@ -45,6 +45,25 @@ impl Hash for Sha384Ruco {
   #[inline]
   fn new() -> Self {
     Self(<sha2::Sha384 as Digest>::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize().into()
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+}
+
+impl Hash for Sha512Ruco {
+  type Digest = [u8; 64];
+
+  #[inline]
+  fn new() -> Self {
+    Self(<sha2::Sha512 as Digest>::new())
   }
 
   #[inline]

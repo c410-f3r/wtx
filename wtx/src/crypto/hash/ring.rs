@@ -1,5 +1,5 @@
 use crate::{crypto::Hash, misc::unlikely_elem};
-use ring::digest::{Context, SHA1_FOR_LEGACY_USE_ONLY, SHA256, SHA384};
+use ring::digest::{Context, SHA1_FOR_LEGACY_USE_ONLY, SHA256, SHA384, SHA512};
 
 impl Hash for crate::crypto::Sha1Ring {
   type Digest = [u8; 20];
@@ -50,6 +50,25 @@ impl Hash for crate::crypto::Sha384Ring {
   #[inline]
   fn finalize(self) -> Self::Digest {
     finish_context(self.0, [0; 48])
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+}
+
+impl Hash for crate::crypto::Sha512Ring {
+  type Digest = [u8; 64];
+
+  #[inline]
+  fn new() -> Self {
+    Self(Context::new(&SHA512))
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    finish_context(self.0, [0; 64])
   }
 
   #[inline]

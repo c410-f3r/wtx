@@ -37,7 +37,7 @@ where
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(dw)?)?;
-    let data = u24_chunk(dw, TlsError::InvalidHandshake, |local_dw| T::decode(local_dw))?;
+    let data = u24_chunk(dw, TlsError::InvalidHandshakeLen, |local_dw| T::decode(local_dw))?;
     Ok(Self { msg_type, data })
   }
 }

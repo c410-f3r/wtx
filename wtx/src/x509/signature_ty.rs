@@ -37,6 +37,20 @@ pub enum SignatureTy {
 }
 
 impl SignatureTy {
+  /// See [`HashTy`].
+  #[inline]
+  pub const fn hash_ty(&self) -> HashTy {
+    match self {
+      SignatureTy::EcdsaP256 | SignatureTy::RsaPkcs1Sha256 | SignatureTy::RsaPssSha256 => {
+        HashTy::Sha256
+      }
+      SignatureTy::EcdsaP384 | SignatureTy::RsaPkcs1Sha384 | SignatureTy::RsaPssSha384 => {
+        HashTy::Sha384
+      }
+      SignatureTy::Ed25519 => HashTy::Sha512,
+    }
+  }
+
   /// Number of variants
   #[inline]
   pub const fn len() -> usize {

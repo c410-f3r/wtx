@@ -26,7 +26,7 @@ use crate::{
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::{TlsDigest, TlsHash},
   },
-  x509::{CvEndEntity, CvIntermediate, PublicKeyTy, ServerName, SubjectPublicKeyInfo},
+  x509::{CvEndEntity, CvIntermediate, PublicKeyTy, ServerName, SignatureTy, SubjectPublicKeyInfo},
 };
 use core::ops::Range;
 
@@ -53,8 +53,8 @@ pub enum ServerRecordsState<T> {
 pub struct ManageRemainingServerRecordsInput {
   certificate_pky: PublicKeyTy,
   client_cert_requested: bool,
-  has_certificate: bool,
   has_certificate_verify: bool,
+  has_certificate: bool,
   spki_range: Range<usize>,
   tls_server_end_point: TlsServerEndPoint,
   transcript_digest: TlsDigest,
@@ -69,6 +69,7 @@ pub struct TlsConnector<RNG, S, TCG, U> {
   config: TCG,
   handshake_path: HandshakePath,
   has_sent_ccs: bool,
+  hash_leaf_cert: bool,
   key_schedule: KeySchedule,
   max_fragment_length_send: u16,
   max_fragment_length: u16,
@@ -103,6 +104,7 @@ where
       config,
       handshake_path: HandshakePath::Full,
       has_sent_ccs: false,
+      hash_leaf_cert: false,
       key_schedule,
       max_fragment_length_send,
       max_fragment_length,
@@ -242,6 +244,19 @@ where
     })
   }
 
+  /// If the leaf certificate received by clients should be hashed using the signature's hash.
+  /// Mostly used in SCRAM scenarios with channel binding.
+  #[inline]
+  pub const fn hash_leaf_cert(&self) -> bool {
+    self.hash_leaf_cert
+  }
+
+  /// Mutable version of [`Self::hash_leaf_cert`].
+  #[inline]
+  pub const fn hash_leaf_cert_mut(&mut self) -> &mut bool {
+    &mut self.hash_leaf_cert
+  }
+
   /// Low level operation that must be called after [`Self::manage_remaining_server_records`].
   ///
   /// High level operations must not be mixed with low level operations.
@@ -252,6 +267,7 @@ where
   ) -> crate::Result<ClientRecordsState> {
     *self.buffer.reader_buffer.forbid_clear_mut() = false;
     self.buffer.reader_buffer.clear_if_exhausted();
+    let ch_transcript = self.transcript_hash.clone();
     let mut empty_cert = ArrayVectorCopy::<u8, 30>::new();
     if mrsri.client_cert_requested {
       let unencrypted_msg = [HandshakeTy::Certificate.into(), 0, 0, 4, 0, 0, 0, 0];
@@ -275,7 +291,7 @@ where
       .state_mut()
       .create_finished_verify_data(self.transcript_hash.clone().finalize().lease())?;
     let finished = Finished::record_bytes(&verify_data, ksw.state_mut())?;
-    self.key_schedule.master_secret::<true>(&self.transcript_hash.clone().finalize())?;
+    self.key_schedule.master_secret::<true>(&ch_transcript.finalize())?;
     let mut terminated = ArrayVectorCopy::new();
     let array = [&CHANGE_CIPHER_SPEC[..], &empty_cert, &finished];
     let _ = terminated.extend_from_copyable_slices(array)?;
@@ -296,7 +312,7 @@ where
       RecordContentTy::Alert => return alert(&self.buffer.reader_buffer, rri),
       RecordContentTy::Handshake => {}
       RecordContentTy::ApplicationData | RecordContentTy::ChangeCipherSpec => {
-        return Err(TlsError::InvalidHandshake.into());
+        return Err(TlsError::InvalidHandshakeTy.into());
       }
     }
     handshake_bytes_adjust(
@@ -312,7 +328,7 @@ where
       return Ok(ServerRecordsState::NeedsMoreData);
     };
     if msg_type != HandshakeTy::ServerHello {
-      return Err(TlsError::InvalidHandshake.into());
+      return Err(TlsError::InvalidHandshakeTy.into());
     }
     pre_handshake_dec_error(self.split_len > 0)?;
     let server_hello = ServerHello::<'_>::decode(&mut dw)?;
@@ -363,7 +379,7 @@ where
   ) -> crate::Result<ServerRecordsState<()>> {
     match rri.inner_ty {
       RecordContentTy::Alert => return alert(&self.buffer.reader_buffer, rri),
-      RecordContentTy::ApplicationData => return Err(TlsError::InvalidHandshake.into()),
+      RecordContentTy::ApplicationData => return Err(TlsError::InvalidHandshakeTy.into()),
       RecordContentTy::ChangeCipherSpec => {
         return Ok(ServerRecordsState::NeedsMoreData);
       }
@@ -401,7 +417,7 @@ where
           Self::manage_certificate(
             self.config.lease(),
             self.buffer.reader_buffer.filled(),
-            &self.key_schedule,
+            self.hash_leaf_cert,
             mrsri,
             &mut dw,
             &self.transcript_hash,
@@ -430,7 +446,7 @@ where
         | HandshakeTy::MessageHash
         | HandshakeTy::NewSessionTicket
         | HandshakeTy::ServerHello => {
-          return Err(TlsError::InvalidHandshake.into());
+          return Err(TlsError::InvalidHandshakeTy.into());
         }
       }
     }
@@ -508,7 +524,7 @@ where
   fn manage_certificate(
     config: &TlsConfig<TCX>,
     filled: &[u8],
-    key_schedule: &KeySchedule,
+    hash_leaf_cert: bool,
     mrsri: &mut ManageRemainingServerRecordsInput,
     remote_dw: &mut TlsDecodeWrapper<'_>,
     transcript_hash: &TlsHash,
@@ -519,9 +535,6 @@ where
     let [end_entity, intermediates @ ..] = certificate.certificate_list().as_slice() else {
       return Err(TlsError::NoCertificate.into());
     };
-    mrsri.tls_server_end_point.extend_from_copyable_slice(
-      key_schedule.cipher_suite().hash_digest([end_entity.certificate_bytes()]).lease(),
-    )?;
     let cv_end_entity = {
       let mut dw = crate::codec::DecodeWrapper::new(
         end_entity.certificate_bytes(),
@@ -538,6 +551,13 @@ where
       let sig = dw.decode_aux.tbs_cert(end_entity.certificate_bytes()).unwrap_or_default();
       CvEndEntity::from_certificate(cert, sig)?
     };
+    if hash_leaf_cert {
+      SignatureTy::try_from(&cv_end_entity.signature_algorithm)?
+        .hash_ty()
+        .digest([end_entity.certificate_bytes()], |bytes| {
+          mrsri.tls_server_end_point.extend_from_copyable_slice(bytes)
+        })?;
+    }
     if !TCX::TY.is_unverified() {
       if let Some(sn_list) = &config.inner.server_name {
         let [sn] = sn_list.server_name_list.as_inner()?;

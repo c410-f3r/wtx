@@ -1,6 +1,6 @@
 use crate::{
   collections::{SingleTypeStorage, SuffixGuard, Truncate, TryExtend},
-  crypto::{Aead as _, Aes256GcmGlobal, gen_aead_nonce},
+  crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
   sync::Arc,
@@ -15,6 +15,7 @@ const CTX_LEN: usize = cfg_select! {
   feature = "secret-32768" => 32768,
   _ => 2048
 };
+const SECRET_LEN: usize = 16;
 
 /// Long-lived sensitive data.
 ///
@@ -24,7 +25,7 @@ const CTX_LEN: usize = cfg_select! {
 /// `RAMbleed`, etc.
 pub struct Secret {
   protected: Protected,
-  salt: [u8; 32],
+  salt: [u8; SECRET_LEN],
   secret_context: SecretContext,
 }
 
@@ -41,14 +42,14 @@ impl Secret {
     RNG: CryptoRng,
   {
     let mut data_wrapper = SensitiveBytes::new(data);
-    let mut salt = [0; 32];
+    let mut salt = [0; SECRET_LEN];
     rng.fill_slice(&mut salt);
     let nonce = gen_aead_nonce(rng);
-    let tag = Aes256GcmGlobal::encrypt_parts(
+    let tag = Aes128GcmGlobal::encrypt_parts(
       &[],
       nonce,
       &mut data_wrapper,
-      gen_secret_key(&salt, &secret_context).as_bytes(),
+      &gen_secret_key(&salt, &secret_context),
     )?;
     let all_len = nonce.len().wrapping_add(data_wrapper.len()).wrapping_add(tag.len());
     let mut protected = Protected::zeroed(all_len);
@@ -88,10 +89,10 @@ impl Secret {
       LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize> + TryExtend<&'any [u8]>,
   {
     buffer.inner_mut().try_extend(&self.protected)?;
-    let plaintext = Aes256GcmGlobal::decrypt_in_place(
+    let plaintext = Aes128GcmGlobal::decrypt_in_place(
       &[],
       buffer.curr_mut(),
-      gen_secret_key(&self.salt, &self.secret_context).as_bytes(),
+      &gen_secret_key(&self.salt, &self.secret_context),
     )?;
     Ok(fun(SecretPeek(SensitiveBytes::new(plaintext))))
   }
@@ -109,7 +110,7 @@ impl Default for Secret {
   fn default() -> Self {
     Self {
       protected: Protected::zeroed(0),
-      salt: [0; 32],
+      salt: [0; SECRET_LEN],
       secret_context: SecretContext(Arc::new(Protected::zeroed(0))),
     }
   }
@@ -230,10 +231,12 @@ fn copy_iter_mut(from: &[u8], to: &mut [&mut u8]) {
   from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
 }
 
-fn gen_secret_key(salt: &[u8; 32], secret_context: &SecretContext) -> blake3::Hash {
+fn gen_secret_key(salt: &[u8; SECRET_LEN], secret_context: &SecretContext) -> [u8; SECRET_LEN] {
   let mut hasher = blake3::Hasher::new();
   let _ = hasher.update(&salt[..]).update(&secret_context.0);
-  hasher.finalize()
+  let mut rslt = [0; SECRET_LEN];
+  hasher.finalize_xof().fill(&mut rslt);
+  rslt
 }
 
 #[cfg(test)]

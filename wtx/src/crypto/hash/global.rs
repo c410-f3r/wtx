@@ -20,6 +20,13 @@ type Sha384Ty = cfg_select! {
   feature = "crypto-ruco" => crate::crypto::Sha384Ruco,
   _ => crate::crypto::HashDummy::<[u8; 48]>
 };
+type Sha512Ty = cfg_select! {
+  feature = "crypto-ring" => crate::crypto::Sha512Ring,
+  feature = "crypto-graviola" => crate::crypto::Sha512Graviola,
+  feature = "crypto-alr" => crate::crypto::Sha512Alr,
+  feature = "crypto-ruco" => crate::crypto::Sha512Ruco,
+  _ => crate::crypto::HashDummy::<[u8; 64]>
+};
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Clone, Debug)]
@@ -77,6 +84,29 @@ impl Hash for Sha384Global {
   #[inline]
   fn new() -> Self {
     Self(<Sha384Ty as Hash>::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    self.0.finalize()
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+}
+
+/// A structure that delegates execution to the selected crypto backend.
+#[derive(Clone, Debug)]
+pub struct Sha512Global(Sha512Ty);
+
+impl Hash for Sha512Global {
+  type Digest = [u8; 64];
+
+  #[inline]
+  fn new() -> Self {
+    Self(<Sha512Ty as Hash>::new())
   }
 
   #[inline]
