@@ -39,6 +39,25 @@ impl crate::crypto::Hash for crate::crypto::Sha384Graviola {
   }
 }
 
+impl crate::crypto::Hash for crate::crypto::Sha512Graviola {
+  type Digest = [u8; 64];
+
+  #[inline]
+  fn new() -> Self {
+    Self(graviola::hashing::Sha512::new())
+  }
+
+  #[inline]
+  fn finalize(self) -> Self::Digest {
+    finish_context(self.0, [0; 64])
+  }
+
+  #[inline]
+  fn update(&mut self, data: &[u8]) {
+    self.0.update(data);
+  }
+}
+
 #[inline]
 fn finish_context<C, const N: usize>(ctx: C, default: [u8; N]) -> [u8; N]
 where

@@ -30,6 +30,16 @@ impl<const N: usize> FixedString<N> {
     Ok(Self(data))
   }
 
+  /// Constant version of [`Self::from_array`].
+  #[inline]
+  #[expect(clippy::disallowed_methods, reason = "the method of simutf8 is not constant")]
+  pub const fn from_array_opt(data: [u8; N]) -> Option<Self> {
+    if str::from_utf8(&data).is_err() {
+      return None;
+    }
+    Some(Self(data))
+  }
+
   /// New instance that does not verify if `data` is UTF-8
   ///
   /// # Safety

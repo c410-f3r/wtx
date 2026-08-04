@@ -31,6 +31,12 @@ where
     Ok(Self(ShortBoxSlice::new(data.into_boxed_bytes())?))
   }
 
+  /// As a string slice
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    self
+  }
+
   /// Underlying byte slice
   #[inline]
   pub fn into_short_slice(self) -> ShortBoxSlice<L, u8> {

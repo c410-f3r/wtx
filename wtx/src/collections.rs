@@ -50,7 +50,7 @@ pub use fixed_string::{FixedString, FixedStringError};
 pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
 pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use maybe_uninit_slice::MaybeUninitSlice;
-pub use misc::backward_deque_idx;
+pub use misc::{backward_deque_idx, concat_slices};
 pub use short_box_slice::{ShortBoxSlice, ShortBoxSliceU8, ShortBoxSliceU16};
 pub use short_box_str::{ShortBoxStr, ShortBoxStrU8, ShortBoxStrU16};
 pub use short_slice::{ShortSlice, ShortSliceU8, ShortSliceU16};

@@ -1,5 +1,8 @@
 use crate::collections::{LinearStorageLen, TryExtend};
-use core::{mem, ptr, slice};
+use core::{
+  mem::{self, MaybeUninit},
+  ptr, slice,
+};
 
 /// Calculates the current index of a previous `push_front` element.
 ///
@@ -29,6 +32,40 @@ use core::{mem, ptr, slice};
 #[inline]
 pub const fn backward_deque_idx(elem_idx: usize, elem_idx_last: usize) -> usize {
   elem_idx_last.wrapping_sub(elem_idx) % (usize::MAX >> 1)
+}
+
+/// Concatenates all slices into a single contiguous chunk of memory.
+///
+/// Returns `None` if `N` differs from the sum of all lengths.
+#[expect(clippy::indexing_slicing, reason = "there are no out-of-bound reads or writes")]
+#[inline]
+pub const fn concat_slices<T, const N: usize>(slices: &[&[T]]) -> Option<[T; N]>
+where
+  T: Copy,
+{
+  let mut concatenated: [MaybeUninit<T>; N] = [MaybeUninit::uninit(); N];
+  let mut idx_outer = 0;
+  let mut slice_offset: usize = 0;
+  while idx_outer < slices.len() {
+    let slice = slices[idx_outer];
+    let slice_len = slice.len();
+    if slice_len > N.wrapping_sub(slice_offset) {
+      return None;
+    }
+    // SAFETY: the above check prevents an out-of-bounds `slice_offset`
+    let dst = unsafe { concatenated.as_mut_ptr().add(slice_offset).cast::<T>() };
+    // SAFETY: source and destination point to `slice.len()` elements
+    unsafe {
+      ptr::copy_nonoverlapping(slice.as_ptr(), dst, slice_len);
+    }
+    slice_offset = slice_offset.wrapping_add(slice_len);
+    idx_outer = idx_outer.wrapping_add(1);
+  }
+  if slice_offset != N {
+    return None;
+  }
+  // SAFETY: All elements have been initialized
+  Some(unsafe { ptr::read(concatenated.as_ptr().cast()) })
 }
 
 pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
@@ -140,6 +177,12 @@ mod tests {
     fn drop(&mut self) {
       let _ = self.counter.fetch_add(1, Ordering::SeqCst);
     }
+  }
+
+  #[test]
+  fn concatenation() {
+    assert_eq!(concat_slices!(b"a", b"b", b"c"), *b"abc");
+    assert_eq!(concat_strings!("a", "b", "c").as_str(), "abc");
   }
 
   #[test]

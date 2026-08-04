@@ -31,7 +31,7 @@ pub use dyn_signing_key::DynSigningKey;
 pub use dyn_signing_output::DynSigningOutput;
 pub use hash::{
   Hash, HashDummy,
-  global::{Sha1Global, Sha256Global, Sha384Global},
+  global::{Sha1Global, Sha256Global, Sha384Global, Sha512Global},
   hash_ty::HashTy,
 };
 pub use hkdf::{
@@ -89,6 +89,8 @@ _create_wrappers!(
   Sha256Alr<>(aws_lc_rs::digest::Context),
   #[derive(Clone)]
   Sha384Alr<>(aws_lc_rs::digest::Context),
+  #[derive(Clone)]
+  Sha512Alr<>(aws_lc_rs::digest::Context),
   // Hkdf
   HkdfSha256Alr<>(aws_lc_rs::hkdf::Prk),
   HkdfSha384Alr<>(aws_lc_rs::hkdf::Prk),
@@ -130,6 +132,8 @@ _create_wrappers!(
   Sha256Graviola<>(<graviola::hashing::Sha256 as graviola::hashing::Hash>::Context),
   #[derive(Clone)]
   Sha384Graviola<>(<graviola::hashing::Sha384 as graviola::hashing::Hash>::Context),
+  #[derive(Clone)]
+  Sha512Graviola<>(<graviola::hashing::Sha512 as graviola::hashing::Hash>::Context),
   // Hkdf
   HkdfSha256Graviola<>(GraviolaPrk<graviola::hashing::Sha256>),
   HkdfSha384Graviola<>(GraviolaPrk<graviola::hashing::Sha384>),
@@ -173,6 +177,8 @@ _create_wrappers!(
   Sha256Ring<>(ring::digest::Context),
   #[derive(Clone)]
   Sha384Ring<>(ring::digest::Context),
+  #[derive(Clone)]
+  Sha512Ring<>(ring::digest::Context),
   // Hkdf
   HkdfSha256Ring<>(ring::hkdf::Prk),
   HkdfSha384Ring<>(ring::hkdf::Prk),
@@ -216,6 +222,8 @@ _create_wrappers!(
   Sha256Ruco<>(sha2::Sha256),
   #[derive(Clone)]
   Sha384Ruco<>(sha2::Sha384),
+  #[derive(Clone)]
+  Sha512Ruco<>(sha2::Sha512),
   // Hkdf
   HkdfSha256Ruco<>(::hkdf::Hkdf<sha2::Sha256>),
   HkdfSha384Ruco<>(::hkdf::Hkdf<sha2::Sha384>),

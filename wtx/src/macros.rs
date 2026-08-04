@@ -1,3 +1,28 @@
+/// Concatenates multiple slices at compile-time.
+#[macro_export]
+macro_rules! concat_slices {
+  ($($slice:expr),* $(,)?) => {
+    const {
+      const LEN: usize = 0 $(+ $slice.len())*;
+      $crate::collections::concat_slices::<_, LEN>(&[$($slice),*]).unwrap()
+    }
+  };
+}
+
+/// Concatenates multiple string slices at compile-time.
+#[macro_export]
+macro_rules! concat_strings {
+  ($($string:expr),* $(,)?) => {
+    const {
+      const LEN: usize = 0 $(+ $string.len())*;
+      $( let _type_hint: &str = $string; )*
+      let all = $crate::collections::concat_slices::<_, LEN>(&[$($string.as_bytes()),*]).unwrap();
+      // SAFETY: The concatenation of strings will always result in a valid string
+      unsafe { $crate::collections::FixedString::from_array_unchecked(all) }
+    }
+  };
+}
+
 /// Implements a bunch of auxiliary methods for enums.
 #[macro_export]
 macro_rules! create_enum {

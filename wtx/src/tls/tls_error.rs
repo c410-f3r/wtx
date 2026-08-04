@@ -78,8 +78,10 @@ pub enum TlsError {
   InvalidExtensionTy,
   /// Invalid Finished Record
   InvalidFinishedRecord,
-  /// Invalid Handshake
-  InvalidHandshake,
+  /// Invalid Handshake Length
+  InvalidHandshakeLen,
+  /// Invalid Handshake Type
+  InvalidHandshakeTy,
   /// Invalid Legacy Compression Method (Server)
   InvalidLegacyCompressionMethod,
   /// Invalid Legacy Compression Methods (Client)
@@ -168,6 +170,8 @@ pub enum TlsError {
   UnencryptedRecord,
   /// Unknown name type
   UnknownNameType,
+  /// Unknowns overflow
+  UnknownsOverflow,
   /// Unoffered Extension
   UnofferedExtension,
   /// Unknown Signature Scheme

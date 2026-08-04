@@ -202,7 +202,7 @@ where
     rri: &ReadRecordInfo,
   ) -> crate::Result<ArrayVectorCopy<usize, 4>> {
     let RecordContentTy::Handshake = rri.outer_ty else {
-      return Err(TlsError::InvalidHandshake.into());
+      return Err(TlsError::InvalidHandshakeTy.into());
     };
     let output = self.negotiate(rri)?;
     self.buffer.reader_buffer.clear_if_exhausted();
@@ -280,7 +280,7 @@ where
     if rri.outer_ty != RecordContentTy::ApplicationData
       || rri.inner_ty != RecordContentTy::Handshake
     {
-      return Err(TlsError::InvalidHandshake.into());
+      return Err(TlsError::InvalidHandshakeTy.into());
     }
     let current = self.buffer.reader_buffer.current();
     let plaintext = current.get(..rri.plaintext_len).unwrap_or_default();

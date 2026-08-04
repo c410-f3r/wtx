@@ -1,3 +1,5 @@
+use crate::crypto::{Hash as _, Sha256Global, Sha384Global, Sha512Global};
+
 /// Hash Type
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum HashTy {
@@ -11,6 +13,36 @@ pub enum HashTy {
 }
 
 impl HashTy {
+  /// Instance that has the minimum hash length
+  pub const MIN: Self = Self::Sha256;
+  /// Instance that has the maximum hash length
+  pub const MAX: Self = Self::Sha512;
+
+  /// Calls the digest method of the corresponding instance value according to the crypto backend
+  /// chose at compile-time.
+  #[inline]
+  pub fn digest<'data, T>(
+    self,
+    data: impl IntoIterator<Item = &'data [u8]>,
+    cb: impl FnOnce(&[u8]) -> T,
+  ) -> T {
+    match self {
+      HashTy::Sha256 => cb(&Sha256Global::digest(data)),
+      HashTy::Sha384 => cb(&Sha384Global::digest(data)),
+      HashTy::Sha512 => cb(&Sha512Global::digest(data)),
+    }
+  }
+
+  /// Hash length of the current instance.
+  #[inline]
+  pub const fn len(&self) -> usize {
+    match self {
+      HashTy::Sha256 => 32,
+      HashTy::Sha384 => 48,
+      HashTy::Sha512 => 64,
+    }
+  }
+
   #[inline]
   #[cfg(feature = "crypto-alr")]
   pub(crate) const fn rsa_pkcs1_enc_alr(
