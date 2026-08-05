@@ -12,7 +12,7 @@ To use this functionality, it is necessary to activate the `tls` feature.
 
 TLS contexts dictate how connections should behave, how secret keys should be stored and how signatures should be signed.
 
-It is probably something you shouldn't worry about because most constructors of the `TlsConfig` structure automatically choose the most suitable built-in context. However, you can use a different context or create your own.
+It is probably something you shouldn't worry about because most constructors of the `TlsConfig` structure automatically choose the most suitable built-in context. Regardless of that, you can use a different context or create your own.
 
 ```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-examples/examples/tls-context.rs}}

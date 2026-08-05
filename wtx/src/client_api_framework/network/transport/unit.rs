@@ -65,7 +65,7 @@ impl<TP> SendingTransport<TP> for () {
 /// # async fn fun() -> wtx::Result<()> {
 /// use wtx::client_api_framework::{network::transport::SendingReceivingTransport, pkg::PkgsAux};
 /// let _ =
-///   ().send_pkg_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
+///   ().send_req_recv_res_pkg_decoded(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
 /// # Ok(()) }
 /// ```
 impl<TP> Transport<TP> for () {

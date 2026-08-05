@@ -136,6 +136,8 @@ pub enum TlsError {
   InvalidU16Prefix,
   /// Invalid u24 prefix
   InvalidU24Prefix,
+  /// Invalid X.509
+  InvalidX509,
   /// For example, public key is PSS but signature is RSAE
   MismatchedCertificatePkAndSignature,
   /// Mismatch Extension
@@ -144,6 +146,8 @@ pub enum TlsError {
   MismatchedNegotiatedAlpnClient,
   /// Invalid Negotiated ALPN
   MismatchedNegotiatedAlpnServer,
+  /// Missing Digital Signature in Key Usage
+  MissingDigitalSignatureInKeyUsage,
   /// Missing Key Shares
   MissingKeyShares,
   /// Missing signature algorithms

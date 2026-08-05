@@ -42,7 +42,7 @@ pub type MockStr<TP> = Mock<str, TP>;
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
-///   .send_pkg_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
+///   .send_req_recv_res_pkg_decoded(&mut (), &mut PkgsAux::from_minimum((), (), ()))
 ///   .await?;
 /// # Ok(()) }
 /// ```

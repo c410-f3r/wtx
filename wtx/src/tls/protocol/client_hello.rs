@@ -248,6 +248,12 @@ fn manage_extension<'de>(
       duplicated_error(extensions.certificate_authorities)?;
       extensions.certificate_authorities = true;
       let certificate_authorities = CertificateAuthorities::<&[u8]>::decode(dw)?;
+      if !dw.bytes().is_empty() {
+        return Err(crate::Error::TlsErrorReply(
+          TlsError::TrailingDataInExtension,
+          AlertDescription::DecodeError,
+        ));
+      }
       if certificate_authorities.authorities.is_empty() {
         return Err(crate::Error::TlsErrorReply(
           TlsError::EmptyCertificateAuthorities,
@@ -305,6 +311,12 @@ fn manage_extension<'de>(
     ExtensionTy::ServerName => {
       duplicated_error(extensions.server_name.is_some())?;
       extensions.server_name = Some(ServerNameList::decode(dw)?);
+      if !dw.bytes().is_empty() {
+        return Err(crate::Error::TlsErrorReply(
+          TlsError::TrailingDataInExtension,
+          AlertDescription::DecodeError,
+        ));
+      }
     }
     ExtensionTy::SignedCertificateTimestamp => {
       duplicated_error(extensions.signed_certificate_timestamp)?;

@@ -120,9 +120,11 @@ func TestNames(t *testing.T) {
 		// Raw public key is not implemented
 		"RawPublicKey", "RPK",
 		// Resumption
-		"Resumption",
+		"Resumption", "RetainOnlySHA256",
 		// Ticket Request is not implemented
 		"TicketFlags",
+		// RFC is expired
+		"TrustAnchors",
 
 		// Unrelated
 		"JDK11",
