@@ -124,7 +124,7 @@ async fn main() -> wtx::Result<()> {
   let mut hp = http_pair().await;
   let _http_response_tuple = hp
     .trans
-    .send_pkg_recv_decode_contained(
+    .send_req_recv_res_pkg_decoded(
       &mut hp.pkgs_aux.generic_http_request().data(123).build(),
       &mut hp.pkgs_aux,
     )
@@ -134,7 +134,7 @@ async fn main() -> wtx::Result<()> {
   let mut wsp = web_socket_pair().await?;
   let _web_socket_subscription_id = wsp
     .trans
-    .send_pkg_recv_decode_contained(
+    .send_req_recv_res_pkg_decoded(
       &mut wsp.pkgs_aux.generic_web_socket_subscription().data("Hello", None).build(),
       &mut wsp.pkgs_aux,
     )

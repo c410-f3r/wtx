@@ -268,6 +268,9 @@ fn check_implemented_arguments(
     "-must-match-issuer" => {
       options.must_match_issuer = true;
     }
+    "-new-x509-credential" => {
+      // Just signals that a new pk/sk pair is coming
+    }
     "-on-initial-expect-curve-id" => {
       options.on_initial_expect_curve_id =
         Some(NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()).unwrap());
@@ -392,6 +395,7 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-enable-client-custom-extension"
     | "-enable-early-data"
     | "-enable-grease"
+    | "-enable-ocsp-stapling" // Deprecated
     | "-enable-server-custom-extension"
     | "-expect-accept-early-data"
     | "-expect-channel-id"

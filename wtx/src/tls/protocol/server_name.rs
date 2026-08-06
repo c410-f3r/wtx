@@ -14,20 +14,20 @@ use crate::{
 /// Server name
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ServerName {
-  pub(crate) name_type: NameType,
-  pub(crate) name: ArrayStringU8<14>,
+  name: ArrayStringU8<30>,
+  name_type: NameType,
 }
 
 impl ServerName {
   /// From arbitrary name
   #[inline]
-  pub const fn from_name(name: ArrayStringU8<14>) -> Self {
+  pub const fn from_name(name: ArrayStringU8<30>) -> Self {
     Self { name_type: NameType::HostName, name }
   }
 
   /// Name
   #[inline]
-  pub const fn name(&self) -> &ArrayStringU8<14> {
+  pub const fn name(&self) -> &ArrayStringU8<30> {
     &self.name
   }
 }

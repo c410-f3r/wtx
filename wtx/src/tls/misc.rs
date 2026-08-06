@@ -501,7 +501,8 @@ fn chunk<'de, L, T>(
 where
   L: Decode<'de, De> + Into<usize>,
 {
-  let len: L = Decode::<'_, De>::decode(dw)?;
+  let len: L = Decode::<'_, De>::decode(dw)
+    .map_err(|_err| crate::Error::TlsErrorReply(err, AlertDescription::DecodeError))?;
   let Some((before, after)) = dw.bytes().split_at_checked(len.into()) else {
     return Err(err.into());
   };

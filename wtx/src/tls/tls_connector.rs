@@ -540,7 +540,9 @@ where
         end_entity.certificate_bytes(),
         Asn1DecodeWrapperAux::default(),
       );
-      let cert = crate::x509::Certificate::decode(&mut dw)?;
+      let cert = crate::x509::Certificate::decode(&mut dw).map_err(|_err| {
+        crate::Error::TlsErrorReply(TlsError::InvalidX509, AlertDescription::DecodeError)
+      })?;
       mrsri.certificate_pky = PublicKeyTy::try_from(&cert)?;
       let filled_ptr = filled.as_ptr().addr();
       let certificate_bytes_ptr = end_entity.certificate_bytes().as_ptr().addr();
@@ -551,6 +553,11 @@ where
       let sig = dw.decode_aux.tbs_cert(end_entity.certificate_bytes()).unwrap_or_default();
       CvEndEntity::from_certificate(cert, sig)?
     };
+    if let Some(ku) = &cv_end_entity.key_usage
+      && !ku.digital_signature()
+    {
+      return Err(TlsError::MissingDigitalSignatureInKeyUsage.into());
+    }
     if hash_leaf_cert {
       SignatureTy::try_from(&cv_end_entity.signature_algorithm)?
         .hash_ty()
@@ -644,11 +651,13 @@ where
     } else if config.max_fragment_length().is_some() {
       return Err(TlsError::InvalidNegotiatedMaxFragmentLength.into());
     }
-    if config.server_name().is_none() && ee.server_name().is_some() {
-      return Err(crate::Error::TlsErrorReply(
-        TlsError::InvalidNegotiatedServerName,
-        AlertDescription::UnsupportedExtension,
-      ));
+    if let Some(_server) = ee.server_name() {
+      let Some(_client) = config.server_name() else {
+        return Err(crate::Error::TlsErrorReply(
+          TlsError::InvalidNegotiatedServerName,
+          AlertDescription::UnsupportedExtension,
+        ));
+      };
     }
     Ok(())
   }

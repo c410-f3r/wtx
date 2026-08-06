@@ -17,7 +17,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
   #[inline]
-  fn send_bytes_recv<A, DRSR>(
+  fn send_req_recv_res_bytes<A, DRSR>(
     &mut self,
     bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -35,7 +35,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
   #[inline]
-  fn send_pkg_recv<A, DRSR, P>(
+  fn send_req_recv_res_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -50,10 +50,10 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
     }
   }
 
-  /// Internally calls [`Self::send_pkg_recv`] and then tries to decode the defined response specified
+  /// Internally calls [`Self::send_req_recv_res_pkg`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn send_pkg_recv_decode_contained<'de, A, DRSR, P>(
+  fn send_req_recv_res_pkg_decoded<'de, A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &'de mut PkgsAux<A, DRSR, TP>,
@@ -63,7 +63,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
-      self.send_pkg_recv(pkg, pkgs_aux).await?;
+      self.send_req_recv_res_pkg(pkg, pkgs_aux).await?;
       Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(
         &pkgs_aux.bytes_buffer,
         &mut pkgs_aux.drsr,
