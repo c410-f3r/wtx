@@ -64,7 +64,7 @@ where
     msg_data: &mut MD,
     rng: &mut RNG,
     store: &mut S,
-  ) -> Result<(), E>
+  ) -> Result<ArrayStringU8<32>, E>
   where
     CS: Serialize,
     RNG: CryptoRng,
@@ -123,11 +123,7 @@ where
     ));
     cookie_def.value.clear();
     headers_rslt?;
-    msg_data.lease_mut().headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::XCsrfToken.into(),
-      [local_state.session_csrf.as_str()],
-    ))?;
-    Ok(())
+    Ok(local_state.session_csrf)
   }
 }
 

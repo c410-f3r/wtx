@@ -516,7 +516,7 @@ where
 fn manage_nst<const IS_CLIENT: bool>(
   hs_data: &[u8],
   new_session_ticket: &mut Option<NewSessionTicket<crate::collections::ShortBoxSlice<u16, u8>>>,
-) -> Result<(), crate::Error> {
+) -> crate::Result<()> {
   if !IS_CLIENT {
     return Err(UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD);
   }

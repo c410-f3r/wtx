@@ -7,7 +7,7 @@ use crate::{
   net::StreamWriter,
   rng::Rng,
   web_socket::{
-    Frame, FrameMut, misc::has_masked_frame, unmask::unmask,
+    Frame, FrameMut, mask_op::mask_op, misc::has_masked_frame,
     web_socket_compression::WebSocketCompression,
   },
 };
@@ -24,7 +24,7 @@ pub(crate) fn mask_frame<P, R, const IS_CLIENT: bool>(
   if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
     let mask: [u8; 4] = rng.u8_4();
     frame.set_mask(mask);
-    unmask(frame.payload_mut().lease_mut(), mask);
+    mask_op(frame.payload_mut().lease_mut(), mask);
   }
 }
 

@@ -25,6 +25,7 @@ mod ppm;
 #[cfg(feature = "secret")]
 mod secret;
 mod sensitive_bytes;
+mod simd_slice;
 mod try_arithmetic;
 mod tuple_impls;
 mod usize;
@@ -50,6 +51,7 @@ pub use ppm::Ppm;
 #[cfg(feature = "secret")]
 pub use secret::{Secret, SecretContext, SecretPeek};
 pub use sensitive_bytes::SensitiveBytes;
+pub use simd_slice::{simd_bytes, simd_bytes_mut};
 pub use try_arithmetic::*;
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};

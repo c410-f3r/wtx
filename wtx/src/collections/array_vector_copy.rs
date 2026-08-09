@@ -217,6 +217,12 @@ where
     unsafe { self.0.set_len(new_len) }
   }
 
+  #[doc = swap_remove_doc!("ArrayVectorUsize::<_, 16>")]
+  #[inline]
+  pub fn swap_remove(&mut self, index: u8) -> Option<T> {
+    <[T] as LinearStorageSlice>::swap_remove(&mut self.0, index)
+  }
+
   #[doc = truncate_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "[1]")]
   #[inline]
   pub fn truncate(&mut self, new_len: u8) {

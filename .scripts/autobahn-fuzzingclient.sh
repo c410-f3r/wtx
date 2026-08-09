@@ -17,7 +17,7 @@ podman run \
 	--name fuzzingclient \
 	--network host \
 	--rm \
-	crossbario/autobahn-testsuite:25.10.1 wstest -m fuzzingclient -s fuzzingclient.json
+	docker.io/crossbario/autobahn-testsuite:25.10.1 wstest -m fuzzingclient -s fuzzingclient.json
 kill -9 $cargo_pid
 
 if [ $(grep -ci "failed" .scripts/autobahn/reports/fuzzingclient/index.json) -gt 0 ]

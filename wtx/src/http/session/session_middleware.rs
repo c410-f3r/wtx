@@ -1,5 +1,5 @@
 use crate::{
-  calendar::Instant,
+  calendar::{DateTime, Instant, Utc},
   collections::{ArrayVectorU8, Vector},
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
@@ -40,37 +40,6 @@ where
   }
 }
 
-impl<CS, E, RM> SessionMiddleware<CS, E, RM>
-where
-  E: From<crate::Error>,
-  RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
-  RM::Resource: SessionStore<CS, E>,
-{
-  #[inline]
-  async fn delete_session_cookie<D>(
-    &self,
-    data: &mut D,
-    req: &mut Request<MsgBufferString>,
-  ) -> Result<(), E>
-  where
-    D: LeaseMut<Option<SessionState<CS>>>,
-  {
-    let _rslt = self
-      .session_manager
-      .inner
-      .1
-      .lock()
-      .await
-      .delete_session_cookie(
-        &mut req.msg_data,
-        data.lease_mut(),
-        &mut ***self.session_store.get_with_unit().await?,
-      )
-      .await;
-    Ok(())
-  }
-}
-
 impl<D, CS, E, RM> Middleware<D, E> for SessionMiddleware<CS, E, RM>
 where
   D: LeaseMut<Option<SessionState<CS>>>,
@@ -96,10 +65,10 @@ where
     req: &mut Request<MsgBufferString>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     if let Some(session_state) = data.lease() {
-      if let Some(elem) = &session_state.expires_at
-        && *elem < Instant::now_date_time()?.trunc_to_us()
-      {
-        self.delete_session_cookie(data, req).await?;
+      _trace!(target: "wtx_session_middleware", "Connection already has a session");
+      if check_expiration(&session_state.expires_at)? {
+        _trace!(target: "wtx_session_middleware", "Connection session is expired");
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));
@@ -128,53 +97,61 @@ where
         let mut session_guard = self.session_manager.inner.1.lock().await;
         let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        // For some reason a deleted cookie in the frontend only has its contents erased but the cookie still exists.
-        if name.is_empty() || value.is_empty() {
-          continue;
-        }
-        let decrypt_rslt =
-          session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new().into(), |sp| {
-            Aes128GcmGlobal::decrypt_base64_to_buffer(
-              name.as_bytes(),
-              &mut cookie_def.value,
-              value.as_bytes(),
-              sp.data().try_into()?,
-            )
-          });
+        let buffer = ArrayVectorU8::<_, { 16 + 28 }>::new();
+        let decrypt_rslt = session_secret.peek(&mut buffer.into(), |sp| {
+          Aes128GcmGlobal::decrypt_base64_to_buffer(
+            name.as_bytes(),
+            &mut cookie_def.value,
+            value.as_bytes(),
+            sp.data().try_into()?,
+          )
+        });
         req.msg_data.body.truncate(idx);
         let value_json = decrypt_rslt??;
         let json_rslt = serde_json_deserialize_from_slice(value_json);
         cookie_def.value.clear();
         json_rslt?
       };
-      let ss_db_opt =
-        self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?;
-      let Some(ss_db) = ss_db_opt else {
+      _trace!(target: "wtx_session_middleware", "A session has been found in headers");
+      let Some(ss_db) =
+        self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?
+      else {
         has_stored_session = false;
         break;
       };
       if ss_db.custom_state != ss_des.custom_state {
+        _trace!(target: "wtx_session_middleware", "Connection session does not match database ssion");
         self.session_store.get_with_unit().await?.lease_mut().delete(&ss_des.session_key).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
       *data.lease_mut() = Some(ss_des);
     }
+    // TODO(stable): Polonius
     if !has_stored_session {
+      _trace!(target: "wtx_session_middleware", "Session found in headers does not exist in database");
       req.msg_data.clear();
-      self.delete_session_cookie(data, req).await?;
+      delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
-    if let Some(local) = data.lease_mut() {
-      if req.method.is_mutable() && Some(local.session_csrf.as_str()) != x_csrf_token_value {
-        let session_key = &local.session_key;
-        let _rslt = self.session_store.get_with_unit().await?.lease_mut().delete(session_key).await;
+    if let Some(elem) = data.lease_mut() {
+      if check_expiration(&elem.expires_at)? {
+        _trace!(target: "wtx_session_middleware", "Session found in headers is expired");
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
+        return Err(crate::Error::from(SessionError::ExpiredSession).into());
+      }
+      if req.method.is_mutable() && Some(elem.session_csrf.as_str()) != x_csrf_token_value {
+        _trace!(target: "wtx_session_middleware", "Session found in headers does not contain a valid CSRF");
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
+      _trace!(target: "wtx_session_middleware", "Session found in headers has been successfully validated");
     } else {
       let path = req.msg_data.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
+        _trace!(target: "wtx_session_middleware", "Session was not found in headers and path is forbidden");
         return Err(crate::Error::from(SessionError::RequiredSession).into());
       }
+      _trace!(target: "wtx_session_middleware", "Session was not found in headers but an allowed path succeeded");
     }
     Ok(ControlFlow::Continue(()))
   }
@@ -188,4 +165,42 @@ where
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))
   }
+}
+
+#[inline]
+fn check_expiration(expires_at: &Option<DateTime<Utc>>) -> crate::Result<bool> {
+  if let Some(elem) = expires_at
+    && *elem < Instant::now_date_time()?.trunc_to_us()
+  {
+    Ok(true)
+  } else {
+    Ok(false)
+  }
+}
+
+#[inline]
+async fn delete_session_cookie<CS, D, E, RM>(
+  data: &mut D,
+  req: &mut Request<MsgBufferString>,
+  session_manager: &SessionManager<CS, E>,
+  session_store: &SimplePool<RM>,
+) -> Result<(), E>
+where
+  D: LeaseMut<Option<SessionState<CS>>>,
+  E: From<crate::Error>,
+  RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
+  RM::Resource: SessionStore<CS, E>,
+{
+  let _rslt = session_manager
+    .inner
+    .1
+    .lock()
+    .await
+    .delete_session_cookie(
+      &mut req.msg_data,
+      data.lease_mut(),
+      &mut ***session_store.get_with_unit().await?,
+    )
+    .await;
+  Ok(())
 }

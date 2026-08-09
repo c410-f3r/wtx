@@ -51,3 +51,10 @@ impl Encode<De> for SignatureAlgorithmsCert {
     Ok(())
   }
 }
+
+impl Default for SignatureAlgorithmsCert {
+  #[inline]
+  fn default() -> Self {
+    Self::new(ArrayVectorCopy::from_array(SignatureScheme::PRIORITY))
+  }
+}

@@ -3,13 +3,14 @@ use crate::{
   tls::{
     TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
   },
-  x509::{PublicKeyTy, SignatureTy},
+  x509::{KeyTy, SignatureTy},
 };
 
 /// Signature Scheme
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SignatureScheme {
   /// `EcdsaSecp256r1Sha256`
+  #[default]
   EcdsaSecp256r1Sha256 = 0x0403,
   /// `EcdsaSecp384r1Sha384`
   EcdsaSecp384r1Sha384 = 0x0503,
@@ -18,7 +19,6 @@ pub enum SignatureScheme {
   /// `RsaPssRsaeSha384`
   RsaPssRsaeSha384 = 0x0805,
   /// `Ed25519`
-  #[default]
   Ed25519 = 0x0807,
   /// `RsaPssPssSha256`
   RsaPssPssSha256 = 0x0809,
@@ -41,14 +41,14 @@ impl SignatureScheme {
   /// [`Self::RsaPssRsaeSha256`] but a server only serves [`SignatureTy::RsaPssSha256`], that would
   /// be a mismatch.
   #[inline]
-  pub(crate) fn cert_pkt(self) -> PublicKeyTy {
+  pub(crate) fn cert_kt(self) -> KeyTy {
     match self {
-      Self::EcdsaSecp256r1Sha256 => PublicKeyTy::EcdsaP256,
-      Self::EcdsaSecp384r1Sha384 => PublicKeyTy::EcdsaP384,
-      Self::Ed25519 => PublicKeyTy::Ed25519,
-      Self::RsaPssPssSha256 => PublicKeyTy::RsaPssSha256,
-      Self::RsaPssPssSha384 => PublicKeyTy::RsaPssSha384,
-      Self::RsaPssRsaeSha256 | Self::RsaPssRsaeSha384 => PublicKeyTy::RsaPkcs1,
+      Self::EcdsaSecp256r1Sha256 => KeyTy::EcdsaP256,
+      Self::EcdsaSecp384r1Sha384 => KeyTy::EcdsaP384,
+      Self::Ed25519 => KeyTy::Ed25519,
+      Self::RsaPssPssSha256 => KeyTy::RsaPssSha256,
+      Self::RsaPssPssSha384 => KeyTy::RsaPssSha384,
+      Self::RsaPssRsaeSha256 | Self::RsaPssRsaeSha384 => KeyTy::RsaPkcs1,
     }
   }
 

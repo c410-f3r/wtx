@@ -60,10 +60,10 @@ pub use wtx_macros::*;
 pub(crate) const _AFTER_CLOSE_TIMEOUT_MS: u64 = 50;
 pub(crate) const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 pub(crate) const _SIMD_LEN: usize = _simd! {
-  4 => 4,
-  16 => 16,
-  32 => 32,
-  64 => 64
+  4 => { 4 },
+  16 => { 16 },
+  32 => { 32 },
+  64 => { 64 }
 };
 
 /// Shortcut of [`core::result::Result<T, Error>`].

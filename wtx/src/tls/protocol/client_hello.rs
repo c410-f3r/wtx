@@ -3,14 +3,14 @@
 use crate::{
   calendar::DateTime,
   codec::{Decode, Encode},
-  collections::{ArrayVectorCopy, ArrayVectorU8, SingleTypeStorage, Vector},
+  collections::{ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU8, SingleTypeStorage},
   misc::{
     Lease,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
   tls::{
-    AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, TlsConfig, TlsError,
+    AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, PublicKeys, TlsConfig, TlsError,
     de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
@@ -149,11 +149,12 @@ impl<'de> Decode<'de, De>
         max_fragment_length: extensions.max_fragment_length,
         max_fragment_length_send: None,
         supported_groups,
-        public_key: Vector::new(),
+        public_keys: PublicKeys::default(),
         server_name: extensions.server_name,
         signature_algorithms,
         signature_algorithms_cert: extensions.signature_algorithms_cert,
-        trust_anchors: Vector::new(),
+        trust_anchors: ShortBoxSliceU8::default(),
+        unique_signature_algorithms: false,
       },
     })
   }
@@ -175,7 +176,7 @@ where
         .to_be_bytes()
         .as_slice(),
       {
-        let mut cipher_suites = ArrayVectorCopy::<_, { 2 * CipherSuite::PRIORITY.len() }>::new();
+        let mut cipher_suites = ArrayVectorCopy::<_, { 2 * CipherSuite::len() }>::new();
         for cipher_suite in &self.tls_config.lease().inner.cipher_suites {
           cipher_suites.extend_from_copyable_slice(&u16::from(*cipher_suite).to_be_bytes())?;
         }

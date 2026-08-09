@@ -4,7 +4,7 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  collections::Vector,
+  collections::{ShortBoxSliceU16, Vector},
   misc::SecretContext,
   rng::{ChaCha20, CryptoRng, CryptoSeedableRng},
   tls::{SignatureScheme, TlsConfig, TlsCtx, TlsCtxSk, TlsMode},
@@ -20,13 +20,13 @@ async fn main() -> wtx::Result<()> {
   // Unencrypted connection
   let _plaintext_ctx = TlsConfig::plaintext();
   // Secure connection with a plaintext secret key
-  let _sk = TlsConfig::from_keys_der([], &mut rng, Vector::new())?;
+  let _sk = TlsConfig::from_keys_der([], &mut rng, ShortBoxSliceU16::default())?;
   // Encrypted connection that does not verify certificates
   let _unverified_ctx = TlsConfig::unverified();
 
   // TLS behavior is up to the implementation
   let mut _top_secret_super_secure_signer = TlsConfig::new(TopSecretSuperSecureSigner)?;
-  _top_secret_super_secure_signer.set_public_keys_pem(&[])?;
+  _top_secret_super_secure_signer.set_public_keys_pem([])?;
   Ok(())
 }
 

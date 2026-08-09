@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Applies to signatures in `CertificateVerify` messages.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SignatureAlgorithms {
   /// List of [`SignatureScheme`].
   pub signature_schemes: ArrayVectorCopy<SignatureScheme, { SignatureScheme::len() }>,
@@ -52,5 +52,12 @@ impl Encode<De> for SignatureAlgorithms {
       },
     )?;
     Ok(())
+  }
+}
+
+impl Default for SignatureAlgorithms {
+  #[inline]
+  fn default() -> Self {
+    Self::new(ArrayVectorCopy::from_array(SignatureScheme::PRIORITY))
   }
 }

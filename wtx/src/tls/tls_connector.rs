@@ -26,7 +26,7 @@ use crate::{
     tls_encode_wrapper::TlsEncodeWrapper,
     tls_hash::{TlsDigest, TlsHash},
   },
-  x509::{CvEndEntity, CvIntermediate, PublicKeyTy, ServerName, SignatureTy, SubjectPublicKeyInfo},
+  x509::{CvEndEntity, CvIntermediate, KeyTy, ServerName, SignatureTy, SubjectPublicKeyInfo},
 };
 use core::ops::Range;
 
@@ -51,7 +51,7 @@ pub enum ServerRecordsState<T> {
 /// Required by [`TlsConnector::manage_remaining_server_records`].
 #[derive(Debug)]
 pub struct ManageRemainingServerRecordsInput {
-  certificate_pky: PublicKeyTy,
+  certificate_pky: KeyTy,
   client_cert_requested: bool,
   has_certificate_verify: bool,
   has_certificate: bool,
@@ -358,7 +358,7 @@ where
     self.buffer.reader_buffer.clear_if_exhausted();
     *self.buffer.reader_buffer.forbid_clear_mut() = true;
     Ok(ServerRecordsState::Terminated(ManageRemainingServerRecordsInput {
-      certificate_pky: PublicKeyTy::default(),
+      certificate_pky: KeyTy::default(),
       client_cert_requested: false,
       has_certificate: false,
       has_certificate_verify: false,
@@ -543,7 +543,7 @@ where
       let cert = crate::x509::Certificate::decode(&mut dw).map_err(|_err| {
         crate::Error::TlsErrorReply(TlsError::InvalidX509, AlertDescription::DecodeError)
       })?;
-      mrsri.certificate_pky = PublicKeyTy::try_from(&cert)?;
+      mrsri.certificate_pky = KeyTy::try_from(&cert)?;
       let filled_ptr = filled.as_ptr().addr();
       let certificate_bytes_ptr = end_entity.certificate_bytes().as_ptr().addr();
       let offset = certificate_bytes_ptr.wrapping_sub(filled_ptr);
@@ -613,7 +613,7 @@ where
       filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
       Asn1DecodeWrapperAux::default(),
     ))?;
-    if mrsri.certificate_pky != certificate_verify.algorithm().cert_pkt() {
+    if mrsri.certificate_pky != certificate_verify.algorithm().cert_kt() {
       return Err(TlsError::MismatchedCertificatePkAndSignature.into());
     }
     if certificate_verify

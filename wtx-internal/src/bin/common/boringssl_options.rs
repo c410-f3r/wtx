@@ -10,21 +10,23 @@ const BOGO_NACK: i32 = 89;
 
 #[derive(Debug)]
 pub struct Options {
-  pub cert_pem: String,
+  pub certs_pem: Vector<String>,
   pub check_close_notify: bool,
   pub expect_curve_id: Option<NamedGroup>,
   pub expect_handshake_kind: Option<Vector<HandshakePath>>,
   pub expect_quic_transport_params: Vector<u8>,
   pub expect_selected_credential: Option<isize>,
-  pub export_keying_material: usize,
   pub export_keying_material_context_used: bool,
   pub export_keying_material_context: String,
   pub export_keying_material_label: String,
+  pub export_keying_material: usize,
   pub export_traffic_secrets: bool,
   pub groups: Option<Vector<NamedGroup>>,
+  pub has_default_cert: bool,             // Not a cfg
+  pub has_seen_new_x509_credential: bool, // Not a cfg
   pub host_name: String,
   pub is_client: bool,
-  pub key_pem: String,
+  pub keys_pem: Vector<String>,
   pub max_fragment: Option<MaxFragmentLength>,
   pub must_match_issuer: bool,
   pub offer_no_client_cas: bool,
@@ -42,7 +44,7 @@ pub struct Options {
   pub server_supported_group_hint: Option<NamedGroup>,
   pub shim_id: u64,
   pub shut_down_after_handshake: bool,
-  pub signing_prefs: Option<SignatureScheme>,
+  pub signing_prefs: Vector<SignatureScheme>,
   pub trusted_cert_file: String,
   pub use_sni: bool,
   pub verify_peer: bool,
@@ -53,7 +55,7 @@ pub struct Options {
 impl Default for Options {
   fn default() -> Self {
     Self {
-      cert_pem: String::new(),
+      certs_pem: Vector::new(),
       check_close_notify: false,
       expect_curve_id: None,
       expect_handshake_kind: None,
@@ -65,9 +67,11 @@ impl Default for Options {
       export_keying_material_label: String::new(),
       export_traffic_secrets: false,
       groups: None,
+      has_default_cert: false,
+      has_seen_new_x509_credential: false,
       host_name: "example.com".into(),
       is_client: true,
-      key_pem: String::new(),
+      keys_pem: Vector::new(),
       max_fragment: None,
       must_match_issuer: false,
       offer_no_client_cas: false,
@@ -85,7 +89,7 @@ impl Default for Options {
       server_supported_group_hint: None,
       shim_id: 0,
       shut_down_after_handshake: false,
-      signing_prefs: None,
+      signing_prefs: Vector::new(),
       trusted_cert_file: String::new(),
       use_sni: false,
       verify_peer: false,
@@ -135,6 +139,17 @@ impl<A> Drop for OptionsIter<'_, A> {
   fn drop(&mut self) {
     if !self.options.is_client && verify_cert(self.options) {
       process::exit(BOGO_NACK);
+    }
+    if self.options.has_default_cert {
+      if self.options.certs_pem.len() > 1 {
+        self.options.certs_pem.rotate_left(1);
+      }
+      if self.options.keys_pem.len() > 1 {
+        self.options.keys_pem.rotate_left(1);
+      }
+      if self.options.signing_prefs.len() > 1 {
+        self.options.signing_prefs.rotate_left(1);
+      }
     }
   }
 }
@@ -197,7 +212,10 @@ fn check_implemented_arguments(
       options.protocols = split_protocols(&args.next().unwrap());
     }
     "-cert-file" => {
-      options.cert_pem = cert_pem_from_pem_file(&args.next().unwrap());
+      if !options.has_seen_new_x509_credential {
+        options.has_default_cert = true;
+      }
+      options.certs_pem.push(cert_pem_from_pem_file(&args.next().unwrap())).unwrap();
     }
     "-check-close-notify" => {
       options.check_close_notify = true;
@@ -244,7 +262,7 @@ fn check_implemented_arguments(
       options.use_sni = true;
     }
     "-key-file" => {
-      options.key_pem = pkc8_pem_from_pem_file(&args.next().unwrap());
+      options.keys_pem.push(pkc8_pem_from_pem_file(&args.next().unwrap())).unwrap();
     }
     "-key-update" => {
       options.send_key_update = true;
@@ -269,7 +287,7 @@ fn check_implemented_arguments(
       options.must_match_issuer = true;
     }
     "-new-x509-credential" => {
-      // Just signals that a new pk/sk pair is coming
+      options.has_seen_new_x509_credential = true;
     }
     "-on-initial-expect-curve-id" => {
       options.on_initial_expect_curve_id =
@@ -321,7 +339,7 @@ fn check_implemented_arguments(
     }
     "-signing-prefs" => {
       let num: u16 = args.next().unwrap().parse().unwrap();
-      options.signing_prefs = Some(SignatureScheme::try_from(num).unwrap());
+      options.signing_prefs.push(SignatureScheme::try_from(num).unwrap()).unwrap();
     }
     "-tls13-variant" => {
       let variant = args.next().unwrap().parse::<u16>().unwrap();

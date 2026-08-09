@@ -20,9 +20,9 @@ use crate::{
     CloseCode, Frame, FrameMut, MAX_CONTROL_PAYLOAD_LEN, OpCode, WebSocketError,
     WebSocketPayloadOrigin,
     is_in_continuation_frame::IsInContinuationFrame,
+    mask_op::mask_op,
     misc::{manage_read_close_frame, write_control_frame, write_control_frame_cb},
     read_frame_info::ReadFrameInfo,
-    unmask::unmask,
     web_socket_bridge::WebSocketBridge,
     web_socket_compression::WebSocketDecompression,
   },
@@ -307,7 +307,7 @@ pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
   no_masking: bool,
 ) -> crate::Result<()> {
   if !IS_CLIENT && !no_masking {
-    unmask(network_buffer, mask.ok_or(WebSocketError::MissingFrameMask)?);
+    mask_op(network_buffer, mask.ok_or(WebSocketError::MissingFrameMask)?);
   }
   Ok(())
 }

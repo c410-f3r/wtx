@@ -42,7 +42,7 @@ macro_rules! create_fir_hook_item_values {
             let tt = call_idents_cb(pat_ident.ident.to_string().as_str())?;
             call_idents.push(tt);
           }
-          let (params, where_predicates) = parts_from_generics(&&item_fn.sig.generics);
+          let (params, where_predicates) = parts_from_generics(&item_fn.sig.generics);
           Some((call_idents, item_fn, params, where_predicates))
         };
         let ($fn_call_idents, $item, $params, $where_predicates) =

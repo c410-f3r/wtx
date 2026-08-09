@@ -24,7 +24,7 @@ Converts a TLS stream into an unencrypted stream, in other words, `PlaintextCtx`
 
 This feature is useful for local tests and also for applications running behind a service mesh that automatically handles mTLS connections. However, `PlaintextCtx` can be \*\*\***DANGEROUS**\*\*\* in a misconfiguration or if you don't know what are you doing, as such, be careful! 
 
-### Secret key context
+### Encrypted secret key context
 
 In an ideal world all secret keys should reside in specialized hardware that, when requested, output signatures. The reality however is that such a feature isn't very straightforward to set-up or widely available in cloud providers.
 

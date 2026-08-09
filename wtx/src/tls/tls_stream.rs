@@ -5,8 +5,8 @@ use crate::{
   net::{ConnectionState, Stream, StreamCommon, StreamReader, StreamWriter},
   sync::{Arc, AtomicU8, AtomicWaker},
   tls::{
-    AlertDescription, AlertLevel, TlsBuffer, TlsCtx, TlsError, TlsStreamBridge, TlsStreamReader,
-    TlsStreamWriter,
+    AlertDescription, AlertLevel, MAX_KEY_UPDATES, MAX_WARNING_ALERTS, TlsBuffer, TlsCtx, TlsError,
+    TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
     misc::{manage_err, read_after_handshake_data, write_payloads},
     protocol::{
@@ -341,7 +341,7 @@ where
     }
     (AlertLevel::Warning, AlertDescription::UserCanceled) => {
       *aux.2 = aux.2.wrapping_add(1);
-      if *aux.2 >= 5 {
+      if usize::from(*aux.2) >= MAX_WARNING_ALERTS {
         return Err(crate::Error::TlsErrorReply(
           TlsError::TooManyWarningAlerts,
           AlertDescription::DecodeError,
@@ -367,7 +367,7 @@ where
   S: Stream,
 {
   *aux.3 = aux.3.wrapping_add(1);
-  if *aux.3 >= 5 {
+  if usize::from(*aux.3) >= MAX_KEY_UPDATES {
     return Err(crate::Error::TlsErrorReply(
       TlsError::TooManyKeyUpdates,
       AlertDescription::DecodeError,

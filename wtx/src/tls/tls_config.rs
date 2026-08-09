@@ -1,21 +1,19 @@
 use crate::{
-  asn1::Asn1DecodeWrapperAux,
   calendar::{DateTime, Instant, Utc},
-  codec::{Decode as _, DecodeWrapper, Pem},
-  collections::{ArrayVectorCopy, ShortBoxSliceU16, SingleTypeStorage, Vector},
+  collections::{ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, Vector},
   misc::{Lease, LeaseMut},
   rng::CryptoRng,
   tls::{
-    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, PlaintextCtx, ServerNameList,
-    SignatureScheme, TlsCtxSkInput, TlsCtxSkLoader, TrustedCtx, UnverifiedCtx,
+    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, PlaintextCtx, PublicKeys, ServerNameList,
+    TlsCtxSkInput, TlsCtxSkLoader, TrustedCtx, UnverifiedCtx,
     protocol::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
   },
-  x509::{Certificate, CvPolicy, CvTrustAnchor, PublicKeyTy},
+  x509::{Certificate, CvPolicy, CvTrustAnchor},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, mem};
 
 /// TLS Configuration
 ///
@@ -44,7 +42,7 @@ impl TlsConfig<TrustedCtx> {
       trust_anchors.push(CvTrustAnchor::_from_raw(*elem)?)?;
     }
     let mut this = Self::new(TrustedCtx::new())?;
-    this.inner.trust_anchors = trust_anchors;
+    this.inner.trust_anchors = trust_anchors.try_into()?;
     Ok(this)
   }
 
@@ -73,41 +71,41 @@ impl<TCX> TlsConfig<TCX>
 where
   TCX: TlsCtxSkLoader,
 {
-  /// New instance from full X.509 public and secret keys in DER format. Mostly used by servers.
+  /// New instance from a public key chain and a secret key in DER format. Mostly used by servers.
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_keys_der<'pk, 'sk, RNG, SK>(
-    public_keys: impl IntoIterator<Item = &'pk [u8]>,
+    public_key: impl IntoIterator<Item = &'pk [u8]>,
     rng: &mut RNG,
-    secret_keys: SK,
+    secret_key: SK,
   ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
     SK: TlsCtxSkInput<TlsCtxSk = TCX>,
     TCX: TlsCtxSkLoader<SkInputDer<'sk> = SK>,
   {
-    let mut this = Self::new(TCX::from_der(secret_keys, rng)?)?;
-    this.set_public_keys_der(public_keys)?;
+    let mut this = Self::new(TCX::from_ders([secret_key], rng)?)?;
+    this.set_public_keys_der([public_key])?;
     Ok(this)
   }
 
-  /// New instance from full X.509 public and secret keys in PEM format. Mostly used by servers.
+  /// New instance from a public key chain and a secret key in PEM format. Mostly used by servers.
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
   pub fn from_keys_pem<'sk, RNG, SK>(
-    public_keys: &[u8],
+    public_key: &[u8],
     rng: &mut RNG,
-    secret_keys: SK,
+    secret_key: SK,
   ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
     SK: TlsCtxSkInput<TlsCtxSk = TCX>,
     TCX: TlsCtxSkLoader<SkInputPem<'sk> = SK>,
   {
-    let mut this = Self::new(TCX::from_pem(secret_keys, rng)?)?;
-    this.set_public_keys_pem(public_keys)?;
+    let mut this = Self::new(TCX::from_pems([secret_key], rng)?)?;
+    this.set_public_keys_pem([public_key])?;
     Ok(this)
   }
 }
@@ -213,6 +211,12 @@ impl<TCX> TlsConfig<TCX> {
     &mut self.inner.max_fragment_length_send
   }
 
+  /// See [`PublicKeys`].
+  #[inline]
+  pub const fn public_keys(&self) -> &PublicKeys {
+    &self.inner.public_keys
+  }
+
   /// See [`ServerNameList`].
   #[inline]
   pub fn server_name(&self) -> &Option<ServerNameList> {
@@ -236,33 +240,43 @@ impl<TCX> TlsConfig<TCX> {
         cv_policy: self.inner.cv_policy,
         max_fragment_length: self.inner.max_fragment_length,
         max_fragment_length_send: self.inner.max_fragment_length_send,
-        public_key: self.inner.public_key,
+        public_keys: self.inner.public_keys,
         server_name: self.inner.server_name,
         signature_algorithms: self.inner.signature_algorithms,
         signature_algorithms_cert: self.inner.signature_algorithms_cert,
         supported_groups: self.inner.supported_groups,
         trust_anchors: self.inner.trust_anchors,
+        unique_signature_algorithms: self.inner.unique_signature_algorithms,
       },
     }
   }
 
   /// Converts X.509 certificates in DER format into public keys.
   #[inline]
-  pub fn set_public_keys_der<'bytes>(
-    &mut self,
-    public_keys: impl IntoIterator<Item = &'bytes [u8]>,
-  ) -> crate::Result<()> {
-    self.inner.public_key.clear();
-    for pk in public_keys {
-      self.inner.public_key.push(public_key_from_der(pk)?)?;
+  pub fn set_public_keys_der<'pkc, PKC, PKS>(&mut self, public_keys: PKS) -> crate::Result<()>
+  where
+    PKC: IntoIterator<Item = &'pkc [u8]>,
+    PKS: IntoIterator<Item = PKC>,
+  {
+    self.inner.public_keys.clear();
+    for certs in public_keys {
+      self.inner.public_keys.push_public_key_der(certs)?;
     }
     Ok(())
   }
 
   /// Converts X.509 certificates in PEM format into public keys.
   #[inline]
-  pub fn set_public_keys_pem(&mut self, public_keys: &[u8]) -> crate::Result<()> {
-    self.inner.public_key = public_key_from_pem(&mut Vector::new(), public_keys)?;
+  pub fn set_public_keys_pem<'pems>(
+    &mut self,
+    pems: impl IntoIterator<Item = &'pems [u8]>,
+  ) -> crate::Result<()> {
+    let mut buffer = Vector::new();
+    self.inner.public_keys.clear();
+    for pem in pems {
+      self.inner.public_keys.push_public_key_pem(&mut buffer, pem)?;
+      buffer.clear();
+    }
     Ok(())
   }
 
@@ -273,15 +287,20 @@ impl<TCX> TlsConfig<TCX> {
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
   ) -> crate::Result<()> {
     let mut buffer = Vector::new();
-    self.inner.trust_anchors.clear();
+    let mut local_trust_anchors: Vector<_> = mem::take(&mut self.inner.trust_anchors).into();
+    local_trust_anchors.clear();
     for trust_anchor in trust_anchors {
-      let certificate = Certificate::<&[u8]>::from_pem(&mut buffer, trust_anchor)?.0;
-      self.inner.trust_anchors.push(CvTrustAnchor::from_certificate_ref(&certificate)?)?;
+      buffer.clear();
+      let cert = Certificate::<&[u8]>::from_pem(&mut buffer, trust_anchor)?.0;
+      local_trust_anchors.push(CvTrustAnchor::from_certificate_ref(&cert)?)?;
     }
+    self.inner.trust_anchors = local_trust_anchors.try_into()?;
     Ok(())
   }
 
   /// Every instance of [`TlsConfig`] is already pre-filled with a list of signature algorithms.
+  ///
+  /// The values are filtered in servers according to the provided set of certificates.
   ///
   /// See [`SignatureAlgorithms`].
   #[inline]
@@ -295,7 +314,7 @@ impl<TCX> TlsConfig<TCX> {
     &mut self.inner.signature_algorithms
   }
 
-  /// See [`NamedGroup`].
+  /// See [`SupportedGroups`].
   #[inline]
   pub const fn supported_groups(&self) -> &SupportedGroups {
     &self.inner.supported_groups
@@ -313,10 +332,18 @@ impl<TCX> TlsConfig<TCX> {
     &self.inner.trust_anchors
   }
 
-  /// Mutable version of [`Self::trust_anchors`].
+  /// If signature schemes should be associated to a single certificate.
+  ///
+  /// NO-OP for clients.
   #[inline]
-  pub fn trust_anchors_mut(&mut self) -> &mut Vector<CvTrustAnchor<ShortBoxSliceU16<u8>>> {
-    &mut self.inner.trust_anchors
+  pub const fn unique_signature_algorithms(&self) -> bool {
+    self.inner.unique_signature_algorithms
+  }
+
+  /// Mutable version of [`Self::unique_signature_algorithms`].
+  #[inline]
+  pub const fn unique_signature_algorithms_mut(&mut self) -> &mut bool {
+    &mut self.inner.unique_signature_algorithms
   }
 }
 
@@ -356,12 +383,13 @@ pub(crate) struct TlsConfigInner<B, TCX> {
   pub(crate) cv_policy: CvPolicy<B>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) max_fragment_length_send: Option<MaxFragmentLength>,
-  pub(crate) public_key: Vector<(PublicKeyTy, B)>,
+  pub(crate) public_keys: PublicKeys,
   pub(crate) server_name: Option<ServerNameList>,
   pub(crate) signature_algorithms: SignatureAlgorithms,
   pub(crate) signature_algorithms_cert: Option<SignatureAlgorithmsCert>,
   pub(crate) supported_groups: SupportedGroups,
-  pub(crate) trust_anchors: Vector<CvTrustAnchor<B>>,
+  pub(crate) trust_anchors: ShortBoxSliceU8<CvTrustAnchor<B>>,
+  pub(crate) unique_signature_algorithms: bool,
 }
 
 impl<B, TCX> TlsConfigInner<B, TCX>
@@ -377,45 +405,13 @@ where
       ctx,
       max_fragment_length: None,
       max_fragment_length_send: None,
-      public_key: Vector::new(),
+      public_keys: PublicKeys::default(),
       server_name: None,
-      signature_algorithms: SignatureAlgorithms::new(ArrayVectorCopy::from_array(
-        SignatureScheme::PRIORITY,
-      )),
-      signature_algorithms_cert: Some(SignatureAlgorithmsCert::new(ArrayVectorCopy::from_array(
-        SignatureScheme::PRIORITY,
-      ))),
+      signature_algorithms: SignatureAlgorithms::default(),
+      signature_algorithms_cert: Some(SignatureAlgorithmsCert::default()),
       supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::PRIORITY)),
-      trust_anchors: Vector::new(),
+      trust_anchors: ShortBoxSliceU8::default(),
+      unique_signature_algorithms: false,
     }
   }
-}
-
-fn public_key_from_der<'de, B>(bytes: &'de [u8]) -> crate::Result<(PublicKeyTy, B)>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
-  let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default());
-  let cert = &Certificate::<&[u8]>::decode(&mut dw)?;
-  Ok((cert.try_into()?, bytes.try_into().map_err(Into::into)?))
-}
-
-fn public_key_from_pem<'de, B>(
-  buffer: &'de mut Vector<u8>,
-  bytes: &'de [u8],
-) -> crate::Result<Vector<(PublicKeyTy, B)>>
-where
-  B: Lease<[u8]> + TryFrom<&'de [u8]>,
-  B::Error: Into<crate::Error>,
-{
-  let pem = Pem::<_, 3>::decode(&mut DecodeWrapper::new(bytes, &mut *buffer))?;
-  let mut certs = Vector::new();
-  for (_, range) in pem.data {
-    let cert_bytes = buffer.get(range.clone()).unwrap_or_default();
-    let mut dw = DecodeWrapper::new(cert_bytes, Asn1DecodeWrapperAux::default());
-    let cert = &Certificate::<&[u8]>::decode(&mut dw)?;
-    certs.push((cert.try_into()?, cert_bytes.try_into().map_err(Into::into)?))?;
-  }
-  Ok(certs)
 }

@@ -158,6 +158,8 @@ pub enum TlsError {
   MissingSupportedVersions,
   /// No certificate received
   NoCertificate,
+  /// No leaf certificate in chain
+  NoLeafCertInChain,
   /// Pre Handshake Decoder Error
   PreHandshakeDecError,
   /// Post Handshake Decoder Error
@@ -185,7 +187,7 @@ pub enum TlsError {
   /// Secret mismatch
   SecretMismatch,
   /// The server has a set of suites that the client don't support
-  ServerHasNoCompatibleAlgorithmTy,
+  ServerHasNoCompatibleSignatureScheme,
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleAlgorithmTyForCert,
   /// The server has a set of suites that the client don't support
@@ -206,6 +208,8 @@ pub enum TlsError {
   UnsupportedMtls,
   /// Only TLS 1.2 is supported due to legacy reasons
   UnsupportedRecTlsVersion(ProtocolVersion),
+  /// Unsupported Sign Algorithm
+  UnsupportedSignAlgorithm,
   /// Only TLS 1.3 is supported
   UnsupportedTlsVersion(Option<ProtocolVersion>),
   /// Unknown handshake type
