@@ -30,6 +30,7 @@ mod ktls_bindings;
 mod ktls_stream;
 mod misc;
 mod protocol;
+mod public_keys;
 mod read_record_info;
 #[cfg(test)]
 mod tests;
@@ -71,6 +72,7 @@ pub use protocol::{
   signature_scheme::SignatureScheme,
   supported_groups::SupportedGroups,
 };
+pub use public_keys::{PublicKeyRef, PublicKeys, PublicKeysIter};
 pub use read_record_info::ReadRecordInfo;
 pub use tls_acceptor::{TlsAcceptOutput, TlsAcceptor};
 pub use tls_buffer::TlsBuffer;
@@ -101,8 +103,12 @@ const HELLO_RETRY_REQUEST: [u8; 32] = [
 const IV_LEN: usize = 12;
 const MAX_ALPN_LEN: usize = 4;
 const MAX_CERTIFICATES: usize = 3;
+const MAX_CERTS: usize = 3;
 const MAX_CIPHER_KEY_LEN: usize = 32;
+const MAX_KEYS: usize = 3;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
+const MAX_KEY_UPDATES: usize = 11;
+const MAX_WARNING_ALERTS: usize = 5;
 const RECORD_HEADER_LEN: usize = 5;
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
 const _TARGET: &str = "tls";

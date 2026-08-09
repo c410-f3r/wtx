@@ -245,18 +245,18 @@ macro_rules! _max_frames_mismatches {
 
 macro_rules! _simd {
   (
-    4 => $_4:expr,
-    16 => $_16:expr,
-    32 => $_32:expr,
-    64 => $_64:expr $(,)?
-  ) => {{
+    4 => { $($_4:tt)* },
+    16 => { $($_16:tt)* },
+    32 => { $($_32:tt)* },
+    64 => { $($_64:tt)* } $(,)?
+  ) => {
     cfg_select! {
-      target_feature = "avx512f" => $_64,
-      target_feature = "avx2" => $_32,
-      any(target_feature = "neon", target_feature = "sse2") => $_16,
-      _ => $_4
+      target_feature = "avx512f" => { $($_64)* },
+      target_feature = "avx2" => { $($_32)* },
+      any(target_feature = "neon", target_feature = "sse2") => { $($_16)* },
+      _ => { $($_4)* }
     }
-  }};
+  };
 }
 
 macro_rules! _trace {

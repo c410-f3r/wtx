@@ -132,6 +132,11 @@ impl CipherSuite {
   }
 
   #[inline]
+  pub(crate) const fn len() -> usize {
+    3
+  }
+
+  #[inline]
   pub(crate) fn hmac_from_key(self, key: &[u8]) -> crate::Result<TlsHmac> {
     Ok(match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {

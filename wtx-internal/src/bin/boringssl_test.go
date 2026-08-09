@@ -70,6 +70,8 @@ func TestNames(t *testing.T) {
 	addServerPaddingTests()
 
 	begin := []string{
+		// Raw public key is not supported
+		"ClientCertificateType-", "ServerCertificateType-",
 		// ALPS is not implemented
 		"ExtraClientEncryptedExtension-",
 		// Not implemented
@@ -80,6 +82,10 @@ func TestNames(t *testing.T) {
 		"SignedCertificateTimestampListEmpty",
 		// OCSP is deprecated
 		"UnsolicitedCertificateExtensions-",
+		// mTLS is not supported
+		"CertificateSelection-Client-",
+		// RFC is draft
+		"TrustAnchorGroups-",
 		
 		// Legacy
 		"TLS1-",
@@ -97,6 +103,8 @@ func TestNames(t *testing.T) {
 		"ClientAuth", "UnknownExtensionInCertificateRequest-TLS13", "AlwaysSelectPSKIdentity-TLS13",
 		// CBC is not implemented
 		"CBC",
+		// Delegated credential is not implemented
+		"DelegatedCredential",
 		// DTLS is not implemented
 		"DTLS",
 		// 0-RTT is not supported
@@ -125,6 +133,10 @@ func TestNames(t *testing.T) {
 		"TicketFlags",
 		// RFC is expired
 		"TrustAnchors",
+		// RFC is draft
+		"TrustAnchorIDs",
+		// Certificate authorities is not supported
+		"CheckIssuer",
 
 		// Unrelated
 		"JDK11",
@@ -163,6 +175,8 @@ func TestNames(t *testing.T) {
 		// AFAICT, the only way to differentiate between legacy and actual unknowns is to support
 		// legacy extensions identifiers, which doesn't seem worthwhile.
 		"UnknownExtension-Client-TLS13", "UnknownUnencryptedExtension-Client-TLS13",
+		// Raw public key is not supported
+		"CertificateSelection-Server-CertificateType-Unknown-X509-MatchNone-TLS-TLS13",
 	}
 
 	for _, tc := range testCases {

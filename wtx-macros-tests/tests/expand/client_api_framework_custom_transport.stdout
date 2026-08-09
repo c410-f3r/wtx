@@ -104,7 +104,7 @@ mod pkg {
                 &&self.res)
         }
     }
-    impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
+    impl<__API, __APIPARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         crate::CustomTransportParams> for
         Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
@@ -115,11 +115,11 @@ mod pkg {
         wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
-        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::ApiId>::Api<__APIPARAMS> as
         wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
         wtx::misc::LeaseMut<<super::Nothing as
-        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::client_api_framework::ApiId>::Api<__APIPARAMS>> +
+        wtx::collections::SingleTypeStorage<Item = __APIPARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =
@@ -159,7 +159,7 @@ mod pkg {
             &mut self.params
         }
     }
-    impl<'__is_mut, __API, __API_PARAMS, __DRSR, __TRANSPORT>
+    impl<'__is_mut, __API, __APIPARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         &'__is_mut mut crate::CustomTransportParams> for
         Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
@@ -170,11 +170,11 @@ mod pkg {
         wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
-        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::ApiId>::Api<__APIPARAMS> as
         wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
         wtx::misc::LeaseMut<<super::Nothing as
-        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
-        wtx::collections::SingleTypeStorage<Item = __API_PARAMS> {
+        wtx::client_api_framework::ApiId>::Api<__APIPARAMS>> +
+        wtx::collections::SingleTypeStorage<Item = __APIPARAMS> {
         type ExternalRequestContent =
             wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =

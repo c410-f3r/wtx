@@ -2,12 +2,13 @@
 
 use crate::{
   asn1::{
-    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, INTEGER_TAG, Len, Octetstring, Oid,
-    SEQUENCE_TAG, asn1_writer, decode_asn1_tlv, parse_der_from_pem_range,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, INTEGER_TAG, Len, Octetstring, SEQUENCE_TAG,
+    asn1_writer, decode_asn1_tlv, parse_der_from_pem_range,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Pem},
   collections::TryExtend,
   misc::{Lease, LeaseMut},
+  x509::{AlgorithmIdentifier, X509Error},
 };
 use core::fmt::{Debug, Formatter};
 
@@ -17,7 +18,7 @@ pub struct Pkcs8<B> {
   /// Version
   pub version: u8,
   /// Identifies the private-key algorithm
-  pub private_key_algorithm: Oid,
+  pub private_key_algorithm: AlgorithmIdentifier<B>,
   /// Bytes whose contents are the value of the private key
   pub private_key: Octetstring<B>,
 }
@@ -51,25 +52,18 @@ where
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, bytes, rest) = decode_asn1_tlv(dw.bytes)? else {
-      return Err(Asn1Error::InvalidPkcs8.into());
+      return Err(X509Error::InvalidPkcs8.into());
     };
     let version = {
       let Some(([INTEGER_TAG, 1, 0], local_rest)) = bytes.split_at_checked(3) else {
-        return Err(Asn1Error::InvalidPkcs8.into());
+        return Err(X509Error::InvalidPkcs8.into());
       };
       dw.bytes = local_rest;
       0
     };
-    let private_key_algorithm = {
-      let (SEQUENCE_TAG, _, local_bytes, local_rest) = decode_asn1_tlv(dw.bytes)? else {
-        return Err(Asn1Error::InvalidPkcs8.into());
-      };
-      dw.bytes = local_bytes;
-      let private_key_algorithm = Oid::decode(dw)?;
-      dw.bytes = local_rest;
-      private_key_algorithm
-    };
+    let private_key_algorithm = AlgorithmIdentifier::decode(dw)?;
     let private_key = Octetstring::decode(dw)?;
+
     dw.bytes = rest;
     Ok(Self { version, private_key_algorithm, private_key })
   }
@@ -83,9 +77,7 @@ where
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       local_ew.buffer.extend_from_copyable_slice(&[INTEGER_TAG, 1, 0])?;
-      asn1_writer(local_ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_local_ew| {
-        self.private_key_algorithm.encode(local_local_ew)
-      })?;
+      self.private_key_algorithm.encode(local_ew)?;
       self.private_key.encode(local_ew)?;
       Ok(())
     })
@@ -102,9 +94,10 @@ impl<B> Debug for Pkcs8<B> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Pkcs8},
+    asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux},
     codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
     collections::Vector,
+    x509::Pkcs8,
   };
 
   const ED25519: &str = "-----BEGIN PRIVATE KEY-----\n\

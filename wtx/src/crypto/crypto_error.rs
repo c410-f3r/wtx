@@ -30,7 +30,7 @@ pub enum CryptoError {
   /// Sig Key Error
   SigningKeyError,
   /// Unsupported Signature Oid
-  UnsupportedPublicKeyOid,
+  UnsupportedKeyOid,
   /// Unsupported Signature Oid
   UnsupportedSignatureOid,
   /// Unknown Signature Type

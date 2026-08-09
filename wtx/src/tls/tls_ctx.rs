@@ -5,12 +5,13 @@ pub(crate) mod trusted_ctx;
 pub(crate) mod unverified_ctx;
 
 use crate::{
-  asn1::{Asn1DecodeWrapperAux, Pkcs8},
+  asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::Vector,
+  collections::{ShortBoxSliceU16, Vector},
   misc::SecretContext,
   rng::CryptoRng,
   tls::{SignatureScheme, TlsMode},
+  x509::{KeyTy, Pkcs8},
 };
 use core::fmt::Debug;
 
@@ -43,18 +44,24 @@ pub trait TlsCtxSk: TlsCtx {
 
 /// Provides mechanisms to instantiate a secret key context from different formats.
 pub trait TlsCtxSkLoader: Sized + TlsCtxSk {
-  /// Input of the [`Self::from_der`] method.
+  /// Input of the [`Self::from_ders`] method.
   type SkInputDer<'data>: TlsCtxSkInput<TlsCtxSk = Self>;
-  /// Input of the [`Self::from_pem`] method.
+  /// Input of the [`Self::from_pems`] method.
   type SkInputPem<'data>: TlsCtxSkInput<TlsCtxSk = Self>;
 
   /// From a secret key in DER format.
-  fn from_der<RNG>(input: Self::SkInputDer<'_>, rng: &mut RNG) -> crate::Result<Self>
+  fn from_ders<'data, RNG>(
+    input: impl IntoIterator<Item = Self::SkInputDer<'data>>,
+    rng: &mut RNG,
+  ) -> crate::Result<Self>
   where
     RNG: CryptoRng;
 
   /// From a secret key in PEM format.
-  fn from_pem<RNG>(input: Self::SkInputPem<'_>, rng: &mut RNG) -> crate::Result<Self>
+  fn from_pems<'data, RNG>(
+    input: impl IntoIterator<Item = Self::SkInputPem<'data>>,
+    rng: &mut RNG,
+  ) -> crate::Result<Self>
   where
     RNG: CryptoRng;
 }
@@ -69,7 +76,7 @@ impl TlsCtxSkInput for &[u8] {
   type TlsCtxSk = sk_ctx::SkCtx;
 }
 
-impl TlsCtxSkInput for Vector<u8> {
+impl TlsCtxSkInput for ShortBoxSliceU16<u8> {
   type TlsCtxSk = sk_ctx::SkCtx;
 }
 
@@ -78,12 +85,17 @@ impl TlsCtxSkInput for (SecretContext, &mut [u8]) {
 }
 
 #[inline]
-fn secret_key_from_pem(input: &[u8]) -> Result<Vector<u8>, crate::Error> {
+fn secret_key_from_pem(pem_bytes: &[u8]) -> crate::Result<(ShortBoxSliceU16<u8>, KeyTy)> {
   let mut buffer = Vector::new();
-  let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(input, &mut buffer))?;
+  let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(pem_bytes, &mut buffer))?;
   let rslt = pem.data.into_inner()?;
   buffer.truncate(rslt[0].1.end);
-  let mut dw = DecodeWrapper::new(&buffer, Asn1DecodeWrapperAux::default());
-  let _pkcs8 = Pkcs8::<&[u8]>::decode(&mut dw)?;
-  Ok(buffer)
+  let key_ty = secret_key_ty(&buffer)?;
+  Ok((buffer.try_into()?, key_ty))
+}
+
+#[inline]
+fn secret_key_ty(der: &[u8]) -> crate::Result<KeyTy> {
+  let mut dw = DecodeWrapper::new(der, Asn1DecodeWrapperAux::default());
+  KeyTy::try_from(&Pkcs8::<&[u8]>::decode(&mut dw)?)
 }

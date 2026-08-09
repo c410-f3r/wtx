@@ -1,12 +1,11 @@
 use crate::{
-  _SIMD_LEN,
   collections::{Clear, SingleTypeStorage, TryExtend, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::Lease,
+  misc::{Lease, simd_bytes},
 };
 use core::hint::cold_path;
 
@@ -24,16 +23,32 @@ where
 
   to.clear();
 
-  'decode: {
-    let (arrays, rem) = from.as_chunks::<{ _SIMD_LEN }>();
-    for array in arrays {
-      decode_all(&mut curr_state, &mut end_of_string, &mut has_error, &mut has_overflow, array, to);
-      if has_error || has_overflow {
-        break 'decode;
-      }
-    }
-    decode_all(&mut curr_state, &mut end_of_string, &mut has_error, &mut has_overflow, rem, to);
-  }
+  simd_bytes(
+    &mut (&mut curr_state, &mut end_of_string, &mut has_error, &mut has_overflow, &mut *to),
+    from,
+    |(local_curr_state, local_end_of_string, local_has_error, local_has_overflow, local_to),
+     local_bytes| {
+      decode_all(
+        local_curr_state,
+        local_end_of_string,
+        local_has_error,
+        local_has_overflow,
+        local_bytes,
+        local_to,
+      );
+    },
+    |(local_curr_state, local_end_of_string, local_has_error, local_has_overflow, local_to),
+     local_bytes| {
+      decode_all(
+        local_curr_state,
+        local_end_of_string,
+        local_has_error,
+        local_has_overflow,
+        local_bytes,
+        local_to,
+      );
+    },
+  );
 
   if has_error {
     return Err(crate::Error::Http2ErrorGoAway(
@@ -63,15 +78,20 @@ pub(crate) fn huffman_encode(from: &[u8], to: &mut Vector<u8>) -> crate::Result<
   let mut bits_left: u64 = 40;
   let mut has_overflow = false;
 
-  let (arrays, rem) = from.as_chunks::<{ _SIMD_LEN }>();
-  for array in arrays {
-    for elem in array {
-      encode_all(*elem, &mut bits, &mut bits_left, &mut has_overflow, to);
-    }
-  }
-  for elem in rem {
-    encode_all(*elem, &mut bits, &mut bits_left, &mut has_overflow, to);
-  }
+  simd_bytes(
+    &mut (&mut bits, &mut bits_left, &mut has_overflow, &mut *to),
+    from,
+    |(local_bits, local_bits_left, local_has_overflow, local_to), bytes| {
+      for elem in bytes {
+        encode_all(*elem, local_bits, local_bits_left, local_has_overflow, local_to);
+      }
+    },
+    |(local_bits, local_bits_left, local_has_overflow, local_to), bytes| {
+      for elem in bytes {
+        encode_all(*elem, local_bits, local_bits_left, local_has_overflow, local_to);
+      }
+    },
+  );
 
   if has_overflow {
     return Err(protocol_err(Http2Error::HpackEncodingBufferIsTooSmall));

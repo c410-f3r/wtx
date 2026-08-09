@@ -9,12 +9,12 @@ use core::fmt::Debug;
 const BLOCKS_LEN: usize = 1;
 #[cfg(not(test))]
 const BLOCKS_LEN: usize = _simd! {
-  4 => 1,
-  16 => 4,
-  32 => 8,
+  4 => { 1 },
+  16 => { 4 },
+  32 => { 8 },
   // At the time of this writing, 16 didn't increased performance.
   // Probably not worth it. The stack would also be a lot larger.
-  64 => 8
+  64 => { 8 }
 };
 // 1 iteration = 2 rounds = 8 quarter rounds
 const ITERATIONS: u8 = 10;

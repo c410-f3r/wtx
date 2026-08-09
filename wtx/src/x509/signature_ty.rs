@@ -20,11 +20,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SignatureTy {
   /// ECDSA Secp256r1
+  #[default]
   EcdsaP256,
   /// ECDSA Secp384r1
   EcdsaP384,
   /// Ed25519
-  #[default]
   Ed25519,
   /// RSA PKCS1 SHA256
   RsaPkcs1Sha256,
@@ -154,6 +154,24 @@ impl TryFrom<&str> for SignatureTy {
       "RsaPssSha256" => SignatureTy::RsaPssSha256,
       "RsaPssSha384" => SignatureTy::RsaPssSha384,
       _ => return Err(CryptoError::UnknownSignatureTy.into()),
+    })
+  }
+}
+
+impl TryFrom<&Oid> for SignatureTy {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(sig_alg: &Oid) -> Result<Self, Self::Error> {
+    Ok(match sig_alg {
+      oid if oid == &OID_SIG_ED25519 => Self::Ed25519,
+      oid if oid == &OID_SIG_ECDSA_WITH_SHA256 => Self::EcdsaP256,
+      oid if oid == &OID_SIG_ECDSA_WITH_SHA384 => Self::EcdsaP384,
+      oid if oid == &OID_PKCS1_SHA256WITHRSA => Self::RsaPkcs1Sha256,
+      oid if oid == &OID_PKCS1_SHA384WITHRSA => Self::RsaPkcs1Sha384,
+      oid if oid == &OID_NIST_HASH_SHA256 => Self::RsaPssSha256,
+      oid if oid == &OID_NIST_HASH_SHA384 => Self::RsaPssSha384,
+      _ => return Err(CryptoError::UnsupportedSignatureOid.into()),
     })
   }
 }

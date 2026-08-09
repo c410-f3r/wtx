@@ -2,11 +2,11 @@ use core::ops::{Deref, DerefMut};
 
 /// Prevents false sharing by padding and aligning to the length of a cache line.
 #[cfg_attr(
-  any(target_arch = "aarch64", target_arch = "powerpc64", target_arch = "x86_64",),
+  any(target_arch = "aarch64", target_arch = "powerpc64", target_arch = "x86_64"),
   repr(align(128))
 )]
 #[cfg_attr(
-  not(any(target_arch = "aarch64", target_arch = "powerpc64", target_arch = "x86_64",)),
+  not(any(target_arch = "aarch64", target_arch = "powerpc64", target_arch = "x86_64")),
   repr(align(64))
 )]
 #[derive(Debug)]

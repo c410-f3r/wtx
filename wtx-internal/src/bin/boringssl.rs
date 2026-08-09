@@ -15,8 +15,8 @@
 #[path = "common/boringssl_options.rs"]
 mod boringssl_options;
 
-use crate::boringssl_options::OptionsIter;
-use boringssl_options::{Options, cert_pem_from_pem_file};
+use crate::boringssl_options::{OptionsIter, cert_pem_from_pem_file};
+use boringssl_options::Options;
 use std::{env, process};
 use tokio::net::TcpStream;
 use wtx::{
@@ -25,9 +25,8 @@ use wtx::{
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{
     AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, SkCtx, TlsAcceptor, TlsConfig,
-    TlsConnectorBuilder, TlsCtx, TlsCtxSk, TlsError, TlsStream, UnverifiedCtx,
+    TlsConnectorBuilder, TlsCtx, TlsCtxSk, TlsCtxSkLoader, TlsError, TlsStream, UnverifiedCtx,
   },
-  x509::{Certificate, CvTrustAnchor},
 };
 
 #[tokio::main]
@@ -121,7 +120,6 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::MissingSignatureAlgorithms => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
       TlsError::SecretMismatch => ":WRONG_CURVE:",
-      TlsError::ServerHasNoCompatibleAlgorithmTy => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::TrailingDataInExtension => ":DECODE_ERROR:",
       TlsError::UnexpectedAfterHandshakeOuterRecord => ":INVALID_OUTER_RECORD_TYPE:",
       TlsError::UnknownNamedGroup => ":WRONG_CURVE:",
@@ -161,6 +159,7 @@ fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       }
       TlsError::PreHandshakeDecError => ":EXCESS_HANDSHAKE_DATA:",
       TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
+      TlsError::ServerHasNoCompatibleSignatureScheme => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::ServerHasNoCompatibleKeyShare => ":UNEXPECTED_MESSAGE:",
       TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
       TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
@@ -264,12 +263,7 @@ where
   let mut cfg = TlsConfig::new(ctx).unwrap();
   if !options.trusted_cert_file.is_empty() {
     let pem = cert_pem_from_pem_file(&options.trusted_cert_file);
-    let mut buffer = Vector::new();
-    let trust_anchor = Certificate::<&[u8]>::from_pem(&mut buffer, pem.as_bytes()).unwrap();
-    cfg
-      .trust_anchors_mut()
-      .push(CvTrustAnchor::from_certificate_ref(&trust_anchor.0).unwrap())
-      .unwrap();
+    cfg.set_trust_anchors_pem([pem.as_bytes()]).unwrap();
   }
   *cfg.max_fragment_length_mut() = options.max_fragment;
   for protocol in &options.protocols {
@@ -303,9 +297,15 @@ where
 
 fn make_server_cfg(options: &Options) -> TlsConfig<SkCtx> {
   let mut rng = ChaCha20::from_std_random().unwrap();
-  let mut cfg =
-    TlsConfig::from_keys_pem(options.cert_pem.as_bytes(), &mut rng, options.key_pem.as_bytes())
-      .unwrap();
+  let mut cfg = TlsConfig::new(
+    SkCtx::from_pems(
+      options.keys_pem.iter().map(|elem| elem.as_bytes().try_into().unwrap()),
+      &mut rng,
+    )
+    .unwrap(),
+  )
+  .unwrap();
+  cfg.set_public_keys_pem(options.certs_pem.iter().map(|el| el.as_bytes())).unwrap();
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
   if options.select_empty_alpn {
     *cfg.alpn_mut() = Some(Alpn::default());
@@ -326,9 +326,14 @@ fn make_server_cfg(options: &Options) -> TlsConfig<SkCtx> {
       .push("invalid".as_bytes().try_into().unwrap())
       .unwrap();
   }
-  if let Some(el) = options.signing_prefs {
+  if !options.signing_prefs.is_empty() {
     cfg.signature_algorithms_mut().signature_schemes.clear();
-    cfg.signature_algorithms_mut().signature_schemes.push(el).unwrap();
+    for el in &options.signing_prefs {
+      cfg.signature_algorithms_mut().signature_schemes.push(*el).unwrap();
+    }
+  }
+  if options.expect_selected_credential.is_some() {
+    *cfg.unique_signature_algorithms_mut() = true;
   }
   cfg
 }

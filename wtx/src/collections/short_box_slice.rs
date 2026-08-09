@@ -3,13 +3,13 @@
 
 use crate::{
   collections::{LinearStorageLen, Vector},
-  misc::Lease,
+  misc::{Lease, LeaseMut},
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::{
   fmt::{Debug, Formatter},
   mem::ManuallyDrop,
-  ops::Deref,
+  ops::{Deref, DerefMut},
   ptr::{self, NonNull},
   slice,
 };
@@ -60,6 +60,25 @@ where
 {
   #[inline]
   fn lease(&self) -> &[T] {
+    self
+  }
+}
+impl<L, T> LeaseMut<[T]> for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn lease_mut(&mut self) -> &mut [T] {
+    self
+  }
+}
+
+impl<L, T> AsMut<[T]> for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn as_mut(&mut self) -> &mut [T] {
     self
   }
 }
@@ -120,6 +139,19 @@ where
     let len = self.len;
     // SAFETY: pointer and length come from an allocated slice
     unsafe { slice::from_raw_parts(ptr.as_ptr(), len.usize()) }
+  }
+}
+
+impl<L, T> DerefMut for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    let ptr = self.ptr;
+    let len = self.len;
+    // SAFETY: pointer and length come from an allocated slice
+    unsafe { slice::from_raw_parts_mut(ptr.as_ptr(), len.usize()) }
   }
 }
 
@@ -249,5 +281,40 @@ mod tests {
     let data = [1, 2];
     let instance = ShortBoxSliceU8::new(Box::new(data)).unwrap();
     assert_eq!(&*instance, data);
+  }
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::collections::{LinearStorageLen, ShortBoxSlice, Vector};
+  use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
+
+  impl<'de, L, T> Deserialize<'de> for ShortBoxSlice<L, T>
+  where
+    L: LinearStorageLen,
+    T: Deserialize<'de>,
+  {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      let string = Vector::deserialize(deserializer)?;
+      string.try_into().map_err(D::Error::custom)
+    }
+  }
+
+  impl<L, T> Serialize for ShortBoxSlice<L, T>
+  where
+    L: LinearStorageLen,
+    T: Serialize,
+  {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      serializer.collect_seq(self.iter())
+    }
   }
 }

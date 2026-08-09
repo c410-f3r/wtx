@@ -34,7 +34,7 @@ impl<T, V> CookieGeneric<T, V> {
     let prev_expires = self.expires;
     let prev_max_age = self.max_age;
     self.expires = Some(DateTime::EPOCH);
-    self.max_age = None;
+    self.max_age = Some(Duration::ZERO);
     self.value.clear();
     let rslt = headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),

@@ -51,6 +51,8 @@ pub enum X509Error {
   InvalidKeyIdentifier,
   /// Invalid Object Identifier
   InvalidObjectIdentifier,
+  /// Invalid PKCS#8
+  InvalidPkcs8,
   /// Invalid Reason Flags
   InvalidReasonFlags,
   /// Invalid Revoked Certificate

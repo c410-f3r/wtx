@@ -1,9 +1,14 @@
 use crate::{
-  collections::Vector,
+  collections::{ShortBoxSliceU8, ShortBoxSliceU16, Vector},
   crypto::DynSigningOutput,
   rng::CryptoRng,
-  tls::{SignatureScheme, TlsCtx, TlsCtxSk, TlsCtxSkLoader, TlsMode, tls_ctx::secret_key_from_pem},
+  tls::{
+    SignatureScheme, TlsCtx, TlsCtxSk, TlsCtxSkLoader, TlsError, TlsMode,
+    tls_ctx::{secret_key_from_pem, secret_key_ty},
+  },
+  x509::KeyTy,
 };
+use core::hint::cold_path;
 
 /// Secret Key Context
 ///
@@ -11,7 +16,7 @@ use crate::{
 ///
 /// Used by servers.
 #[derive(Debug, Default)]
-pub struct SkCtx(Vector<u8>);
+pub struct SkCtx(ShortBoxSliceU8<(ShortBoxSliceU16<u8>, KeyTy)>);
 
 impl TlsCtx for SkCtx {
   const TY: TlsMode = TlsMode::Verified;
@@ -31,28 +36,50 @@ impl TlsCtxSk for SkCtx {
   where
     RNG: CryptoRng,
   {
-    sc.handshake_st().sign_key_from_pkcs8(&self.0)?.sign(msg, rng)
+    let kt = sc.cert_kt();
+    for value in self.0.iter() {
+      if value.1 == kt {
+        return sc.handshake_st().sign_key_from_pkcs8(&value.0)?.sign(msg, rng);
+      }
+    }
+    cold_path();
+    Err(TlsError::UnsupportedSignAlgorithm.into())
   }
 }
 
 impl TlsCtxSkLoader for SkCtx {
-  type SkInputDer<'data> = Vector<u8>;
+  type SkInputDer<'data> = ShortBoxSliceU16<u8>;
   type SkInputPem<'data> = &'data [u8];
 
   #[inline]
-  fn from_der<RNG>(input: Self::SkInputDer<'_>, _: &mut RNG) -> crate::Result<Self>
+  fn from_ders<'data, RNG>(
+    input: impl IntoIterator<Item = Self::SkInputDer<'data>>,
+    _: &mut RNG,
+  ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
   {
-    Ok(Self(input))
+    let mut vector = Vector::new();
+    for value in input {
+      let key_ty = secret_key_ty(&value)?;
+      vector.push((value, key_ty))?;
+    }
+    Ok(Self(vector.try_into()?))
   }
 
   /// From a secret key in PEM format.
   #[inline]
-  fn from_pem<RNG>(input: Self::SkInputPem<'_>, _: &mut RNG) -> crate::Result<Self>
+  fn from_pems<'data, RNG>(
+    input: impl IntoIterator<Item = Self::SkInputPem<'data>>,
+    _: &mut RNG,
+  ) -> crate::Result<Self>
   where
     RNG: CryptoRng,
   {
-    Ok(Self(secret_key_from_pem(input)?))
+    let mut vector = Vector::new();
+    for pem in input {
+      vector.push(secret_key_from_pem(pem)?)?;
+    }
+    Ok(Self(vector.try_into()?))
   }
 }

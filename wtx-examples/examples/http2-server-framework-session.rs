@@ -29,7 +29,7 @@ use wtx::{
   http::{
     MsgData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     http2_server_framework::{
-      DynParams, Http2ServerFramework, HttpRouter, State, StateClean, get, post,
+      DynParams, Http2ServerFramework, HttpRouter, State, StateClean, VerbatimParams, get, post,
     },
   },
   misc::{SecretContext, argon2_pwd},
@@ -108,14 +108,10 @@ async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
-async fn logout(state: StateClean<'_, Data>) -> wtx::Result<StatusCode> {
+async fn logout(state: StateClean<'_, Data>) -> wtx::Result<VerbatimParams> {
   let Data { db_pool, session_manager, session_state } = state.data;
-  if session_state.is_some() {
-    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
-    Ok(StatusCode::Ok)
-  } else {
-    Ok(StatusCode::Forbidden)
-  }
+  session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
+  Ok(VerbatimParams(StatusCode::Ok))
 }
 
 #[derive(Clone, Debug, wtx::Lease)]

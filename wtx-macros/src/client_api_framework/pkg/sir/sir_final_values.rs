@@ -138,7 +138,7 @@ impl<'module, 'others>
         };
         package_impls.push(quote::quote!(
           impl<
-            #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __API_PARAMS, __DRSR, __TRANSPORT
+            #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __APIPARAMS, __DRSR, __TRANSPORT
           > wtx::client_api_framework::pkg::Package<
             __API, __DRSR, __TRANSPORT, #tp
           > for #camel_case_pkg_ident<
@@ -159,11 +159,11 @@ impl<'module, 'others>
               #fresdiv_ident<#(#res_lf_iter0)*>
             >: wtx::codec::DecodeSeq<'__de, wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
             __API: wtx::client_api_framework::Api<
-                Error = <<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as wtx::client_api_framework::Api>::Error,
+                Error = <<#id as wtx::client_api_framework::ApiId>::Api<__APIPARAMS> as wtx::client_api_framework::Api>::Error,
                 Id = #id
               >
-              + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS>>
-              + wtx::collections::SingleTypeStorage<Item = __API_PARAMS>
+              + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api<__APIPARAMS>>
+              + wtx::collections::SingleTypeStorage<Item = __APIPARAMS>
           {
             type ExternalRequestContent = wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
