@@ -2,6 +2,7 @@ use crate::{
   codec::alphabet::{Alphabet, DecodeStep, EncodeStep},
   misc::int_conv::u8i16,
 };
+use core::range::RangeInclusive;
 
 #[derive(Debug)]
 pub(crate) struct Standard;
@@ -25,11 +26,11 @@ impl Alphabet for StandardNoPad {
 
 const DECODER: &[DecodeStep] = &[
   // 90 - 64 = 26, desired indices are 0..26
-  DecodeStep::Range(b'A'..=b'Z', -64),
+  DecodeStep::Range(RangeInclusive { start: b'A', last: b'Z' }, -64),
   // 122 - 70 = 52, desired indices are 26..52
-  DecodeStep::Range(b'a'..=b'z', -70),
+  DecodeStep::Range(RangeInclusive { start: b'a', last: b'z' }, -70),
   // 57 + 5 = 62, desired indices are 52..61
-  DecodeStep::Range(b'0'..=b'9', 5),
+  DecodeStep::Range(RangeInclusive { start: b'0', last: b'9' }, 5),
   DecodeStep::Eq(b'+', 63),
   DecodeStep::Eq(b'/', 64),
 ];

@@ -12,39 +12,142 @@
   reason = "does not matter"
 )]
 
+macro_rules! manage_after_handshake {
+  (
+    $options:expr,
+    $sent_message:expr,
+    $stream:expr,
+    $traffic_secrets:expr,
+    |$stream_reader:ident| $reader_cb:expr,
+    |$stream_writer:ident| $writer_cb:expr
+  ) => {{
+    let mut quench_writes = false;
+    let mut _sent_key_update = false;
+    let mut sent_shutdown = false;
+
+    if $options.export_traffic_secrets {
+      let $stream_writer = $stream;
+      let stream_writer = $writer_cb;
+      let (read_secret, write_secret) = $traffic_secrets;
+      let read_len = u16::try_from(read_secret.len()).unwrap();
+      stream_writer.write_all(&read_len.to_le_bytes()).await?;
+      stream_writer.write_all(&read_secret).await?;
+      stream_writer.write_all(&write_secret).await?;
+    }
+
+    if $options.export_keying_material > 0 {
+      let mut export_buf = vec![0u8; $options.export_keying_material];
+      let context = if $options.export_keying_material_context_used {
+        Some($options.export_keying_material_context.as_bytes())
+      } else {
+        None
+      };
+      let $stream_writer = $stream;
+      let stream_writer = $writer_cb;
+      stream_writer.export_keying_material(
+        context,
+        $options.export_keying_material_label.as_bytes(),
+        &mut export_buf,
+      )?;
+      stream_writer.write_all(&export_buf).await?;
+    }
+
+    if $options.send_key_update && !_sent_key_update {
+      let $stream_writer = $stream;
+      $writer_cb.refresh_traffic_keys().await?;
+      _sent_key_update = true;
+    }
+
+    if ($options.queue_data || $options.only_write_one_byte_after_handshake) && !$sent_message {
+      let $stream_writer = $stream;
+      let stream_writer = $writer_cb;
+      stream_writer.write_all(b"hello").await?;
+      $sent_message = true;
+      if $options.only_write_one_byte_after_handshake {
+        stream_writer.stream_mut().write_all(&[0]).await?;
+        quench_writes = true;
+      }
+    }
+
+    let read_size = $options.read_size.min(2048);
+    let mut buffer = Vector::from_iterator((0..read_size).map(|_| 0))?;
+
+    loop {
+      let read_rslt = {
+        let $stream_reader = $stream;
+        let reader = $reader_cb;
+        reader.read(buffer.get_mut(..read_size).unwrap().into()).await
+      };
+      let len = match read_rslt {
+        Ok(None) => break,
+        Ok(Some(len)) => len.get(),
+        Err(err) => return Err(err),
+      };
+
+      if $options.shut_down_after_handshake && !sent_shutdown {
+        let $stream_writer = $stream;
+        $writer_cb.send_close_notify().await?;
+        sent_shutdown = true;
+      }
+
+      if quench_writes && len > 0 {
+        quench_writes = false;
+      }
+
+      if len > 0 {
+        for byte in buffer.get_mut(..len).unwrap() {
+          *byte ^= 255;
+        }
+        let $stream_writer = $stream;
+        $writer_cb.write_all(buffer.get(..len).unwrap()).await?;
+      }
+    }
+  }};
+}
+
+#[path = "common/boringssl_handle_err.rs"]
+mod boringssl_handle_err;
 #[path = "common/boringssl_options.rs"]
 mod boringssl_options;
 
 use crate::boringssl_options::{OptionsIter, cert_pem_from_pem_file};
 use boringssl_options::Options;
-use std::{env, process};
+use std::{env, time::Duration};
 use tokio::net::TcpStream;
 use wtx::{
   collections::Vector,
-  net::{StreamReader, StreamWriter as _, Uri},
+  net::{Stream, StreamReader, StreamWriter as _, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
+  sync::{Arc, AsyncMutex},
   tls::{
-    AlertDescription, Alpn, HandshakePath, NamedGroup, ServerName, SkCtx, TlsAcceptor, TlsConfig,
-    TlsConnectorBuilder, TlsCtx, TlsCtxSk, TlsCtxSkLoader, TlsError, TlsStream, UnverifiedCtx,
+    Alpn, HandshakePath, NamedGroup, ServerName, SkCtx, TlsAcceptor, TlsConfig,
+    TlsConnectorBuilder, TlsCtx, TlsCtxSk, TlsCtxSkLoader, TlsStream, UnverifiedCtx,
   },
 };
 
 #[tokio::main]
 async fn main() {
+  let mut is_concurrent = false;
+  for var in std::env::vars() {
+    if var.0 == "WTX_BORINGSSL_IS_CONCURRENT" {
+      is_concurrent = var.1.parse::<u8>().unwrap() == 1;
+      break;
+    }
+  }
   wtx::misc::tracing_tree_init(None).unwrap();
   let mut options = Options::default();
   for _ in OptionsIter::new(env::args().skip(1), &mut options) {}
   if options.is_client {
     if boringssl_options::verify_cert(&options) {
       let tls_config = make_client_cfg(SkCtx::default(), &options);
-      exec_tests::<_, true>(options, tls_config).await;
+      exec_tests::<_, true>(is_concurrent, options, tls_config).await;
     } else {
       let tls_config = make_client_cfg(UnverifiedCtx::default(), &options);
-      exec_tests::<_, true>(options, tls_config).await;
+      exec_tests::<_, true>(is_concurrent, options, tls_config).await;
     }
   } else {
     let tls_config = make_server_cfg(&options);
-    exec_tests::<_, false>(options, tls_config).await;
+    exec_tests::<_, false>(is_concurrent, options, tls_config).await;
   }
 }
 
@@ -69,191 +172,89 @@ fn check_handshake_params(
   }
 }
 
-async fn exec_tests<TCX, const IS_CLIENT: bool>(options: Options, tls_config: TlsConfig<TCX>)
-where
-  TCX: TlsCtxSk,
+async fn exec_tests<TCX, const IS_CLIENT: bool>(
+  is_concurrent: bool,
+  options: Options,
+  tls_config: TlsConfig<TCX>,
+) where
+  TCX: TlsCtxSk + Send + 'static,
 {
   for idx in 0..=options.resume_count {
     let uri = Uri::new(format!("localhost:{}", options.port));
     let rng = ChaCha20::from_std_random().unwrap();
-    if IS_CLIENT {
-      let fun = async {
+    let rslt = if IS_CLIENT {
+      let fut = async {
         let mut connector = TlsConnectorBuilder::tokio(uri).build(&tls_config, rng).await?;
         connector.stream_mut().write_all(&options.shim_id.to_le_bytes()).await?;
-        let mut rslt = connector.connect().await?;
+        let rslt = connector.connect().await?;
         check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
-        manage_after_handshake(&options, false, &mut rslt.tls_stream).await
+        manage_after_handshake(is_concurrent, &options, false, rslt.tls_stream).await
       };
-      handle_err(&options, fun.await);
+      fut.await
     } else {
-      let fun = async {
+      let fut = async {
         let mut stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
         stream.write_all(&options.shim_id.to_le_bytes()).await?;
-        let mut rslt = TlsAcceptor::new(&tls_config, rng, stream).accept().await?;
+        let rslt = TlsAcceptor::new(&tls_config, rng, stream).accept().await?;
         check_handshake_params(rslt.handshake_path, idx, rslt.named_group, &options);
-        manage_after_handshake(&options, false, &mut rslt.tls_stream).await
+        manage_after_handshake(is_concurrent, &options, false, rslt.tls_stream).await
       };
-      handle_err(&options, fun.await);
-    }
+      fut.await
+    };
+    wtx::futures::Sleep::new(Duration::from_millis(100)).unwrap().await.unwrap();
+    boringssl_handle_err::handle_err(&options, rslt);
   }
-}
-
-fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
-  let reason = match &rslt {
-    Ok(_) => return,
-    Err(wtx::Error::TlsError(err)) => match err {
-      // Client
-      TlsError::MissingKeyShares => ":MISSING_KEY_SHARE:",
-
-      TlsError::AbortedHandshake(alert)
-        if alert.description() == AlertDescription::HandshakeFailure =>
-      {
-        ":HANDSHAKE_FAILURE_ON_CLIENT_HELLO:"
-      }
-      TlsError::BadSignature => ":BAD_SIGNATURE:",
-      TlsError::DigestCheckFailed => ":DIGEST_CHECK_FAILED:",
-      TlsError::DuplicatedKeyShares => ":DUPLICATE_KEY_SHARE:",
-      TlsError::InvalidAesData => ":BAD_DECRYPT:",
-      TlsError::InvalidCertificateRequest => ":DECODE_ERROR:",
-      TlsError::MismatchedCertificatePkAndSignature => ":WRONG_SIGNATURE_TYPE:",
-      TlsError::MissingDigitalSignatureInKeyUsage => ":KEY_USAGE_BIT_INCORRECT:",
-      TlsError::MissingSignatureAlgorithms => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
-      TlsError::NoCertificate => ":PEER_DID_NOT_RETURN_A_CERTIFICATE:",
-      TlsError::SecretMismatch => ":WRONG_CURVE:",
-      TlsError::TrailingDataInExtension => ":DECODE_ERROR:",
-      TlsError::UnexpectedAfterHandshakeOuterRecord => ":INVALID_OUTER_RECORD_TYPE:",
-      TlsError::UnknownNamedGroup => ":WRONG_CURVE:",
-      TlsError::UnknownProtocolVersion => ":WRONG_VERSION_NUMBER:",
-      TlsError::UnknownSignatureScheme => ":WRONG_SIGNATURE_TYPE:",
-      TlsError::UnsupportedCipherSuite => ":WRONG_CIPHER_RETURNED:",
-      TlsError::UnsupportedExtension => ":ERROR_PARSING_EXTENSION:",
-      _ => ":FIXME:",
-    },
-    Err(wtx::Error::TlsErrorReply(err, _)) => match err {
-      TlsError::ClientExpectedFinished => ":UNEXPECTED_MESSAGE:",
-      TlsError::DiffieHellmanError => ":WRONG_CURVE:",
-      TlsError::EmptyCertificateAuthorities => ":ERROR_PARSING_EXTENSION:",
-      TlsError::EmptyNegotiatedAlpnClient => ":PARSE_TLSEXT:",
-      TlsError::EmptyNegotiatedAlpnServer => ":INVALID_ALPN_PROTOCOL:",
-      TlsError::EmptyNewSessionTicket => ":DECODE_ERROR:",
-      TlsError::ExcessHandshakeData(_) => ":EXCESS_HANDSHAKE_DATA:",
-      TlsError::IncompleteHandshake => ":UNEXPECTED_MESSAGE:",
-      TlsError::InvalidExtensionTy => ":UNEXPECTED_EXTENSION:",
-      TlsError::InvalidLegacyCompressionMethod => ":DECODE_ERROR:",
-      TlsError::InvalidLegacyCompressionMethods => ":INVALID_COMPRESSION_LIST:",
-      TlsError::InvalidLegacySessionId => ":DECODE_ERROR:",
-      TlsError::InvalidNegotiatedServerName => ":UNEXPECTED_EXTENSION:",
-      TlsError::InvalidServerNameList => ":ERROR_PARSING_EXTENSION:",
-      TlsError::InvalidX509 => ":CANNOT_PARSE_LEAF_CERT:",
-      TlsError::MismatchedExtension => ":UNEXPECTED_EXTENSION:",
-      TlsError::MismatchedNegotiatedAlpnClient => ":INVALID_ALPN_PROTOCOL:",
-      TlsError::MismatchedNegotiatedAlpnServer => ":NO_APPLICATION_PROTOCOL:",
-      TlsError::MissingKeyShares => ":MISSING_KEY_SHARE:",
-      TlsError::MissingSupportedGroups => ":NO_SHARED_GROUP:",
-      TlsError::PostHandshakeDecError(handshake_ty) => {
-        if handshake_ty.is_finished() {
-          ":DIGEST_CHECK_FAILED:"
-        } else {
-          ":DECODE_ERROR:"
-        }
-      }
-      TlsError::PreHandshakeDecError => ":EXCESS_HANDSHAKE_DATA:",
-      TlsError::ReceivedRecordIsTooLarge => ":DATA_LENGTH_TOO_LONG:",
-      TlsError::ServerHasNoCompatibleSignatureScheme => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
-      TlsError::ServerHasNoCompatibleKeyShare => ":UNEXPECTED_MESSAGE:",
-      TlsError::TooManyKeyUpdates => ":TOO_MANY_KEY_UPDATES:",
-      TlsError::TooManyWarningAlerts => ":TOO_MANY_WARNING_ALERTS:",
-      TlsError::TrailingDataInExtension => ":ERROR_PARSING_EXTENSION:",
-      TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
-      TlsError::UnexpectedAfterHandshakeInnerRecord => ":UNEXPECTED_RECORD:",
-      TlsError::UnknownHandshakeTy(_) => ":UNEXPECTED_MESSAGE:",
-      TlsError::UnknownRecordContentType => ":BAD_DECRYPT:",
-      TlsError::UnofferedExtension => ":UNEXPECTED_EXTENSION:",
-      TlsError::WrongAlert => ":BAD_ALERT:",
-      _ => ":FIXME:",
-    },
-    _ => ":FIXME:",
-  };
-  eprintln!("ERROR: {rslt:?}");
-  quit(reason);
 }
 
 async fn manage_after_handshake<const IS_CLIENT: bool, TCX>(
+  is_concurrent: bool,
   options: &Options,
   mut _sent_message: bool,
-  tls_stream: &mut TlsStream<TcpStream, TCX, IS_CLIENT>,
+  mut tls_stream: TlsStream<TcpStream, TCX, IS_CLIENT>,
 ) -> wtx::Result<()>
 where
-  TCX: TlsCtx,
+  TCX: TlsCtx + Send + 'static,
 {
-  let mut quench_writes = false;
-  let mut _sent_key_update = false;
-  let mut sent_shutdown = false;
-
-  if options.export_keying_material > 0 {
-    let mut export_buf = vec![0u8; options.export_keying_material];
-    let context = if options.export_keying_material_context_used {
-      Some(options.export_keying_material_context.as_bytes())
-    } else {
-      None
-    };
-    tls_stream.export_keying_material(
-      context,
-      options.export_keying_material_label.as_bytes(),
-      &mut export_buf,
-    )?;
-    tls_stream.write_all(&export_buf).await?;
-  }
-
-  if options.export_traffic_secrets {
-    let (read_secret, write_secret) = tls_stream.export_traffic_secrets();
-    let (read_secret_vec, write_secret_vec) = (read_secret.to_vec(), write_secret.to_vec());
-    let read_len = u16::try_from(read_secret_vec.len()).unwrap();
-    tls_stream.write_all(&read_len.to_le_bytes()).await?;
-    tls_stream.write_all(&read_secret_vec).await?;
-    tls_stream.write_all(&write_secret_vec).await?;
-  }
-
-  if options.send_key_update && !_sent_key_update {
-    tls_stream.refresh_traffic_keys().await?;
-    _sent_key_update = true;
-  }
-
-  if (options.queue_data || options.only_write_one_byte_after_handshake) && !_sent_message {
-    tls_stream.write_all(b"hello").await?;
-    _sent_message = true;
-    if options.only_write_one_byte_after_handshake {
-      tls_stream.stream_mut().write_all(&[0]).await?;
-      quench_writes = true;
-    }
-  }
-
-  let read_size = options.read_size.min(2048);
-  let mut buffer = Vector::from_iterator((0..read_size).map(|_| 0))?;
-
-  loop {
-    let len = match tls_stream.read(buffer.get_mut(..read_size).unwrap().into()).await {
-      Ok(None) => return Ok(()),
-      Ok(Some(len)) => len.get(),
-      Err(err) => return Err(err),
-    };
-
-    if options.shut_down_after_handshake && !sent_shutdown {
-      tls_stream.send_close_notify().await?;
-      sent_shutdown = true;
-    }
-
-    if quench_writes && len > 0 {
-      quench_writes = false;
-    }
-
-    if len > 0 {
-      for byte in buffer.get_mut(..len).unwrap() {
-        *byte ^= 255;
+  if is_concurrent {
+    let (bridge, mut reader, writer) = tls_stream.into_split()?;
+    let shared_writer = Arc::new(AsyncMutex::new(writer));
+    let bridge_writer = shared_writer.clone();
+    let _jh = tokio::task::spawn(async move {
+      loop {
+        let data = bridge.listen().await;
+        if bridge_writer.lock().await.manage_bridge_data(data).await? {
+          break;
+        }
       }
-      tls_stream.write_all(buffer.get(..len).unwrap()).await?;
-    }
+      wtx::Result::Ok(())
+    });
+    let traffic_secrets_vec = (
+      reader.export_traffic_secret().to_vec(),
+      shared_writer.lock().await.export_traffic_secret().to_vec(),
+    );
+    manage_after_handshake!(
+      options,
+      _sent_message,
+      (&mut reader, &shared_writer),
+      traffic_secrets_vec,
+      |local_stream| local_stream.0,
+      |local_stream| &mut local_stream.1.lock().await
+    );
+  } else {
+    let traffic_secrets_vec = {
+      let traffic_secrets = tls_stream.export_traffic_secrets();
+      (traffic_secrets.0.to_vec(), traffic_secrets.1.to_vec())
+    };
+    manage_after_handshake!(
+      options,
+      _sent_message,
+      &mut tls_stream,
+      traffic_secrets_vec,
+      |local_stream| local_stream,
+      |local_stream| local_stream
+    );
   }
+  Ok(())
 }
 
 fn make_client_cfg<TCX>(ctx: TCX, options: &Options) -> TlsConfig<TCX>
@@ -336,14 +337,4 @@ fn make_server_cfg(options: &Options) -> TlsConfig<SkCtx> {
     *cfg.unique_signature_algorithms_mut() = true;
   }
   cfg
-}
-
-fn quit(why: &str) -> ! {
-  eprintln!("{why}");
-  process::exit(0)
-}
-
-fn _quit_err(why: &str) -> ! {
-  eprintln!("{why}");
-  process::exit(1)
 }

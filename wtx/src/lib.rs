@@ -57,9 +57,16 @@ pub use error::{Error, RecvError, SendError};
 #[cfg(feature = "macros")]
 pub use wtx_macros::*;
 
-pub(crate) const _AFTER_CLOSE_TIMEOUT_MS: u64 = 50;
-pub(crate) const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
-pub(crate) const _SIMD_LEN: usize = _simd! {
+const _WTX_CAF: &str = "wtx-caf";
+const _WTX_HTTP_SM: &str = "wtx-http-sm";
+const _WTX_HTTP: &str = "wtx-http";
+const _WTX_HTTP2: &str = "wtx-http2";
+const _WTX_TLS_HS: &str = "wtx-tls-hs";
+const _WTX_TLS: &str = "wtx-tls";
+
+const _AFTER_CLOSE_TIMEOUT_MS: u64 = 50;
+const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
+const _SIMD_LEN: usize = _simd! {
   4 => { 4 },
   16 => { 16 },
   32 => { 32 },

@@ -180,6 +180,8 @@ pub enum TlsError {
   UnknownsOverflow,
   /// Unoffered Extension
   UnofferedExtension,
+  /// Unknown Key Update Request
+  UnknownKeyUpdateRequest,
   /// Unknown Signature Scheme
   UnknownSignatureScheme,
   /// Unknown Webpki Signature Scheme

@@ -2,6 +2,7 @@ use crate::{
   codec::alphabet::{Alphabet, DecodeStep, EncodeStep},
   misc::int_conv::u8i16,
 };
+use core::range::RangeInclusive;
 
 #[derive(Debug)]
 pub(crate) struct Url;
@@ -24,9 +25,9 @@ impl Alphabet for UrlNoPad {
 }
 
 const DECODER: &[DecodeStep] = &[
-  DecodeStep::Range(b'A'..=b'Z', -64),
-  DecodeStep::Range(b'a'..=b'z', -70),
-  DecodeStep::Range(b'0'..=b'9', 5),
+  DecodeStep::Range(RangeInclusive { start: b'A', last: b'Z' }, -64),
+  DecodeStep::Range(RangeInclusive { start: b'a', last: b'z' }, -70),
+  DecodeStep::Range(RangeInclusive { start: b'0', last: b'9' }, 5),
   DecodeStep::Eq(b'-', 63),
   DecodeStep::Eq(b'_', 64),
 ];

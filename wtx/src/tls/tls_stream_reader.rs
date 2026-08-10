@@ -4,12 +4,13 @@ use crate::{
   futures::Sleep,
   misc::Either,
   net::{BufStreamReader, ConnectionState, StreamCommon, StreamReader},
-  sync::{Arc, AtomicU8, AtomicWaker},
+  sync::Arc,
   tls::{
-    TlsCtx, TlsStreamBridge, TlsStreamBridgeData,
+    AlertDescription, AlertLevel, TlsCtx, TlsError, TlsStreamBridge, TlsStreamBridgeData,
     key_schedule::KeyScheduleRead,
-    misc::read_after_handshake_data,
+    misc::{manage_err_ad, manage_key_update, manage_user_canceled, read_after_handshake_data},
     protocol::{alert::Alert, key_update::KeyUpdate, new_session_ticket::NewSessionTicket},
+    tls_stream_common::TlsStreamCommon,
   },
 };
 use alloc::boxed::Box;
@@ -27,7 +28,8 @@ use core::{
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
 pub struct TlsStreamReader<SR, TCX, const IS_CLIENT: bool> {
-  connection_state: Arc<AtomicU8>,
+  common: Arc<TlsStreamCommon>,
+  key_updates: u8,
   ksr: KeyScheduleRead,
   max_fragment_length: u16,
   new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
@@ -35,30 +37,30 @@ pub struct TlsStreamReader<SR, TCX, const IS_CLIENT: bool> {
   plaintext_consumed: usize,
   plaintext_len: usize,
   reader_buffer: BufStreamReader,
-  reader_waker: Arc<AtomicWaker>,
   split_begin: usize,
   split_len: usize,
   stream_bridge: TlsStreamBridge<IS_CLIENT>,
   stream_reader: SR,
   timer: Pin<Box<Sleep>>,
+  warning_alerts: u8,
 }
 
 impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
   #[inline]
   pub(crate) fn new(
-    connection_state: Arc<AtomicU8>,
+    common: Arc<TlsStreamCommon>,
     ksr: KeyScheduleRead,
     max_fragment_length: u16,
     new_session_ticket: Option<NewSessionTicket<ShortBoxSliceU16<u8>>>,
     plaintext_consumed: usize,
     plaintext_len: usize,
     reader_buffer: BufStreamReader,
-    reader_waker: Arc<AtomicWaker>,
     stream_bridge: TlsStreamBridge<IS_CLIENT>,
     stream_reader: SR,
   ) -> crate::Result<Self> {
     Ok(Self {
-      connection_state,
+      common,
+      key_updates: 0,
       ksr,
       max_fragment_length,
       new_session_ticket,
@@ -66,12 +68,12 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
       plaintext_consumed,
       plaintext_len,
       reader_buffer,
-      reader_waker,
       split_begin: 0,
       split_len: 0,
       stream_bridge,
       stream_reader,
       timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
+      warning_alerts: 0,
     })
   }
 
@@ -80,27 +82,33 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
   // There is nothing to write to the peer so we don't wake the writer side.
   #[inline]
   pub fn close_abruptly(&self) {
-    self.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+    self.common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
   }
 
   /// See [`ConnectionState`].
   #[inline]
   pub fn connection_state(&self) -> ConnectionState {
-    self.connection_state.load(Ordering::Relaxed).into()
+    self.common.connection_state.load(Ordering::Relaxed).into()
+  }
+
+  /// Exports the application traffic secrets.
+  #[inline]
+  pub fn export_traffic_secret(&self) -> &[u8] {
+    self.ksr.state().raw_traffic_secret()
   }
 
   /// Sends a warning alert of type `CloseNotify`, gracefully closing the connection.
   #[inline]
   pub fn send_close_notify(&self) -> crate::Result<()> {
-    self.connection_state.store(ConnectionState::WriteClosed.into(), Ordering::Relaxed);
+    self.common.connection_state.store(ConnectionState::WriteClosed.into(), Ordering::Relaxed);
     self.stream_bridge.update(TlsStreamBridgeData::new(Either::Left(Alert::close_notify())));
     Ok(())
   }
 
   #[cfg(any(feature = "http2", feature = "web-socket"))]
   #[inline]
-  pub(crate) const fn connection_state_raw(&self) -> &Arc<AtomicU8> {
-    &self.connection_state
+  pub(crate) const fn common(&self) -> &Arc<TlsStreamCommon> {
+    &self.common
   }
 }
 
@@ -114,7 +122,8 @@ where
   #[inline]
   async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     let Self {
-      connection_state,
+      common,
+      key_updates,
       ksr,
       max_fragment_length,
       new_session_ticket,
@@ -122,19 +131,19 @@ where
       plaintext_consumed,
       plaintext_len,
       reader_buffer,
-      reader_waker,
       split_begin,
       split_len,
       stream_bridge,
       stream_reader,
       timer,
+      warning_alerts,
     } = self;
     let mut read_fut = pin!(async {
       if TCX::TY.is_plain_text() {
         return stream_reader.read(bytes).await;
       }
-      read_after_handshake_data::<_, _, IS_CLIENT>(
-        (&*stream_bridge, &*connection_state),
+      let rslt = read_after_handshake_data::<_, _, IS_CLIENT>(
+        Aux { common, key_updates, stream_bridge, warning_alerts },
         bytes,
         ksr,
         *max_fragment_length,
@@ -148,14 +157,24 @@ where
         alert_cb,
         closed_conn_cb,
         key_update_cb,
+        key_update_reset_cb,
       )
+      .await;
+      manage_err_ad(rslt, async |description| {
+        stream_bridge.update(TlsStreamBridgeData::new(Either::Left(Alert::new(
+          AlertLevel::Fatal,
+          description,
+        ))));
+        common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+        Ok(())
+      })
       .await
     });
     poll_fn(|cx| match read_fut.as_mut().poll(cx) {
       Poll::Ready(res) => Poll::Ready(res),
       Poll::Pending => {
-        reader_waker.register(cx.waker());
-        let current_state = connection_state.load(Ordering::Relaxed);
+        common.reader_waker.register(cx.waker());
+        let current_state = common.connection_state.load(Ordering::Relaxed);
         match ConnectionState::from(current_state) {
           // Normal operation
           ConnectionState::Draining | ConnectionState::Open => Poll::Pending,
@@ -174,7 +193,9 @@ where
           ConnectionState::WriteClosed => {
             cold_path();
             let _rslt = ready!(timer.as_mut().poll(cx));
-            connection_state.store(ConnectionState::ClosedGracefully.into(), Ordering::Relaxed);
+            common
+              .connection_state
+              .store(ConnectionState::ClosedGracefully.into(), Ordering::Relaxed);
             Poll::Ready(Ok(None))
           }
         }
@@ -185,31 +206,54 @@ where
 }
 
 async fn alert_cb<SR, const IS_CLIENT: bool>(
-  aux: &mut (&TlsStreamBridge<IS_CLIENT>, &Arc<AtomicU8>),
+  aux: &mut Aux<'_, IS_CLIENT>,
   alert: Alert,
   _: &mut SR,
 ) -> crate::Result<bool> {
-  if alert.is_close_notify() {
-    aux.1.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
-    aux.0.update(TlsStreamBridgeData::new(Either::Left(alert)));
-  } else {
-    aux.1.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+  match (alert.level(), alert.description()) {
+    (AlertLevel::Warning, AlertDescription::CloseNotify) => {
+      aux.common.connection_state.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
+      aux.stream_bridge.update(TlsStreamBridgeData::new(Either::Left(alert)));
+      Ok(true)
+    }
+    (AlertLevel::Warning, AlertDescription::UserCanceled) => {
+      manage_user_canceled(aux.warning_alerts)
+    }
+    _ => Err(crate::Error::TlsErrorReply(TlsError::WrongAlert, AlertDescription::DecodeError)),
   }
-  Ok(true)
 }
 
 // This branch is only entered when the peer closed the connection without an alert.
-fn closed_conn_cb<const IS_CLIENT: bool>(aux: &mut (&TlsStreamBridge<IS_CLIENT>, &Arc<AtomicU8>)) {
-  aux.1.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+fn closed_conn_cb<const IS_CLIENT: bool>(aux: &mut Aux<'_, IS_CLIENT>) {
+  aux.common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
 }
 
 async fn key_update_cb<SR, const IS_CLIENT: bool>(
-  aux: &mut (&TlsStreamBridge<IS_CLIENT>, &Arc<AtomicU8>),
+  aux: &mut Aux<'_, IS_CLIENT>,
   key_update: Option<KeyUpdate>,
   _: &mut SR,
 ) -> crate::Result<()> {
-  if let Some(elem) = key_update {
-    aux.0.update(TlsStreamBridgeData::new(Either::Right(elem)));
+  manage_key_update(aux.key_updates)?;
+  if let Some(elem) = key_update
+    && aux.common.can_reply_key_update.load(Ordering::Relaxed)
+  {
+    aux.stream_bridge.update(TlsStreamBridgeData::new(Either::Right(elem)));
+    aux.common.can_reply_key_update.store(false, Ordering::Relaxed);
   }
   Ok(())
+}
+
+async fn key_update_reset_cb<SR, const IS_CLIENT: bool>(
+  aux: &mut Aux<'_, IS_CLIENT>,
+  _: &mut SR,
+) -> crate::Result<()> {
+  *aux.key_updates = 0;
+  Ok(())
+}
+
+struct Aux<'any, const IS_CLIENT: bool> {
+  common: &'any Arc<TlsStreamCommon>,
+  key_updates: &'any mut u8,
+  stream_bridge: &'any TlsStreamBridge<IS_CLIENT>,
+  warning_alerts: &'any mut u8,
 }

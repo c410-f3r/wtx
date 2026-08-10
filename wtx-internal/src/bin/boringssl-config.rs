@@ -224,10 +224,6 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("StrayHelloRequest", "UNSUPPORTED"),
     ("StrayHelloRequest-Packed", "UNSUPPORTED"),
     ("Renegotiate-Client-Packed", "UNSUPPORTED"),
-    ("Renegotiation-CertificateChange", "UNSUPPORTED"),
-    ("Renegotiation-CertificateChange-2", "UNSUPPORTED"),
-    ("Renegotiation-ForbidALPN", "UNSUPPORTED"),
-    ("Renegotiation-ChangeAuthProperties", "UNSUPPORTED"),
     ("Client-Sign-ECDSA_P256_SHA256-TLS13", "UNSUPPORTED"),
     ("Client-SignDefault-ECDSA_P256_SHA256-TLS13", "UNSUPPORTED"),
     ("Client-Sign-Negotiate-ECDSA_P256_SHA256-TLS13", "UNSUPPORTED"),
@@ -784,10 +780,12 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("*PostQuantum*", "UNSUPPORTED"),
     ("*cnsa1-202603*", "UNSUPPORTED"),
     ("*cnsa2-202603*", "UNSUPPORTED"),
+    ("*cnsa202407*", "UNSUPPORTED"),
     ("*RawPublicKey*", "UNSUPPORTED"),
     ("*RPK*", "UNSUPPORTED"),
     ("*Resumption*", "UNSUPPORTED"),
     ("*RetainOnlySHA256*", "UNSUPPORTED"),
+    ("*Renegotiation*", "UNSUPPORTED"),
     ("*TicketFlags*", "UNSUPPORTED"),
     ("*TrustAnchors*", "UNSUPPORTED"),
     ("*TrustAnchorIDs*", "UNSUPPORTED"),
@@ -826,6 +824,7 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
     ("UnknownExtension-Client-TLS13", "UNSUPPORTED"),
     ("UnknownUnencryptedExtension-Client-TLS13", "UNSUPPORTED"),
     ("CertificateSelection-Server-CertificateType-Unknown-X509-MatchNone-TLS-TLS13", "UNSUPPORTED"),
+    ("KeyUpdate-Requested-UnfinishedWrite", "UNSUPPORTED"),
   ]
   .into_iter()
   .collect()
@@ -833,12 +832,16 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
 
 fn error_map() -> HashMap<&'static str, Vector<&'static str>> {
   [
+    // EC errors are grouped together.
     (":BAD_ECPOINT:", Vector::from_iterator([":WRONG_CURVE:"]).unwrap()),
-    // All trailing errors after decoding are group into ":DECODE_ERROR:"
+    // All trailing errors after decoding are group into ":DECODE_ERROR:".
     (":CLIENTHELLO_PARSE_FAILED:", Vector::from_iterator([":DECODE_ERROR:"]).unwrap()),
+    // Crypto algorithms usually don't tell why something went wrong, thus the reason of this
+    // grouping.
     (":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
-    // After the first CCS is decoded all subsequent CCSs are treated as encrypted data
+    // After the first CCS is decoded all subsequent CCSs are treated as encrypted data.
     (":TOO_MANY_EMPTY_FRAGMENTS:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
+    // Groups all errors related to mismatches between key types in certificate and signatures.
     (":UNSUPPORTED_ALGORITHM:", Vector::from_iterator([":WRONG_SIGNATURE_TYPE:"]).unwrap()),
   ]
   .into_iter()

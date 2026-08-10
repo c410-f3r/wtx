@@ -1,7 +1,10 @@
 pub(crate) mod standard;
 pub(crate) mod url;
 
-use crate::codec::alphabet::{Alphabet as _, DecodeStep, EncodeStep};
+use crate::{
+  codec::alphabet::{Alphabet as _, DecodeStep, EncodeStep},
+  misc::int_conv::u8i16,
+};
 
 /// Set of allowed characters
 #[derive(Clone, Copy, Debug)]
@@ -192,10 +195,10 @@ fn decode_6bits(decoder: &'static [DecodeStep], from: u8) -> i16 {
   ///
   /// Returns `-1` if `from` is in the range delimited by `a` and `b`.
   #[inline(always)]
-  fn is_in_range(b0: u8, b1: u8, from: u8) -> i16 {
-    let begin = i16::from(b0).wrapping_sub(1);
-    let end = i16::from(b1).wrapping_add(1);
-    let value = begin.wrapping_sub(i16::from(from)) & i16::from(from).wrapping_sub(end);
+  const fn is_in_range(b0: u8, b1: u8, from: u8) -> i16 {
+    let begin = u8i16(b0).wrapping_sub(1);
+    let end = u8i16(b1).wrapping_add(1);
+    let value = begin.wrapping_sub(u8i16(from)) & u8i16(from).wrapping_sub(end);
     value >> 8
   }
 
@@ -203,8 +206,8 @@ fn decode_6bits(decoder: &'static [DecodeStep], from: u8) -> i16 {
   for step in decoder {
     let value = match step {
       DecodeStep::Range(range, offset) => {
-        let value = is_in_range(*range.start(), *range.end(), from);
-        value & i16::from(from).wrapping_add(*offset)
+        let value = is_in_range(range.start, range.last, from);
+        value & u8i16(from).wrapping_add(*offset)
       }
       DecodeStep::Eq(value, offset) => is_in_range(*value, *value, from) & *offset,
     };

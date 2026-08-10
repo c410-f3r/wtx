@@ -73,7 +73,7 @@ where
   pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, MsgBufferString)> {
     let Self { inner, linger: _, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Receiving request");
+    _trace!(target: crate::_WTX_HTTP2, "Receiving request");
     let rslt = {
       let mut lock_pin = pin!(inner.hd.lock());
       poll_fn(|cx| {
@@ -81,7 +81,7 @@ where
         manage_recurrent_receiving_of_overall_stream(
           cx,
           lock.parts_mut(),
-          &inner.is_conn_open,
+          &inner.is_conn_open.connection_state,
           *stream_id,
           |hdpm, _, stream_state, windows| {
             drop(hdpm.hb.scrps.insert(
@@ -126,7 +126,7 @@ where
   {
     let Self { inner, linger: _, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Sending response");
+    _trace!(target: crate::_WTX_HTTP2, "Sending response");
     let hss = send_msg::<_, _, false>(
       res.msg_data.body().lease(),
       enc_buffer,

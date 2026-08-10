@@ -53,8 +53,10 @@ use crate::{
   http2::settings_frame::SettingsFrame,
   misc::{Lease, LeaseMut, Usize},
   net::{ConnectionState, StreamReader, StreamWriter},
-  sync::{Arc, AsyncMutex, AtomicU8},
-  tls::{TlsCtx, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
+  sync::{Arc, AsyncMutex},
+  tls::{
+    TlsCtx, TlsStreamBridge, TlsStreamReader, TlsStreamWriter, tls_stream_common::TlsStreamCommon,
+  },
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -94,7 +96,7 @@ where
   /// See [`ConnectionState`].
   #[inline]
   pub fn connection_state(&self) -> ConnectionState {
-    misc::connection_state(&self.inner.is_conn_open)
+    misc::connection_state(&self.inner.is_conn_open.connection_state)
   }
 
   send_go_away_method!();
@@ -141,7 +143,7 @@ where
     let max_frame_len = hrp.max_frame_len();
     let inner = Arc::new(Http2Inner {
       hd: AsyncMutex::new(Http2Data::new(hb, hrp)),
-      is_conn_open: stream_reader.connection_state_raw().clone(),
+      is_conn_open: stream_reader.common().clone(),
       wd: AsyncMutex::new(stream_writer),
     });
     Ok((
@@ -200,7 +202,7 @@ where
       let mut guard = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = guard.parts_mut();
       let linger = hdpm.hp.linger();
-      if misc::connection_state(&inner.is_conn_open).is_full_close() {
+      if misc::connection_state(&inner.is_conn_open.connection_state).is_full_close() {
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
       }
@@ -322,6 +324,8 @@ impl<SW, TCX, const IS_CLIENT: bool> Clone for Http2<SW, TCX, IS_CLIENT> {
 #[derive(Debug)]
 pub(crate) struct Http2Inner<SW, TCX, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
-  pub(crate) is_conn_open: Arc<AtomicU8>,
+  // FIXME(STABLE): `Arc::map` to use `Arc<AtomicU8>` instead of `Arc<TlsStreamCommon>` and then
+  //                remove `pub(crate)` from the `tls_stream_common` module.
+  pub(crate) is_conn_open: Arc<TlsStreamCommon>,
   pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TCX, IS_CLIENT>>,
 }

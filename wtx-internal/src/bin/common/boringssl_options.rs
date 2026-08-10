@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 use std::{fs, process};
 use wtx::{
-  codec::decode_base64_into_buffer,
   collections::Vector,
   tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme},
 };
@@ -11,15 +10,13 @@ const BOGO_NACK: i32 = 89;
 #[derive(Debug)]
 pub struct Options {
   pub certs_pem: Vector<String>,
-  pub check_close_notify: bool,
   pub expect_curve_id: Option<NamedGroup>,
   pub expect_handshake_kind: Option<Vector<HandshakePath>>,
-  pub expect_quic_transport_params: Vector<u8>,
   pub expect_selected_credential: Option<isize>,
-  pub export_keying_material_context_used: bool,
-  pub export_keying_material_context: String,
-  pub export_keying_material_label: String,
   pub export_keying_material: usize,
+  pub export_keying_material_context: String,
+  pub export_keying_material_context_used: bool,
+  pub export_keying_material_label: String,
   pub export_traffic_secrets: bool,
   pub groups: Option<Vector<NamedGroup>>,
   pub has_default_cert: bool,             // Not a cfg
@@ -28,7 +25,6 @@ pub struct Options {
   pub is_client: bool,
   pub keys_pem: Vector<String>,
   pub max_fragment: Option<MaxFragmentLength>,
-  pub must_match_issuer: bool,
   pub offer_no_client_cas: bool,
   pub on_initial_expect_curve_id: Option<NamedGroup>,
   pub only_write_one_byte_after_handshake: bool,
@@ -40,8 +36,6 @@ pub struct Options {
   pub resume_count: usize,
   pub select_empty_alpn: bool,
   pub send_key_update: bool,
-  pub server_preference: bool,
-  pub server_supported_group_hint: Option<NamedGroup>,
   pub shim_id: u64,
   pub shut_down_after_handshake: bool,
   pub signing_prefs: Vector<SignatureScheme>,
@@ -49,17 +43,14 @@ pub struct Options {
   pub use_sni: bool,
   pub verify_peer: bool,
   pub verify_prefs: Option<SignatureScheme>,
-  pub wait_for_debugger: bool,
 }
 
 impl Default for Options {
   fn default() -> Self {
     Self {
       certs_pem: Vector::new(),
-      check_close_notify: false,
       expect_curve_id: None,
       expect_handshake_kind: None,
-      expect_quic_transport_params: Vector::new(),
       export_keying_material: 0,
       expect_selected_credential: None,
       export_keying_material_context_used: false,
@@ -73,7 +64,6 @@ impl Default for Options {
       is_client: true,
       keys_pem: Vector::new(),
       max_fragment: None,
-      must_match_issuer: false,
       offer_no_client_cas: false,
       on_initial_expect_curve_id: None,
       only_write_one_byte_after_handshake: false,
@@ -85,8 +75,6 @@ impl Default for Options {
       resume_count: 0,
       select_empty_alpn: false,
       send_key_update: false,
-      server_preference: false,
-      server_supported_group_hint: None,
       shim_id: 0,
       shut_down_after_handshake: false,
       signing_prefs: Vector::new(),
@@ -94,7 +82,6 @@ impl Default for Options {
       use_sni: false,
       verify_peer: false,
       verify_prefs: None,
-      wait_for_debugger: false,
     }
   }
 }
@@ -120,8 +107,7 @@ where
     let arg = self.args.next()?;
     check_unimplemented_arguments(&arg);
     let has_arg = check_implemented_arguments(&arg, &mut self.args, &mut self.options)
-      || check_ignored_arguments(&arg, &mut self.args)
-      || check_irrelevant_arguments(&arg);
+      || check_ignored_arguments(&arg);
     if has_arg {
       return Some(());
     }
@@ -161,41 +147,22 @@ pub fn cert_pem_from_pem_file(path: &str) -> String {
   fs::read_to_string(path).unwrap()
 }
 
-fn check_ignored_arguments(arg: &str, args: &mut impl Iterator<Item = String>) -> bool {
+pub fn quit(why: &str) -> ! {
+  eprintln!("{why}");
+  process::exit(0)
+}
+
+pub fn verify_cert(options: &Options) -> bool {
+  options.verify_peer || options.offer_no_client_cas
+}
+
+fn check_ignored_arguments(arg: &str) -> bool {
   match arg {
-    "-enable-ed25519"
-    | "-enable-signed-cert-timestamps"
-    | "-expect-no-session-id"
-    | "-expect-secure-renegotiation"
-    | "-expect-session-id"
-    | "-expect-tls13-downgrade"
-    | "-no-legacy-server-connect"
-    | "-no-ticket"
-    | "-ocsp-response"
-    | "-on-resume-expect-no-offer-early-data" => {
+    "-async" // Async suffixes don't interfere
+    | "-ipv6" // IPv6 is automatically handled
+    | "-no-legacy-server-connect" // TLS 1.3 is not legacy
+    => {
       println!("Ignored: {arg}");
-    }
-    "-application-settings"
-    | "-expect-advertised-alpn"
-    | "-expect-alpn"
-    | "-expect-certificate-types"
-    | "-expect-msg-callback"
-    | "-expect-peer-signature-algorithm"
-    | "-expect-peer-verify-pref"
-    | "-expect-server-name"
-    | "-expect-session-miss"
-    | "-expect-signed-cert-timestamps"
-    | "-expect-ticket-age-skew"
-    | "-handshaker-path"
-    | "-max-cert-list"
-    | "-on-initial-expect-alpn"
-    | "-on-initial-expect-cipher"
-    | "-on-initial-expect-early-data-reason"
-    | "-on-resume-expect-alpn"
-    | "-on-resume-expect-cipher"
-    | "-on-retry-expect-alpn"
-    | "-on-retry-expect-cipher" => {
-      println!("Ignored: {arg} with {:?}", args.next());
     }
     _ => return false,
   }
@@ -217,9 +184,6 @@ fn check_implemented_arguments(
       }
       options.certs_pem.push(cert_pem_from_pem_file(&args.next().unwrap())).unwrap();
     }
-    "-check-close-notify" => {
-      options.check_close_notify = true;
-    }
     "-curves" => {
       let Ok(group) = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
         return true;
@@ -232,9 +196,6 @@ fn check_implemented_arguments(
     }
     "-expect-no-hrr" => {
       options.expect_handshake_kind = Some(Vector::from_iterator([HandshakePath::Full]).unwrap());
-    }
-    "-expect-quic-transport-params" => {
-      options.expect_quic_transport_params = decode_base64(args.next().unwrap().as_bytes());
     }
     "-expect-selected-credential" => {
       options.expect_selected_credential = Some(args.next().unwrap().parse().unwrap());
@@ -283,9 +244,6 @@ fn check_implemented_arguments(
         process::exit(BOGO_NACK);
       }
     }
-    "-must-match-issuer" => {
-      options.must_match_issuer = true;
-    }
     "-new-x509-credential" => {
       options.has_seen_new_x509_credential = true;
     }
@@ -315,15 +273,6 @@ fn check_implemented_arguments(
     }
     "-select-empty-alpn" => {
       options.select_empty_alpn = true;
-    }
-    "-server-preference" => {
-      options.server_preference = true;
-    }
-    "-server-supported-groups-hint" => {
-      let Ok(group) = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
-        return true;
-      };
-      options.server_supported_group_hint = Some(group);
     }
     "-server" => {
       options.is_client = false;
@@ -362,118 +311,43 @@ fn check_implemented_arguments(
       };
       options.verify_prefs = Some(el);
     }
-    "-wait-for-debugger" => {
-      if cfg!(unix) {
-        options.wait_for_debugger = true;
-      } else {
-        panic!("-wait-for-debugger is not supported");
-      }
-    }
     _ => return false,
   }
   true
 }
 
-// Does not matter or it is already a default behavior
-fn check_irrelevant_arguments(arg: &str) -> bool {
-  match arg {
-    "-async" // openssl
-    | "-decline-alpn"
-    | "-enable-all-curves"
-    | "-expect-no-session"
-    | "-expect-ticket-renewal"
-    | "-forbid-renegotiation-after-handshake"
-    | "-handoff"
-    | "-implicit-handshake" // openssl
-    | "-ipv6"
-    | "-no-ssl3"
-    | "-no-tls1"
-    | "-no-tls11"
-    | "-no-tls12"
-    | "-permute-extensions"
-    | "-renegotiate-ignore"
-    | "-use-early-callback" // openssl
-    | "-use-old-client-cert-callback" // openssl
-    => true,
-    _ => false
-  }
-}
-
 fn check_unimplemented_arguments(arg: &str) {
   match arg {
-    "-advertise-empty-npn"
-    | "-advertise-npn"
-    | "-allow-hint-mismatch"
-    | "-allow-unknown-alpn-protos"
+    "-allow-unknown-alpn-protos"
+    | "-check-close-notify" // Looks like something that should be used in the shim
     | "-cipher"
-    | "-cnsa-202407"
-    | "-digest-prefs"
-    | "-dtls"
-    | "-enable-channel-id"
-    | "-enable-client-custom-extension"
-    | "-enable-early-data"
-    | "-enable-grease"
     | "-enable-ocsp-stapling" // Deprecated
-    | "-enable-server-custom-extension"
-    | "-expect-accept-early-data"
-    | "-expect-channel-id"
+    | "-expect-advertised-alpn"
     | "-expect-cipher-aes"
     | "-expect-client-ca-list"
-    | "-expect-dhe-group-size"
-    | "-expect-draft-downgrade"
-    | "-expect-early-data-info"
     | "-expect-early-data-reason"
-    | "-expect-hrr"
+    | "-expect-no-session-id" // Resumption is not supported
     | "-expect-not-resumable-across-names"
     | "-expect-peer-cert-file"
-    | "-expect-reject-early-data"
-    | "-expect-resumable-across-names"
+    | "-expect-peer-verify-pref"
+    | "-expect-session-miss" // Resumption is not supported
     | "-expect-ticket-supports-early-data"
     | "-expect-verify-result"
-    | "-export-early-keying-material"
     | "-fail-cert-callback"
-    | "-fail-early-callback"
-    | "-fallback-scsv"
-    | "-false-start"
     | "-fips-202205"
-    | "-handshake-twice"
-    | "-ignore-tls13-downgrade"
     | "-install-ddos-callback"
     | "-key-shares"
     | "-no-key-shares"
     | "-no-op-extra-handshake"
-    | "-no-rsa-pss-rsae-certs"
-    | "-no-server-name-ack"
-    | "-on-initial-expect-peer-cert-file"
-    | "-on-initial-tls13-variant"
-    | "-on-resume-early-write-after-message"
-    | "-on-resume-enable-early-data"
-    | "-on-resume-expect-accept-early-data"
-    | "-on-resume-expect-early-data-reason"
-    | "-on-resume-expect-reject-early-data-reason"
-    | "-on-resume-expect-reject-early-data"
-    | "-on-resume-export-early-keying-material"
-    | "-on-resume-verify-fail"
-    | "-on-retry-expect-early-data-reason"
+    | "-no-ticket" // Resumption is not supported
     | "-peek-then-read"
     | "-psk"
     | "-renegotiate-freely"
+    | "-request-server-padding"
     | "-require-any-client-certificate"
-    | "-resumption-across-names-enabled"
-    | "-retain-only-sha256-client-cert-initial"
-    | "-reverify-on-resume"
-    | "-select-empty-next-proto"
-    | "-select-next-proto"
-    | "-send-alert"
-    | "-send-channel-id"
-    | "-signed-cert-timestamps"
+    | "-server-supported-groups-hint"
+    | "-server-supports-padding"
     | "-srtp-profiles"
-    | "-ticket-key"
-    | "-tls-unique"
-    | "-use-client-ca-list"
-    | "-use-custom-verify-callback"
-    | "-use-exporter-between-reads"
-    | "-use-null-client-ca-list"
     | "-use-ticket-aead-callback"
     | "-use-ticket-callback"
     | "-verify-fail"
@@ -483,12 +357,6 @@ fn check_unimplemented_arguments(arg: &str) {
     }
     _ => {}
   }
-}
-
-fn decode_base64(data: &[u8]) -> Vector<u8> {
-  let mut buffer = Vector::new();
-  let _ = decode_base64_into_buffer(&mut buffer, data).unwrap();
-  buffer
 }
 
 fn pkc8_pem_from_pem_file(path: &str) -> String {
@@ -507,8 +375,4 @@ fn split_protocols(protos: &str) -> Vector<String> {
     idx = idx.wrapping_add(len.wrapping_add(1));
   }
   ret
-}
-
-pub(crate) fn verify_cert(options: &Options) -> bool {
-  options.verify_peer || options.offer_no_client_cas
 }

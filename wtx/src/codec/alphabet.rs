@@ -1,9 +1,7 @@
-use core::ops::RangeInclusive;
+use core::range::RangeInclusive;
 
 /// Branchless decoding based on iterative offsets.
-//
-// FIXME(STABLE): Copy with the new RangeInclusive
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum DecodeStep {
   /// Maps exactly one byte value to an offset.
   Eq(u8, i16),

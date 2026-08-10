@@ -113,7 +113,7 @@ async fn finish<SW, TCX, const IS_CLIENT: bool>(
     *hdpm.frame_reader_error = Some(elem);
   }
   mem::swap(nrb, &mut hdpm.hb.nrb);
-  _trace!("Finishing the reading of frames");
+  _trace!(target: crate::_WTX_HTTP2, "Finishing the reading of frames");
 }
 
 // Returns `false` if the connection should be closed.
