@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.51.1...wtx-v0.52.0) - 2026-08-10
+
+### Other
+
+- chore! Fix all BoringSSL tests [16/16]
+- [**breaking**] Fix BoringSSL tests [15/N]
+- Fix BoringSSL tests [14/N]
+- Fix BoringSSL tests [13/N]
+- Fix BoringSSL tests [12/N]
+- Fix BoringSSL tests [11/N]
+
 ## [0.51.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.51.0...wtx-v0.51.1) - 2026-07-31
 
 ### Other
