@@ -65,9 +65,9 @@ where
     req: &mut Request<MsgBufferString>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     if let Some(session_state) = data.lease() {
-      _trace!(target: "wtx_session_middleware", "Connection already has a session");
+      _trace!(target: crate::_WTX_HTTP_SM, "Connection already has a session");
       if check_expiration(&session_state.expires_at)? {
-        _trace!(target: "wtx_session_middleware", "Connection session is expired");
+        _trace!(target: crate::_WTX_HTTP_SM, "Connection session is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
@@ -112,7 +112,7 @@ where
         cookie_def.value.clear();
         json_rslt?
       };
-      _trace!(target: "wtx_session_middleware", "A session has been found in headers");
+      _trace!(target: crate::_WTX_HTTP_SM, "A session has been found in headers");
       let Some(ss_db) =
         self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?
       else {
@@ -120,7 +120,7 @@ where
         break;
       };
       if ss_db.custom_state != ss_des.custom_state {
-        _trace!(target: "wtx_session_middleware", "Connection session does not match database ssion");
+        _trace!(target: crate::_WTX_HTTP_SM, "Connection session does not match database ssion");
         self.session_store.get_with_unit().await?.lease_mut().delete(&ss_des.session_key).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
@@ -128,30 +128,30 @@ where
     }
     // TODO(stable): Polonius
     if !has_stored_session {
-      _trace!(target: "wtx_session_middleware", "Session found in headers does not exist in database");
+      _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not exist in database");
       req.msg_data.clear();
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
     if let Some(elem) = data.lease_mut() {
       if check_expiration(&elem.expires_at)? {
-        _trace!(target: "wtx_session_middleware", "Session found in headers is expired");
+        _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       if req.method.is_mutable() && Some(elem.session_csrf.as_str()) != x_csrf_token_value {
-        _trace!(target: "wtx_session_middleware", "Session found in headers does not contain a valid CSRF");
+        _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not contain a valid CSRF");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
-      _trace!(target: "wtx_session_middleware", "Session found in headers has been successfully validated");
+      _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers has been successfully validated");
     } else {
       let path = req.msg_data.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
-        _trace!(target: "wtx_session_middleware", "Session was not found in headers and path is forbidden");
+        _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers and path is forbidden");
         return Err(crate::Error::from(SessionError::RequiredSession).into());
       }
-      _trace!(target: "wtx_session_middleware", "Session was not found in headers but an allowed path succeeded");
+      _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers but an allowed path succeeded");
     }
     Ok(ControlFlow::Continue(()))
   }

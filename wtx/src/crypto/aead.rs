@@ -1,5 +1,5 @@
 #[cfg(feature = "crypto-alr")]
-mod aws_lc_rs;
+mod alr;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;

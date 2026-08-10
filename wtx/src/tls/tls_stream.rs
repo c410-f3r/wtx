@@ -3,18 +3,22 @@ use crate::{
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   futures::Sleep,
   net::{ConnectionState, Stream, StreamCommon, StreamReader, StreamWriter},
-  sync::{Arc, AtomicU8, AtomicWaker},
+  sync::{Arc, AtomicBool, AtomicU8, AtomicWaker},
   tls::{
-    AlertDescription, AlertLevel, MAX_KEY_UPDATES, MAX_WARNING_ALERTS, TlsBuffer, TlsCtx, TlsError,
-    TlsStreamBridge, TlsStreamReader, TlsStreamWriter,
+    AlertDescription, AlertLevel, TlsBuffer, TlsCtx, TlsError, TlsStreamBridge, TlsStreamReader,
+    TlsStreamWriter,
     key_schedule::{KeySchedule, KeyScheduleWrite},
-    misc::{manage_err, read_after_handshake_data, write_payloads},
+    misc::{
+      manage_err_ad, manage_key_update, manage_user_canceled, read_after_handshake_data,
+      write_payloads,
+    },
     protocol::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
       record_content_ty::RecordContentTy,
     },
+    tls_stream_common::TlsStreamCommon,
   },
 };
 use alloc::boxed::Box;
@@ -34,6 +38,7 @@ use core::{
 #[derive(Debug)]
 pub struct TlsStream<S, TCX, const IS_CLIENT: bool> {
   pub(crate) buffer: TlsBuffer,
+  pub(crate) can_reply_key_update: bool,
   pub(crate) connection_state: ConnectionState,
   pub(crate) key_schedule: KeySchedule,
   pub(crate) key_updates: u8,
@@ -66,6 +71,7 @@ where
   ) -> crate::Result<Self> {
     Ok(Self {
       buffer,
+      can_reply_key_update: true,
       connection_state: ConnectionState::Open,
       key_schedule,
       key_updates: 0,
@@ -97,7 +103,13 @@ where
     label: &[u8],
     output: &mut [u8],
   ) -> crate::Result<()> {
-    self.key_schedule.export_keying_material(context, label, output)
+    KeySchedule::export_keying_material(
+      self.key_schedule.cipher_suite(),
+      context,
+      self.key_schedule.exporter_secret(),
+      label,
+      output,
+    )
   }
 
   /// Exports the read and write application traffic secrets.
@@ -165,29 +177,32 @@ where
     self,
   ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
     let stream_bridge = TlsStreamBridge::new();
+    let exporter_secret = *self.key_schedule.exporter_secret();
     let (ksr, ksw) = self.key_schedule.into_split();
     let (_, stream_reader, stream_writer) = self.stream.into_split()?;
-    let connection_state = Arc::new(AtomicU8::new(self.connection_state.into()));
-    let reader_waker = Arc::new(AtomicWaker::new());
+    let common = Arc::new(TlsStreamCommon {
+      can_reply_key_update: AtomicBool::new(self.can_reply_key_update),
+      connection_state: AtomicU8::new(self.connection_state.into()),
+      reader_waker: AtomicWaker::new(),
+    });
     Ok((
       stream_bridge.clone(),
       TlsStreamReader::new(
-        connection_state.clone(),
+        common.clone(),
         ksr,
         self.max_fragment_length,
         self.new_session_ticket,
         self.plaintext_consumed,
         self.plaintext_len,
         self.buffer.reader_buffer,
-        reader_waker.clone(),
         stream_bridge,
         stream_reader,
       )?,
       TlsStreamWriter::new(
-        connection_state,
+        common,
+        exporter_secret,
         ksw,
         self.max_fragment_length_send,
-        reader_waker,
         stream_writer,
         self.buffer.writer_buffer,
       ),
@@ -206,11 +221,12 @@ where
   async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
     let Self {
       buffer,
+      can_reply_key_update,
       connection_state,
       key_schedule,
       key_updates,
-      max_fragment_length,
       max_fragment_length_send: _,
+      max_fragment_length,
       new_session_ticket,
       phantom: _,
       plaintext_consumed,
@@ -232,7 +248,13 @@ where
       }
       let (ksr, ksw) = key_schedule.split_mut();
       let rslt = read_after_handshake_data::<_, _, IS_CLIENT>(
-        (&mut *connection_state, ksw, warning_alerts, key_updates),
+        Aux {
+          connection_state: &mut *connection_state,
+          can_reply_key_update,
+          key_updates,
+          ksw,
+          warning_alerts,
+        },
         bytes,
         ksr,
         *max_fragment_length,
@@ -246,10 +268,14 @@ where
         alert_cb,
         closed_conn_cb,
         key_update_cb,
+        key_update_reset_cb,
       )
       .await;
-      let kss = key_schedule.write_mut().state_mut();
-      manage_err(true, kss, rslt, stream).await
+      manage_err_ad(rslt, async |description| {
+        let kss = key_schedule.write_mut().state_mut();
+        stream.write_all(&Alert::fatal(description).record_bytes(kss)?[..]).await
+      })
+      .await
     });
     poll_fn(|cx| match read_fut.as_mut().poll(cx) {
       Poll::Ready(res) => Poll::Ready(res),
@@ -301,7 +327,9 @@ where
       &mut self.stream,
       &mut self.buffer.writer_buffer,
     )
-    .await
+    .await?;
+    self.can_reply_key_update = true;
+    Ok(())
   }
 
   #[inline]
@@ -321,62 +349,66 @@ where
       &mut self.stream,
       &mut self.buffer.writer_buffer,
     )
-    .await
+    .await?;
+    self.can_reply_key_update = true;
+    Ok(())
   }
 }
 
-async fn alert_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8),
-  alert: Alert,
-  stream: &mut S,
-) -> crate::Result<bool>
+async fn alert_cb<S>(aux: &mut Aux<'_>, alert: Alert, stream: &mut S) -> crate::Result<bool>
 where
   S: Stream,
 {
   match (alert.level(), alert.description()) {
     (AlertLevel::Warning, AlertDescription::CloseNotify) => {
-      stream.write_all(&alert.record_bytes(aux.1.state_mut())?).await?;
-      *aux.0 = ConnectionState::ClosedGracefully;
+      stream.write_all(&alert.record_bytes(aux.ksw.state_mut())?).await?;
+      *aux.connection_state = ConnectionState::ClosedGracefully;
       Ok(true)
     }
     (AlertLevel::Warning, AlertDescription::UserCanceled) => {
-      *aux.2 = aux.2.wrapping_add(1);
-      if usize::from(*aux.2) >= MAX_WARNING_ALERTS {
-        return Err(crate::Error::TlsErrorReply(
-          TlsError::TooManyWarningAlerts,
-          AlertDescription::DecodeError,
-        ));
-      }
-      Ok(false)
+      manage_user_canceled(aux.warning_alerts)
     }
     _ => Err(crate::Error::TlsErrorReply(TlsError::WrongAlert, AlertDescription::DecodeError)),
   }
 }
 
 // This branch is only entered when the peer closed the connection without an alert.
-fn closed_conn_cb(aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8)) {
-  *aux.0 = ConnectionState::ClosedAbruptly;
+fn closed_conn_cb(aux: &mut Aux<'_>) {
+  *aux.connection_state = ConnectionState::ClosedAbruptly;
 }
 
 async fn key_update_cb<S>(
-  aux: &mut (&mut ConnectionState, &mut KeyScheduleWrite, &mut u8, &mut u8),
+  aux: &mut Aux<'_>,
   key_update: Option<KeyUpdate>,
   stream: &mut S,
 ) -> crate::Result<()>
 where
   S: Stream,
 {
-  *aux.3 = aux.3.wrapping_add(1);
-  if usize::from(*aux.3) >= MAX_KEY_UPDATES {
-    return Err(crate::Error::TlsErrorReply(
-      TlsError::TooManyKeyUpdates,
-      AlertDescription::DecodeError,
-    ));
-  }
-  if let Some(elem) = key_update {
-    let kss = aux.1.state_mut();
+  manage_key_update(aux.key_updates)?;
+  if let Some(elem) = key_update
+    && *aux.can_reply_key_update
+  {
+    let kss = aux.ksw.state_mut();
     stream.write_all(&elem.record_bytes(kss)?).await?;
     kss.rotate()?;
+    *aux.can_reply_key_update = false;
   }
   Ok(())
+}
+
+async fn key_update_reset_cb<S>(aux: &mut Aux<'_>, _stream: &mut S) -> crate::Result<()>
+where
+  S: Stream,
+{
+  *aux.key_updates = 0;
+  Ok(())
+}
+
+struct Aux<'any> {
+  can_reply_key_update: &'any mut bool,
+  connection_state: &'any mut ConnectionState,
+  key_updates: &'any mut u8,
+  ksw: &'any mut KeyScheduleWrite,
+  warning_alerts: &'any mut u8,
 }

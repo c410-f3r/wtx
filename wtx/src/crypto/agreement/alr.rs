@@ -27,6 +27,9 @@ impl Agreement for EcdhP256Alr {
 
   #[inline]
   fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
+    if other_participant_pk.len() != 65 {
+      return Err(CryptoError::DiffieHellmanError.into());
+    }
     let mut secret = [0u8; _];
     agree_ephemeral(
       self.0,
@@ -63,6 +66,9 @@ impl Agreement for EcdhP384Alr {
 
   #[inline]
   fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
+    if other_participant_pk.len() != 97 {
+      return Err(CryptoError::DiffieHellmanError.into());
+    }
     let mut secret = [0u8; _];
     agree_ephemeral(
       self.0,

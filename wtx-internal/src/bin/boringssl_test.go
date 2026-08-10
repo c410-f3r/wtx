@@ -124,11 +124,11 @@ func TestNames(t *testing.T) {
 		// QUIC is not implemented
 		"QUIC",
 		// Post Quantum is not implemented
-		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa1-202603", "cnsa2-202603",
+		"MLKEM", "ML-DSA-", "PostQuantum", "cnsa1-202603", "cnsa2-202603", "cnsa202407",
 		// Raw public key is not implemented
 		"RawPublicKey", "RPK",
 		// Resumption
-		"Resumption", "RetainOnlySHA256",
+		"Resumption", "RetainOnlySHA256", "Renegotiation",
 		// Ticket Request is not implemented
 		"TicketFlags",
 		// RFC is expired
@@ -177,6 +177,8 @@ func TestNames(t *testing.T) {
 		"UnknownExtension-Client-TLS13", "UnknownUnencryptedExtension-Client-TLS13",
 		// Raw public key is not supported
 		"CertificateSelection-Server-CertificateType-Unknown-X509-MatchNone-TLS-TLS13",
+		// TODO
+		"KeyUpdate-Requested-UnfinishedWrite",
 	}
 
 	for _, tc := range testCases {

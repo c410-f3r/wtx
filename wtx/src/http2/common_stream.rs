@@ -66,13 +66,13 @@ where
   ) -> crate::Result<Http2RecvStatus<Vector<u8>, ONG>> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Fetching data");
+    _trace!(target: crate::_WTX_HTTP2, "Fetching data");
     let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
       let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
-      if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
+      if let Some(elem) = status_recv(&inner.is_conn_open.connection_state, sorp, |local_sorp| {
         Ok(mem::take(&mut local_sorp.msg_buffer.body))
       })? {
         return Poll::Ready(Ok(elem));
@@ -98,13 +98,13 @@ where
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Fetching trailers");
+    _trace!(target: crate::_WTX_HTTP2, "Fetching trailers");
     let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
       let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
-      if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
+      if let Some(elem) = status_recv(&inner.is_conn_open.connection_state, sorp, |local_sorp| {
         Ok(mem::take(&mut local_sorp.msg_buffer.headers))
       })? {
         return Poll::Ready(Ok(elem));
@@ -158,7 +158,7 @@ where
   pub async fn send_data(&self, data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Sending data");
+    _trace!(target: crate::_WTX_HTTP2, "Sending data");
     let mut data_idx = 0;
     let mut frames = ArrayVectorU8::new();
     loop {
@@ -169,7 +169,7 @@ where
           let mut hd_guard = lock_pin!(cx, inner.hd, hd_pin);
           let hdpm = hd_guard.parts_mut();
           let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
-          if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+          if let Some(elem) = status_send::<false>(&inner.is_conn_open.connection_state, sorp) {
             return Poll::Ready(crate::Result::Ok(Some(elem)));
           }
           let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
@@ -284,13 +284,13 @@ where
   ) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Sending headers");
+    _trace!(target: crate::_WTX_HTTP2, "Sending headers");
     let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
     let max_frame_len = {
       let mut hd_guard = inner.hd.lock().await;
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
-      if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+      if let Some(elem) = status_send::<false>(&inner.is_conn_open.connection_state, sorp) {
         return Ok(elem);
       }
       encode_headers::<false>(
@@ -336,13 +336,13 @@ where
   ) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!("Sending {} trailers", trailers.headers_len());
+    _trace!(target: crate::_WTX_HTTP2, "Sending {} trailers", trailers.headers_len());
     let mut frames = ArrayVectorU8::new();
     {
       let mut hd_guard = inner.hd.lock().await;
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
-      if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+      if let Some(elem) = status_send::<false>(&inner.is_conn_open.connection_state, sorp) {
         return Ok(elem);
       }
       let _ = push_trailers(

@@ -67,25 +67,31 @@ impl KeySchedule {
 
   #[inline]
   pub(crate) fn export_keying_material(
-    &self,
+    cipher_suite: CipherSuite,
     context: Option<&[u8]>,
+    exporter_secret: &ArrayVectorCopy<u8, MAX_HASH_LEN>,
     label: &[u8],
     output: &mut [u8],
   ) -> crate::Result<()> {
-    let exporter_hkdf = self.cipher_suite.hkdf_from_prk(&self.exporter_secret)?;
-    let empty_hash = self.cipher_suite.hash_digest([&[][..]]);
+    let exporter_hkdf = cipher_suite.hkdf_from_prk(exporter_secret)?;
+    let empty_hash = cipher_suite.hash_digest([&[][..]]);
     let derived_secret = hkdf_expand_label::<MAX_HASH_LEN>(
       Some(empty_hash.lease()),
       label,
-      self.cipher_suite.hash_len(),
+      cipher_suite.hash_len(),
       &exporter_hkdf,
     )?;
-    let context_hash = self.cipher_suite.hash_digest([context.unwrap_or(&[])]);
-    let derived_hkdf = self.cipher_suite.hkdf_from_prk(&derived_secret)?;
+    let context_hash = cipher_suite.hash_digest([context.unwrap_or(&[])]);
+    let derived_hkdf = cipher_suite.hkdf_from_prk(&derived_secret)?;
     let concatenated =
       hkdf_array(Some(context_hash.lease()), b"exporter", output.len().try_into()?)?;
     derived_hkdf.expand(concatenated.as_slice(), output)?;
     Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn exporter_secret(&self) -> &ArrayVectorCopy<u8, MAX_HASH_LEN> {
+    &self.exporter_secret
   }
 
   #[inline]

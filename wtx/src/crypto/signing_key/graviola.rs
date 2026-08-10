@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::{ArrayVectorCopy, Vector},
   crypto::{
     EcdsaP256SigningKeyGraviola, EcdsaP384SigningKeyGraviola, Ed25519SigningKeyGraviola, HashTy,
     RsaPkcs1SigningKeyGraviola, RsaPssSigningKeyGraviola, SigningOutput, signing_key::SigningKey,
@@ -17,7 +17,7 @@ use graviola::{
 };
 
 impl SigningKey for EcdsaP256SigningKeyGraviola {
-  type Signature = [u8; 64];
+  type Signature = ArrayVectorCopy<u8, 72>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], _: HashTy) -> crate::Result<Self> {
@@ -29,8 +29,9 @@ impl SigningKey for EcdsaP256SigningKeyGraviola {
   where
     RNG: CryptoRng,
   {
-    let mut signature = [0; 64];
-    let _ = self.0.sign::<Sha256>(&[msg], &mut signature)?;
+    let mut signature = ArrayVectorCopy::from_array([0; 72]);
+    let len = self.0.sign_asn1::<Sha256>(&[msg], &mut signature)?.len();
+    signature.truncate(len.try_into()?);
     Ok(SigningOutput::new(HashTy::Sha256, signature))
   }
 
@@ -47,7 +48,7 @@ impl SigningKey for EcdsaP256SigningKeyGraviola {
 }
 
 impl SigningKey for EcdsaP384SigningKeyGraviola {
-  type Signature = [u8; 96];
+  type Signature = ArrayVectorCopy<u8, 104>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], _: HashTy) -> crate::Result<Self> {
@@ -59,8 +60,9 @@ impl SigningKey for EcdsaP384SigningKeyGraviola {
   where
     RNG: CryptoRng,
   {
-    let mut signature = [0; 96];
-    let _ = self.0.sign::<Sha384>(&[msg], &mut signature)?;
+    let mut signature = ArrayVectorCopy::from_array([0; 104]);
+    let len = self.0.sign_asn1::<Sha384>(&[msg], &mut signature)?.len();
+    signature.truncate(len.try_into()?);
     Ok(SigningOutput::new(HashTy::Sha384, signature))
   }
 

@@ -169,7 +169,7 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
     }
     return;
   }
-  inner.is_conn_open.store(ConnectionState::Draining.into(), Ordering::Relaxed);
+  inner.is_conn_open.connection_state.store(ConnectionState::Draining.into(), Ordering::Relaxed);
   let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
   do_send_go_away(error_code, last_stream_id, &mut *inner.wd.lock().await).await;
   wake_tasks(&mut *inner.hd.lock().await);
@@ -237,7 +237,7 @@ where
       nrb.read_payload(data_len_usize, stream_reader).await?;
       continue;
     };
-    _trace!("Received frame: {fi:?}");
+    _trace!(target: crate::_WTX_HTTP2, "Received frame: {fi:?}");
     nrb.read_payload(data_len_usize, stream_reader).await?;
     return Ok(Some(fi));
   }
@@ -421,7 +421,7 @@ where
   SW: StreamWriter,
   TCX: TlsCtx,
 {
-  _trace!("Sending frame(s): {:?}", {
+  _trace!(target: crate::_WTX_HTTP2, "Sending frame(s): {:?}", {
     let process = |elem: &mut Option<_>, frame: &[u8]| {
       let [b0, b1, b2, b3, b4, b5, b6, b7, b8, rest @ ..] = frame else {
         return;

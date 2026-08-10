@@ -29,14 +29,14 @@ impl RequestCounter {
     let duration = *self.rl.duration();
     let elapsed = now.duration_since(self.instant)?;
     if elapsed > duration || self.counter == 0 {
-      _debug!("Elapsed is greater than duration. Re-initializing");
+      _trace!(target: crate::_WTX_CAF, "Elapsed is greater than duration. Re-initializing");
       self.instant = now;
       self.counter = 1;
       return Ok(());
     }
     if self.counter >= self.rl.limit() {
       if let Some(diff) = duration.checked_sub(elapsed) {
-        _debug!("Call needs to wait {}ms", diff.as_millis());
+        _trace!(target: crate::_WTX_CAF, "Call needs to wait {}ms", diff.as_millis());
         Sleep::new(diff)?.await?;
       }
       self.instant = Instant::new();

@@ -10,8 +10,8 @@ use crate::{
     TlsConfig, TlsCtx, TlsCtxSk, TlsError, TlsStream,
     key_schedule::KeySchedule,
     misc::{
-      fetch_rec_from_stream, manage_err, post_handshake_dec_error, pre_handshake_dec_error,
-      server_sig_msg, write_payloads,
+      fetch_rec_from_stream, manage_err_handshake, post_handshake_dec_error,
+      pre_handshake_dec_error, server_sig_msg, write_payloads,
     },
     protocol::{
       certificate::{Certificate, CertificateEntry},
@@ -139,10 +139,10 @@ where
         )?,
       });
     }
-    _trace!(target: crate::tls::_TARGET_HS, "Start");
+    _trace!(target: crate::_WTX_TLS_HS, "Start");
     let fut = async {
       let first_rri = self.fetch_rec_from_stream::<false, true>(false).await?;
-      _trace!(target: crate::tls::_TARGET_HS, "Read ClientHello: {:?}", &first_rri);
+      _trace!(target: crate::_WTX_TLS_HS, "Read ClientHello: {:?}", &first_rri);
       let indices = self.manage_initial_client_record(&first_rri)?;
       let buffer = self.buffer.reader_buffer.buffer_mut();
       let payloads = match indices.as_slice() {
@@ -157,7 +157,7 @@ where
         ],
         _ => &[],
       };
-      _trace!(target: crate::tls::_TARGET_HS, "Write Records");
+      _trace!(target: crate::_WTX_TLS_HS, "Write Records");
       write_payloads(
         RecordContentTy::Handshake,
         self.key_schedule.write_mut(),
@@ -172,14 +172,14 @@ where
       if last_rri.outer_ty == RecordContentTy::ChangeCipherSpec {
         last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
       }
-      _trace!(target: crate::tls::_TARGET_HS, "Read Finished: {:?}", &last_rri);
+      _trace!(target: crate::_WTX_TLS_HS, "Read Finished: {:?}", &last_rri);
       self.manage_final_client_record(&last_rri)?;
       Ok(())
     };
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
-    manage_err(true, kss, rslt, &mut self.stream).await?;
-    _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
+    manage_err_handshake(true, kss, rslt, &mut self.stream).await?;
+    _trace!(target: crate::_WTX_TLS_HS, "Successful handshake");
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,

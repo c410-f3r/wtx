@@ -11,7 +11,7 @@ use crate::{
     TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
     misc::{
-      fetch_rec_from_stream, handshake_bytes_adjust, handshake_bytes_decode, manage_err,
+      fetch_rec_from_stream, handshake_bytes_adjust, handshake_bytes_decode, manage_err_handshake,
       post_handshake_dec_error, pre_handshake_dec_error, server_sig_msg,
     },
     protocol::{
@@ -51,7 +51,7 @@ pub enum ServerRecordsState<T> {
 /// Required by [`TlsConnector::manage_remaining_server_records`].
 #[derive(Debug)]
 pub struct ManageRemainingServerRecordsInput {
-  certificate_pky: KeyTy,
+  certificate_kt: KeyTy,
   client_cert_requested: bool,
   has_certificate_verify: bool,
   has_certificate: bool,
@@ -218,7 +218,7 @@ where
       }
       match self.manage_client_records(&mrsri)? {
         ClientRecordsState::Terminated(data) => {
-          _trace!(target: crate::tls::_TARGET_HS, "Write Finished");
+          _trace!(target: crate::_WTX_TLS_HS, "Write Finished");
           self.stream.write_all(&data).await?;
         }
       }
@@ -226,8 +226,9 @@ where
     };
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
-    let tls_server_end_point = manage_err(self.has_sent_ccs, kss, rslt, &mut self.stream).await?;
-    _trace!(target: crate::tls::_TARGET_HS, "Successful handshake");
+    let tls_server_end_point =
+      manage_err_handshake(self.has_sent_ccs, kss, rslt, &mut self.stream).await?;
+    _trace!(target: crate::_WTX_TLS_HS, "Successful handshake");
     Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
@@ -358,7 +359,7 @@ where
     self.buffer.reader_buffer.clear_if_exhausted();
     *self.buffer.reader_buffer.forbid_clear_mut() = true;
     Ok(ServerRecordsState::Terminated(ManageRemainingServerRecordsInput {
-      certificate_pky: KeyTy::default(),
+      certificate_kt: KeyTy::default(),
       client_cert_requested: false,
       has_certificate: false,
       has_certificate_verify: false,
@@ -395,7 +396,7 @@ where
       &self.buffer.reader_buffer,
       (&mut self.split_begin, &mut self.split_len),
     )? {
-      _trace!(target: crate::tls::_TARGET_HS, "Read handshake: {:?}", msg_type);
+      _trace!(target: crate::_WTX_TLS_HS, "Read handshake: {:?}", msg_type);
       let curr_handshake_bytes = self.buffer.reader_buffer.filled().get(range).unwrap_or_default();
       self.transcript_hash.update(curr_handshake_bytes);
 
@@ -461,7 +462,7 @@ where
   pub fn write_client_hello(
     &mut self,
   ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>> {
-    _trace!(target: crate::tls::_TARGET_HS, "Write CH");
+    _trace!(target: crate::_WTX_TLS_HS, "Write CH");
     let mut secrets = ArrayVectorU8::new();
     for named_group in &self.config.lease().inner.supported_groups.named_group_list {
       secrets.push(named_group.agreement(&mut self.rng)?)?;
@@ -543,7 +544,7 @@ where
       let cert = crate::x509::Certificate::decode(&mut dw).map_err(|_err| {
         crate::Error::TlsErrorReply(TlsError::InvalidX509, AlertDescription::DecodeError)
       })?;
-      mrsri.certificate_pky = KeyTy::try_from(&cert)?;
+      mrsri.certificate_kt = KeyTy::try_from(&cert)?;
       let filled_ptr = filled.as_ptr().addr();
       let certificate_bytes_ptr = end_entity.certificate_bytes().as_ptr().addr();
       let offset = certificate_bytes_ptr.wrapping_sub(filled_ptr);
@@ -613,7 +614,7 @@ where
       filled.get(mrsri.spki_range.clone()).unwrap_or_default(),
       Asn1DecodeWrapperAux::default(),
     ))?;
-    if mrsri.certificate_pky != certificate_verify.algorithm().cert_kt() {
+    if mrsri.certificate_kt != certificate_verify.algorithm().cert_kt() {
       return Err(TlsError::MismatchedCertificatePkAndSignature.into());
     }
     if certificate_verify

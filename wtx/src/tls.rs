@@ -49,6 +49,7 @@ mod tls_hmac;
 mod tls_mode;
 mod tls_stream;
 mod tls_stream_bridge;
+pub(crate) mod tls_stream_common;
 mod tls_stream_reader;
 mod tls_stream_writer;
 
@@ -111,8 +112,6 @@ const MAX_KEY_UPDATES: usize = 11;
 const MAX_WARNING_ALERTS: usize = 5;
 const RECORD_HEADER_LEN: usize = 5;
 const SERVER_SIG_CTX: &str = "TLS 1.3, server CertificateVerify\0";
-const _TARGET: &str = "tls";
-const _TARGET_HS: &str = "tls-hs";
 
 /// The hash of the server's leaf certificate.
 pub type TlsServerEndPoint = ArrayVectorCopy<u8, { crate::crypto::HashTy::MAX.len() }>;

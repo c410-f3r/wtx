@@ -64,7 +64,9 @@ where
       &mut (&mut self.stream_reader, &mut ()),
       &self.stream_bridge,
       buffer,
-      |el| el.0.connection_state_raw().store(ConnectionState::ReadClosed.into(), Ordering::Relaxed),
+      |el| {
+        el.0.common().connection_state.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
+      },
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
     )
@@ -156,7 +158,7 @@ where
       |el| {
         let value =
           if IS_CLOSED { ConnectionState::ClosedGracefully } else { ConnectionState::WriteClosed };
-        el.connection_state_raw().store(value.into(), Ordering::Relaxed);
+        el.common().connection_state.store(value.into(), Ordering::Relaxed);
       },
     )
     .await

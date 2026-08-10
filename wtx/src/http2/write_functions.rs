@@ -275,7 +275,7 @@ where
         break Http2SendStatus::Ok;
       }
     };
-    _trace!("Message has been sent");
+    _trace!(target: crate::_WTX_HTTP2, "Message has been sent");
     Ok(hss)
   };
   let rslt = fut.await;

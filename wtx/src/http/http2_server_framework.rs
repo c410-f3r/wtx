@@ -610,7 +610,7 @@ where
 fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
   let _method = _req.method.strings().custom[0];
   let _path = _req.msg_data.uri.path();
-  _debug!(r#"{_peer} "{_method} {_path}""#,);
+  _trace!(target: crate::_WTX_HTTP, r#"{_peer} "{_method} {_path}""#,);
 }
 
 #[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]

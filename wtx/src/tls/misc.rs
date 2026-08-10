@@ -6,7 +6,8 @@ use crate::{
   misc::{TryArithmetic as _, unlikely_elem},
   net::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
-    AlertDescription, CHANGE_CIPHER_SPEC, RECORD_HEADER_LEN, SERVER_SIG_CTX, TlsError,
+    AlertDescription, CHANGE_CIPHER_SPEC, MAX_KEY_UPDATES, MAX_WARNING_ALERTS, RECORD_HEADER_LEN,
+    SERVER_SIG_CTX, TlsError,
     de::De,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
@@ -142,7 +143,7 @@ where
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
   let rri = ReadRecordInfo { inner_ty, outer_ty, plaintext_len };
-  _trace!(target: crate::tls::_TARGET, "Read Record: {:?}", &rri);
+  _trace!(target: crate::_WTX_TLS, "Read Record: {:?}", &rri);
   Ok(Some(rri))
 }
 
@@ -192,7 +193,24 @@ pub(crate) fn handshake_bytes_decode<'rb>(
   Ok(Some((msg_type, rec_range, dw)))
 }
 
-pub(crate) async fn manage_err<SW, T>(
+/// Manage Error - Application Data (After handshake)
+pub(crate) async fn manage_err_ad<T>(
+  rslt: crate::Result<T>,
+  cb: impl AsyncFnOnce(AlertDescription) -> crate::Result<()>,
+) -> crate::Result<T> {
+  match rslt {
+    Err(err @ crate::Error::TlsErrorReply(_, description)) => {
+      cold_path();
+      cb(description).await?;
+      Err(err)
+    }
+    Ok(elem) => Ok(elem),
+    Err(err) => Err(err),
+  }
+}
+
+/// Manage Error - Handshake
+pub(crate) async fn manage_err_handshake<SW, T>(
   has_sent_ccs: bool,
   kss: &mut KeyScheduleState,
   rslt: crate::Result<T>,
@@ -220,6 +238,28 @@ where
     Ok(elem) => Ok(elem),
     Err(err) => Err(err),
   }
+}
+
+pub(crate) fn manage_user_canceled(warning_alerts: &mut u8) -> crate::Result<bool> {
+  *warning_alerts = warning_alerts.wrapping_add(1);
+  if usize::from(*warning_alerts) >= MAX_WARNING_ALERTS {
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::TooManyWarningAlerts,
+      AlertDescription::DecodeError,
+    ));
+  }
+  Ok(false)
+}
+
+pub(crate) fn manage_key_update(key_updates: &mut u8) -> crate::Result<()> {
+  *key_updates = key_updates.wrapping_add(1);
+  if usize::from(*key_updates) >= MAX_KEY_UPDATES {
+    return Err(crate::Error::TlsErrorReply(
+      TlsError::TooManyKeyUpdates,
+      AlertDescription::DecodeError,
+    ));
+  }
+  Ok(())
 }
 
 pub(crate) fn post_handshake_dec_error(
@@ -271,6 +311,10 @@ pub(crate) async fn read_after_handshake_data<A, SR, const IS_CLIENT: bool>(
     (&'any mut A, Option<KeyUpdate>, &'any mut SR),
     Result = crate::Result<()>,
   >,
+  mut key_update_reset_cb: impl for<'any> FnMutFut<
+    (&'any mut A, &'any mut SR),
+    Result = crate::Result<()>,
+  >,
 ) -> crate::Result<Option<NonZeroUsize>>
 where
   SR: StreamReader,
@@ -309,6 +353,7 @@ where
         }
       }
       RecordContentTy::ApplicationData => {
+        key_update_reset_cb.call((&mut aux, stream_reader)).await?;
         *plaintext_len = rri.plaintext_len;
         let written = transfer_after_handshake_data(&mut bytes, plaintext, |len| {
           *plaintext_consumed = len.get();
@@ -353,10 +398,10 @@ where
               return Err(UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD);
             }
           }
-          *reader_buffer.forbid_clear_mut() = false;
-          *split_begin = 0;
-          *split_len = 0;
         }
+        *reader_buffer.forbid_clear_mut() = false;
+        *split_begin = 0;
+        *split_len = 0;
       }
     }
   }

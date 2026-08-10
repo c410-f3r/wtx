@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{Agreement, AsRefWrapper, EcdhP256Ruco, EcdhP384Ruco, X25519Ruco},
+  crypto::{Agreement, AsRefWrapper, CryptoError, EcdhP256Ruco, EcdhP384Ruco, X25519Ruco},
   rng::CryptoRng,
 };
 use crypto_common::Generate as _;
@@ -10,6 +10,9 @@ impl Agreement for EcdhP256Ruco {
 
   #[inline]
   fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
+    if other_participant_pk.len() != 65 {
+      return Err(CryptoError::DiffieHellmanError.into());
+    }
     Ok(AsRefWrapper(
       self.0.diffie_hellman(&p256::PublicKey::from_sec1_bytes(other_participant_pk)?),
     ))
@@ -44,6 +47,9 @@ impl Agreement for EcdhP384Ruco {
 
   #[inline]
   fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
+    if other_participant_pk.len() != 97 {
+      return Err(CryptoError::DiffieHellmanError.into());
+    }
     Ok(AsRefWrapper(
       self.0.diffie_hellman(&p384::PublicKey::from_sec1_bytes(other_participant_pk)?),
     ))
@@ -79,9 +85,12 @@ impl Agreement for X25519Ruco {
   #[inline]
   fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
     let array: [u8; 32] = other_participant_pk.try_into()?;
-    Ok(self.0.diffie_hellman(&x25519_dalek::PublicKey::from(array)))
+    let shared_secret = self.0.diffie_hellman(&x25519_dalek::PublicKey::from(array));
+    if !shared_secret.was_contributory() {
+      return Err(CryptoError::DiffieHellmanError.into());
+    }
+    Ok(shared_secret)
   }
-
   #[inline]
   fn generate<RNG>(rng: &mut RNG) -> crate::Result<Self>
   where

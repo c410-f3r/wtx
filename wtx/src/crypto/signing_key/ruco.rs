@@ -1,4 +1,5 @@
 use crate::{
+  collections::ArrayVectorCopy,
   crypto::{
     EcdsaP256SigningKeyRuco, EcdsaP384SigningKeyRuco, Ed25519SigningKeyRuco, HashTy,
     RsaPkcs1SigningKeyRuco, RsaPssSigningKeyRuco, SigningOutput, signing_key::SigningKey,
@@ -12,7 +13,7 @@ use signature::{RandomizedSigner as _, Signer as _, Verifier as _};
 use spki::DecodePublicKey as _;
 
 impl SigningKey for EcdsaP256SigningKeyRuco {
-  type Signature = [u8; 64];
+  type Signature = ArrayVectorCopy<u8, 72>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], _: HashTy) -> crate::Result<Self> {
@@ -24,8 +25,10 @@ impl SigningKey for EcdsaP256SigningKeyRuco {
   where
     RNG: CryptoRng,
   {
-    let signature: p256::ecdsa::Signature = self.0.try_sign_with_rng(rng, msg)?;
-    Ok(SigningOutput::new(HashTy::Sha256, signature.to_bytes().into()))
+    let local_signature: p256::ecdsa::Signature = self.0.try_sign_with_rng(rng, msg)?;
+    let mut signature = ArrayVectorCopy::new();
+    signature.extend_from_copyable_slice(local_signature.to_der().as_bytes())?;
+    Ok(SigningOutput::new(HashTy::Sha256, signature))
   }
 
   #[inline]
@@ -41,7 +44,7 @@ impl SigningKey for EcdsaP256SigningKeyRuco {
 }
 
 impl SigningKey for EcdsaP384SigningKeyRuco {
-  type Signature = [u8; 96];
+  type Signature = ArrayVectorCopy<u8, 104>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], _: HashTy) -> crate::Result<Self> {
@@ -53,8 +56,10 @@ impl SigningKey for EcdsaP384SigningKeyRuco {
   where
     RNG: CryptoRng,
   {
-    let signature: p384::ecdsa::Signature = self.0.try_sign_with_rng(rng, msg)?;
-    Ok(SigningOutput::new(HashTy::Sha384, signature.to_bytes().into()))
+    let local_signature: p384::ecdsa::Signature = self.0.try_sign_with_rng(rng, msg)?;
+    let mut signature = ArrayVectorCopy::new();
+    signature.extend_from_copyable_slice(local_signature.to_der().as_bytes())?;
+    Ok(SigningOutput::new(HashTy::Sha384, signature))
   }
 
   #[inline]
