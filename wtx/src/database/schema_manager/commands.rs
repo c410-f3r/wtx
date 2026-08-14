@@ -52,7 +52,7 @@ where
   }
 
   /// Allows the access of the internal executor
-  pub(crate) fn _executor_mut(&mut self) -> &mut E {
+  pub(crate) const fn _executor_mut(&mut self) -> &mut E {
     &mut self.executor
   }
 

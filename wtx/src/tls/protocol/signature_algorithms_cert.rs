@@ -14,7 +14,7 @@ pub(crate) struct SignatureAlgorithmsCert {
 }
 
 impl SignatureAlgorithmsCert {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     signature_schemes: ArrayVectorCopy<SignatureScheme, { SignatureScheme::len() }>,
   ) -> Self {
     Self { signature_schemes }

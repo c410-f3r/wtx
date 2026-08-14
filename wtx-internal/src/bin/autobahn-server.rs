@@ -15,7 +15,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  WebSocketServerFramework::tokio(TlsConfig::plaintext().into())?
+  WebSocketServerFramework::tokio(TlsConfig::plaintext())?
     .set_compression(ZlibRs::default())
     .set_error_cb(|error| eprintln!("{error}"))
     .run("127.0.0.1:9070", (("/", echo),))

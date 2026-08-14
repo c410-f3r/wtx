@@ -219,13 +219,13 @@ impl<TCX> TlsConfig<TCX> {
 
   /// See [`ServerNameList`].
   #[inline]
-  pub fn server_name(&self) -> &Option<ServerNameList> {
+  pub const fn server_name(&self) -> &Option<ServerNameList> {
     &self.inner.server_name
   }
 
   /// Mutable version of [`Self::server_name`].
   #[inline]
-  pub fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
+  pub const fn server_name_mut(&mut self) -> &mut Option<ServerNameList> {
     &mut self.inner.server_name
   }
 
@@ -304,13 +304,13 @@ impl<TCX> TlsConfig<TCX> {
   ///
   /// See [`SignatureAlgorithms`].
   #[inline]
-  pub fn signature_algorithms(&self) -> &SignatureAlgorithms {
+  pub const fn signature_algorithms(&self) -> &SignatureAlgorithms {
     &self.inner.signature_algorithms
   }
 
   /// Mutable version of [`Self::signature_algorithms`].
   #[inline]
-  pub fn signature_algorithms_mut(&mut self) -> &mut SignatureAlgorithms {
+  pub const fn signature_algorithms_mut(&mut self) -> &mut SignatureAlgorithms {
     &mut self.inner.signature_algorithms
   }
 

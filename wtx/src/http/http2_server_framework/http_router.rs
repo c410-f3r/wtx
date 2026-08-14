@@ -78,12 +78,13 @@ where
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, ER> {
     let mw_aux = &mut self.middlewares.aux();
-    if let ControlFlow::Break(el) =
+    let status_code = if let ControlFlow::Break(el) =
       self.middlewares.req(&mut auto_stream.data, mw_aux, &mut auto_stream.req).await?
     {
-      return Ok(el);
-    }
-    let status_code = self.en.auto(auto_stream, path_defs).await?;
+      el
+    } else {
+      self.en.auto(auto_stream, path_defs).await?
+    };
     if let ControlFlow::Break(el) = self
       .middlewares
       .res(

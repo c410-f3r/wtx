@@ -13,7 +13,7 @@ where
 #[cold]
 #[inline(always)]
 #[track_caller]
-pub fn unlikely_elem<T>(elem: T) -> T {
+pub const fn unlikely_elem<T>(elem: T) -> T {
   elem
 }
 

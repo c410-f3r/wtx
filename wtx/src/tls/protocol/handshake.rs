@@ -25,7 +25,7 @@ impl<T> Handshake<T> {
 }
 
 impl Handshake<&[u8]> {
-  pub(crate) fn rec_len(&self) -> usize {
+  pub(crate) const fn rec_len(&self) -> usize {
     Self::HEADER_LEN.wrapping_add(self.data.len())
   }
 }

@@ -29,7 +29,7 @@ impl SessionManagerBuilder {
         expires: None,
         http_only: true,
         max_age: None,
-        name: "id".try_into().unwrap_or_default(),
+        name: "wsid".try_into().unwrap_or_default(),
         path: "/".into(),
         same_site: Some(SameSite::Strict),
         secure: true,

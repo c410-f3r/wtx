@@ -27,14 +27,14 @@ impl BasicConstraints {
 
   /// Whether the certified subject may act as a CA.
   #[inline]
-  pub fn ca(&self) -> bool {
+  pub const fn ca(&self) -> bool {
     self.ca
   }
 
   /// Maximum number of non-self-issued intermediate CA certificates that may follow this
   /// certificate in a valid certification path.
   #[inline]
-  pub fn path_len_constraint(&self) -> Option<u32> {
+  pub const fn path_len_constraint(&self) -> Option<u32> {
     self.path_len_constraint
   }
 }

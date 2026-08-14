@@ -106,7 +106,7 @@ where
 }
 
 #[inline]
-fn manage_extension(
+const fn manage_extension(
   _dw: &mut TlsDecodeWrapper<'_>,
   extension_ty: ExtensionTy,
 ) -> crate::Result<()> {

@@ -62,7 +62,7 @@ impl ReasonFlags {
 
   /// Authority attribute (AA) has been compromised
   #[inline]
-  pub fn aa_compromise(&self) -> bool {
+  pub const fn aa_compromise(&self) -> bool {
     self.bytes.1 & 0b1000_0000 != 0
   }
 }

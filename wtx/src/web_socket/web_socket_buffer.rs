@@ -12,7 +12,7 @@ pub struct WebSocketBuffer {
 impl WebSocketBuffer {
   /// New empty instance
   #[inline]
-  pub fn new() -> Self {
+  pub const fn new() -> Self {
     Self {
       network_buffer: BufStreamReader::new(),
       reader_buffer: Vector::new(),

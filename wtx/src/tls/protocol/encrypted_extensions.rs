@@ -26,7 +26,7 @@ pub(crate) struct EncryptedExtensions {
 }
 
 impl EncryptedExtensions {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     alpn: Option<Alpn>,
     max_fragment_length: Option<MaxFragmentLength>,
     server_name: Option<ServerNameList>,

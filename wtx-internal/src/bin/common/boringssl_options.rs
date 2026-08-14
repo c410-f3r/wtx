@@ -92,7 +92,7 @@ pub struct OptionsIter<'any, A> {
 }
 
 impl<'any, A> OptionsIter<'any, A> {
-  pub fn new(args: A, options: &'any mut Options) -> Self {
+  pub const fn new(args: A, options: &'any mut Options) -> Self {
     Self { args, options }
   }
 }
@@ -106,7 +106,7 @@ where
   fn next(&mut self) -> Option<Self::Item> {
     let arg = self.args.next()?;
     check_unimplemented_arguments(&arg);
-    let has_arg = check_implemented_arguments(&arg, &mut self.args, &mut self.options)
+    let has_arg = check_implemented_arguments(&arg, &mut self.args, self.options)
       || check_ignored_arguments(&arg);
     if has_arg {
       return Some(());
@@ -152,7 +152,7 @@ pub fn quit(why: &str) -> ! {
   process::exit(0)
 }
 
-pub fn verify_cert(options: &Options) -> bool {
+pub const fn verify_cert(options: &Options) -> bool {
   options.verify_peer || options.offer_no_client_cas
 }
 

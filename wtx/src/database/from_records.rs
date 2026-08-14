@@ -59,8 +59,10 @@ pub trait FromRecords<'exec, D>: Sized
 where
   D: Database,
 {
+  /// Fields that are only associated with this instance, which excludes other associated structures.
+  const FIELDS_BASE: &'static str;
   /// The number of fields
-  const FIELDS: u16;
+  const FIELDS_NUM: u16;
   /// Field index where the ID is located, if any.
   const ID_IDX: Option<usize>;
 
@@ -119,7 +121,8 @@ where
   D: Database,
   i32: Decode<'exec, D>,
 {
-  const FIELDS: u16 = 0;
+  const FIELDS_BASE: &'static str = "";
+  const FIELDS_NUM: u16 = 0;
   const ID_IDX: Option<usize> = None;
 
   type IdTy = i32;
@@ -138,7 +141,8 @@ where
   D: Database,
   T: FromRecords<'exec, D>,
 {
-  const FIELDS: u16 = T::FIELDS;
+  const FIELDS_BASE: &'static str = T::FIELDS_BASE;
+  const FIELDS_NUM: u16 = T::FIELDS_NUM;
   const ID_IDX: Option<usize> = T::ID_IDX;
 
   type IdTy = T::IdTy;
@@ -157,7 +161,8 @@ where
   D: Database,
   T: FromRecords<'exec, D>,
 {
-  const FIELDS: u16 = T::FIELDS;
+  const FIELDS_BASE: &'static str = T::FIELDS_BASE;
+  const FIELDS_NUM: u16 = T::FIELDS_NUM;
   const ID_IDX: Option<usize> = T::ID_IDX;
 
   type IdTy = T::IdTy;

@@ -14,7 +14,7 @@ pub(crate) struct SupportedVersionsClient {
 }
 
 impl SupportedVersionsClient {
-  pub(crate) fn new(versions: ArrayVectorCopy<ProtocolVersion, 8>) -> Self {
+  pub(crate) const fn new(versions: ArrayVectorCopy<ProtocolVersion, 8>) -> Self {
     Self { versions }
   }
 }
@@ -56,7 +56,7 @@ pub(crate) struct SupportedVersionsServer {
 }
 
 impl SupportedVersionsServer {
-  pub(crate) fn new(selected_version: ProtocolVersion) -> Self {
+  pub(crate) const fn new(selected_version: ProtocolVersion) -> Self {
     Self { selected_version }
   }
 }

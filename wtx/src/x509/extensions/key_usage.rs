@@ -28,61 +28,61 @@ impl KeyUsage {
 
   /// Returns `true` if the `digitalSignature` bit is set.
   #[inline]
-  pub fn digital_signature(&self) -> bool {
+  pub const fn digital_signature(&self) -> bool {
     self.bytes.0 & 0b1000_0000 != 0
   }
 
   /// Returns `true` if the `nonRepudiation`/`contentCommitment` bit is set.
   #[inline]
-  pub fn non_repudiation(&self) -> bool {
+  pub const fn non_repudiation(&self) -> bool {
     self.bytes.0 & 0b0100_0000 != 0
   }
 
   /// Returns `true` if the `keyEncipherment` bit is set.
   #[inline]
-  pub fn key_encipherment(&self) -> bool {
+  pub const fn key_encipherment(&self) -> bool {
     self.bytes.0 & 0b0010_0000 != 0
   }
 
   /// Returns `true` if the `dataEncipherment` bit is set.
   #[inline]
-  pub fn data_encipherment(&self) -> bool {
+  pub const fn data_encipherment(&self) -> bool {
     self.bytes.0 & 0b0001_0000 != 0
   }
 
   /// Returns `true` if the `keyAgreement` bit is set.
   #[inline]
-  pub fn key_agreement(&self) -> bool {
+  pub const fn key_agreement(&self) -> bool {
     self.bytes.0 & 0b0000_1000 != 0
   }
 
   /// Returns `true` if the `keyCertSign` bit is set.
   #[inline]
-  pub fn key_cert_sign(&self) -> bool {
+  pub const fn key_cert_sign(&self) -> bool {
     self.bytes.0 & 0b0000_0100 != 0
   }
 
   /// Returns `true` if the `crlSign` bit is set.
   #[inline]
-  pub fn crl_sign(&self) -> bool {
+  pub const fn crl_sign(&self) -> bool {
     self.bytes.0 & 0b0000_0010 != 0
   }
 
   /// Returns `true` if the `encipherOnly` bit is set.
   #[inline]
-  pub fn encipher_only(&self) -> bool {
+  pub const fn encipher_only(&self) -> bool {
     self.bytes.0 & 0b0000_0001 != 0
   }
 
   /// Returns `true` if the `decipherOnly` bit is set.
   #[inline]
-  pub fn decipher_only(&self) -> bool {
+  pub const fn decipher_only(&self) -> bool {
     self.bytes.1 & 0b1000_0000 != 0
   }
 
   /// Sets the `digitalSignature` bit.
   #[inline]
-  pub fn set_digital_signature(&mut self, value: bool) {
+  pub const fn set_digital_signature(&mut self, value: bool) {
     self.set_bit0(0b1000_0000, value);
   }
 
@@ -90,49 +90,49 @@ impl KeyUsage {
   ///
   /// Sets the `nonRepudiation` bit.
   #[inline]
-  pub fn set_non_repudiation(&mut self, value: bool) {
+  pub const fn set_non_repudiation(&mut self, value: bool) {
     self.set_bit0(0b0100_0000, value);
   }
 
   /// Sets the `keyEncipherment` bit.
   #[inline]
-  pub fn set_key_encipherment(&mut self, value: bool) {
+  pub const fn set_key_encipherment(&mut self, value: bool) {
     self.set_bit0(0b0010_0000, value);
   }
 
   /// Sets the `dataEncipherment` bit.
   #[inline]
-  pub fn set_data_encipherment(&mut self, value: bool) {
+  pub const fn set_data_encipherment(&mut self, value: bool) {
     self.set_bit0(0b0001_0000, value);
   }
 
   /// Sets the `keyAgreement` bit.
   #[inline]
-  pub fn set_key_agreement(&mut self, value: bool) {
+  pub const fn set_key_agreement(&mut self, value: bool) {
     self.set_bit0(0b0000_1000, value);
   }
 
   /// Sets the `keyCertSign` bit.
   #[inline]
-  pub fn set_key_cert_sign(&mut self, value: bool) {
+  pub const fn set_key_cert_sign(&mut self, value: bool) {
     self.set_bit0(0b0000_0100, value);
   }
 
   /// Sets the `cRLSign` bit.
   #[inline]
-  pub fn set_crl_sign(&mut self, value: bool) {
+  pub const fn set_crl_sign(&mut self, value: bool) {
     self.set_bit0(0b0000_0010, value);
   }
 
   /// Sets the `encipherOnly` bit.
   #[inline]
-  pub fn set_encipher_only(&mut self, value: bool) {
+  pub const fn set_encipher_only(&mut self, value: bool) {
     self.set_bit0(0b0000_0001, value);
   }
 
   /// Sets the `decipherOnly` bit.
   #[inline]
-  pub fn set_decipher_only(&mut self, value: bool) {
+  pub const fn set_decipher_only(&mut self, value: bool) {
     if value {
       self.bytes.1 = 0b1000_0000;
     } else {
@@ -141,7 +141,7 @@ impl KeyUsage {
   }
 
   #[inline]
-  fn set_bit0(&mut self, mask: u8, value: bool) {
+  const fn set_bit0(&mut self, mask: u8, value: bool) {
     if value {
       self.bytes.0 |= mask;
     } else {

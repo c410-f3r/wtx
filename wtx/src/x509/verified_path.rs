@@ -21,7 +21,7 @@ where
   &'any [u8]: Lease<[u8]>,
   B: Lease<[u8]>,
 {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     end_entity: &'any CvEndEntity<&'any [u8]>,
     intermediates: ArrayVectorU8<&'any CvIntermediate<&'any [u8]>, MAX_INTERMEDIATES>,
     trust_anchor: &'any CvTrustAnchor<B>,
@@ -31,7 +31,7 @@ where
 
   /// The provided certificate that started the validation.
   #[inline]
-  pub fn end_entity(&self) -> &'any CvEndEntity<&'any [u8]> {
+  pub const fn end_entity(&self) -> &'any CvEndEntity<&'any [u8]> {
     self.end_entity
   }
 
@@ -42,7 +42,7 @@ where
   }
 
   /// Mutable version of [`Self::intermediates`].
-  pub(crate) fn intermediates_mut(
+  pub(crate) const fn intermediates_mut(
     &mut self,
   ) -> &mut ArrayVectorU8<&'any CvIntermediate<&'any [u8]>, MAX_INTERMEDIATES> {
     &mut self.intermediates
@@ -50,12 +50,12 @@ where
 
   /// See [`CvTrustAnchor`].
   #[inline]
-  pub fn trust_anchor(&self) -> &'any CvTrustAnchor<B> {
+  pub const fn trust_anchor(&self) -> &'any CvTrustAnchor<B> {
     self.trust_anchor
   }
 
   /// Mutable version of [`Self::trust_anchor`].
-  pub(crate) fn trust_anchor_mut(&mut self) -> &mut &'any CvTrustAnchor<B> {
+  pub(crate) const fn trust_anchor_mut(&mut self) -> &mut &'any CvTrustAnchor<B> {
     &mut self.trust_anchor
   }
 }

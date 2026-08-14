@@ -17,7 +17,9 @@ pub struct SupportedGroups {
 }
 
 impl SupportedGroups {
-  pub(crate) fn new(named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>) -> Self {
+  pub(crate) const fn new(
+    named_group_list: ArrayVectorCopy<NamedGroup, { NamedGroup::len() }>,
+  ) -> Self {
     Self { named_group_list }
   }
 }

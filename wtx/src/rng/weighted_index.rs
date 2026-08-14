@@ -32,7 +32,7 @@ where
 
   /// Mutable buffer
   #[inline]
-  pub fn buffer_mut(&mut self) -> &mut B {
+  pub const fn buffer_mut(&mut self) -> &mut B {
     &mut self.buffer
   }
 

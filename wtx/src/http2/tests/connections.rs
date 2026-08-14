@@ -117,9 +117,8 @@ async fn stream_server(
 ) {
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
-  cb(req_rrb.as_http2_request_mut(stream.method()));
-  let _ =
-    stream.send_res(&mut Vector::new(), req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
+  cb(req_rrb.as_request_mut(stream.method()));
+  let _ = stream.send_res(&mut Vector::new(), req_rrb.as_response(StatusCode::Ok)).await.unwrap();
 }
 
 async fn stream_client(

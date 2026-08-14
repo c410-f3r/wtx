@@ -115,7 +115,7 @@ impl ToSocketAddrs for (&str, u16) {
         }
       },
       feature = "std" => Ok(<Self as std::net::ToSocketAddrs>::to_socket_addrs(self)?),
-      _ => return Err(crate::net::NetError::NoResolutionBackend.into()),
+      _ => Err(crate::net::NetError::NoResolutionBackend.into()),
     }
   }
 }
@@ -149,7 +149,7 @@ impl ToSocketAddrs for str {
         }
       }
       feature = "std" => Ok(<Self as std::net::ToSocketAddrs>::to_socket_addrs(self)?),
-      _ => return Err(crate::net::NetError::NoResolutionBackend.into()),
+      _ => Err(crate::net::NetError::NoResolutionBackend.into()),
     }
   }
 }

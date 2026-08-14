@@ -186,7 +186,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   /// See [`HttpRecvParams`].
   #[inline]
   #[must_use]
-  pub fn set_http_recv_params(mut self, value: HttpRecvParams) -> Self {
+  pub const fn set_http_recv_params(mut self, value: HttpRecvParams) -> Self {
     self.hrc = value;
     self
   }
@@ -215,7 +215,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   /// Only works when calling [`Self::run_in_threads`]. If [`None`], defaults to the number of threads.
   #[inline]
   #[must_use]
-  pub fn set_local_runtimes(mut self, value: Option<NonZeroUsize>) -> Self {
+  pub const fn set_local_runtimes(mut self, value: Option<NonZeroUsize>) -> Self {
     self.local_runtimes = value;
     self
   }
@@ -223,7 +223,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   /// See [`TcpParams`].
   #[inline]
   #[must_use]
-  pub fn set_tcp_params(mut self, value: TcpParams) -> Self {
+  pub const fn set_tcp_params(mut self, value: TcpParams) -> Self {
     self.tcp_params = value;
     self
   }
@@ -665,7 +665,7 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TCX>(
     if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
       return Ok(());
     }
-    let req = local_rrb.into_http2_request(server_stream.method());
+    let req = local_rrb.into_request(server_stream.method());
     log_req(&ip, &req);
     let mut auto_stream = AutoStream::new(stream_data, ip, server_stream.protocol(), req);
     let status = stream_http_router.auto(&mut auto_stream, (0, &headers_aux)).await?;

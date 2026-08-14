@@ -342,7 +342,7 @@ where
 }
 
 #[inline]
-pub(crate) fn strip_new_line(bytes: &[u8]) -> (u8, &[u8]) {
+pub(crate) const fn strip_new_line(bytes: &[u8]) -> (u8, &[u8]) {
   match bytes {
     [rest @ .., b'\r', b'\n'] => (2, rest),
     [rest @ .., b'\n'] => (1, rest),

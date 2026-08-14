@@ -13,7 +13,7 @@ pub(crate) struct Extension<T> {
 }
 
 impl<T> Extension<T> {
-  pub(crate) fn new(extension_ty: ExtensionTy, data: T) -> Self {
+  pub(crate) const fn new(extension_ty: ExtensionTy, data: T) -> Self {
     Self { data, extension_ty }
   }
 }

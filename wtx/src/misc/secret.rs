@@ -11,10 +11,7 @@ use core::{
   ops::{Deref, DerefMut},
 };
 
-const CTX_LEN: usize = cfg_select! {
-  feature = "secret-32768" => 32768,
-  _ => 2048
-};
+const CTX_LEN: usize = 1024;
 const SECRET_LEN: usize = 16;
 
 /// Long-lived sensitive data.
@@ -32,7 +29,6 @@ pub struct Secret {
 impl Secret {
   /// `data` will be internally zeroed regardless if an error occurred.
   #[inline]
-  #[rustfmt::skip]
   pub fn new<RNG>(
     data: &mut [u8],
     rng: &mut RNG,
@@ -51,18 +47,7 @@ impl Secret {
       &mut data_wrapper,
       &gen_secret_key(&salt, &secret_context),
     )?;
-    let all_len = nonce.len().wrapping_add(data_wrapper.len()).wrapping_add(tag.len());
-    let mut protected = Protected::zeroed(all_len);
-    if let [
-      a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
-      content @ ..,
-      b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
-    ] = &mut *protected {
-      copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
-      copy_iter(&data_wrapper, content);
-      copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
-    }
-    Ok(Self { protected, salt, secret_context })
+    Ok(Self { protected: gen_protected(&data_wrapper, nonce, tag), salt, secret_context })
   }
 
   /// Decrypts secret temporally.
@@ -197,6 +182,8 @@ impl DerefMut for Protected {
 impl Drop for Protected {
   fn drop(&mut self) {
     memset_slice_volatile(self, 0);
+    #[cfg(feature = "libc")]
+    let _rslt = crate::misc::munlock_slice(self);
     // SAFETY: Instance has a valid allocated chunk of memory
     unsafe {
       drop(Box::from_raw(self.0));
@@ -229,6 +216,27 @@ fn copy_iter(from: &[u8], to: &mut [u8]) {
 
 fn copy_iter_mut(from: &[u8], to: &mut [&mut u8]) {
   from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
+}
+
+#[inline]
+#[rustfmt::skip]
+fn gen_protected(
+  encrypted: &SensitiveBytes<&mut [u8]>,
+  nonce: [u8; 12],
+  tag: [u8; 16]
+) -> Protected {
+  let all_len = nonce.len().wrapping_add(encrypted.len()).wrapping_add(tag.len());
+  let mut protected = Protected::zeroed(all_len);
+  if let [
+    a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+    content @ ..,
+    b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
+  ] = &mut *protected {
+    copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
+    copy_iter(encrypted, content);
+    copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
+  }
+  protected
 }
 
 fn gen_secret_key(salt: &[u8; SECRET_LEN], secret_context: &SecretContext) -> [u8; SECRET_LEN] {

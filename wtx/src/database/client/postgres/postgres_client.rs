@@ -96,7 +96,7 @@ where
 
   /// Mutable buffer reference
   #[inline]
-  pub fn cb_mut(&mut self) -> &mut ClientBuffer {
+  pub const fn cb_mut(&mut self) -> &mut ClientBuffer {
     &mut self.cb
   }
 

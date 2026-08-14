@@ -243,7 +243,7 @@ struct ParWord([u32; BLOCKS_LEN]);
 
 impl ParWord {
   #[inline(always)]
-  fn from_array(array: [u32; BLOCKS_LEN]) -> Self {
+  const fn from_array(array: [u32; BLOCKS_LEN]) -> Self {
     Self(array)
   }
 
@@ -255,7 +255,7 @@ impl ParWord {
   }
 
   #[inline(always)]
-  fn fill(&mut self, n: u32) {
+  const fn fill(&mut self, n: u32) {
     self.0 = [n; BLOCKS_LEN];
   }
 
