@@ -23,14 +23,14 @@ pub(crate) struct Certificate<'any> {
 }
 
 impl<'any> Certificate<'any> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     certificate_list: ArrayVectorCopy<CertificateEntry<'any>, MAX_CERTIFICATES>,
     certificate_request_context: &'any [u8],
   ) -> Self {
     Self { certificate_list, certificate_request_context }
   }
 
-  pub(crate) fn certificate_list(
+  pub(crate) const fn certificate_list(
     &self,
   ) -> &ArrayVectorCopy<CertificateEntry<'any>, MAX_CERTIFICATES> {
     &self.certificate_list
@@ -74,7 +74,7 @@ pub(crate) struct CertificateEntry<'any> {
 }
 
 impl<'any> CertificateEntry<'any> {
-  pub(crate) fn new(certificate_bytes: &'any [u8]) -> Self {
+  pub(crate) const fn new(certificate_bytes: &'any [u8]) -> Self {
     Self { certificate_bytes }
   }
 
@@ -111,7 +111,7 @@ impl Encode<De> for CertificateEntry<'_> {
 }
 
 #[inline]
-fn manage_extension(
+const fn manage_extension(
   _dw: &mut TlsDecodeWrapper<'_>,
   extension_ty: ExtensionTy,
 ) -> crate::Result<()> {

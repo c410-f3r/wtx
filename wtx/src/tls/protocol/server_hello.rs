@@ -58,11 +58,11 @@ impl<'any> ServerHello<'any> {
     }
   }
 
-  pub(crate) fn cipher_suite(&self) -> CipherSuite {
+  pub(crate) const fn cipher_suite(&self) -> CipherSuite {
     self.cipher_suite
   }
 
-  pub(crate) fn key_share(&self) -> &KeyShareEntry<&'any [u8]> {
+  pub(crate) const fn key_share(&self) -> &KeyShareEntry<&'any [u8]> {
     &self.key_share
   }
 }

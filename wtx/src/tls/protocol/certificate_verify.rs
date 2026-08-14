@@ -14,15 +14,15 @@ pub(crate) struct CertificateVerify<'any> {
 }
 
 impl<'any> CertificateVerify<'any> {
-  pub(crate) fn new(algorithm: SignatureScheme, signature: &'any [u8]) -> Self {
+  pub(crate) const fn new(algorithm: SignatureScheme, signature: &'any [u8]) -> Self {
     Self { algorithm, signature }
   }
 
-  pub(crate) fn algorithm(&self) -> SignatureScheme {
+  pub(crate) const fn algorithm(&self) -> SignatureScheme {
     self.algorithm
   }
 
-  pub(crate) fn signature(&self) -> &'any [u8] {
+  pub(crate) const fn signature(&self) -> &'any [u8] {
     self.signature
   }
 }

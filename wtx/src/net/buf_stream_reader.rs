@@ -225,7 +225,7 @@ impl BufStreamReader {
 
   #[cfg(any(feature = "tls", feature = "postgres"))]
   #[inline]
-  pub(crate) fn buffer_mut(&mut self) -> &mut Vector<u8> {
+  pub(crate) const fn buffer_mut(&mut self) -> &mut Vector<u8> {
     &mut self.buffer
   }
 
@@ -323,7 +323,11 @@ impl BufStreamReader {
   }
 
   #[inline]
-  fn remove_current(antecedent_end_idx: &mut usize, current_end_idx: &mut usize, offset: usize) {
+  const fn remove_current(
+    antecedent_end_idx: &mut usize,
+    current_end_idx: &mut usize,
+    offset: usize,
+  ) {
     let idx = current_end_idx.wrapping_add(offset);
     *antecedent_end_idx = idx;
     *current_end_idx = idx;

@@ -171,7 +171,7 @@ where
 
   /// Different mutable parts that allow sending received frames using common elements.
   #[inline]
-  pub fn split_mut(
+  pub const fn split_mut(
     &mut self,
   ) -> (
     WebSocketCommonMut<'_, NC, S, TCX, IS_CLIENT>,

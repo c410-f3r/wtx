@@ -31,7 +31,7 @@ impl<const IS_CLIENT: bool> Http2Data<IS_CLIENT> {
     }
   }
 
-  pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, IS_CLIENT> {
+  pub(crate) const fn parts_mut(&mut self) -> Http2DataPartsMut<'_, IS_CLIENT> {
     Http2DataPartsMut {
       frame_reader_error: &mut self.frame_reader_error,
       hb: &mut self.hb,

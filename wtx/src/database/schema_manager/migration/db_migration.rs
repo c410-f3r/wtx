@@ -60,7 +60,8 @@ impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::post
 where
   E: From<crate::Error>,
 {
-  const FIELDS: u16 = 8;
+  const FIELDS_BASE: &'static str = "checksum,name,repeatability,uid,created_on";
+  const FIELDS_NUM: u16 = 8;
   const ID_IDX: Option<usize> = None;
   type IdTy = ();
 

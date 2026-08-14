@@ -14,15 +14,15 @@ pub(crate) struct KeyShareEntry<B> {
 }
 
 impl<B> KeyShareEntry<B> {
-  pub(crate) fn new(group: NamedGroup, opaque: B) -> Self {
+  pub(crate) const fn new(group: NamedGroup, opaque: B) -> Self {
     Self { group, opaque }
   }
 
-  pub(crate) fn group(&self) -> NamedGroup {
+  pub(crate) const fn group(&self) -> NamedGroup {
     self.group
   }
 
-  pub(crate) fn opaque(&self) -> &B {
+  pub(crate) const fn opaque(&self) -> &B {
     &self.opaque
   }
 }

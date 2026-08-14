@@ -85,8 +85,8 @@ macro_rules! impl_tuples {
             _req: &mut Request<MsgBufferString>,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
-              let rslt = self.$T13.req(_data, &mut _mw_aux.$T13, _req).await?;
-              if let ControlFlow::Break(status_code) = rslt {
+              let control_flow = self.$T13.req(_data, &mut _mw_aux.$T13, _req).await?;
+              if let ControlFlow::Break(status_code) = control_flow {
                 return Ok(ControlFlow::Break(status_code));
               }
             })*
@@ -105,8 +105,8 @@ macro_rules! impl_tuples {
                 msg_data: &mut *_res.msg_data,
                 status_code: _res.status_code,
               };
-              let rslt = self.$T13.res(_data, &mut _mw_aux.$T13, local_res).await?;
-              if let ControlFlow::Break(status_code) = rslt {
+              let control_flow = self.$T13.res(_data, &mut _mw_aux.$T13, local_res).await?;
+              if let ControlFlow::Break(status_code) = control_flow {
                 return Ok(ControlFlow::Break(status_code));
               }
             })*

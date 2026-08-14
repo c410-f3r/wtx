@@ -21,7 +21,7 @@ pub(crate) struct Finished<'any> {
 }
 
 impl<'any> Finished<'any> {
-  pub(crate) fn new(verify_data: &'any [u8]) -> Self {
+  pub(crate) const fn new(verify_data: &'any [u8]) -> Self {
     Self { verify_data }
   }
 

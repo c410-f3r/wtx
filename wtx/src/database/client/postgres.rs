@@ -137,7 +137,8 @@ mod array {
     E: From<crate::Error>,
     L: LinearStorageLen,
   {
-    const FIELDS: u16 = 1;
+    const FIELDS_BASE: &'static str = "";
+    const FIELDS_NUM: u16 = 1;
     const ID_IDX: Option<usize> = None;
     type IdTy = ();
 

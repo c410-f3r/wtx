@@ -46,13 +46,13 @@ impl<'data> Config<'data> {
 
   /// Database
   #[inline]
-  pub fn db(&self) -> &str {
+  pub const fn db(&self) -> &str {
     self.db
   }
 
   /// Changes the database
   #[inline]
-  pub fn set_db<'value>(&mut self, value: &'value str)
+  pub const fn set_db<'value>(&mut self, value: &'value str)
   where
     'value: 'data,
   {

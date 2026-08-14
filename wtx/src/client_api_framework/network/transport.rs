@@ -151,7 +151,7 @@ mod tests {
   }
 }
 
-fn local_send_bytes<'bytes, 'bytes_buffer, 'rslt>(
+const fn local_send_bytes<'bytes, 'bytes_buffer, 'rslt>(
   bytes: Option<&'bytes [u8]>,
   bytes_buffer: &'bytes_buffer [u8],
 ) -> &'rslt [u8]

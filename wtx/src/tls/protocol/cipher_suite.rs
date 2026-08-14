@@ -76,7 +76,7 @@ impl CipherSuite {
   }
 
   #[inline]
-  pub(crate) fn cipher_key_len(self) -> u8 {
+  pub(crate) const fn cipher_key_len(self) -> u8 {
     match self {
       CipherSuite::Aes128GcmSha256 => 16,
       CipherSuite::Aes256GcmSha384 | CipherSuite::Chacha20Poly1305Sha256 => 32,
@@ -94,7 +94,7 @@ impl CipherSuite {
   }
 
   #[inline]
-  pub(crate) fn hash_len(self) -> u8 {
+  pub(crate) const fn hash_len(self) -> u8 {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => 32,
       CipherSuite::Aes256GcmSha384 => 48,
@@ -147,7 +147,7 @@ impl CipherSuite {
   }
 
   #[inline]
-  pub(crate) fn zeroed_hash(self) -> ArrayVectorCopy<u8, MAX_HASH_LEN> {
+  pub(crate) const fn zeroed_hash(self) -> ArrayVectorCopy<u8, MAX_HASH_LEN> {
     match self {
       CipherSuite::Aes128GcmSha256 | CipherSuite::Chacha20Poly1305Sha256 => {
         ArrayVectorCopy::from_array([

@@ -17,7 +17,7 @@ impl HpackStaticRequestHeaders<'_> {
   pub(crate) const EMPTY: Self =
     Self { authority: "", method: None, path: "", protocol: None, scheme: "" };
 
-  pub(crate) fn bytes_len(&self) -> usize {
+  pub(crate) const fn bytes_len(&self) -> usize {
     let Self { authority, method: _, path, protocol: _, scheme } = *self;
     authority.len().wrapping_add(path.len()).wrapping_add(scheme.len()).wrapping_add(8)
   }
@@ -51,7 +51,7 @@ impl HpackStaticResponseHeaders {
   pub(crate) const EMPTY: Self = Self { status_code: None };
 
   #[expect(clippy::unused_self, reason = "consistency with request headers")]
-  pub(crate) fn bytes_len(self) -> usize {
+  pub(crate) const fn bytes_len(self) -> usize {
     3
   }
 

@@ -102,7 +102,7 @@ pub(crate) fn push_data(
   stream_id: U31,
   wp: &mut WindowsPair<'_>,
 ) -> crate::Result<bool> {
-  fn should_stop(data: &[u8], frame: &mut DataFrame, is_eos: bool, idx: u32) -> bool {
+  const fn should_stop(data: &[u8], frame: &mut DataFrame, is_eos: bool, idx: u32) -> bool {
     if Usize::from_u32(idx).into_usize() >= data.len() {
       if is_eos {
         frame.set_eos();

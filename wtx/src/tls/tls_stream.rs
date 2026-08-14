@@ -373,7 +373,7 @@ where
 }
 
 // This branch is only entered when the peer closed the connection without an alert.
-fn closed_conn_cb(aux: &mut Aux<'_>) {
+const fn closed_conn_cb(aux: &mut Aux<'_>) {
   *aux.connection_state = ConnectionState::ClosedAbruptly;
 }
 

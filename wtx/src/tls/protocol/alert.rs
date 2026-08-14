@@ -102,7 +102,7 @@ impl Alert {
 
   /// New instance
   #[inline]
-  pub fn new(level: AlertLevel, description: AlertDescription) -> Self {
+  pub const fn new(level: AlertLevel, description: AlertDescription) -> Self {
     Self { level, description }
   }
 
@@ -118,7 +118,7 @@ impl Alert {
     self.level
   }
 
-  pub(crate) fn is_close_notify(self) -> bool {
+  pub(crate) const fn is_close_notify(self) -> bool {
     matches!((self.description, self.level), (AlertDescription::CloseNotify, AlertLevel::Warning))
   }
 

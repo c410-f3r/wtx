@@ -207,7 +207,7 @@ where
   /// Returns [`None`] if `data` is empty. This method will abort early if any sending result is
   /// not [`Http2SendStatus::Ok`].
   ///
-  /// `N` should contain the elements yield by `data`, otherwise an overflow will occur.
+  /// `N` is the number of concurrent requests performed in batches until `data` in depleted.
   #[inline]
   pub async fn send_data_concurrent<'bytes, I, const N: usize>(
     &self,
@@ -217,25 +217,33 @@ where
     I: IntoIterator<Item = &'bytes [u8]>,
     I::IntoIter: ExactSizeIterator,
   {
-    let mut iter = data.into_iter();
-    let take = iter.len().saturating_sub(1);
-    let mut futures = ArrayVectorU16::<_, N>::new();
-    for elem in iter.by_ref().take(take) {
-      futures.push(self.send_data(elem, false))?;
+    const {
+      assert!(N > 0);
     }
-    drop(
-      TryJoinArrayVector::new(futures, |hss| {
+    let mut iter = data.into_iter();
+    let mut remaining = iter.len();
+    let mut status = None;
+    while remaining > 0 {
+      let mut futures = ArrayVectorU16::<_, N>::new();
+      let batch_size = remaining.min(N);
+      for _ in 0..batch_size {
+        let Some(elem) = iter.next() else {
+          continue;
+        };
+        remaining = remaining.wrapping_sub(1);
+        futures.push(self.send_data(elem, remaining == 0))?;
+      }
+      status = TryJoinArrayVector::new(futures, |hss| {
         if !matches!(hss, Http2SendStatus::Ok) {
           return Err(protocol_err(Http2Error::ClosedConnectionWhenSendingConcurrentData));
         }
         Ok(hss)
       })
-      .await?,
-    );
-    if let Some(elem) = iter.next() {
-      return Ok(Some(self.send_data(elem, true).await?));
+      .await?
+      .last()
+      .copied();
     }
-    Ok(None)
+    Ok(status)
   }
 
   /// Calls [`Self::send_data`] sequentially on each data element terminating the stream in the

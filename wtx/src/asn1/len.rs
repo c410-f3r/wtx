@@ -57,7 +57,7 @@ impl Len {
 
   /// Encoded representation
   #[inline]
-  pub fn bytes(&self) -> &ArrayVectorCopy<u8, 3> {
+  pub const fn bytes(&self) -> &ArrayVectorCopy<u8, 3> {
     &self.0
   }
 

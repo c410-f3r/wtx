@@ -41,7 +41,7 @@ impl SignatureScheme {
   /// [`Self::RsaPssRsaeSha256`] but a server only serves [`SignatureTy::RsaPssSha256`], that would
   /// be a mismatch.
   #[inline]
-  pub(crate) fn cert_kt(self) -> KeyTy {
+  pub(crate) const fn cert_kt(self) -> KeyTy {
     match self {
       Self::EcdsaSecp256r1Sha256 => KeyTy::EcdsaP256,
       Self::EcdsaSecp384r1Sha384 => KeyTy::EcdsaP384,
@@ -54,7 +54,7 @@ impl SignatureScheme {
 
   /// Used in TLS records like `CertificateVerify`.
   #[inline]
-  pub(crate) fn handshake_st(self) -> SignatureTy {
+  pub(crate) const fn handshake_st(self) -> SignatureTy {
     match self {
       Self::EcdsaSecp256r1Sha256 => SignatureTy::EcdsaP256,
       Self::EcdsaSecp384r1Sha384 => SignatureTy::EcdsaP384,

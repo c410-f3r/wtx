@@ -465,8 +465,8 @@ where
         let idx = req.msg_data.body.len();
         let origin = Self::extract_origin(origin_opt)?;
         let apply_vary = self.manage_preflight_origin(&mut req.msg_data.body, origin)?;
-        let (headers_bytes, origin_bytes) =
-          req.msg_data.body.split_at_checked(idx).unwrap_or_default();
+        let tuple = req.msg_data.body.split_at_checked(idx).unwrap_or_default();
+        let (headers_bytes, origin_bytes) = tuple;
         req.msg_data.headers.clear();
         self.apply_preflight_response(
           apply_vary,

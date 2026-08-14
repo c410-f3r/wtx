@@ -16,7 +16,7 @@ Also supports arithmetic operations and flexible formatting.
 
 ## Embedded devices
 
-`no_std` users that utilize the `embassy` crate should first make a UDP request to a NTP server and then call the `wtx::calendar::set_epoch_offset` function once at start-up, otherwise timestamps will represent the time since boot.
+`no_std` users must first call the `wtx::calendar::set_epoch_offset` function at start-up, otherwise timestamps will represent the time since boot instead of the UNIX epoch.
 
 ## Example
 

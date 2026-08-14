@@ -18,7 +18,7 @@ pub(crate) struct Record<T> {
 }
 
 impl<T> Record<T> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     ty: RecordContentTy,
     legacy_record_version: ProtocolVersion,
     opaque: T,

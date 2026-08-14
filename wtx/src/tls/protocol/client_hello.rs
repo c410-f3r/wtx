@@ -62,19 +62,19 @@ impl<G, TCG> ClientHello<G, TCG> {
     }
   }
 
-  pub(crate) fn generic(&self) -> &G {
+  pub(crate) const fn generic(&self) -> &G {
     &self.generic
   }
 
-  pub(crate) fn legacy_session_id(&self) -> &ArrayVectorCopy<u8, 32> {
+  pub(crate) const fn legacy_session_id(&self) -> &ArrayVectorCopy<u8, 32> {
     &self.legacy_session_id
   }
 
-  pub(crate) fn supported_versions(&self) -> &SupportedVersionsClient {
+  pub(crate) const fn supported_versions(&self) -> &SupportedVersionsClient {
     &self.supported_versions
   }
 
-  pub(crate) fn tls_config(&self) -> &TCG {
+  pub(crate) const fn tls_config(&self) -> &TCG {
     &self.tls_config
   }
 }
@@ -223,7 +223,7 @@ where
   }
 }
 
-fn duplicated_error(is_some: bool) -> crate::Result<()> {
+const fn duplicated_error(is_some: bool) -> crate::Result<()> {
   if is_some {
     return Err(crate::Error::TlsErrorReply(
       TlsError::DuplicatedClientHelloParameters,

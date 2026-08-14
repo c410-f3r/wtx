@@ -48,7 +48,7 @@ pub(crate) struct KeyUpdate {
 }
 
 impl KeyUpdate {
-  pub(crate) fn new(request_update: KeyUpdateRequest) -> Self {
+  pub(crate) const fn new(request_update: KeyUpdateRequest) -> Self {
     Self { request_update }
   }
 

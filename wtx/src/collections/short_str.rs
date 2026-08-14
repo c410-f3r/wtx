@@ -38,7 +38,7 @@ where
 
   /// Underlying byte slice
   #[inline]
-  pub fn into_short_slice(self) -> ShortSlice<'any, L, u8> {
+  pub const fn into_short_slice(self) -> ShortSlice<'any, L, u8> {
     self.0
   }
 

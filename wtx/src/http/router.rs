@@ -574,7 +574,7 @@ pub struct RouterMatch<
 impl<T, const MC: usize, const MD: usize> RouterMatch<'_, T, MC, MD> {
   /// User data originated from a route
   #[inline]
-  pub fn data(&self) -> &T {
+  pub const fn data(&self) -> &T {
     self.value
   }
 

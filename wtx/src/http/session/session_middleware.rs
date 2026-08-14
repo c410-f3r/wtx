@@ -3,9 +3,9 @@ use crate::{
   collections::{ArrayVectorU8, Vector},
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
-    KnownHeaderName, MsgBufferString, MsgDataMut as _, Request, Response, SessionError,
-    SessionManager, SessionManagerInner, SessionState, SessionStore, StatusCode,
-    cookie::cookie_str::CookieStr, http2_server_framework::Middleware,
+    KnownHeaderName, MsgBufferString, Request, Response, SessionManager, SessionManagerInner,
+    SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
+    http2_server_framework::Middleware,
   },
   misc::{Lease as _, LeaseMut, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
@@ -69,10 +69,11 @@ where
       if check_expiration(&session_state.expires_at)? {
         _trace!(target: crate::_WTX_HTTP_SM, "Connection session is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
-        return Err(crate::Error::from(SessionError::ExpiredSession).into());
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       return Ok(ControlFlow::Continue(()));
     }
+    let mut has_invalid_session = false;
     let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
     for header in req.msg_data.headers.iter() {
@@ -120,16 +121,20 @@ where
         break;
       };
       if ss_db.custom_state != ss_des.custom_state {
-        _trace!(target: crate::_WTX_HTTP_SM, "Connection session does not match database ssion");
-        self.session_store.get_with_unit().await?.lease_mut().delete(&ss_des.session_key).await?;
-        return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
+        has_invalid_session = true;
+        break;
       }
       *data.lease_mut() = Some(ss_des);
     }
     // TODO(stable): Polonius
+    if has_invalid_session {
+      _trace!(target: crate::_WTX_HTTP_SM, "Connection session does not match database ssion");
+      delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
+      return Ok(ControlFlow::Break(StatusCode::Forbidden));
+    }
+    // TODO(stable): Polonius
     if !has_stored_session {
       _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not exist in database");
-      req.msg_data.clear();
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
@@ -137,19 +142,20 @@ where
       if check_expiration(&elem.expires_at)? {
         _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
-        return Err(crate::Error::from(SessionError::ExpiredSession).into());
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       if req.method.is_mutable() && Some(elem.session_csrf.as_str()) != x_csrf_token_value {
         _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not contain a valid CSRF");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
-        return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers has been successfully validated");
     } else {
       let path = req.msg_data.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
         _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers and path is forbidden");
-        return Err(crate::Error::from(SessionError::RequiredSession).into());
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers but an allowed path succeeded");
     }
@@ -191,6 +197,7 @@ where
   RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
   RM::Resource: SessionStore<CS, E>,
 {
+  req.clear();
   let _rslt = session_manager
     .inner
     .1

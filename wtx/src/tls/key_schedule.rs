@@ -54,7 +54,7 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn cipher_suite(&self) -> CipherSuite {
+  pub(crate) const fn cipher_suite(&self) -> CipherSuite {
     self.cipher_suite
   }
 
@@ -90,7 +90,7 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn exporter_secret(&self) -> &ArrayVectorCopy<u8, MAX_HASH_LEN> {
+  pub(crate) const fn exporter_secret(&self) -> &ArrayVectorCopy<u8, MAX_HASH_LEN> {
     &self.exporter_secret
   }
 
@@ -138,12 +138,12 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn read(&self) -> &KeyScheduleRead {
+  pub(crate) const fn read(&self) -> &KeyScheduleRead {
     &self.read
   }
 
   #[inline]
-  pub(crate) fn read_mut(&mut self) -> &mut KeyScheduleRead {
+  pub(crate) const fn read_mut(&mut self) -> &mut KeyScheduleRead {
     &mut self.read
   }
 
@@ -159,17 +159,17 @@ impl KeySchedule {
   }
 
   #[inline]
-  pub(crate) fn split_mut(&mut self) -> (&mut KeyScheduleRead, &mut KeyScheduleWrite) {
+  pub(crate) const fn split_mut(&mut self) -> (&mut KeyScheduleRead, &mut KeyScheduleWrite) {
     (&mut self.read, &mut self.write)
   }
 
   #[inline]
-  pub(crate) fn write(&self) -> &KeyScheduleWrite {
+  pub(crate) const fn write(&self) -> &KeyScheduleWrite {
     &self.write
   }
 
   #[inline]
-  pub(crate) fn write_mut(&mut self) -> &mut KeyScheduleWrite {
+  pub(crate) const fn write_mut(&mut self) -> &mut KeyScheduleWrite {
     &mut self.write
   }
 

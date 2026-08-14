@@ -3,7 +3,7 @@ mod keywords {
 }
 
 use crate::misc::parts_from_generics;
-use core::option::IntoIter;
+use core::{fmt::Write as _, option::IntoIter};
 use syn::{
   Data, DeriveInput, Fields, GenericParam, Ident, Path, Type, WherePredicate,
   parse::{Parse, ParseStream},
@@ -18,13 +18,14 @@ pub(crate) fn from_records(
   let input = syn::parse::<DeriveInput>(item)?;
   let name = &input.ident;
 
+  let struct_name_string = input.ident.to_string().to_lowercase();
   let mut custom_bounds = Vec::<WherePredicate>::new();
   let mut database_opt = None;
+  let mut fields_base = String::new();
   let mut modifier_opt = None;
+
   for input_attr in &input.attrs {
-    if let Some(first) = input_attr.path().segments.first()
-      && first.ident == "from_records"
-    {
+    if input_attr.path().is_ident("from_records") {
       let attrs = input_attr.parse_args::<ContainerAttrs>()?;
       database_opt = Some(attrs.database);
       modifier_opt = attrs.modifier;
@@ -41,8 +42,10 @@ pub(crate) fn from_records(
     database_generic_err_where_predicate,
     modifier_call,
   } = database_generic_params(&database, modifier_opt, params)?;
+
   let mut pdi = ProcessDataInput::default();
-  process_data(&input, name, &mut pdi)?;
+  process_data(&mut fields_base, &input, name, &mut pdi, &struct_name_string)?;
+
   let ProcessDataInput {
     decodes_after_id,
     decodes_after_id_method,
@@ -73,6 +76,7 @@ pub(crate) fn from_records(
     }
     None
   });
+
   let (id_idx, id_ident, id_ty) = match (manys.is_empty(), id_opt) {
     (false, None) => return Err(crate::Error::MissingId(name.span())),
     (true, None) => (quote::quote!(None), None, quote::quote!(())),
@@ -84,6 +88,7 @@ pub(crate) fn from_records(
   let id_ident_iter0 = id_ident.iter();
   let id_ident_iter1 = id_ident.iter();
 
+  let _maybe_comma = fields_base.pop();
   let expanded = quote::quote!(
     impl<'exec, #(#database_generic_err_param,)* #params> wtx::database::FromRecords<'exec, #database> for #name<#params>
     where
@@ -92,7 +97,8 @@ pub(crate) fn from_records(
       #(#additional_bounds,)*
       #where_predicates
     {
-      const FIELDS: u16 = #fields_num;
+      const FIELDS_BASE: &'static str = #fields_base;
+      const FIELDS_NUM: u16 = #fields_num;
       const ID_IDX: Option<usize> = #id_idx;
 
       type IdTy = #id_ty;
@@ -131,6 +137,7 @@ pub(crate) fn from_records(
             rslt?
           };
         )*
+
         #(
           let #ones_opts = {
             _curr_params.is_in_one_relationship = true;
@@ -139,7 +146,7 @@ pub(crate) fn from_records(
             _curr_params.is_in_one_relationship = false;
             if rslt.is_err() {
               let curr_field_idx = prev_curr_field_idx.wrapping_add(
-                <#ones_opts_tys as wtx::database::FromRecords::<#database>>::FIELDS.into()
+                <#ones_opts_tys as wtx::database::FromRecords::<#database>>::FIELDS_NUM.into()
               );
               _curr_params.curr_field_idx = curr_field_idx;
               None
@@ -181,12 +188,18 @@ pub(crate) fn from_records(
   Ok(proc_macro::TokenStream::from(expanded))
 }
 
+/// Field type
 #[derive(Debug)]
 enum FieldTy {
+  /// Decoding element
   Decode,
+  /// A special type of decoding element
   Id,
+  /// Ignorable element that may or may not exist in the underlying record
   Ignore,
+  /// Maps to another structure in a one to many relationship
   Many,
+  /// Maps to another structure in a one to one relationship
   One,
 }
 
@@ -258,19 +271,19 @@ impl Parse for FieldAttrs {
 
 #[derive(Debug, Default)]
 struct ProcessDataInput<'any> {
-  decodes_after_id: Vec<&'any Option<Ident>>,
+  decodes_after_id: Vec<&'any Ident>,
   decodes_after_id_method: Vec<Ident>,
-  decodes_before_id: Vec<&'any Option<Ident>>,
+  decodes_before_id: Vec<&'any Ident>,
   decodes_before_id_method: Vec<Ident>,
   fields_num: u16,
   id_opt: Option<(usize, Option<&'any Ident>, &'any Type)>,
-  ignores: Vec<&'any Option<Ident>>,
+  ignores: Vec<&'any Ident>,
   ignores_tys: Vec<&'any Type>,
-  manys: Vec<&'any Option<Ident>>,
+  manys: Vec<&'any Ident>,
   manys_tys: Vec<&'any Type>,
-  ones: Vec<&'any Option<Ident>>,
+  ones: Vec<&'any Ident>,
   ones_tys: Vec<&'any Type>,
-  ones_opts: Vec<&'any Option<Ident>>,
+  ones_opts: Vec<&'any Ident>,
   ones_opts_tys: Vec<&'any Type>,
 }
 
@@ -339,7 +352,7 @@ fn extract_decode_method(ty: &Type) -> Ident {
 
 fn is_opt(ty: &Type) -> bool {
   if let Type::Path(path) = ty
-    && let Some(first) = path.path.segments.first()
+    && let Some(first) = path.path.segments.last()
     && first.ident == "Option"
   {
     true
@@ -349,67 +362,82 @@ fn is_opt(ty: &Type) -> bool {
 }
 
 fn process_data<'any>(
+  fields_base: &mut String,
   input: &'any DeriveInput,
   name: &Ident,
   quote_params: &mut ProcessDataInput<'any>,
+  struct_name_str: &str,
 ) -> crate::Result<()> {
   match &input.data {
     Data::Struct(data) => match &data.fields {
       Fields::Named(fields) => {
-        for (idx, elem) in fields.named.iter().enumerate() {
-          let mut ty_opt = None;
-          for attr in &elem.attrs {
-            if let Some(first) = attr.path().segments.first()
-              && first.ident == "from_records"
-            {
-              ty_opt = attr.parse_args::<FieldAttrs>()?.ty;
-              break;
-            }
-          }
-          match ty_opt.unwrap_or(FieldTy::Decode) {
-            FieldTy::Decode => {
-              quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
-              if quote_params.id_opt.is_none() {
-                quote_params.decodes_before_id.push(&elem.ident);
-                quote_params.decodes_before_id_method.push(extract_decode_method(&elem.ty));
-              } else {
-                quote_params.decodes_after_id.push(&elem.ident);
-                quote_params.decodes_after_id_method.push(extract_decode_method(&elem.ty));
-              }
-            }
-            FieldTy::Id => {
-              quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
-              if quote_params.id_opt.is_none() {
-                quote_params.id_opt = Some((idx, elem.ident.as_ref(), &elem.ty));
-              } else {
-                return Err(crate::Error::DuplicatedId(name.span()));
-              }
-            }
-            FieldTy::Ignore => {
-              quote_params.ignores.push(&elem.ident);
-              quote_params.ignores_tys.push(&elem.ty);
-            }
-            FieldTy::Many => {
-              quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
-              quote_params.manys.push(&elem.ident);
-              quote_params.manys_tys.push(&elem.ty);
-            }
-            FieldTy::One => {
-              quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
-              if is_opt(&elem.ty) {
-                quote_params.ones_opts.push(&elem.ident);
-                quote_params.ones_opts_tys.push(&elem.ty);
-              } else {
-                quote_params.ones.push(&elem.ident);
-                quote_params.ones_tys.push(&elem.ty);
-              }
-            }
-          }
+        for (idx, field) in fields.named.iter().enumerate() {
+          process_data_step(field, fields_base, idx, name, quote_params, struct_name_str)?;
         }
       }
       Fields::Unnamed(_) | Fields::Unit => return Err(crate::Error::UnsupportedStructure),
     },
     Data::Enum(_) | Data::Union(_) => return Err(crate::Error::UnsupportedStructure),
+  }
+  Ok(())
+}
+
+fn process_data_step<'any>(
+  field: &'any syn::Field,
+  fields_base: &mut String,
+  idx: usize,
+  name: &Ident,
+  quote_params: &mut ProcessDataInput<'any>,
+  _struct_name_str: &str,
+) -> crate::Result<()> {
+  let mut ty_opt = None;
+  for attr in &field.attrs {
+    if attr.path().is_ident("from_records") {
+      ty_opt = attr.parse_args::<FieldAttrs>()?.ty;
+      break;
+    }
+  }
+  let field_ident = field.ident.as_ref().ok_or(crate::Error::InvalidStruct)?;
+  match ty_opt.unwrap_or(FieldTy::Decode) {
+    FieldTy::Decode => {
+      let _rslt = write!(fields_base, "{field_ident},");
+      quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
+      if quote_params.id_opt.is_none() {
+        quote_params.decodes_before_id.push(field_ident);
+        quote_params.decodes_before_id_method.push(extract_decode_method(&field.ty));
+      } else {
+        quote_params.decodes_after_id.push(field_ident);
+        quote_params.decodes_after_id_method.push(extract_decode_method(&field.ty));
+      }
+    }
+    FieldTy::Id => {
+      let _rslt = write!(fields_base, "{field_ident},");
+      quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
+      if quote_params.id_opt.is_none() {
+        quote_params.id_opt = Some((idx, Some(field_ident), &field.ty));
+      } else {
+        return Err(crate::Error::DuplicatedId(name.span()));
+      }
+    }
+    FieldTy::Ignore => {
+      quote_params.ignores.push(field_ident);
+      quote_params.ignores_tys.push(&field.ty);
+    }
+    FieldTy::Many => {
+      quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
+      quote_params.manys.push(field_ident);
+      quote_params.manys_tys.push(&field.ty);
+    }
+    FieldTy::One => {
+      quote_params.fields_num = quote_params.fields_num.wrapping_add(1);
+      if is_opt(&field.ty) {
+        quote_params.ones_opts.push(field_ident);
+        quote_params.ones_opts_tys.push(&field.ty);
+      } else {
+        quote_params.ones.push(field_ident);
+        quote_params.ones_tys.push(&field.ty);
+      }
+    }
   }
   Ok(())
 }

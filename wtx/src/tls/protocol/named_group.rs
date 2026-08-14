@@ -148,7 +148,7 @@ pub enum NamedGroupParam<A, B, C> {
 
 impl<A, B, C> NamedGroupParam<A, B, C> {
   #[inline]
-  pub(crate) fn named_group(&self) -> NamedGroup {
+  pub(crate) const fn named_group(&self) -> NamedGroup {
     match self {
       NamedGroupParam::Secp256r1(_) => NamedGroup::Secp256r1,
       NamedGroupParam::Secp384r1(_) => NamedGroup::Secp384r1,

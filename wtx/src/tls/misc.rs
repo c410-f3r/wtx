@@ -262,7 +262,7 @@ pub(crate) fn manage_key_update(key_updates: &mut u8) -> crate::Result<()> {
   Ok(())
 }
 
-pub(crate) fn post_handshake_dec_error(
+pub(crate) const fn post_handshake_dec_error(
   after_bytes: &[u8],
   handshake_ty: HandshakeTy,
 ) -> crate::Result<()> {
@@ -279,7 +279,7 @@ pub(crate) fn post_handshake_dec_error(
   Ok(())
 }
 
-pub(crate) fn pre_handshake_dec_error(condition: bool) -> crate::Result<()> {
+pub(crate) const fn pre_handshake_dec_error(condition: bool) -> crate::Result<()> {
   if condition {
     return Err(crate::Error::TlsErrorReply(
       TlsError::PreHandshakeDecError,

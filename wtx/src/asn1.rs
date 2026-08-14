@@ -244,7 +244,7 @@ impl Asn1DecodeWrapperAux {
   }
 
   #[cfg(feature = "x509")]
-  pub(crate) fn inc_curr_idx(&mut self, len: usize) {
+  pub(crate) const fn inc_curr_idx(&mut self, len: usize) {
     self.curr_idx = self.curr_idx.wrapping_add(len);
   }
 }

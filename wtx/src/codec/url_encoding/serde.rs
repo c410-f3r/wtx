@@ -480,7 +480,7 @@ impl<const IS_PERCENT: bool> Write for UrlEncodeWriter<'_, IS_PERCENT> {
   }
 }
 
-fn url_encode_str(bytes: &[u8]) -> &str {
+const fn url_encode_str(bytes: &[u8]) -> &str {
   // SAFETY: Url encoding is ASCII
   unsafe { str::from_utf8_unchecked(bytes) }
 }

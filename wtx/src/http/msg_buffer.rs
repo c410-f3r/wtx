@@ -39,37 +39,37 @@ impl<S> MsgBuffer<S> {
 
   /// Shortcut to create a HTTP/2 [Request].
   #[inline]
-  pub const fn as_http2_request(&self, method: Method) -> Request<&Self> {
+  pub const fn as_request(&self, method: Method) -> Request<&Self> {
     Request { method, msg_data: self }
   }
 
-  /// Mutable version of [`Self::as_http2_request`].
+  /// Mutable version of [`Self::as_request`].
   #[inline]
-  pub const fn as_http2_request_mut(&mut self, method: Method) -> Request<&mut Self> {
+  pub const fn as_request_mut(&mut self, method: Method) -> Request<&mut Self> {
     Request { method, msg_data: self }
   }
 
   /// Shortcut to create a HTTP/2 [Response].
   #[inline]
-  pub const fn as_http2_response(&self, status_code: StatusCode) -> Response<&Self> {
+  pub const fn as_response(&self, status_code: StatusCode) -> Response<&Self> {
     Response { msg_data: self, status_code }
   }
 
-  /// Mutable version of [`Self::as_http2_response`].
+  /// Mutable version of [`Self::as_response`].
   #[inline]
-  pub const fn as_http2_response_mut(&mut self, status_code: StatusCode) -> Response<&mut Self> {
+  pub const fn as_response_mut(&mut self, status_code: StatusCode) -> Response<&mut Self> {
     Response { msg_data: self, status_code }
   }
 
-  /// Owned version of [`Self::as_http2_request`].
+  /// Owned version of [`Self::as_request`].
   #[inline]
-  pub const fn into_http2_request(self, method: Method) -> Request<Self> {
+  pub const fn into_request(self, method: Method) -> Request<Self> {
     Request { method, msg_data: self }
   }
 
-  /// Owned version of [`Self::as_http2_response`].
+  /// Owned version of [`Self::as_response`].
   #[inline]
-  pub const fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
+  pub const fn into_response(self, status_code: StatusCode) -> Response<Self> {
     Response { msg_data: self, status_code }
   }
 
