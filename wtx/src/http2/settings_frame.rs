@@ -66,7 +66,7 @@ impl SettingsFrame {
       }};
     }
 
-    // FIXME(upstream): LLVM doesn't inline this lightweight function without `#[inline]`.
+    // FIXME(UPSTREAM): LLVM doesn't inline this lightweight function without `#[inline]`.
     #[inline]
     const fn bytes(ty: u16, value: u32) -> [u8; 6] {
       let [b0, b1] = ty.to_be_bytes();

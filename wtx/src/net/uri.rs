@@ -27,19 +27,17 @@ pub type UriString = Uri<String>;
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
 //
-// 000 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash |
-//     |        |                           |       |              |       |
-//     |        |                           |       |              |       |-> initial_len
-//     |        |                           |       |              |
-//     |        |                           |       |              |---------> fragment_start
-//     |        |                           |       |
-//     |        |                           |       |------------------------> query_start
-//     |        |                           |
-//     |        |                           |--------------------------------> href_start
-//     |        |
-//     |        |------------------------------------------------------------> authority_start
-//     |
-//     |---------------------------------------------------------------------> start
+// foo:// | user:password@hostname:80 | /path | ?query=value | #hash |
+//        |                           |       |              |       |
+//        |                           |       |              |       |-> initial_len
+//        |                           |       |              |
+//        |                           |       |              |---------> fragment_start
+//        |                           |       |
+//        |                           |       |------------------------> query_start
+//        |                           |
+//        |                           |--------------------------------> href_start
+//        |
+//        |------------------------------------------------------------> authority_start
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where
@@ -51,7 +49,6 @@ where
   initial_len: u16,
   port: Option<u16>,
   query_start: u16,
-  start: u8,
   uri: S,
 }
 
@@ -67,7 +64,6 @@ where
       initial_len: 0,
       port: None,
       query_start: 0,
-      start: 0,
       uri,
     }
   }
@@ -83,7 +79,7 @@ where
   /// Full URI string
   #[inline]
   pub fn as_str(&self) -> &str {
-    self.uri.lease().get(self.start.into()..).unwrap_or_default()
+    self.uri.lease()
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2>
@@ -284,7 +280,7 @@ where
     self
       .authority_start
       .checked_sub(3)
-      .and_then(|idx| self.uri.lease().get(self.start.into()..idx.into()))
+      .and_then(|idx| self.uri.lease().get(..idx.into()))
       .unwrap_or_default()
   }
 
@@ -298,7 +294,6 @@ where
       initial_len: self.initial_len,
       port: self.port,
       query_start: self.query_start,
-      start: self.start,
       uri: self.uri.lease(),
     }
   }
@@ -313,7 +308,6 @@ where
       initial_len: self.initial_len,
       port: self.port,
       query_start: self.query_start,
-      start: self.start,
       uri: self.uri.lease().into(),
     }
   }
@@ -339,40 +333,25 @@ where
   fn process(&mut self) {
     let Self {
       authority_start: this_authority_start,
-      fragment_start: this_fragment_rstart,
+      fragment_start: this_fragment_start,
       href_start: this_href_start,
       initial_len: this_initial_len,
       port: this_port,
       query_start: this_query_start,
-      start: this_start,
       uri: this_uri,
     } = self;
     let indices = Self::process_indices(this_uri.lease());
-    let (initial_len, start, authority_start, href_start, query_start, fragment_start) = indices;
+    let (initial_len, authority_start, href_start, query_start, fragment_start) = indices;
     *this_authority_start = authority_start;
-    *this_fragment_rstart = fragment_start;
+    *this_fragment_start = fragment_start;
     *this_href_start = href_start;
     *this_initial_len = initial_len;
-    *this_port = Self::process_port(this_uri.lease().get(start.into()..self.href_start.into()));
+    *this_port = Self::process_port(this_uri.lease().get(..href_start.into()));
     *this_query_start = query_start;
-    *this_start = start;
   }
 
-  fn process_indices(uri: &str) -> (u16, u8, u8, u8, u16, u16) {
+  fn process_indices(uri: &str) -> (u16, u8, u8, u16, u16) {
     let initial_len = uri.len().try_into().unwrap_or(u16::MAX);
-    let mut iter = uri.as_bytes().iter().copied().take(255);
-    let init = if let Some(0) = iter.next() {
-      let mut local_init: u8 = 1;
-      for elem in iter {
-        if elem != 0 {
-          break;
-        }
-        local_init = local_init.wrapping_add(1);
-      }
-      local_init
-    } else {
-      0
-    };
     let valid_uri = uri.get(..initial_len.into()).unwrap_or_default();
     let authority_start: u8 = valid_uri
       .match_indices("://")
@@ -397,7 +376,7 @@ where
         .and_then(|idx| usize::from(query_start).wrapping_add(idx).try_into().ok())
         .unwrap_or(initial_len)
     };
-    (initial_len, init, authority_start, href_start, query_start, fragment_start)
+    (initial_len, authority_start, href_start, query_start, fragment_start)
   }
 
   fn process_port(str: Option<&str>) -> Option<u16> {
@@ -521,23 +500,14 @@ where
 {
   #[inline]
   fn clear(&mut self) {
-    let Self {
-      authority_start,
-      fragment_start,
-      href_start,
-      initial_len,
-      port,
-      query_start,
-      start,
-      uri,
-    } = self;
+    let Self { authority_start, fragment_start, href_start, initial_len, port, query_start, uri } =
+      self;
     *authority_start = 0;
     *fragment_start = 0;
     *href_start = 0;
     *initial_len = 0;
     *port = None;
     *query_start = 0;
-    *start = 0;
     uri.clear();
   }
 }
@@ -708,7 +678,7 @@ mod tests {
 
   #[test]
   fn dynamic_methods_have_correct_behavior() {
-    let mut uri = UriString::new("\0\0http://dasdas.com/rewqd".into());
+    let mut uri = UriString::new("http://dasdas.com/rewqd".into());
     uri.push_path(format_args!("/tretre")).unwrap();
     assert_eq!(uri.scheme(), "http");
     assert_eq!(uri.path(), "/rewqd/tretre");

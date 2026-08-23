@@ -7,24 +7,6 @@ mod de;
 mod handshake_path;
 mod key_schedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
-#[expect(
-  clippy::allow_attributes_without_reason,
-  clippy::arithmetic_side_effects,
-  clippy::as_conversions,
-  clippy::as_pointer_underscore,
-  clippy::indexing_slicing,
-  clippy::ptr_as_ptr,
-  clippy::ref_as_ptr,
-  clippy::renamed_function_params,
-  clippy::std_instead_of_core,
-  non_camel_case_types,
-  trivial_casts,
-  unreachable_pub,
-  unsafe_op_in_unsafe_fn,
-  unused,
-  unused_results,
-  reason = "generated code"
-)]
 mod ktls_bindings;
 #[cfg(all(feature = "std", target_os = "linux"))]
 mod ktls_stream;
@@ -84,7 +66,7 @@ pub use tls_connector::{
 };
 pub use tls_connector_builder::TlsConnectorBuilder;
 pub use tls_ctx::{
-  TlsCtx, TlsCtxSk, TlsCtxSkInput, TlsCtxSkLoader, enc_sk_ctx::EncSkCtx,
+  TlsCtx, TlsCtxSk, TlsCtxSkInput, TlsCtxSkLoader, hardened_sk_ctx::HardenedSkCtx,
   plaintext_ctx::PlaintextCtx, sk_ctx::SkCtx, trusted_ctx::TrustedCtx,
   unverified_ctx::UnverifiedCtx,
 };

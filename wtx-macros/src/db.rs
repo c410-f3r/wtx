@@ -5,7 +5,7 @@ pub(crate) fn db(
   attrs: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
-  let dir_ts = dir_ts(attrs)?;
+  let [dir_ts, tls_config_ts] = attrs_ts(attrs)?;
   let input_fn: ItemFn = syn::parse(item)?;
 
   let mut has_conn = false;
@@ -47,6 +47,7 @@ pub(crate) fn db(
 
       wtx::database::client::postgres::database_test(
         #dir_ts,
+        #tls_config_ts,
         #priv_fn_name
       ).unwrap()
     }
@@ -54,17 +55,27 @@ pub(crate) fn db(
   Ok(tokens.into())
 }
 
-fn dir_ts(attrs: proc_macro::TokenStream) -> crate::Result<proc_macro2::TokenStream> {
+fn attrs_ts(attrs: proc_macro::TokenStream) -> crate::Result<[proc_macro2::TokenStream; 2]> {
   let attrs_args: Args = syn::parse(attrs)?;
   let mut dir = None;
+  let mut tls_config_ts = None;
   for arg in attrs_args.0 {
-    if let Meta::List(meta_list) = arg
-      && meta_list.path.is_ident("dir")
-    {
-      let lit: syn::LitStr = meta_list.parse_args()?;
-      dir = Some(lit.value());
+    if let Meta::List(meta_list) = arg {
+      if meta_list.path.is_ident("dir") {
+        let value: syn::LitStr = meta_list.parse_args()?;
+        dir = Some(value.value());
+      } else if meta_list.path.is_ident("tls_config") {
+        let value: syn::Expr = meta_list.parse_args()?;
+        tls_config_ts = Some(value);
+      }
     }
   }
-  let dir_ts = if let Some(elem) = dir { quote::quote!(Some(#elem)) } else { quote::quote!(None) };
-  Ok(dir_ts)
+  Ok([
+    if let Some(elem) = dir { quote::quote!(Some(#elem)) } else { quote::quote!(None) },
+    if let Some(elem) = tls_config_ts {
+      quote::quote!(#elem)
+    } else {
+      quote::quote!(wtx::tls::TlsConfig::new(Default::default()).unwrap())
+    },
+  ])
 }

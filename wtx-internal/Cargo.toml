@@ -66,10 +66,10 @@ autobahn-server = ["tokio", "wtx/tokio", "wtx/web-socket-server-framework", "wtx
 boringssl = ["tokio", "wtx/tls", "wtx/tokio", "wtx/_tracing-tree", "wtx/x509"]
 boringssl-config = ["serde/derive", "serde_json/std", "wtx/hashbrown", "wtx/serde"]
 ccadb = ["tokio", "wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/http2", "wtx/tokio"]
-h2load = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
+h2load = ["tokio", "wtx/http2-server-framework", "wtx/tokio"]
 h2spec-high = ["tokio", "wtx/http2", "wtx/tokio"]
 h2spec-low = ["tokio", "wtx/http2", "wtx/tokio"]
-testssl = ["tokio", "wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
+testssl = ["tokio", "wtx/http2-server-framework", "wtx/tokio"]
 x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 
 [package]

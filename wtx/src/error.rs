@@ -206,6 +206,11 @@ pub enum Error {
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
   /// involved code was not built the way it should be.
   ProgrammingError,
+  /// It wasn't possible to fetch entropy from a supported host, which probably means a kernel
+  /// malfunction.
+  RngHostError,
+  /// `WTX` can not fetch entropy from a host. To fix the issue, use `getrandom` or `std::random`.
+  RngUnsupportedHost,
   /// Unexpected Unsigned integer
   UnboundedNumber {
     /// Expected bounds
@@ -237,6 +242,8 @@ pub enum Error {
     /// Number value
     received: u16,
   },
+  /// Linux Kernel is too old or doesn't have a required configuration activated.
+  UnsupportedLinuxKernel,
   /// The operation `mlock` is not supported in your platform
   UnsupportedMlockPlatform,
   /// Unsupported operation

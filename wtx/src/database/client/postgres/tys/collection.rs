@@ -1,11 +1,11 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::{ArrayString, LinearStorageLen},
+  collections::{ArrayString, LinearStorageLen, ShortBoxStr},
   database::{
     Typed,
     client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
   },
-  misc::from_utf8_basic,
+  misc::{Lease, from_utf8_basic},
 };
 use alloc::string::String;
 
@@ -171,6 +171,123 @@ where
   }
 }
 test!(array_string, crate::collections::ArrayStringU8<4>, ArrayString::try_from("123").unwrap());
+
+// Cow (std)
+
+impl<'de, E> Decode<'de, Postgres<E>> for alloc::borrow::Cow<'de, str>
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
+    Ok(alloc::borrow::Cow::Borrowed(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?))
+  }
+}
+impl<E> Encode<Postgres<E>> for alloc::borrow::Cow<'_, str>
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().extend_from_copyable_slice(self.as_bytes())?;
+    Ok(())
+  }
+}
+impl<E> Typed<Postgres<E>> for alloc::borrow::Cow<'_, str>
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <&Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Text)
+  }
+}
+
+// Cow (wtx)
+
+impl<'de, E, O> Decode<'de, Postgres<E>> for crate::misc::Cow<'de, str, O>
+where
+  str: crate::misc::ToOwned<O>,
+  E: From<crate::Error>,
+  O: Lease<str>,
+{
+  #[inline]
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
+    Ok(crate::misc::Cow::Borrowed(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?))
+  }
+}
+impl<E, O> Encode<Postgres<E>> for crate::misc::Cow<'_, str, O>
+where
+  str: crate::misc::ToOwned<O>,
+  E: From<crate::Error>,
+  O: Lease<str>,
+{
+  #[inline]
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().extend_from_copyable_slice(self.as_bytes())?;
+    Ok(())
+  }
+}
+impl<E, O> Typed<Postgres<E>> for crate::misc::Cow<'_, str, O>
+where
+  str: crate::misc::ToOwned<O>,
+  E: From<crate::Error>,
+  O: Lease<str>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <&Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Text)
+  }
+}
+
+// Cow (wtx)
+
+impl<'de, E, L> Decode<'de, Postgres<E>> for ShortBoxStr<L>
+where
+  E: From<crate::Error>,
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
+    Ok(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?.try_into()?)
+  }
+}
+impl<E, L> Encode<Postgres<E>> for ShortBoxStr<L>
+where
+  E: From<crate::Error>,
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
+    ew.buffer().extend_from_copyable_slice(self.as_bytes())?;
+    Ok(())
+  }
+}
+impl<E, L> Typed<Postgres<E>> for ShortBoxStr<L>
+where
+  E: From<crate::Error>,
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <&Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Text)
+  }
+}
 
 // String
 

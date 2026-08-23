@@ -44,7 +44,7 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let secret_context = SecretContext::new(&mut rng)?;
   let db_pool = DbPool::new(
     4,
@@ -103,7 +103,7 @@ async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
   serde_json::to_writer(&mut state.req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
   session_manager
-    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_getrandom()?, db_pool)
+    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_std_random()?, db_pool)
     .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }

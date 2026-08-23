@@ -11,19 +11,20 @@ use crate::{
 };
 use core::hint::cold_path;
 
-/// Encrypted Secret Key Context
+/// Hardened Secret Key Context
 ///
-/// Secure connection with protected private key. Data is encrypted and certificates are verified.
+/// Secure connection with private keys protected using the [`Secret`] structure. Data is encrypted
+/// and certificates are verified.
 ///
 /// Used by servers.
 #[derive(Debug, Default)]
-pub struct EncSkCtx(ShortBoxSliceU8<(Secret, KeyTy)>);
+pub struct HardenedSkCtx(ShortBoxSliceU8<(Secret, KeyTy)>);
 
-impl TlsCtx for EncSkCtx {
+impl TlsCtx for HardenedSkCtx {
   const TY: TlsMode = TlsMode::Verified;
 }
 
-impl TlsCtxSk for EncSkCtx {
+impl TlsCtxSk for HardenedSkCtx {
   type Signature = DynSigningOutput;
 
   #[inline]
@@ -40,9 +41,8 @@ impl TlsCtxSk for EncSkCtx {
     let kt = sc.cert_kt();
     for value in self.0.iter() {
       if value.1 == kt {
-        return value.0.peek(&mut buffer.into(), |sp| {
-          sc.handshake_st().sign_key_from_pkcs8(sp.data())?.sign(msg, rng)
-        })?;
+        let sp = value.0.peek(buffer)?;
+        return sc.handshake_st().sign_key_from_pkcs8(sp.data())?.sign(msg, rng);
       }
     }
     cold_path();
@@ -50,7 +50,7 @@ impl TlsCtxSk for EncSkCtx {
   }
 }
 
-impl TlsCtxSkLoader for EncSkCtx {
+impl TlsCtxSkLoader for HardenedSkCtx {
   type SkInputDer<'data> = (SecretContext, &'data mut [u8]);
   type SkInputPem<'data> = (SecretContext, &'data mut [u8]);
 

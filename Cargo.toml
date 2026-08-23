@@ -13,7 +13,7 @@ strip = "symbols"
 
 [profile.profiling]
 inherits = "release"
-debug = true
+debug = "line-tables-only"
 
 [workspace]
 members = [

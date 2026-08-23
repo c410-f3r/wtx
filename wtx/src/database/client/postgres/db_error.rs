@@ -1,9 +1,9 @@
 use crate::{
   codec::FromRadix10 as _,
+  collections::ShortBoxStrU16,
   database::client::postgres::{PostgresError, SqlState},
   misc::{AsciiGeneric, Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
-use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Formatter},
   ops::Range,
@@ -49,7 +49,7 @@ create_enum! {
 /// A Postgres error or notice.
 #[derive(Eq, PartialEq)]
 pub struct DbError {
-  buffer: Box<str>,
+  buffer: ShortBoxStrU16,
   code: SqlState,
   column: Option<Range<u32>>,
   constraint: Option<Range<u32>>,
@@ -285,7 +285,7 @@ impl TryFrom<&str> for DbError {
     }
 
     Ok(Self {
-      buffer: from.get(..*Usize::from(idx)).unwrap_or_default().into(),
+      buffer: from.get(..*Usize::from(idx)).unwrap_or_default().try_into()?,
       code: into_rslt(code)?,
       column,
       constraint,

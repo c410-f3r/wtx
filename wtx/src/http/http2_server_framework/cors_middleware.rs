@@ -347,8 +347,8 @@ impl CorsMiddleware {
   }
 
   fn extract_origin<'any>(
-    opt: Option<Header<'any, &'any str>>,
-  ) -> crate::Result<Header<'any, &'any str>> {
+    opt: Option<Header<&'any str, &'any str>>,
+  ) -> crate::Result<Header<&'any str, &'any str>> {
     Ok(opt.ok_or(HttpError::MissingHeader(KnownHeaderName::Origin))?)
   }
 
@@ -366,7 +366,7 @@ impl CorsMiddleware {
   // Writes unique sub headers into `body`.
   fn manage_preflight_headers(
     &self,
-    acrh: Header<'_, &str>,
+    acrh: Header<&str, &str>,
     body: &mut Vector<u8>,
   ) -> crate::Result<()> {
     if self.allow_headers.0 {
@@ -383,7 +383,7 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  fn manage_preflight_methods(&self, acrm: Header<'_, &str>) -> crate::Result<()> {
+  fn manage_preflight_methods(&self, acrm: Header<&str, &str>) -> crate::Result<()> {
     if self.allow_methods.0 {
       return Ok(());
     }
@@ -400,7 +400,7 @@ impl CorsMiddleware {
   fn manage_preflight_origin(
     &self,
     body: &mut Vector<u8>,
-    origin: Header<'_, &str>,
+    origin: Header<&str, &str>,
   ) -> crate::Result<bool> {
     let mut apply_vary = false;
     let actual_origin = if self.allow_origins.0 {

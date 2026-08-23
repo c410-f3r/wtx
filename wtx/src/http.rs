@@ -40,7 +40,7 @@ pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;
 pub use header_name::*;
-pub use headers::{Header, Headers, Trailers};
+pub use headers::{Header, Headers, HeadersIter, Trailers};
 pub use http_client::HttpClient;
 pub use http_error::HttpError;
 pub use http_recv_params::HttpRecvParams;
@@ -81,4 +81,3 @@ pub(crate) const MAX_FRAME_LEN_LOWER_BOUND: u32 = 16 * 1024;
 pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = 16 * 1024 * 1024 - 1;
 
 pub(crate) type _HeaderNameBuffer = crate::collections::ArrayVectorU8<u8, MAX_HEADER_NAME_LEN>;
-pub(crate) type _HeaderValueBuffer = crate::collections::ArrayVectorU16<u8, MAX_HEADER_VALUE_LEN>;

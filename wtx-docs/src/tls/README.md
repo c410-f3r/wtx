@@ -22,9 +22,9 @@ It is probably something you shouldn't worry about because most constructors of 
 
 Converts a TLS stream into an unencrypted stream, in other words, `PlaintextCtx` makes the TLS stream act like a normal plain-text stream ignoring all associated certificates, handshakes and encryptions.
 
-This feature is useful for local tests and also for applications running behind a service mesh that automatically handles mTLS connections. However, `PlaintextCtx` can be \*\*\***DANGEROUS**\*\*\* in a misconfiguration or if you don't know what are you doing, as such, be careful! 
+This feature is useful for local tests and also for applications running behind a service mesh that automatically handles mTLS connections. Nevertheless, `PlaintextCtx` can be \*\*\***DANGEROUS**\*\*\* in a misconfiguration or if you don't know what are you doing, as such, be careful! 
 
-### Encrypted secret key context
+### Hardened secret key context
 
 In an ideal world all secret keys should reside in specialized hardware that, when requested, output signatures. The reality however is that such a feature isn't very straightforward to set-up or widely available in cloud providers.
 
@@ -32,7 +32,7 @@ Worse yet, for local deployments a Hardware Security Module (HSM) can cost more 
 
 Is it over for the beta? Perhaps not. There are a bunch of servers running for years using long-lived plaintext secret keys in memory but it is possible to do better.
 
-At the cost of runtime performance, it is possible to keep encrypted secret keys in memory using long pages that are resistant against `RowHammer` or `RAMbleed` and then only decrypt when necessary. That is exactly what the `EncSkCtx` TLS context does using the `Secret` structure.
+At the cost of some or no runtime performance depending on the context, it is possible to use hardened secret keys utilizing the `Secret` structure through the `HardenedSkCtx` TLS context.
 
 A silver bullet? No! Better than plaintext data? Definitely!
 

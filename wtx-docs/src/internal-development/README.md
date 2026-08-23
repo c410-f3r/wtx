@@ -107,6 +107,7 @@ List of implemented RFCs.
 | `PEM`                    | <https://datatracker.ietf.org/doc/html/rfc7468> |
 | `PKCS#8`                 | <https://datatracker.ietf.org/doc/html/rfc5208> |
 | `RSASSA-PSS`             | <https://datatracker.ietf.org/doc/html/rfc4055> |
+| `SMTP (Client)`          | <https://datatracker.ietf.org/doc/html/rfc5321> |
 | `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc9846> |
 | `URI`                    | <https://datatracker.ietf.org/doc/html/rfc3986> |
 | `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455> |

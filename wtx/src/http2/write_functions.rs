@@ -79,7 +79,7 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
       }
     }
     Trailers::Tail(idx) => {
-      let iter = headers.iter().take(idx);
+      let iter = headers.iter().take(*Usize::from(idx));
       if IS_CLIENT {
         let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
         hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), iter)?;
@@ -515,7 +515,12 @@ fn encode_trailers(
       )?;
     }
     Trailers::Tail(idx) => {
-      hpack_enc.encode(enc_buffer, headers.bytes_len(), [], headers.iter().skip(idx))?;
+      hpack_enc.encode(
+        enc_buffer,
+        headers.bytes_len(),
+        [],
+        headers.iter().skip(*Usize::from(idx)),
+      )?;
     }
   }
   Ok(())

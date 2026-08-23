@@ -96,18 +96,19 @@ where
     let idx = msg_data.lease().body.len();
     serde_json::to_writer(&mut msg_data.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let enc_rslt =
-      session_secret.peek(&mut ArrayVectorCopy::<_, { 16 + 28 }>::new().into(), |sp| {
-        Aes128GcmGlobal::encrypt_to_buffer_base64(
-          cookie_def.name.as_bytes(),
-          &mut cookie_def.value,
-          gen_aead_nonce(rng),
-          msg_data.lease().body.get(idx..).unwrap_or_default(),
-          sp.data().try_into()?,
-        )
-      });
-    msg_data.lease_mut().body.truncate(idx);
-    let _ = enc_rslt??;
+    {
+      let mut buffer = ArrayVectorCopy::<_, { 16 + 28 }>::new();
+      let sp = session_secret.peek(&mut buffer)?;
+      let rslt = Aes128GcmGlobal::encrypt_to_buffer_base64(
+        cookie_def.name.as_bytes(),
+        &mut cookie_def.value,
+        gen_aead_nonce(rng),
+        msg_data.lease().body.get(idx..).unwrap_or_default(),
+        sp.data().try_into().map_err(crate::Error::from)?,
+      );
+      msg_data.lease_mut().body.truncate(idx);
+      let _ = rslt?;
+    };
     let headers_rslt = msg_data.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!(

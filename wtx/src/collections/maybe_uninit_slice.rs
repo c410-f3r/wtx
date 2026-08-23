@@ -38,7 +38,7 @@ impl<'any, T> MaybeUninitSlice<'any, T> {
   ///
   /// # Safety
   ///
-  /// The initialized part must not be uninitialized.
+  /// Caller must ensure that the initialized elements remain initialized.
   #[inline]
   pub const unsafe fn all_mut(&mut self) -> &mut [MaybeUninit<T>] {
     self.bytes
@@ -47,8 +47,8 @@ impl<'any, T> MaybeUninitSlice<'any, T> {
   /// Assumes that the first `len` elements of the buffer are initialized. If `len` is greater
   /// than the slice's capacity, then `len` will be capped.
   ///
-  /// Please note take this method can decrease the number of **LOGICALLY** initialized elements
-  /// because the inner components are overwritten.
+  /// Note that this method can decrease the number of **LOGICALLY** initialized elements if `len`
+  /// is less than the current count.
   ///
   /// # Safety
   ///
@@ -70,6 +70,19 @@ impl<'any, T> MaybeUninitSlice<'any, T> {
     // SAFETY: Constructor ensure a valid instance but it is up to the caller to invoke
     //         `assume_initialized` with valid lengths
     unsafe { data.assume_init_ref() }
+  }
+
+  /// Mutable version of [`Self::initialized`].
+  #[inline]
+  pub fn initialized_mut(&mut self) -> &mut [T] {
+    let bytes = &mut *self.bytes;
+    let initialized = self.initialized;
+    // SAFETY: Constructor ensure a valid instance but it is up to the caller to invoke
+    //         `assume_initialized` with valid lengths
+    let data = unsafe { bytes.get_mut(..initialized).unwrap_unchecked() };
+    // SAFETY: Constructor ensure a valid instance but it is up to the caller to invoke
+    //         `assume_initialized` with valid lengths
+    unsafe { data.assume_init_mut() }
   }
 
   /// Returns a mutable reference to the uninitialized part of the slice.

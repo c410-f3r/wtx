@@ -91,7 +91,7 @@ pub async fn postgres_client(
   };
   let uri = wtx::net::Uri::new(uri_str);
   let mut tls_connector = TlsConnectorBuilder::std(uri)
-    .build(TlsConfig::from_trust_anchors_pem([root_ca])?, ChaCha20::from_getrandom()?)
+    .build(TlsConfig::from_trust_anchors_pem([root_ca])?, ChaCha20::from_std_random()?)
     .await?;
   PostgresClient::connect(
     ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),

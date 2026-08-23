@@ -12,7 +12,6 @@ use crate::{
   },
   misc::{LeaseMut as _, Usize},
 };
-use alloc::string::String;
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
 #[derive(Debug)]
@@ -89,7 +88,6 @@ impl<'uri> HeadersFrame<'uri> {
     let mut protocol = None;
     let mut status = None;
 
-    let mut already_created_path = false;
     let mut authority = ArrayStringU8::<64>::new();
     let mut path_len = 0;
     let mut scheme = ArrayStringU8::<12>::new();
@@ -167,15 +165,10 @@ impl<'uri> HeadersFrame<'uri> {
             value,
             |local_value| {
               path_len = local_value.len();
-              if !scheme.is_empty() && !authority.is_empty() {
-                push_uri_buffer(&scheme, &authority, local_value, &mut uri_buffer);
-                already_created_path = true;
-              } else {
-                match local_value {
-                  "/" => static_path = Some("/"),
-                  "/index.html" => static_path = Some("/index.html"),
-                  _ => create_path_buffer(&mut uri_buffer, local_value),
-                }
+              match local_value {
+                "/" => static_path = Some("/"),
+                "/index.html" => static_path = Some("/index.html"),
+                _ => uri_buffer.push_str(local_value),
               }
             },
           );
@@ -246,12 +239,15 @@ impl<'uri> HeadersFrame<'uri> {
         } else if scheme.is_empty() || path_len == 0 {
           return Err(protocol_err(Http2Error::InvalidServerHeader));
         }
-        if !already_created_path {
-          if let Some(path) = static_path {
-            push_uri_buffer(&scheme, &authority, path, &mut uri_buffer);
-          } else {
-            push_uri_in_path_buffer(&scheme, &authority, &mut uri_buffer)?;
-          }
+        let mut prefix = ArrayStringU8::<79>::new();
+        let _rslt0 = prefix.push_str(&scheme);
+        let _rslt1 = prefix.push_str("://");
+        let _rslt2 = prefix.push_str(&authority);
+        if let Some(path) = static_path {
+          uri_buffer.push_str(&prefix);
+          uri_buffer.push_str(path);
+        } else {
+          uri_buffer.insert_str(0, prefix.as_str());
         }
       }
     }
@@ -275,13 +271,6 @@ impl<'uri> HeadersFrame<'uri> {
   pub(crate) const fn set_eos(&mut self) {
     self.cf.set_eos();
   }
-}
-
-fn create_path_buffer(uri_buffer: &mut String, path: &str) {
-  uri_buffer.reserve(64usize.wrapping_add(path.len()));
-  // SAFETY: zero is ASCII
-  uri_buffer.push_str(unsafe { str::from_utf8_unchecked(&[0; 64]) });
-  uri_buffer.push_str(path);
 }
 
 const fn decoded_header_size(name: usize, value: usize) -> usize {
@@ -309,19 +298,6 @@ const fn push_enum(
   }
 }
 
-fn push_uri_buffer(scheme: &str, authority: &str, path: &str, uri_buffer: &mut String) {
-  uri_buffer.reserve(
-    Usize::from(scheme.len())
-      .wrapping_add(3)
-      .wrapping_add(*Usize::from(authority.len()))
-      .wrapping_add(*Usize::from(path.len())),
-  );
-  uri_buffer.push_str(scheme);
-  uri_buffer.push_str("://");
-  uri_buffer.push_str(authority);
-  uri_buffer.push_str(path);
-}
-
 fn push_uri(
   already_has_part: bool,
   expanded_headers_len: &mut usize,
@@ -345,71 +321,11 @@ fn push_uri(
   }
 }
 
-fn push_uri_in_path_buffer(
-  scheme: &str,
-  authority: &str,
-  uri_buffer: &mut str,
-) -> crate::Result<()> {
-  let sum = scheme.len().wrapping_add(3).wrapping_add(authority.len());
-  if sum > 64 {
-    return Err(protocol_err(Http2Error::InvalidServerHeaderUriOverflow));
-  }
-  // SAFETY: `scheme` and `authority` are UTF-8
-  let bytes = unsafe { uri_buffer.as_bytes_mut() };
-  if let Some((lhs, _)) = bytes.split_at_mut_checked(64) {
-    let mut start = *Usize::from(sum);
-    {
-      let from = lhs.len().wrapping_sub(start);
-      let to = from.wrapping_add(*Usize::from(scheme.len()));
-      if let Some(elem) = lhs.get_mut(from..to) {
-        elem.copy_from_slice(scheme.as_bytes());
-      }
-      start = to;
-    }
-    {
-      let from = start;
-      let to = start.wrapping_add(3);
-      if let Some([b0, b1, b2]) = lhs.get_mut(from..to) {
-        *b0 = b':';
-        *b1 = b'/';
-        *b2 = b'/';
-      }
-      start = to;
-    }
-    {
-      if let Some(elem) = lhs.get_mut(start..) {
-        elem.copy_from_slice(authority.as_bytes());
-      }
-    }
-  }
-  Ok(())
-}
-
 const fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
   if cf.has_pri() {
     let [_, _, _, _, _, rest @ ..] = data else {
       return;
     };
     *data = rest;
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use crate::{
-    http2::headers_frame::{create_path_buffer, push_uri_in_path_buffer},
-    net::UriString,
-  };
-  use alloc::string::String;
-
-  #[test]
-  fn uri_is_correctly_created() {
-    let mut uri = UriString::new(String::new());
-    {
-      let mut uri_buffer = uri.reset();
-      create_path_buffer(&mut uri_buffer, "/world");
-      push_uri_in_path_buffer("http", "hello.com", &mut uri_buffer).unwrap();
-    }
-    assert_eq!(uri.as_str(), "http://hello.com/world");
   }
 }

@@ -2,10 +2,10 @@ use crate::_SIMD_LEN;
 
 /// Processes a sequence of bytes with the most suitable simd length according to the current host.
 ///
-/// In Alder Lake the cache line size is 64 bytes, which matches the length of AVX-512 registers.
-/// Because of that it is important to perform aligned reads to avoid having to fetch 2 cache lines
-/// instead of just 1. However, intra cache line operations don't seem to suffer much from
-/// unaligned.
+/// In Alder Lake (and many other x86-64 CPUs) the cache line size is 64 bytes, which matches the
+/// length of AVX-512 registers. Because of that it is important to perform aligned reads to avoid
+/// having to fetch 2 cache lines instead of just 1. However, intra cache line operations don't
+/// seem to suffer much from unaligned.
 #[inline(always)]
 pub fn simd_bytes<A>(
   aux: &mut A,

@@ -27,7 +27,7 @@ fn connections() {
 
 async fn client(uri: &UriString, runtime: &StdRuntime) {
   let mut msg_buffer = MsgBufferString::default();
-  msg_buffer.headers.reserve(6, 1).unwrap();
+  msg_buffer.headers.reserve(6).unwrap();
   let tls_stream = TlsConnectorBuilder::std(uri)
     .build(&TlsConfig::plaintext(), ChaCha20::from_std_random().unwrap())
     .await
@@ -138,7 +138,7 @@ fn _0(body: &[u8], headers: &Headers) {
 }
 #[track_caller]
 fn _1(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (0, 6, 1));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (0, 6 + 5, 1));
 }
 #[track_caller]
 fn _2(body: &[u8], headers: &Headers) {
@@ -146,5 +146,5 @@ fn _2(body: &[u8], headers: &Headers) {
 }
 #[track_caller]
 fn _3(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (3, 6, 1));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (3, 6 + 5, 1));
 }
