@@ -16,7 +16,7 @@ use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let listener = TcpListener::bind(&host_from_args()).await?;
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   loop {
     let mut conn_rng = ChaCha20::from_crypto_rng(&mut rng)?;
     let (stream, _) = listener.accept().await?;

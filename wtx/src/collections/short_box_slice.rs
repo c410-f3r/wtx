@@ -172,6 +172,26 @@ where
   }
 }
 
+impl<L, T> Eq for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+  T: Eq,
+{
+}
+
+impl<L, T> IntoIterator for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  type Item = T;
+  type IntoIter = alloc::vec::IntoIter<T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    Vec::from(self).into_iter()
+  }
+}
+
 impl<L, T> PartialEq for ShortBoxSlice<L, T>
 where
   L: LinearStorageLen,

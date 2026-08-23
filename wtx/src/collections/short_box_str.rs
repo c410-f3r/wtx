@@ -2,7 +2,7 @@ use crate::{
   collections::{LinearStorageLen, ShortBoxSlice},
   misc::{Lease, from_utf8_basic},
 };
-use alloc::{boxed::Box, string::String};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{
   fmt::{Debug, Formatter},
   ops::Deref,
@@ -100,6 +100,39 @@ where
   fn deref(&self) -> &Self::Target {
     // SAFETY: Constructors only accept strings
     unsafe { str::from_utf8_unchecked(&self.0) }
+  }
+}
+
+impl<L> Eq for ShortBoxStr<L> where L: LinearStorageLen {}
+
+impl<L> From<ShortBoxStr<L>> for Box<str>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn from(value: ShortBoxStr<L>) -> Self {
+    String::from(value).into_boxed_str()
+  }
+}
+
+impl<L> From<ShortBoxStr<L>> for String
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn from(value: ShortBoxStr<L>) -> Self {
+    // SAFETY: Instance has valid UTF-8 data
+    unsafe { String::from_utf8_unchecked(Vec::from(value.0)) }
+  }
+}
+
+impl<L> From<ShortBoxStr<L>> for Vec<u8>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn from(value: ShortBoxStr<L>) -> Self {
+    Vec::from(value.0)
   }
 }
 

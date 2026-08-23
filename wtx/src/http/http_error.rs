@@ -7,6 +7,8 @@ pub enum HttpError {
   BadRequest,
   /// Invalid HTTP/2 or HTTP/3 header
   InvalidHttp2pContent,
+  /// Header names can not have more than 64 bytes
+  LargeHeaderName,
   /// Missing Header
   MissingHeader(
     /// Expected header name

@@ -1,5 +1,6 @@
 use crate::{
-  http::{_HeaderNameBuffer, _HeaderValueBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
+  collections::Vector,
+  http::{_HeaderNameBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode,
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
@@ -9,7 +10,6 @@ use crate::{
   },
   misc::{Usize, from_utf8_basic},
 };
-use alloc::boxed::Box;
 use core::str;
 
 const DYN_IDX_OFFSET: u32 = 62;
@@ -17,7 +17,7 @@ const DYN_IDX_OFFSET: u32 = 62;
 #[derive(Debug)]
 pub(crate) struct HpackDecoder {
   dyn_headers: HpackHeaders<HpackHeaderBasic>,
-  header_buffers: Box<(_HeaderNameBuffer, _HeaderValueBuffer)>,
+  header_buffers: (_HeaderNameBuffer, Vector<u8>),
   max_bytes: (u32, Option<u32>),
 }
 
@@ -25,7 +25,7 @@ impl HpackDecoder {
   pub(crate) fn new() -> Self {
     Self {
       dyn_headers: HpackHeaders::new(0),
-      header_buffers: Box::new((_HeaderNameBuffer::new(), _HeaderValueBuffer::new())),
+      header_buffers: (_HeaderNameBuffer::new(), Vector::new()),
       max_bytes: (0, None),
     }
   }
@@ -203,7 +203,7 @@ impl HpackDecoder {
   }
 
   fn decode_string_value<'buffer, 'data, 'rslt>(
-    buffer: &'buffer mut _HeaderValueBuffer,
+    buffer: &'buffer mut Vector<u8>,
     bytes: &mut &'data [u8],
   ) -> crate::Result<&'rslt str>
   where
@@ -212,6 +212,7 @@ impl HpackDecoder {
   {
     let (before, after, is_encoded) = Self::decode_string_init(bytes)?;
     let rslt = from_utf8_basic(if is_encoded {
+      buffer.reserve(before.len() / 2)?;
       huffman_decode(before, buffer)?;
       buffer
     } else {

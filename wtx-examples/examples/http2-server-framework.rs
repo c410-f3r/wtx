@@ -31,7 +31,7 @@ type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
 
 fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let secret_context = SecretContext::new(&mut rng)?;
   let db_pool = LocalPool::new(
     4,

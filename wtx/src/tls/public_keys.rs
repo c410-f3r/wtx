@@ -9,10 +9,12 @@ use core::mem;
 
 /// A collection responsible for storing public keys
 //
+// This data structure can somehow be seen as a sparse three-dimensional cube.
+//
 // ```
-// [PK(0)|CERT(0), PK(0)|CERT(1)                ]
+// [PK(0)|CERT(0), PK(0)|CERT(1)               ]
 // [PK(1)|CERT(0), PK(1)|CERT(1), PK(1)|CERT(2)]
-// [PK(2)|CERT(0)                                ]
+// [PK(2)|CERT(0)                              ]
 // ```
 #[derive(Debug, Default)]
 pub struct PublicKeys {

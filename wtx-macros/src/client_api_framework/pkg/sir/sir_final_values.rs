@@ -171,7 +171,7 @@ impl<'module, 'others>
             type ExternalResponseContent<'__de> = wtx::codec::protocol::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter1)*>
             >;
-            type PackageParams = #fpiv_ident< #(#fpiv_params_iter1)* >;
+            type PackageParams = #fpiv_ident< #(#fpiv_params_iter1,)* >;
 
             #[inline]
             async fn after_sending(
@@ -247,7 +247,7 @@ impl<'module, 'others>
           /// Content. Data format containing request data.
           pub content: C,
           /// Parameters. Used across the package lifetime.
-          pub params: #fpiv_ident<#(#fpiv_params_iter1)*>,
+          pub params: #fpiv_ident<#(#fpiv_params_iter1,)*>,
           /// Response lifetimes, generics, etc...
           pub res: core::marker::PhantomData<(#(#fresdiv_phantom_tys,)*)>,
         }

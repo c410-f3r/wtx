@@ -5,7 +5,7 @@ extern crate wtx;
 use std::sync::OnceLock;
 use wtx::{
   calendar::{DateTime, Utc},
-  collections::{ArrayVectorCopy, Vector},
+  collections::Vector,
   misc::{EnvVars, Secret, SecretContext},
   rng::{ChaCha20, CryptoSeedableRng},
 };
@@ -18,10 +18,9 @@ fn main() -> wtx::Result<()> {
   let _rslt = VARS.set(EnvVars::from_available(others)?.finish());
   let Vars { http_secret, now, port, root_ca, rust_log } = VARS.wait();
   println!("`NOW={now:?}`, `PORT={port}`, `ROOT_CA={root_ca:?}` and `RUST_LOG={rust_log:?}`");
-  let buffer = ArrayVectorCopy::<_, 128>::new();
-  http_secret.peek(&mut buffer.into(), |_unencrypted_secret| {
-    // Make API requests, decrypt AES, sign documents, do a flip, etc...
-  })?;
+  let mut buffer = Vector::new();
+  let _sp = http_secret.peek(&mut buffer)?;
+  // Make API requests, decrypt AES, sign documents, do a flip, etc...
   Ok(())
 }
 
@@ -41,7 +40,7 @@ fn map_now(var: String) -> wtx::Result<DateTime<Utc>> {
 }
 
 fn map_secret(var: String) -> wtx::Result<Secret> {
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let secret_context = SecretContext::new(&mut rng)?;
   Secret::new(&mut var.into_bytes(), &mut rng, secret_context)
 }

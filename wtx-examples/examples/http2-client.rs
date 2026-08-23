@@ -16,7 +16,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("https://github.com/c410-f3r/wtx");
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let hb = Http2Buffer::new(&mut rng);
   let hrp = HttpRecvParams::with_optioned_params();
   let tls_config = TlsConfig::from_ccadb()?;

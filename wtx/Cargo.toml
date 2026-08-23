@@ -1,7 +1,6 @@
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
-blake3 = { default-features = false, optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
 embassy-net = { default-features = false, optional = true, version = "0.9" }
 embassy-time = { default-features = false, optional = true, version = "0.5" }
@@ -112,7 +111,7 @@ crypto-ruco = [
 ]
 crypto-ring = ["crypto", "dep:ring", "ring?/alloc"]
 database = []
-database-tests = ["getrandom", "macros", "postgres", "schema-manager-dev"]
+database-tests = ["macros", "postgres", "schema-manager-dev"]
 default = []
 embassy-net = ["dep:embassy-net", "embassy-net?/proto-ipv4", "embassy-net?/proto-ipv6", "embassy-net?/tcp", "embassy-net?/udp"]
 embassy-time = ["dep:embassy-time", "epoch-sync"]
@@ -150,11 +149,12 @@ rand_core = ["dep:rand_core"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal?/maths"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
-secret = ["blake3", "crypto"]
+secret = ["crypto"]
 serde = ["hashbrown?/serde", "dep:serde", "serde?/alloc", "serde?/derive"]
 serde_json = ["serde", "dep:serde_json", "serde_json?/alloc", "serde_json?/std", "std"]
 sha3 = ["dep:sha3"]
 simdutf8 = ["dep:simdutf8"]
+smtp = []
 socket2 = ["dep:socket2", "socket2?/all", "std"]
 std = ["foldhash?/std", "httparse?/std", "memchr?/std", "ring?/std", "simdutf8?/std", "wtx-macros?/std", "zlib-rs?/std"]
 tls = ["secret", "x509"]
@@ -175,7 +175,7 @@ _integration-tests = ["ccadb", "serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(wtx_msan)'] }
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]

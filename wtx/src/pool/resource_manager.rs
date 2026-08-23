@@ -93,16 +93,14 @@ where
 pub(crate) mod database {
   macro_rules! _executor {
     ($uri_secret:expr, |$config:ident, $uri:ident| $cb:expr) => {{
-      $uri_secret
-        .peek(&mut Vector::new().into(), async |secret| {
-          // SAFETY: URI is a string.
-          let string = unsafe { core::str::from_utf8_unchecked(secret.data()) };
-          let $uri = crate::net::UriRef::new(string);
-          let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
-          let $config = config_rslt?;
-          $cb.await
-        })?
-        .await?
+      let mut buffer = Vector::new();
+      let sp = $uri_secret.peek(&mut buffer)?;
+      // SAFETY: URI is a string.
+      let string = unsafe { core::str::from_utf8_unchecked(sp.data()) };
+      let $uri = crate::net::UriRef::new(string);
+      let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
+      let $config = config_rslt?;
+      $cb.await?
     }};
   }
 

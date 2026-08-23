@@ -2,7 +2,8 @@ use crate::tls::{TlsCtx, TlsMode};
 
 /// Trusted Context
 ///
-/// Secure connection with protected private key. Data is encrypted and certificates are verified.
+/// Secure connection for clients that rely on trusted anchors. Data is encrypted and certificates
+/// are verified.
 ///
 /// Used by clients without mTLS.
 #[derive(Debug, Default)]

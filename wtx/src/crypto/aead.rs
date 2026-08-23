@@ -16,7 +16,7 @@ use crate::{
   crypto::{AEAD_NONCE_LEN, AEAD_TAG_LEN, CryptoError, dummy_crypto_call},
   misc::SensitiveBytes,
 };
-use core::marker::PhantomData;
+use core::{marker::PhantomData, range::Range};
 
 /// Authenticated Encryption with Associated Data
 pub trait Aead {
@@ -48,7 +48,7 @@ pub trait Aead {
     buffer: &'buffer mut Vector<u8>,
     data: &[u8],
     secret: &Self::Secret,
-  ) -> crate::Result<&'buffer mut [u8]> {
+  ) -> crate::Result<(&'buffer mut [u8], Range<usize>)> {
     let additional = base64_decoded_len_ub(data.len());
     let begin = buffer.len();
     buffer.expand(ExpansionTy::Additional(additional), 0)?;
@@ -66,11 +66,14 @@ pub trait Aead {
     associated_data: &[u8],
     data: &'data mut [u8],
     secret: &Self::Secret,
-  ) -> crate::Result<&'data mut [u8]> {
+  ) -> crate::Result<(&'data mut [u8], Range<usize>)> {
     let Some((nonce, payload)) = data.split_first_chunk_mut() else {
       return Err(CryptoError::InvalidAesData.into());
     };
-    Self::decrypt_parts(associated_data, payload, *nonce, secret)
+    let plaintext = Self::decrypt_parts(associated_data, payload, *nonce, secret)?;
+    let begin_idx: usize = AEAD_NONCE_LEN;
+    let end_idx = begin_idx.wrapping_add(plaintext.len());
+    Ok((plaintext, Range { start: begin_idx, end: end_idx }))
   }
 
   /// Encrypts data into a dedicated buffer

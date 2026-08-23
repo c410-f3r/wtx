@@ -14,6 +14,8 @@ impl DynTz {
   pub const CET: DynTz = DynTz(60);
   /// Central Standard Time
   pub const CST: DynTz = DynTz(-360);
+  /// Eastern Daylight Time
+  pub const EDT: DynTz = DynTz(-240);
   /// Eastern Standard Time
   pub const EST: DynTz = DynTz(-300);
   /// Greenwich Mean Time

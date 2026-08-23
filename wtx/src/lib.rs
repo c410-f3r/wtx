@@ -43,6 +43,8 @@ pub mod misc;
 pub mod net;
 pub mod pool;
 pub mod rng;
+#[cfg(feature = "smtp")]
+pub mod smtp;
 pub mod sync;
 #[cfg(test)]
 mod tests;

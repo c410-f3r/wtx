@@ -76,7 +76,7 @@ where
     let mut has_invalid_session = false;
     let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
-    for header in req.msg_data.headers.iter() {
+    for header in &req.msg_data.headers {
       if data.lease_mut().is_some() && x_csrf_token_value.is_some() {
         break;
       }
@@ -97,21 +97,21 @@ where
         }
         let mut session_guard = self.session_manager.inner.1.lock().await;
         let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
-        let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let buffer = ArrayVectorU8::<_, { 16 + 28 }>::new();
-        let decrypt_rslt = session_secret.peek(&mut buffer.into(), |sp| {
-          Aes128GcmGlobal::decrypt_base64_to_buffer(
+        {
+          let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
+          let mut buffer = ArrayVectorU8::<_, { 16 + 28 }>::new();
+          let sp = session_secret.peek(&mut buffer)?;
+          let rslt = Aes128GcmGlobal::decrypt_base64_to_buffer(
             name.as_bytes(),
             &mut cookie_def.value,
             value.as_bytes(),
-            sp.data().try_into()?,
-          )
-        });
-        req.msg_data.body.truncate(idx);
-        let value_json = decrypt_rslt??;
-        let json_rslt = serde_json_deserialize_from_slice(value_json);
-        cookie_def.value.clear();
-        json_rslt?
+            sp.data().try_into().map_err(crate::Error::from)?,
+          );
+          req.msg_data.body.truncate(idx);
+          let json_rslt = serde_json_deserialize_from_slice(rslt?.0);
+          cookie_def.value.clear();
+          json_rslt?
+        }
       };
       _trace!(target: crate::_WTX_HTTP_SM, "A session has been found in headers");
       let Some(ss_db) =
@@ -126,13 +126,13 @@ where
       }
       *data.lease_mut() = Some(ss_des);
     }
-    // TODO(stable): Polonius
+    // FIXME(STABLE): Polonius
     if has_invalid_session {
       _trace!(target: crate::_WTX_HTTP_SM, "Connection session does not match database ssion");
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
-    // TODO(stable): Polonius
+    // FIXME(STABLE): Polonius
     if !has_stored_session {
       _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not exist in database");
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;

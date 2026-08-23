@@ -22,7 +22,7 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let domain = Uri::new("github.com:443");
   let tls_connector = TlsConnectorBuilder::tokio(domain)
-    .build(TlsConfig::from_ccadb()?, ChaCha20::from_getrandom()?)
+    .build(TlsConfig::from_ccadb()?, ChaCha20::from_std_random()?)
     .await?;
   let tls_stream = tls_connector.connect().await?.tls_stream;
   let (stream_bridge, mut stream_reader, mut stream_writer) = tls_stream.into_split()?;

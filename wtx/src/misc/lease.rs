@@ -247,6 +247,20 @@ mod smart_pointers {
     }
   }
 
+  impl<T> Lease<[T]> for Box<[T]> {
+    #[inline]
+    fn lease(&self) -> &[T] {
+      self
+    }
+  }
+
+  impl<T> LeaseMut<[T]> for Box<[T]> {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut [T] {
+      self
+    }
+  }
+
   impl<T> Lease<T> for Box<T> {
     #[inline]
     fn lease(&self) -> &T {

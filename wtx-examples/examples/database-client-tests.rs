@@ -8,12 +8,15 @@ fn main() {}
 #[cfg(test)]
 mod tests {
   use tokio::net::TcpStream;
-  use wtx::database::{
-    DbClient, Record,
-    client::postgres::{ClientBuffer, PostgresClient},
+  use wtx::{
+    database::{
+      DbClient, Record,
+      client::postgres::{ClientBuffer, PostgresClient},
+    },
+    tls::PlaintextCtx,
   };
 
-  type LocalPostgresClient = PostgresClient<ClientBuffer, wtx::Error, TcpStream>;
+  type LocalPostgresClient = PostgresClient<wtx::Error, TcpStream, PlaintextCtx>;
 
   #[wtx::db(dir("../.test-utils"))]
   async fn first_test(client: LocalPostgresClient) {

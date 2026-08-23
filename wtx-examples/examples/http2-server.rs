@@ -20,7 +20,7 @@ async fn main() -> wtx::Result<()> {
   let uri = Uri::new(host_from_args());
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).await?;
   let (stream, _) = listener.accept().await?;
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let hb = Http2Buffer::new(&mut rng);
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let tls_stream = TlsAcceptor::new(tls_config, rng, stream).accept().await?.tls_stream;

@@ -1,4 +1,4 @@
-pub(crate) mod enc_sk_ctx;
+pub(crate) mod hardened_sk_ctx;
 pub(crate) mod plaintext_ctx;
 pub(crate) mod sk_ctx;
 pub(crate) mod trusted_ctx;
@@ -81,7 +81,7 @@ impl TlsCtxSkInput for ShortBoxSliceU16<u8> {
 }
 
 impl TlsCtxSkInput for (SecretContext, &mut [u8]) {
-  type TlsCtxSk = enc_sk_ctx::EncSkCtx;
+  type TlsCtxSk = hardened_sk_ctx::HardenedSkCtx;
 }
 
 #[inline]

@@ -12,7 +12,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let secret_context = SecretContext::new(&mut rng)?;
 
   // Secure connection with an encrypted secret key

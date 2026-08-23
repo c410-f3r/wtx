@@ -67,7 +67,7 @@ impl HpackEncoder {
     buffer: &mut Vector<u8>,
     bytes_len_hint: usize,
     pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo str)>,
-    user_headers: impl IntoIterator<Item = Header<'user, &'user str>>,
+    user_headers: impl IntoIterator<Item = Header<&'user str, &'user str>>,
   ) -> crate::Result<()> {
     let pseudo_headers_iter = pseudo_headers.into_iter();
     let user_headers_iter = user_headers.into_iter();
@@ -242,8 +242,8 @@ impl HpackEncoder {
     Err(protocol_err(Http2Error::VeryLargeHeaderInteger))
   }
 
-  // 1, 0 -> 0xxxx -> 4xxxx
-  // 2/3/4, 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
+  // * `1`:     0 -> 0xxxx -> 4xxxx
+  // * `2/3/4`: 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
   fn encode_str(buffer: &mut Vector<u8>, bytes: &str) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;

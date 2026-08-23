@@ -9,7 +9,7 @@ use wtx::{
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
   let router = HttpRouter::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive())?;
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
