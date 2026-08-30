@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.8.3...wtx-ui-v0.9.0) - 2026-08-30
+
+### Added
+
+- [**breaking**] Implement the decoding of form-data
+
 ## [0.8.3](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.8.2...wtx-ui-v0.8.3) - 2026-08-14
 
 ### Other
