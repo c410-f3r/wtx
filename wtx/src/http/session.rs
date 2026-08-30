@@ -20,5 +20,5 @@ type SessionKey = crate::collections::ArrayStringU8<32>;
 /// Convert an optional [`SessionState`] a `Result`.
 #[inline]
 pub fn session_state_rslt<CS>(ss: &Option<SessionState<CS>>) -> crate::Result<&SessionState<CS>> {
-  Ok(ss.as_ref().ok_or(SessionError::RequiredSession)?)
+  Ok(ss.as_ref().ok_or(SessionError::RequiredSessionIsNotPresent)?)
 }

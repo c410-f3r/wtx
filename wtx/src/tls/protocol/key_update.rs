@@ -2,12 +2,11 @@ use crate::{
   codec::{Decode, Encode},
   crypto::AEAD_TAG_LEN,
   tls::{
-    RECORD_HEADER_LEN, TlsError,
-    de::De,
+    HandshakeTy, RECORD_HEADER_LEN, TlsError,
     key_schedule::KeyScheduleState,
-    protocol::{handshake_ty::HandshakeTy, record_content_ty::RecordContentTy},
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    record_content_ty::RecordContentTy,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -80,7 +79,7 @@ impl KeyUpdate {
   }
 }
 
-impl<'de> Decode<'de, De> for KeyUpdate {
+impl<'de> Decode<'de, TlsCc> for KeyUpdate {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, rest @ ..] = dw.bytes() else {
@@ -91,7 +90,7 @@ impl<'de> Decode<'de, De> for KeyUpdate {
   }
 }
 
-impl Encode<De> for KeyUpdate {
+impl Encode<TlsCc> for KeyUpdate {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().push(u8::from(self.request_update))

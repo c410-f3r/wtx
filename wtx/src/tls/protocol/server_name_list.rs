@@ -3,8 +3,11 @@ use crate::{
   collections::ArrayVectorU8,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    TlsError, de::De, misc::u16_list, protocol::server_name::ServerName,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    misc::u16_list,
+    protocol::server_name::ServerName,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -17,7 +20,7 @@ pub struct ServerNameList {
   pub server_name_list: ArrayVectorU8<ServerName, 1>,
 }
 
-impl<'de> Decode<'de, De> for ServerNameList {
+impl<'de> Decode<'de, TlsCc> for ServerNameList {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     if dw.bytes().is_empty() {
@@ -29,7 +32,7 @@ impl<'de> Decode<'de, De> for ServerNameList {
   }
 }
 
-impl Encode<De> for ServerNameList {
+impl Encode<TlsCc> for ServerNameList {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     if self.server_name_list.is_empty() {

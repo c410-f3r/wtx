@@ -104,6 +104,7 @@ List of implemented RFCs.
 | `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541> |
 | `HTTP Cookies`           | <https://datatracker.ietf.org/doc/html/rfc6265> |
 | `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113> |
+| `multipart/form-data`    | <https://datatracker.ietf.org/doc/html/rfc7578> |
 | `PEM`                    | <https://datatracker.ietf.org/doc/html/rfc7468> |
 | `PKCS#8`                 | <https://datatracker.ietf.org/doc/html/rfc5208> |
 | `RSASSA-PSS`             | <https://datatracker.ietf.org/doc/html/rfc4055> |

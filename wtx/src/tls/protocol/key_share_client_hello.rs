@@ -6,8 +6,11 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   },
   tls::{
-    NamedGroup, TlsError, de::De, misc::u16_chunk, protocol::key_share_entry::KeyShareEntry,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    NamedGroup, TlsError,
+    misc::u16_chunk,
+    protocol::key_share_entry::KeyShareEntry,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -16,7 +19,7 @@ pub(crate) struct KeyShareClientHello<B> {
   pub(crate) client_shares: ArrayVectorU8<KeyShareEntry<B>, { NamedGroup::len() }>,
 }
 
-impl<'de, B> Decode<'de, De> for KeyShareClientHello<B>
+impl<'de, B> Decode<'de, TlsCc> for KeyShareClientHello<B>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -41,7 +44,7 @@ where
   }
 }
 
-impl<B> Encode<De> for KeyShareClientHello<B>
+impl<B> Encode<TlsCc> for KeyShareClientHello<B>
 where
   B: Lease<[u8]>,
 {

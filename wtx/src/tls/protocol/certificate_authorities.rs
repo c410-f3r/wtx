@@ -9,8 +9,10 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   tls::{
-    TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
   x509::RelativeDistinguishedName,
 };
@@ -20,7 +22,7 @@ pub(crate) struct CertificateAuthorities<B> {
   pub(crate) authorities: Vector<RelativeDistinguishedName<B>>,
 }
 
-impl<'de, B> Decode<'de, De> for CertificateAuthorities<B>
+impl<'de, B> Decode<'de, TlsCc> for CertificateAuthorities<B>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -45,7 +47,7 @@ where
   }
 }
 
-impl<B> Encode<De> for CertificateAuthorities<B>
+impl<B> Encode<TlsCc> for CertificateAuthorities<B>
 where
   B: Lease<[u8]>,
 {

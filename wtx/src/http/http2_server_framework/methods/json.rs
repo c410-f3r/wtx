@@ -2,9 +2,8 @@ use crate::{
   collections::{ArrayVectorCopy, Vector},
   futures::FnFut,
   http::{
-    AutoStream, Headers, HttpError, KnownHeaderName, ManualStream, Method, Mime, OperationMode,
-    StatusCode,
-    http2_server_framework::{Endpoint, EndpointNode, RouteMatch},
+    AutoStream, ManualStream, Method, Mime, OperationMode, StatusCode,
+    http2_server_framework::{Endpoint, EndpointNode, RouteMatch, misc::check_header_and_method},
   },
 };
 
@@ -39,7 +38,12 @@ where
     auto_stream: &mut AutoStream<D>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    check_json(&auto_stream.req.msg_data.headers, auto_stream.req.method, self.1)?;
+    let _ = check_header_and_method(
+      Mime::ApplicationJson,
+      &auto_stream.req.msg_data.headers,
+      auto_stream.req.method,
+      self.1,
+    )?;
     self.0.auto(auto_stream, path_defs).await
   }
 
@@ -49,7 +53,12 @@ where
     manual_stream: ManualStream<D, S>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<(), E> {
-    check_json(&manual_stream.req.msg_data.headers, manual_stream.req.method, self.1)?;
+    let _ = check_header_and_method(
+      Mime::ApplicationJson,
+      &manual_stream.req.msg_data.headers,
+      manual_stream.req.method,
+      self.1,
+    )?;
     self.0.manual(manual_stream, path_defs).await
   }
 }
@@ -69,22 +78,4 @@ where
   ) -> crate::Result<()> {
     Ok(())
   }
-}
-
-fn check_json<E>(req_headers: &Headers, req_method: Method, user_method: Method) -> Result<(), E>
-where
-  E: From<crate::Error>,
-{
-  let header = req_headers
-    .get_by_name(KnownHeaderName::ContentType.into())
-    .ok_or(crate::Error::from(HttpError::MissingHeader(KnownHeaderName::ContentType)))?;
-  if !header.value.starts_with(Mime::ApplicationJson.as_str()) {
-    return Err(E::from(crate::Error::from(HttpError::UnexpectedContentType)));
-  }
-  if req_method != user_method {
-    return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
-      expected: user_method,
-    })));
-  }
-  Ok(())
 }

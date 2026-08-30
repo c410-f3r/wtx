@@ -16,7 +16,7 @@ macro_rules! u32_cap {
   () => {
     cfg_select! {
       target_pointer_width = "64" => 4_294_967_295,
-      _ => 2_147_483_647
+      _ => 2_147_483_647,
     }
   };
 }
@@ -30,7 +30,7 @@ macro_rules! usize_cap {
   () => {
     cfg_select! {
       target_pointer_width = "64" => 9_223_372_036_854_775_807,
-      _ => 2_147_483_647
+      _ => 2_147_483_647,
     }
   };
 }

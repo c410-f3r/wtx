@@ -40,11 +40,10 @@ impl Secret {
     RNG: CryptoRng,
   {
     let inner = cfg_select! {
-      all(feature = "libc", target_os = "linux") => {{
-        let opt = memfd_secret::MemFdSecret::new(data, true);
-        opt.ok_or(crate::Error::UnsupportedLinuxKernel)?
-      }},
-      _ => encrypted::Encrypted::new(data, _rng, _secret_context)?
+      all(feature = "libc", target_os = "linux") => {
+        memfd_secret::MemFdSecret::new(data, true).ok_or(crate::Error::UnsupportedLinuxKernel)?
+      }
+      _ => encrypted::Encrypted::new(data, _rng, _secret_context)?,
     };
     Ok(Self { inner })
   }
@@ -70,7 +69,7 @@ impl Secret {
   {
     let (_idx, _range) = cfg_select! {
       all(feature = "libc", target_os = "linux") => (0, Range::default()),
-      _ => self.inner.peek(buffer)?
+      _ => self.inner.peek(buffer)?,
     };
     Ok(SecretPeek { _buffer: buffer, _idx, _range, _this: self })
   }
@@ -103,10 +102,12 @@ where
   pub fn data(&self) -> &[u8] {
     cfg_select! {
       all(feature = "libc", target_os = "linux") => &self._this.inner,
-      _ => self._buffer.lease()
+      _ => self
+        ._buffer
+        .lease()
         .get(self._idx..)
         .and_then(|slice| slice.get(self._range))
-        .unwrap_or_default()
+        .unwrap_or_default(),
     }
   }
 }

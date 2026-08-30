@@ -66,7 +66,7 @@ where
   ) -> crate::Result<Http2RecvStatus<Vector<u8>, ONG>> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Fetching data");
+    _trace!("Fetching data");
     let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
       let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
@@ -98,7 +98,7 @@ where
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Fetching trailers");
+    _trace!("Fetching trailers");
     let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
       let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
@@ -158,7 +158,7 @@ where
   pub async fn send_data(&self, data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Sending data");
+    _trace!("Sending data");
     let mut data_idx = 0;
     let mut frames = ArrayVectorU8::new();
     loop {
@@ -292,7 +292,7 @@ where
   ) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Sending headers");
+    _trace!("Sending headers");
     let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
     let max_frame_len = {
       let mut hd_guard = inner.hd.lock().await;
@@ -344,7 +344,7 @@ where
   ) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Sending {} trailers", trailers.headers_len());
+    _trace!("Sending {} trailers", trailers.headers_len());
     let mut frames = ArrayVectorU8::new();
     {
       let mut hd_guard = inner.hd.lock().await;

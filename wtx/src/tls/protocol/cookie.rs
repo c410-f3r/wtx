@@ -4,8 +4,10 @@ use crate::{
   codec::{Decode, Encode},
   misc::Lease,
   tls::{
-    TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -17,7 +19,7 @@ pub(crate) struct Cookie<B> {
   pub(crate) cookie: B,
 }
 
-impl<'de, B> Decode<'de, De> for Cookie<B>
+impl<'de, B> Decode<'de, TlsCc> for Cookie<B>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -32,7 +34,7 @@ where
   }
 }
 
-impl<B> Encode<De> for Cookie<B>
+impl<B> Encode<TlsCc> for Cookie<B>
 where
   B: Lease<[u8]>,
 {

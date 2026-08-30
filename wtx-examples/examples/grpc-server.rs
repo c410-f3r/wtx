@@ -37,12 +37,12 @@ fn main() -> wtx::Result<()> {
 }
 
 async fn wtx_generic_service_generic_method(
-  state: State<'_, GrpcManager<QuickProtobuf>>,
+  State { data, req }: State<'_, GrpcManager<QuickProtobuf>>,
 ) -> wtx::Result<StatusCode> {
-  let _generic_request: GenericRequest = state.data.des_from_req_bytes(&state.req.msg_data.body)?;
-  state.req.clear();
-  state.data.ser_to_res_bytes(
-    &mut state.req.msg_data.body,
+  let _generic_request: GenericRequest = data.des_from_req_bytes(&req.msg_data.body)?;
+  req.clear();
+  data.ser_to_res_bytes(
+    &mut req.msg_data.body,
     GenericResponse {
       generic_response_field0: Cow::Borrowed(b"generic_response_value"),
       generic_response_field1: 321,

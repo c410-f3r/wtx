@@ -2,8 +2,10 @@ use crate::{
   codec::{Decode, Encode},
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    SignatureScheme, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    SignatureScheme, TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -27,19 +29,19 @@ impl<'any> CertificateVerify<'any> {
   }
 }
 
-impl<'de> Decode<'de, De> for CertificateVerify<'de> {
+impl<'de> Decode<'de, TlsCc> for CertificateVerify<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let algorithm = <SignatureScheme as Decode<'de, De>>::decode(dw)?;
+    let algorithm = <SignatureScheme as Decode<'de, TlsCc>>::decode(dw)?;
     let signature = u16_chunk(dw, TlsError::InvalidCertificateVerify, |el| Ok(el.bytes()))?;
     Ok(Self { algorithm, signature })
   }
 }
 
-impl Encode<De> for CertificateVerify<'_> {
+impl Encode<TlsCc> for CertificateVerify<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    <SignatureScheme as Encode<De>>::encode(&self.algorithm, ew)?;
+    <SignatureScheme as Encode<TlsCc>>::encode(&self.algorithm, ew)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       local_ew.buffer().extend_from_copyable_slice(self.signature)?;
       Ok(())

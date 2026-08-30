@@ -1,4 +1,4 @@
-use crate::tls::protocol::record_content_ty::RecordContentTy;
+use crate::tls::record_content_ty::RecordContentTy;
 
 /// Returned by methods that fetch an external TLS record.
 #[derive(Debug)]

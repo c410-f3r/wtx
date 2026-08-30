@@ -8,21 +8,21 @@ use crate::{
   tls::{
     AlertDescription, CHANGE_CIPHER_SPEC, MAX_KEY_UPDATES, MAX_WARNING_ALERTS, RECORD_HEADER_LEN,
     SERVER_SIG_CTX, TlsError,
-    de::De,
+    handshake_ty::HandshakeTy,
     key_schedule::{KeyScheduleRead, KeyScheduleState, KeyScheduleWrite},
     protocol::{
       alert::Alert,
       extension_ty::ExtensionTy,
       handshake::Handshake,
-      handshake_ty::HandshakeTy,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
       protocol_version::ProtocolVersion,
-      record_content_ty::RecordContentTy,
       u24::U24,
     },
     read_record_info::ReadRecordInfo,
-    tls_decode_wrapper::TlsDecodeWrapper,
+    record_content_ty::RecordContentTy,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::TlsDecodeWrapper,
   },
 };
 use core::{hint::cold_path, num::NonZeroUsize, ops::Range};
@@ -42,7 +42,7 @@ pub(crate) fn decode_extension_ty(
   err: TlsError,
   seen_unknowns: &mut ArrayVectorCopy<u16, 9>,
 ) -> crate::Result<Option<ExtensionTy>> {
-  let tag: u16 = Decode::<'_, De>::decode(dw)?;
+  let tag: u16 = Decode::<'_, TlsCc>::decode(dw)?;
   if let Ok(el) = ExtensionTy::try_from(tag) {
     Ok(Some(el))
   } else {
@@ -81,7 +81,8 @@ where
   }
   let [b0, b1, b2, b3, b4] = header;
   let outer_ty = RecordContentTy::try_from(b0)?;
-  let prot_version_num = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
+  let prot_version_num =
+    <u16 as Decode<TlsCc>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
   if IS_CH {
     if b1 != 3 {
       return Err(crate::Error::TlsError(TlsError::UnknownProtocolVersion));
@@ -92,7 +93,7 @@ where
       return unlikely_elem(Err(TlsError::UnsupportedRecTlsVersion(protocol_version).into()));
     }
   }
-  let len = <u16 as Decode<De>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
+  let len = <u16 as Decode<TlsCc>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b3, b4]))?;
   let mut max_allowed_len = max_fragment_length;
   if kss.is_some() {
     max_allowed_len = max_allowed_len.saturating_add(256);
@@ -143,7 +144,7 @@ where
   };
   let plaintext_len = reader_buffer.current().len().wrapping_sub(trails.into());
   let rri = ReadRecordInfo { inner_ty, outer_ty, plaintext_len };
-  _trace!(target: crate::_WTX_TLS, "Read Record: {:?}", &rri);
+  _trace!("Read Record: {:?}", &rri);
   Ok(Some(rri))
 }
 
@@ -179,8 +180,8 @@ pub(crate) fn handshake_bytes_decode<'rb>(
     return Ok(None);
   }
   let mut dw = TlsDecodeWrapper::from_bytes(plaintext);
-  let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(&mut dw)?)?;
-  let payload_len: usize = <U24 as Decode<'_, De>>::decode(&mut dw)?.into();
+  let msg_type = HandshakeTy::try_from(<u8 as Decode<TlsCc>>::decode(&mut dw)?)?;
+  let payload_len: usize = <U24 as Decode<'_, TlsCc>>::decode(&mut dw)?.into();
   let rec_len = Handshake::<()>::HEADER_LEN.wrapping_add(payload_len);
   if *split_len < rec_len {
     cold_path();
@@ -439,7 +440,7 @@ pub(crate) fn u16_list<'de, B, T>(
 ) -> crate::Result<()>
 where
   B: TryExtend<[T; 1]>,
-  T: Decode<'de, De>,
+  T: Decode<'de, TlsCc>,
 {
   chunk::<u16, _>(dw, err, |local_dw| {
     while !local_dw.bytes().is_empty() {
@@ -456,7 +457,7 @@ pub(crate) fn u24_chunk<'de, T>(
   cb: impl FnOnce(&mut TlsDecodeWrapper<'de>) -> crate::Result<T>,
 ) -> crate::Result<T>
 where
-  T: Decode<'de, De>,
+  T: Decode<'de, TlsCc>,
 {
   chunk::<U24, T>(dw, err, cb)
 }
@@ -469,7 +470,7 @@ pub(crate) fn u24_list<'de, B, T>(
 ) -> crate::Result<()>
 where
   B: TryExtend<[T; 1]>,
-  T: Decode<'de, De>,
+  T: Decode<'de, TlsCc>,
 {
   chunk::<U24, _>(dw, err, |local_dw| {
     while !local_dw.bytes().is_empty() {
@@ -544,9 +545,9 @@ fn chunk<'de, L, T>(
   cb: impl FnOnce(&mut TlsDecodeWrapper<'de>) -> crate::Result<T>,
 ) -> crate::Result<T>
 where
-  L: Decode<'de, De> + Into<usize>,
+  L: Decode<'de, TlsCc> + Into<usize>,
 {
-  let len: L = Decode::<'_, De>::decode(dw)
+  let len: L = Decode::<'_, TlsCc>::decode(dw)
     .map_err(|_err| crate::Error::TlsErrorReply(err, AlertDescription::DecodeError))?;
   let Some((before, after)) = dw.bytes().split_at_checked(len.into()) else {
     return Err(err.into());

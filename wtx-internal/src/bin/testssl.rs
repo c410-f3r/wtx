@@ -1,7 +1,7 @@
 //! testssl
 
 use wtx::{
-  http::http2_server_framework::{Http2ServerFramework, HttpRouter, State, VerbatimParams, get},
+  http::http2_server_framework::{Http2ServerFramework, HttpRouter, VerbatimParams, get},
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::TlsConfig,
 };
@@ -16,6 +16,6 @@ fn main() -> wtx::Result<()> {
   Http2ServerFramework::tokio(tls_config)?.run_in_threads("0.0.0.0:9000", router)
 }
 
-async fn root(_: State<'_, ()>) -> wtx::Result<VerbatimParams> {
+async fn root() -> wtx::Result<VerbatimParams> {
   Ok(VerbatimParams::default())
 }

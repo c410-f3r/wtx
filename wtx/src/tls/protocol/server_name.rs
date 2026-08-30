@@ -6,8 +6,10 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   tls::{
-    TlsError, de::De, protocol::name_type::NameType, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    protocol::name_type::NameType,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -32,11 +34,11 @@ impl ServerName {
   }
 }
 
-impl<'de> Decode<'de, De> for ServerName {
+impl<'de> Decode<'de, TlsCc> for ServerName {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let name_type = NameType::decode(dw)?;
-    let len: u16 = Decode::<'_, De>::decode(dw)?;
+    let len: u16 = Decode::<'_, TlsCc>::decode(dw)?;
     let Some((name, rest)) = dw.bytes().split_at_checked(len.into()) else {
       return Err(TlsError::InvalidServerName.into());
     };
@@ -45,7 +47,7 @@ impl<'de> Decode<'de, De> for ServerName {
   }
 }
 
-impl Encode<De> for ServerName {
+impl Encode<TlsCc> for ServerName {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.name_type.encode(ew)?;

@@ -148,6 +148,7 @@ where
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
+    _trace!("Executing `{cmd}`");
     let ClientBuffer { common, .. } = &mut self.cb;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
@@ -177,6 +178,7 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
+    _trace!("Executing `{:?}`", sc.cmd());
     let Self { cb: client_buffer, cs, phantom: _, stream } = self;
     let ClientBuffer { common, .. } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;

@@ -10,5 +10,5 @@ pub enum SessionError {
   /// Received a session that differs from the stored session.
   InvalidStoredSession,
   /// Path required a session, but there was none
-  RequiredSession,
+  RequiredSessionIsNotPresent,
 }

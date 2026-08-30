@@ -179,14 +179,14 @@ impl Headers {
       let _ = self.bytes.extend_from_copyable_slices([&hm.0, header.name.as_bytes()])?;
       let before_idx = self.bytes.len();
       cfg_select! {
-        feature = "std" => {{
+        feature = "std" => {
           use std::io::Write as _;
           self.bytes.write_fmt(format_args!("{}", header.value))?;
-        }}
-        _ => {{
+        }
+        _ => {
           use core::fmt::Write as _;
           self.bytes.write_fmt(format_args!("{}", header.value))?;
-        }}
+        }
       };
       self.adjust_after_write(begin_idx, before_idx)?;
       crate::Result::Ok(())

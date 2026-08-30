@@ -3,8 +3,8 @@
 #[macro_use]
 mod macros;
 
-mod de;
 mod handshake_path;
+mod handshake_ty;
 mod key_schedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 mod ktls_bindings;
@@ -14,16 +14,17 @@ mod misc;
 mod protocol;
 mod public_keys;
 mod read_record_info;
+mod record_content_ty;
 #[cfg(test)]
 mod tests;
 mod tls_acceptor;
 mod tls_buffer;
+mod tls_cc;
+mod tls_cc_wrappers;
 mod tls_config;
 mod tls_connector;
 mod tls_connector_builder;
 mod tls_ctx;
-mod tls_decode_wrapper;
-mod tls_encode_wrapper;
 mod tls_error;
 mod tls_hash;
 mod tls_hkdf;
@@ -37,6 +38,7 @@ mod tls_stream_writer;
 
 use crate::{collections::ArrayVectorCopy, crypto::MAX_HASH_LEN};
 pub use handshake_path::HandshakePath;
+pub use handshake_ty::HandshakeTy;
 pub use key_schedule::KeySchedule;
 #[cfg(all(feature = "std", target_os = "linux"))]
 pub use ktls_stream::KtlsStream;
@@ -44,7 +46,6 @@ pub use protocol::{
   alert::{Alert, AlertDescription, AlertLevel},
   alpn::Alpn,
   cipher_suite::CipherSuite,
-  handshake_ty::HandshakeTy,
   max_fragment_length::MaxFragmentLength,
   named_group::{NamedGroup, NamedGroupParam},
   new_session_ticket::NewSessionTicket,

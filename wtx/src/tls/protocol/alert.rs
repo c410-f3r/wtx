@@ -2,9 +2,11 @@ use crate::{
   codec::{Decode, Encode},
   crypto::AEAD_TAG_LEN,
   tls::{
-    RECORD_HEADER_LEN, TlsError, de::De, key_schedule::KeyScheduleState,
-    protocol::record_content_ty::RecordContentTy, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    RECORD_HEADER_LEN, TlsError,
+    key_schedule::KeyScheduleState,
+    record_content_ty::RecordContentTy,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -152,7 +154,7 @@ impl Alert {
   }
 }
 
-impl<'de> Decode<'de, De> for Alert {
+impl<'de> Decode<'de, TlsCc> for Alert {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, b1, rest @ ..] = dw.bytes() else {
@@ -163,7 +165,7 @@ impl<'de> Decode<'de, De> for Alert {
   }
 }
 
-impl Encode<De> for Alert {
+impl Encode<TlsCc> for Alert {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().extend_from_copyable_slice(&self.data_bytes())?;

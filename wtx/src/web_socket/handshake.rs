@@ -220,7 +220,7 @@ where
     _ => uri.host().as_bytes(),
   };
   let key = gen_key(key_buffer, rng);
-  let _ = sw.inner_mut().extend_from_copyable_slices(&[
+  let _ = sw.inner_mut().extend_from_copyable_slices([
     b"GET ",
     uri.relative_reference_slash().as_bytes(),
     b" HTTP/1.1\r\n",
@@ -237,7 +237,7 @@ where
     compression.req_headers().as_ref(),
   ])?;
   for (name, value) in headers {
-    let _ = sw.inner_mut().extend_from_copyable_slices(&[
+    let _ = sw.inner_mut().extend_from_copyable_slices([
       name.as_bytes(),
       b": ",
       value.as_bytes(),

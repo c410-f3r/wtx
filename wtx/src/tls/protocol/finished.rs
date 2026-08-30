@@ -6,12 +6,11 @@ use crate::{
   crypto::MAX_HASH_LEN,
   misc::TryArithmetic as _,
   tls::{
-    TlsError,
-    de::De,
+    HandshakeTy, TlsError,
     key_schedule::KeyScheduleState,
-    protocol::{handshake_ty::HandshakeTy, record_content_ty::RecordContentTy},
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    record_content_ty::RecordContentTy,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -52,7 +51,7 @@ impl<'any> Finished<'any> {
   }
 }
 
-impl<'de> Decode<'de, De> for Finished<'de> {
+impl<'de> Decode<'de, TlsCc> for Finished<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let Some((before, after)) = dw.bytes().split_at_checked(dw.cipher_suite().hash_len().into())
@@ -64,9 +63,9 @@ impl<'de> Decode<'de, De> for Finished<'de> {
   }
 }
 
-impl Encode<De> for Finished<'_> {
+impl Encode<TlsCc> for Finished<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    <[u8] as Encode<De>>::encode(self.verify_data, ew)
+    <[u8] as Encode<TlsCc>>::encode(self.verify_data, ew)
   }
 }

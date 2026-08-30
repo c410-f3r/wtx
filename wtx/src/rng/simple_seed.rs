@@ -35,7 +35,7 @@ pub fn simple_seed() -> u64 {
     feature = "std" => {
       use core::{
         cell::Cell,
-        hash::{BuildHasher, Hasher}
+        hash::{BuildHasher, Hasher},
       };
       use std::hash::RandomState;
 

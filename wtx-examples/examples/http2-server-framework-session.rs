@@ -76,14 +76,14 @@ fn main() -> wtx::Result<()> {
     .run_in_threads(&host_from_args(), router)
 }
 
-async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
-  let Data { db_pool, session_manager, session_state } = state.data;
+async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
+  let Data { db_pool, session_manager, session_state } = data;
   if session_state.is_some() {
-    state.req.clear();
-    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
+    req.clear();
+    session_manager.delete_session_cookie(&mut req.msg_data, session_state, db_pool).await?;
     return Ok(DynParams::Verbatim(StatusCode::Forbidden));
   }
-  let user: UserLoginReq<'_> = serde_json::from_slice(state.req.msg_data.body())?;
+  let user: UserLoginReq<'_> = serde_json::from_slice(req.msg_data.body())?;
   let mut pool_guard = db_pool.get_with_unit().await?;
   let record = pool_guard
     .execute_stmt_single(
@@ -96,21 +96,21 @@ async fn login(state: State<'_, Data>) -> wtx::Result<DynParams> {
   let pw_db = record.decode::<_, &[u8]>(2)?;
   let salt = record.decode::<_, &str>(3)?;
   let pw_req = argon2_pwd::<32>(&mut Vector::new(), user.password.as_bytes(), salt.as_bytes())?;
-  state.req.clear();
+  req.clear();
   if pw_db != pw_req {
     return Ok(DynParams::ClearAll(StatusCode::Unauthorized));
   }
-  serde_json::to_writer(&mut state.req.msg_data.body, &UserLoginRes { id, name: first_name })?;
+  serde_json::to_writer(&mut req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
   session_manager
-    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_std_random()?, db_pool)
+    .set_session_cookie(id, &mut req.msg_data, &mut ChaCha20::from_std_random()?, db_pool)
     .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
-async fn logout(state: StateClean<'_, Data>) -> wtx::Result<VerbatimParams> {
-  let Data { db_pool, session_manager, session_state } = state.data;
-  session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, db_pool).await?;
+async fn logout(StateClean { data, req }: StateClean<'_, Data>) -> wtx::Result<VerbatimParams> {
+  let Data { db_pool, session_manager, session_state } = data;
+  session_manager.delete_session_cookie(&mut req.msg_data, session_state, db_pool).await?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 

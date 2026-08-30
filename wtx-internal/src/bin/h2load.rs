@@ -3,7 +3,7 @@
 use wtx::{
   http::{
     HttpRecvParams,
-    http2_server_framework::{Http2ServerFramework, HttpRouter, State, get},
+    http2_server_framework::{Http2ServerFramework, HttpRouter, get},
   },
   tls::TlsConfig,
 };
@@ -18,6 +18,6 @@ async fn main() -> wtx::Result<()> {
     .await
 }
 
-async fn root(_state: State<'_, ()>) -> wtx::Result<()> {
+async fn root() -> wtx::Result<()> {
   Ok(())
 }

@@ -2,8 +2,11 @@ use crate::{
   codec::{Decode, Encode},
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    TlsError, de::De, misc::u16_chunk, protocol::extension_ty::ExtensionTy,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    misc::u16_chunk,
+    protocol::extension_ty::ExtensionTy,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -18,9 +21,9 @@ impl<T> Extension<T> {
   }
 }
 
-impl<'de, T> Decode<'de, De> for Extension<T>
+impl<'de, T> Decode<'de, TlsCc> for Extension<T>
 where
-  T: Decode<'de, De>,
+  T: Decode<'de, TlsCc>,
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -30,9 +33,9 @@ where
   }
 }
 
-impl<T> Encode<De> for Extension<T>
+impl<T> Encode<TlsCc> for Extension<T>
 where
-  T: Encode<De>,
+  T: Encode<TlsCc>,
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {

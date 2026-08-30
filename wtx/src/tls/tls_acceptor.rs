@@ -6,8 +6,8 @@ use crate::{
   rng::CryptoRng,
   tls::{
     AlertDescription, Alpn, CHANGE_CIPHER_SPEC, CipherSuite, DLFT_MAX_FRAGMENT_LENGTH,
-    HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme, TlsBuffer,
-    TlsConfig, TlsCtx, TlsCtxSk, TlsError, TlsStream,
+    HandshakePath, HandshakeTy, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme,
+    TlsBuffer, TlsConfig, TlsCtx, TlsCtxSk, TlsError, TlsStream,
     key_schedule::KeySchedule,
     misc::{
       fetch_rec_from_stream, manage_err_handshake, post_handshake_dec_error,
@@ -20,15 +20,13 @@ use crate::{
       encrypted_extensions::EncryptedExtensions,
       finished::Finished,
       handshake::Handshake,
-      handshake_ty::HandshakeTy,
       key_share_entry::KeyShareEntry,
       record::Record,
-      record_content_ty::RecordContentTy,
       server_hello::ServerHello,
     },
     read_record_info::ReadRecordInfo,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    record_content_ty::RecordContentTy,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
     tls_hash::TlsHash,
   },
 };
@@ -139,10 +137,10 @@ where
         )?,
       });
     }
-    _trace!(target: crate::_WTX_TLS_HS, "Start");
+    _trace!("Start");
     let fut = async {
       let first_rri = self.fetch_rec_from_stream::<false, true>(false).await?;
-      _trace!(target: crate::_WTX_TLS_HS, "Read ClientHello: {:?}", &first_rri);
+      _trace!("Read ClientHello: {:?}", &first_rri);
       let indices = self.manage_initial_client_record(&first_rri)?;
       let buffer = self.buffer.reader_buffer.buffer_mut();
       let payloads = match indices.as_slice() {
@@ -157,7 +155,7 @@ where
         ],
         _ => &[],
       };
-      _trace!(target: crate::_WTX_TLS_HS, "Write Records");
+      _trace!("Write Records");
       write_payloads(
         RecordContentTy::Handshake,
         self.key_schedule.write_mut(),
@@ -172,14 +170,14 @@ where
       if last_rri.outer_ty == RecordContentTy::ChangeCipherSpec {
         last_rri = self.fetch_rec_from_stream::<false, false>(true).await?;
       }
-      _trace!(target: crate::_WTX_TLS_HS, "Read Finished: {:?}", &last_rri);
+      _trace!("Read Finished: {:?}", &last_rri);
       self.manage_final_client_record(&last_rri)?;
       Ok(())
     };
     let rslt = fut.await;
     let kss = self.key_schedule.write_mut().state_mut();
     manage_err_handshake(true, kss, rslt, &mut self.stream).await?;
-    _trace!(target: crate::_WTX_TLS_HS, "Successful handshake");
+    _trace!("Successful handshake");
     Ok(TlsAcceptOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,

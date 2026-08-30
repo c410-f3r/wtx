@@ -24,7 +24,7 @@ where
     Some(b'B'),
     &mut PostgresEncodeWrapper::new(buffer),
     |local_ew| {
-      let _ = local_ew.buffer().extend_from_copyable_slices(&[
+      let _ = local_ew.buffer().extend_from_copyable_slices([
         portal.as_bytes(),
         &[0],
         stmt_cmd_id_array.as_bytes(),
@@ -186,7 +186,7 @@ where
     Some(b'P'),
     &mut PostgresEncodeWrapper::new(buffer),
     |local_ew| {
-      let _ = local_ew.buffer().extend_from_copyable_slices(&[
+      let _ = local_ew.buffer().extend_from_copyable_slices([
         stmt_cmd_id_array.as_bytes(),
         &[0],
         stmt_cmd.as_bytes(),

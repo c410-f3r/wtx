@@ -4,9 +4,8 @@ use crate::{
   codec::Encode,
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    de::De,
-    protocol::{protocol_version::ProtocolVersion, record_content_ty::RecordContentTy},
-    tls_encode_wrapper::TlsEncodeWrapper,
+    protocol::protocol_version::ProtocolVersion, record_content_ty::RecordContentTy, tls_cc::TlsCc,
+    tls_cc_wrappers::TlsEncodeWrapper,
   },
 };
 
@@ -27,9 +26,9 @@ impl<T> Record<T> {
   }
 }
 
-impl<T> Encode<De> for Record<T>
+impl<T> Encode<TlsCc> for Record<T>
 where
-  T: Encode<De>,
+  T: Encode<TlsCc>,
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {

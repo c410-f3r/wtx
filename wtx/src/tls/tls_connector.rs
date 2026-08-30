@@ -6,7 +6,7 @@ use crate::{
   net::{BufStreamReader, RoleTy, Stream, Uri},
   rng::CryptoRng,
   tls::{
-    AlertDescription, CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath,
+    AlertDescription, CHANGE_CIPHER_SPEC, DLFT_MAX_FRAGMENT_LENGTH, HandshakePath, HandshakeTy,
     MAX_CERTIFICATES, NamedGroup, ProtocolVersion, TlsBuffer, TlsConfig, TlsCtx, TlsError,
     TlsServerEndPoint, TlsStream,
     key_schedule::KeySchedule,
@@ -18,12 +18,11 @@ use crate::{
       alert::Alert, certificate::Certificate, certificate_request::CertificateRequest,
       certificate_verify::CertificateVerify, client_hello::ClientHello,
       encrypted_extensions::EncryptedExtensions, finished::Finished, handshake::Handshake,
-      handshake_ty::HandshakeTy, named_group::NamedGroupAgreement, record::Record,
-      record_content_ty::RecordContentTy, server_hello::ServerHello,
+      named_group::NamedGroupAgreement, record::Record, server_hello::ServerHello,
     },
     read_record_info::ReadRecordInfo,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    record_content_ty::RecordContentTy,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
     tls_hash::{TlsDigest, TlsHash},
   },
   x509::{CvEndEntity, CvIntermediate, KeyTy, ServerName, SignatureTy, SubjectPublicKeyInfo},
@@ -218,7 +217,7 @@ where
       }
       match self.manage_client_records(&mrsri)? {
         ClientRecordsState::Terminated(data) => {
-          _trace!(target: crate::_WTX_TLS_HS, "Write Finished");
+          _trace!("Write Finished");
           self.stream.write_all(&data).await?;
         }
       }
@@ -228,7 +227,7 @@ where
     let kss = self.key_schedule.write_mut().state_mut();
     let tls_server_end_point =
       manage_err_handshake(self.has_sent_ccs, kss, rslt, &mut self.stream).await?;
-    _trace!(target: crate::_WTX_TLS_HS, "Successful handshake");
+    _trace!("Successful handshake");
     Ok(TlsConnectOutput {
       handshake_path: self.handshake_path,
       named_group: self.named_group,
@@ -396,7 +395,7 @@ where
       &self.buffer.reader_buffer,
       (&mut self.split_begin, &mut self.split_len),
     )? {
-      _trace!(target: crate::_WTX_TLS_HS, "Read handshake: {:?}", msg_type);
+      _trace!("Read handshake: {:?}", msg_type);
       let curr_handshake_bytes = self.buffer.reader_buffer.filled().get(range).unwrap_or_default();
       self.transcript_hash.update(curr_handshake_bytes);
 
@@ -462,7 +461,7 @@ where
   pub fn write_client_hello(
     &mut self,
   ) -> crate::Result<ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>> {
-    _trace!(target: crate::_WTX_TLS_HS, "Write CH");
+    _trace!("Write CH");
     let mut secrets = ArrayVectorU8::new();
     for named_group in &self.config.lease().inner.supported_groups.named_group_list {
       secrets.push(named_group.agreement(&mut self.rng)?)?;

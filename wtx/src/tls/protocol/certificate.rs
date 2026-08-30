@@ -8,11 +8,10 @@ use crate::{
   },
   tls::{
     AlertDescription, MAX_CERTIFICATES, TlsError,
-    de::De,
     misc::{u8_chunk, u16_chunk, u24_chunk, u24_list},
     protocol::extension_ty::ExtensionTy,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -37,7 +36,7 @@ impl<'any> Certificate<'any> {
   }
 }
 
-impl<'de> Decode<'de, De> for Certificate<'de> {
+impl<'de> Decode<'de, TlsCc> for Certificate<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificate;
@@ -48,7 +47,7 @@ impl<'de> Decode<'de, De> for Certificate<'de> {
   }
 }
 
-impl Encode<De> for Certificate<'_> {
+impl Encode<TlsCc> for Certificate<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
@@ -83,7 +82,7 @@ impl<'any> CertificateEntry<'any> {
   }
 }
 
-impl<'de> Decode<'de, De> for CertificateEntry<'de> {
+impl<'de> Decode<'de, TlsCc> for CertificateEntry<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificate;
@@ -99,7 +98,7 @@ impl<'de> Decode<'de, De> for CertificateEntry<'de> {
   }
 }
 
-impl Encode<De> for CertificateEntry<'_> {
+impl Encode<TlsCc> for CertificateEntry<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u24_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {

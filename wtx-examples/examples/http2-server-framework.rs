@@ -61,21 +61,26 @@ fn main() -> wtx::Result<()> {
     .run_in_threads(&host_from_args(), router)
 }
 
-async fn db(state: StateClean<'_, LocalPool>, Path(id): Path<u32>) -> wtx::Result<VerbatimParams> {
-  let mut lock = state.data.get_with_unit().await?;
+async fn db(
+  StateClean { data, req }: StateClean<'_, LocalPool>,
+  Path(id): Path<u32>,
+) -> wtx::Result<VerbatimParams> {
+  let mut lock = data.get_with_unit().await?;
   let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
-  state.req.msg_data.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
+  req.msg_data.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
-async fn deserialization_and_serialization(state: State<'_, LocalPool>) -> wtx::Result<JsonReply> {
-  let deserialize_example: DeserializeExample = serde_json::from_slice(&state.req.msg_data.body)?;
+async fn deserialization_and_serialization(
+  State { req, .. }: State<'_, LocalPool>,
+) -> wtx::Result<JsonReply> {
+  let deserialize_example: DeserializeExample = serde_json::from_slice(&req.msg_data.body)?;
   let serialize_example = SerializeExample {
     _baz: [u32::from(deserialize_example._bar / 2), u32::from(deserialize_example._bar % 2)],
   };
-  state.req.msg_data.clear();
-  serde_json::to_writer(&mut state.req.msg_data.body, &serialize_example)?;
+  req.msg_data.clear();
+  serde_json::to_writer(&mut req.msg_data.body, &serialize_example)?;
   Ok(JsonReply::default())
 }
 

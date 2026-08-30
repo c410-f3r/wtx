@@ -24,8 +24,10 @@ pub(crate) async fn init() -> wtx::Result<()> {
 
   #[cfg(not(feature = "unified"))]
   cfg_select! {
-    feature = "embed-migrations" => crate::embed_migrations::embed_migrations(_args.commands).await?,
-    feature = "http-client" =>  crate::http_client::http_client(_args.commands).await?,
+    feature = "embed-migrations" => {
+      crate::embed_migrations::embed_migrations(_args.commands).await?
+    }
+    feature = "http-client" => crate::http_client::http_client(_args.commands).await?,
     feature = "schema-manager" => crate::schema_manager::schema_manager(_args.commands).await?,
     feature = "web-socket" => manage_web_socket(_args.commands).await?,
   }

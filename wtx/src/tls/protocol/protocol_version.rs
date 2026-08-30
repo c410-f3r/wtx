@@ -1,7 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
   tls::{
-    TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -44,14 +46,14 @@ impl TryFrom<u16> for ProtocolVersion {
   }
 }
 
-impl<'de> Decode<'de, De> for ProtocolVersion {
+impl<'de> Decode<'de, TlsCc> for ProtocolVersion {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    Self::try_from(<u16 as Decode<De>>::decode(dw)?)
+    Self::try_from(<u16 as Decode<TlsCc>>::decode(dw)?)
   }
 }
 
-impl Encode<De> for ProtocolVersion {
+impl Encode<TlsCc> for ProtocolVersion {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;

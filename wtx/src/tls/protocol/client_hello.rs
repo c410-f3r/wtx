@@ -11,7 +11,6 @@ use crate::{
   rng::CryptoRng,
   tls::{
     AlertDescription, CipherSuite, MaxFragmentLength, NamedGroup, PublicKeys, TlsConfig, TlsError,
-    de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       alpn::Alpn, certificate_authorities::CertificateAuthorities, extension::Extension,
@@ -22,9 +21,9 @@ use crate::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
     tls_config::TlsConfigInner,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
   },
   x509::CvPolicy,
 };
@@ -79,14 +78,14 @@ impl<G, TCG> ClientHello<G, TCG> {
   }
 }
 
-impl<'de> Decode<'de, De>
+impl<'de> Decode<'de, TlsCc>
   for ClientHello<KeyShareClientHello<&'de [u8]>, TlsConfigInner<&'de [u8], ()>>
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidClientHelloLength;
-    let _legacy_version = <[u8; 2] as Decode<'_, De>>::decode(dw)?;
-    let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
+    let _legacy_version = <[u8; 2] as Decode<'_, TlsCc>>::decode(dw)?;
+    let random = <[u8; 32] as Decode<'de, TlsCc>>::decode(dw)?;
     let legacy_session_id = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into().map_err(|_err| {
       crate::Error::TlsErrorReply(TlsError::InvalidLegacySessionId, AlertDescription::DecodeError)
     })?;
@@ -100,7 +99,8 @@ impl<'de> Decode<'de, De>
         }
       }
     }
-    let _legacy_compression_methods @ Ok([1, 0]) = <[u8; 2] as Decode<'de, De>>::decode(dw) else {
+    let _legacy_compression_methods @ Ok([1, 0]) = <[u8; 2] as Decode<'de, TlsCc>>::decode(dw)
+    else {
       return Err(crate::Error::TlsErrorReply(
         TlsError::InvalidLegacyCompressionMethods,
         AlertDescription::IllegalParameter,
@@ -160,7 +160,7 @@ impl<'de> Decode<'de, De>
   }
 }
 
-impl<TCG, TCX> Encode<De>
+impl<TCG, TCX> Encode<TlsCc>
   for ClientHello<&ArrayVectorU8<NamedGroupAgreement, { NamedGroup::len() }>, TCG>
 where
   TCG: Lease<TlsConfig<TCX>> + SingleTypeStorage<Item = TCX>,

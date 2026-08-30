@@ -95,11 +95,8 @@ where
   let fun = async |socket_addr: SocketAddr| {
     cfg_select! {
       feature = "socket2" => {
-        let domain = if socket_addr.is_ipv4() {
-          socket2::Domain::IPV4
-        } else {
-          socket2::Domain::IPV6
-        };
+        let domain =
+          if socket_addr.is_ipv4() { socket2::Domain::IPV4 } else { socket2::Domain::IPV6 };
         let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
         if let Some(elem) = _tcp_params.recv_buffer_size() {
           socket.set_recv_buffer_size(*crate::misc::Usize::from_u32(elem))?;
@@ -127,8 +124,8 @@ where
         // ***** THE ORDER IS IMPORTANT *****
 
         Ok(std::net::TcpListener::from(socket))
-      },
-      _ => Ok(std::net::TcpListener::bind(socket_addr)?)
+      }
+      _ => Ok(std::net::TcpListener::bind(socket_addr)?),
     }
   };
   resolve_addrs(addr, executor, fun).await

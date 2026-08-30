@@ -1,6 +1,6 @@
 use crate::{
   net::RoleTy,
-  tls::{Alert, ProtocolVersion, protocol::handshake_ty::HandshakeTy},
+  tls::{Alert, ProtocolVersion, handshake_ty::HandshakeTy},
 };
 
 /// TLS errror

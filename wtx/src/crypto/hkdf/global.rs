@@ -5,14 +5,14 @@ type HkdfSha256Ty = cfg_select! {
   feature = "crypto-alr" => crate::crypto::HkdfSha256Alr,
   feature = "crypto-graviola" => crate::crypto::HkdfSha256Graviola,
   feature = "crypto-ruco" => crate::crypto::HkdfSha256Ruco,
-  _ => crate::crypto::HkdfDummy::<[u8; 32]>
+  _ => crate::crypto::HkdfDummy::<[u8; 32]>,
 };
 type HkdfSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha384Ring,
   feature = "crypto-alr" => crate::crypto::HkdfSha384Alr,
   feature = "crypto-graviola" => crate::crypto::HkdfSha384Graviola,
   feature = "crypto-ruco" => crate::crypto::HkdfSha384Ruco,
-  _ => crate::crypto::HkdfDummy::<[u8; 48]>
+  _ => crate::crypto::HkdfDummy::<[u8; 48]>,
 };
 
 /// A structure that delegates execution to the selected crypto backend.

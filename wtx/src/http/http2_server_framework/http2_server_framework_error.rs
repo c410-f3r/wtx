@@ -11,6 +11,8 @@ pub enum Http2ServerFrameworkError {
   /// `Access-Control-Allow-Methods: *`, and `Access-Control-Expose-Headers: *` are not valid when
   /// credentials are involved.
   ForbiddenLocalCorsParameters,
+  /// The `boundary` element is missing in the headers
+  FormDataHeaderIsMissingDelimiter,
   /// Client sent a request with invalid WebSocket tunneling parameters
   InvalidWebSocketParameters,
   /// Entered in a route that has an incompatible operation mode

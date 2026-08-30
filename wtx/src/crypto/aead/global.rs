@@ -8,21 +8,21 @@ type Aes128GcmTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::Aes128GcmGraviola,
   feature = "crypto-alr" => crate::crypto::Aes128GcmAlr,
   feature = "crypto-ruco" => crate::crypto::Aes128GcmRuco,
-  _ => crate::crypto::AeadDummy::<[u8; 16]>
+  _ => crate::crypto::AeadDummy::<[u8; 16]>,
 };
 type Aes256GcmTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Aes256GcmRing,
   feature = "crypto-graviola" => crate::crypto::Aes256GcmGraviola,
   feature = "crypto-alr" => crate::crypto::Aes256GcmAlr,
   feature = "crypto-ruco" => crate::crypto::Aes256GcmRuco,
-  _ => crate::crypto::AeadDummy::<[u8; 32]>
+  _ => crate::crypto::AeadDummy::<[u8; 32]>,
 };
 type Chacha20Poly1305Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Chacha20Poly1305Ring,
   feature = "crypto-graviola" => crate::crypto::Chacha20Poly1305Graviola,
   feature = "crypto-alr" => crate::crypto::Chacha20Poly1305Alr,
   feature = "crypto-ruco" => crate::crypto::Chacha20Poly1305Ruco,
-  _ => crate::crypto::AeadDummy::<[u8; 32]>
+  _ => crate::crypto::AeadDummy::<[u8; 32]>,
 };
 
 /// A structure that delegates execution to the selected crypto backend.
