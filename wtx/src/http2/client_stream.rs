@@ -68,7 +68,7 @@ where
   ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, MsgBufferString)> {
     let Self { inner, linger: _, span, stream_id, windows: _ } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Receiving response");
+    _trace!("Receiving response");
     let mut lock_pin = pin!(inner.hd.lock());
     let rslt = poll_fn(|cx| {
       let mut lock = lock_pin!(cx, inner.hd, lock_pin);
@@ -108,7 +108,7 @@ where
   {
     let Self { inner, linger: _, span, stream_id, windows } = self;
     let _e = span.enter();
-    _trace!(target: crate::_WTX_HTTP2, "Sending request");
+    _trace!("Sending request");
     let uri = req.msg_data.uri();
     send_msg::<_, _, true>(
       req.msg_data.body().lease(),

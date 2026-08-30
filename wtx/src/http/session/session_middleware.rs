@@ -65,9 +65,9 @@ where
     req: &mut Request<MsgBufferString>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     if let Some(session_state) = data.lease() {
-      _trace!(target: crate::_WTX_HTTP_SM, "Connection already has a session");
+      _trace!("Connection already has a session");
       if check_expiration(&session_state.expires_at)? {
-        _trace!(target: crate::_WTX_HTTP_SM, "Connection session is expired");
+        _trace!("Connection session is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
@@ -113,7 +113,7 @@ where
           json_rslt?
         }
       };
-      _trace!(target: crate::_WTX_HTTP_SM, "A session has been found in headers");
+      _trace!("A session has been found in headers");
       let Some(ss_db) =
         self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?
       else {
@@ -128,36 +128,36 @@ where
     }
     // FIXME(STABLE): Polonius
     if has_invalid_session {
-      _trace!(target: crate::_WTX_HTTP_SM, "Connection session does not match database ssion");
+      _trace!("Connection session does not match database ssion");
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
     // FIXME(STABLE): Polonius
     if !has_stored_session {
-      _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not exist in database");
+      _trace!("Session found in headers does not exist in database");
       delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
     if let Some(elem) = data.lease_mut() {
       if check_expiration(&elem.expires_at)? {
-        _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers is expired");
+        _trace!("Session found in headers is expired");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       if req.method.is_mutable() && Some(elem.session_csrf.as_str()) != x_csrf_token_value {
-        _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers does not contain a valid CSRF");
+        _trace!("Session found in headers does not contain a valid CSRF");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
-      _trace!(target: crate::_WTX_HTTP_SM, "Session found in headers has been successfully validated");
+      _trace!("Session found in headers has been successfully validated");
     } else {
       let path = req.msg_data.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
-        _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers and path is forbidden");
+        _trace!("Session was not found in headers and path is forbidden");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
-      _trace!(target: crate::_WTX_HTTP_SM, "Session was not found in headers but an allowed path succeeded");
+      _trace!("Session was not found in headers but an allowed path succeeded");
     }
     Ok(ControlFlow::Continue(()))
   }

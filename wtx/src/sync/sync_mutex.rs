@@ -34,11 +34,12 @@ impl<T> SyncMutex<T> {
   pub fn lock(&self) -> SyncMutexGuard<'_, T> {
     cfg_select! {
       feature = "parking_lot" => SyncMutexGuard(self.0.lock()),
-      feature = "std" => {
+      feature = "std" =>
+      {
         #[expect(clippy::unwrap_used, clippy::missing_panics_doc, reason = "poison is ignored")]
         SyncMutexGuard(self.0.lock().unwrap())
       }
-      _ => SyncMutexGuard(self.0.lock())
+      _ => SyncMutexGuard(self.0.lock()),
     }
   }
 
@@ -48,7 +49,7 @@ impl<T> SyncMutex<T> {
     cfg_select! {
       feature = "parking_lot" => self.0.try_lock().map(SyncMutexGuard),
       feature = "std" => self.0.try_lock().ok().map(SyncMutexGuard),
-      _ => self.0.try_lock().map(SyncMutexGuard)
+      _ => self.0.try_lock().map(SyncMutexGuard),
     }
   }
 }

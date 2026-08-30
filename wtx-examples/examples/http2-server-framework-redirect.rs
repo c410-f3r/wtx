@@ -25,6 +25,6 @@ async fn permanent() -> Redirect {
   Redirect::permanent("/some/path")
 }
 
-async fn temporary(state: StateClean<'_, ()>) -> wtx::Result<StatusCode> {
-  Redirect::temporary_raw(&mut state.req.msg_data.headers, "/another/path")
+async fn temporary(StateClean { req, .. }: StateClean<'_, ()>) -> wtx::Result<StatusCode> {
+  Redirect::temporary_raw(&mut req.msg_data.headers, "/another/path")
 }

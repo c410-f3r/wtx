@@ -73,6 +73,11 @@ path = "examples/http2-server-framework-cors.rs"
 required-features = ["http2-server-framework-cors"]
 
 [[example]]
+name = "http2-server-framework-form-data"
+path = "examples/http2-server-framework-form-data.rs"
+required-features = ["http2-server-framework-form-data"]
+
+[[example]]
 name = "http2-server-framework-redirect"
 path = "examples/http2-server-framework-redirect.rs"
 required-features = ["http2-server-framework-redirect"]
@@ -158,6 +163,7 @@ http2-client-pool = ["tokio", "wtx/ccadb", "wtx/crypto-ring", "wtx/tokio", "wtx/
 http2-server = ["tokio", "wtx/crypto-ring", "wtx/http2", "wtx/tokio","wtx/web-socket"]
 http2-server-framework = ["serde", "serde_json", "tokio", "wtx/crypto-ring", "wtx/http2-server-framework", "wtx/postgres-pool", "wtx/secret", "wtx/serde_json", "wtx/tokio"]
 http2-server-framework-cors = ["tokio", "wtx/crypto-ring", "wtx/http2-server-framework", "wtx/tokio"]
+http2-server-framework-form-data = ["tokio", "wtx/crypto-ring", "wtx/http2-server-framework", "wtx/tokio"]
 http2-server-framework-redirect = ["tokio", "wtx/crypto-ring", "wtx/http2-server-framework", "wtx/tokio"]
 http2-server-framework-session = ["serde", "serde_json", "tokio", "wtx/argon2", "wtx/crypto-ring", "wtx/http2-server-framework", "wtx/http-session", "wtx/macros", "wtx/postgres-pool", "wtx/tokio"]
 secret = ["wtx/secret"]

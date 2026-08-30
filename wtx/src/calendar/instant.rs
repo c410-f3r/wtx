@@ -4,7 +4,7 @@ use core::time::Duration;
 type LocalTy = cfg_select! {
   feature = "std" => std::time::SystemTime,
   feature = "embassy-time" => embassy_time::Instant,
-  _ => ()
+  _ => (),
 };
 
 /// Time provider suitable for operations involving intervals.
@@ -23,7 +23,7 @@ impl Instant {
     cfg_select! {
       feature = "std" => Self { _inner: std::time::SystemTime::now() },
       feature = "embassy-time" => Self { _inner: embassy_time::Instant::now() },
-      _ => Self { _inner: () }
+      _ => Self { _inner: () },
     }
   }
 
@@ -44,7 +44,7 @@ impl Instant {
     cfg_select! {
       feature = "std" => Self::new().duration_since(Self { _inner: std::time::UNIX_EPOCH }),
       feature = "embassy-time" => Ok(embassy_timestamp(embassy_time::Instant::now().as_secs())),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -53,7 +53,7 @@ impl Instant {
   pub(crate) fn since_boot_secs() -> crate::Result<u64> {
     cfg_select! {
       feature = "embassy-time" => Ok(embassy_time::Instant::now().as_secs()),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -64,7 +64,7 @@ impl Instant {
       feature = "std" => {
         let _inner = self._inner.checked_add(_duration).ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
-      },
+      }
       feature = "embassy-time" => {
         let _inner = self
           ._inner
@@ -72,7 +72,7 @@ impl Instant {
           .ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
       }
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -83,15 +83,15 @@ impl Instant {
       feature = "std" => {
         let _inner = self._inner.checked_sub(_duration).ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
-      },
+      }
       feature = "embassy-time" => {
         let _inner = self
           ._inner
           .checked_sub(embassy_time::Duration::from_micros(_duration.as_micros() as u64))
           .ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
-      },
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      }
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -113,7 +113,7 @@ impl Instant {
           .ok_or(CalendarError::ArithmeticOverflow)?
           .as_micros(),
       )),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -130,7 +130,7 @@ impl Instant {
     cfg_select! {
       feature = "std" => self.duration_since(Self { _inner: std::time::UNIX_EPOCH }),
       feature = "embassy-time" => Ok(embassy_timestamp(self._inner.as_secs())),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend))
+      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
     }
   }
 }

@@ -38,13 +38,13 @@ impl<T> LeaseMut<Wrapper<T>> for Wrapper<T> {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::misc::{Wrapper, serialize_seq_with_serde};
-  use core::fmt::Display;
-  use serde::{Serialize, Serializer};
+  use core::{cell::RefCell, fmt::Display};
+  use serde::{Serialize, Serializer, ser::Error as _};
 
-  impl<ELEM, ERR, T> Serialize for Wrapper<T>
+  impl<ELEM, ERR, T> Serialize for Wrapper<RefCell<T>>
   where
     ERR: Display,
-    T: Clone + Iterator<Item = Result<ELEM, ERR>>,
+    T: Iterator<Item = Result<ELEM, ERR>>,
     ELEM: Serialize,
   {
     #[inline]
@@ -52,7 +52,12 @@ mod serde {
     where
       S: Serializer,
     {
-      serialize_seq_with_serde(serializer, self.0.clone())
+      let Some(mut borrow) = self.0.try_borrow_mut().ok() else {
+        return Err(S::Error::custom(
+          crate::Error::WrapperSerializationDoesNotExpectConcurrentAccess,
+        ));
+      };
+      serialize_seq_with_serde(serializer, &mut *borrow)
     }
   }
 }

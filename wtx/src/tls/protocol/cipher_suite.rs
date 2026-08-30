@@ -8,9 +8,8 @@ use crate::{
   },
   tls::{
     TlsError,
-    de::De,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
     tls_hash::{TlsDigest, TlsHash},
     tls_hkdf::TlsHkdf,
     tls_hmac::TlsHmac,
@@ -163,7 +162,7 @@ impl CipherSuite {
   }
 }
 
-impl<'de> Decode<'de, De> for CipherSuite {
+impl<'de> Decode<'de, TlsCc> for CipherSuite {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, b1, rest @ ..] = dw.bytes() else {
@@ -175,7 +174,7 @@ impl<'de> Decode<'de, De> for CipherSuite {
   }
 }
 
-impl Encode<De> for CipherSuite {
+impl Encode<TlsCc> for CipherSuite {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().extend_from_copyable_slice(&u16::from(*self).to_be_bytes())?;

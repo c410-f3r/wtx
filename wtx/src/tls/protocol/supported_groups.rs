@@ -3,8 +3,10 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    NamedGroup, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    NamedGroup, TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -24,7 +26,7 @@ impl SupportedGroups {
   }
 }
 
-impl<'de> Decode<'de, De> for SupportedGroups {
+impl<'de> Decode<'de, TlsCc> for SupportedGroups {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut named_group_list = ArrayVectorCopy::new();
@@ -38,7 +40,7 @@ impl<'de> Decode<'de, De> for SupportedGroups {
   }
 }
 
-impl Encode<De> for SupportedGroups {
+impl Encode<TlsCc> for SupportedGroups {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(

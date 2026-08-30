@@ -7,14 +7,13 @@ use crate::{
   rng::CryptoRng,
   tls::{
     AlertDescription, CipherSuite, HELLO_RETRY_REQUEST, TlsError,
-    de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersionsServer,
     },
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -67,16 +66,16 @@ impl<'any> ServerHello<'any> {
   }
 }
 
-impl<'de> Decode<'de, De> for ServerHello<'de> {
+impl<'de> Decode<'de, TlsCc> for ServerHello<'de> {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidServerHello;
     let legacy_version = ProtocolVersion::decode(dw)?;
-    let random = <[u8; 32] as Decode<'de, De>>::decode(dw)?;
+    let random = <[u8; 32] as Decode<'de, TlsCc>>::decode(dw)?;
     let is_hello_retry_request = random == HELLO_RETRY_REQUEST;
     let legacy_session_id_echo = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuite::decode(dw)?;
-    let Ok(0) = <u8 as Decode<'de, De>>::decode(dw) else {
+    let Ok(0) = <u8 as Decode<'de, TlsCc>>::decode(dw) else {
       return Err(crate::Error::TlsErrorReply(
         TlsError::InvalidLegacyCompressionMethod,
         AlertDescription::DecodeError,
@@ -125,7 +124,7 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
   }
 }
 
-impl Encode<De> for ServerHello<'_> {
+impl Encode<TlsCc> for ServerHello<'_> {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.legacy_version.encode(ew)?;

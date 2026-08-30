@@ -16,8 +16,8 @@ use crate::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
       new_session_ticket::NewSessionTicket,
-      record_content_ty::RecordContentTy,
     },
+    record_content_ty::RecordContentTy,
     tls_stream_common::TlsStreamCommon,
   },
 };

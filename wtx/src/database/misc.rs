@@ -77,8 +77,6 @@ where
       }
     }
   }
-  let records_consumed = curr_params.curr_record_idx.wrapping_sub(prev_record_idx);
-  curr_params.inc_consumed_records(records_consumed);
   curr_params.curr_field_idx = next_field_idx;
   curr_params.curr_record_idx = prev_record_idx;
   Ok(())

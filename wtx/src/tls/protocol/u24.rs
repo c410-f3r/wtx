@@ -1,13 +1,13 @@
 use crate::{
   codec::Decode,
   misc::Usize,
-  tls::{TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper},
+  tls::{TlsError, tls_cc::TlsCc, tls_cc_wrappers::TlsDecodeWrapper},
 };
 
 #[derive(Debug)]
 pub(crate) struct U24(u32);
 
-impl<'de> Decode<'de, De> for U24 {
+impl<'de> Decode<'de, TlsCc> for U24 {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {

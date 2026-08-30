@@ -182,7 +182,7 @@ mod tests {
   #[test]
   fn concatenation() {
     assert_eq!(concat_slices!(b"a", b"b", b"c"), *b"abc");
-    assert_eq!(concat_strings!("a", "b", "c").as_str(), "abc");
+    assert_eq!(concat_strings!("a", "b", "c"), "abc");
   }
 
   #[test]

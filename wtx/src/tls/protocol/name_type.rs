@@ -1,7 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
   tls::{
-    TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -10,7 +12,7 @@ pub(crate) enum NameType {
   HostName = 0,
 }
 
-impl<'de> Decode<'de, De> for NameType {
+impl<'de> Decode<'de, TlsCc> for NameType {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [0, rest @ ..] = dw.bytes() else {
@@ -21,7 +23,7 @@ impl<'de> Decode<'de, De> for NameType {
   }
 }
 
-impl Encode<De> for NameType {
+impl Encode<TlsCc> for NameType {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().push(0)

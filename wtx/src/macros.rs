@@ -14,11 +14,15 @@ macro_rules! concat_slices {
 macro_rules! concat_strings {
   ($($string:expr),* $(,)?) => {
     const {
-      const LEN: usize = 0 $(+ $string.len())*;
       $( let _type_hint: &str = $string; )*
-      let all = $crate::collections::concat_slices::<_, LEN>(&[$($string.as_bytes()),*]).unwrap();
-      // SAFETY: The concatenation of strings will always result in a valid string
-      unsafe { $crate::collections::FixedString::from_array_unchecked(all) }
+      use $crate::collections::FixedString;
+      const LEN: usize = 0 $(+ $string.len())*;
+      const ARRAY: FixedString<LEN> = {
+        let arrays = &[$($string.as_bytes()),*];
+        let concatenated = $crate::collections::concat_slices(arrays).unwrap();
+        FixedString::from_array_opt(concatenated).unwrap()
+      };
+      ARRAY.as_str()
     }
   };
 }

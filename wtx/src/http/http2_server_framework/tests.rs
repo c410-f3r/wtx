@@ -12,11 +12,11 @@ use core::{
 
 #[test]
 fn compiles() {
-  async fn one(_: StateClean<'_, ()>) -> crate::Result<StatusCode> {
+  async fn one() -> crate::Result<StatusCode> {
     Ok(StatusCode::Ok)
   }
 
-  async fn two(_: StateClean<'_, ()>) -> crate::Result<StatusCode> {
+  async fn two() -> crate::Result<StatusCode> {
     Ok(StatusCode::Ok)
   }
 

@@ -3,8 +3,11 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   tls::{
-    TlsError, de::De, misc::u8_chunk, protocol::protocol_version::ProtocolVersion,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    misc::u8_chunk,
+    protocol::protocol_version::ProtocolVersion,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -19,7 +22,7 @@ impl SupportedVersionsClient {
   }
 }
 
-impl<'de> Decode<'de, De> for SupportedVersionsClient {
+impl<'de> Decode<'de, TlsCc> for SupportedVersionsClient {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut versions = ArrayVectorCopy::new();
@@ -33,7 +36,7 @@ impl<'de> Decode<'de, De> for SupportedVersionsClient {
   }
 }
 
-impl Encode<De> for SupportedVersionsClient {
+impl Encode<TlsCc> for SupportedVersionsClient {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u8_write_iter(
@@ -61,14 +64,14 @@ impl SupportedVersionsServer {
   }
 }
 
-impl<'de> Decode<'de, De> for SupportedVersionsServer {
+impl<'de> Decode<'de, TlsCc> for SupportedVersionsServer {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self { selected_version: ProtocolVersion::decode(dw)? })
   }
 }
 
-impl Encode<De> for SupportedVersionsServer {
+impl Encode<TlsCc> for SupportedVersionsServer {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     self.selected_version.encode(ew)

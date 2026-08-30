@@ -6,10 +6,9 @@ use crate::{
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write_iter},
   tls::{
     MAX_ALPN_LEN, TlsError,
-    de::De,
     misc::{u8_chunk, u16_chunk},
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -22,7 +21,7 @@ pub struct Alpn {
   pub protocol_name_list: ArrayVectorCopy<ArrayVectorCopy<u8, 8>, MAX_ALPN_LEN>,
 }
 
-impl<'de> Decode<'de, De> for Alpn {
+impl<'de> Decode<'de, TlsCc> for Alpn {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidOfferedPsks;
@@ -40,7 +39,7 @@ impl<'de> Decode<'de, De> for Alpn {
   }
 }
 
-impl Encode<De> for Alpn {
+impl Encode<TlsCc> for Alpn {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(

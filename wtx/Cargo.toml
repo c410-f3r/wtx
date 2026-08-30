@@ -32,7 +32,7 @@ zlib-rs = { default-features = false, optional = true, version = "0.6" }
 # Rust Crypto and its extravagant set of associated dependencies
 aead = { default-features = false, optional = true, version = "0.6" }
 aes-gcm = { default-features = false, optional = true, version = "0.11" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
+argon2 = { default-features = false, optional = true, version = "0.6" }
 chacha20 = { default-features = false, optional = true, version = "0.10" }
 chacha20poly1305 = { default-features = false, optional = true, version = "0.11" }
 crypto-common = { default-features = false, optional = true, version = "0.2" }
@@ -46,6 +46,7 @@ p256 = { default-features = false, optional = true, version = "0.14" }
 p384 = { default-features = false, optional = true, version = "0.14" }
 pkcs1 = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 pkcs8 = { default-features = false, optional = true, version = "0.11" }
+quick-xml = { default-features = false, optional = true, version = "0.42" }
 rand_core = { default-features = false, optional = true, version = "0.10" }
 rsa = { default-features = false, optional = true, version = "0.10.0-rc.18" }
 sha1 = { default-features = false, optional = true, version = "0.11" }
@@ -54,6 +55,7 @@ sha3 = { default-features = false, optional = true, version = "0.12" }
 signature = { default-features = false, optional = true, version = "3.0" }
 spki = { default-features = false, optional = true, version = "0.8" }
 x25519-dalek = { default-features = false, optional = true, version = "3.0" }
+zip = { default-features = false, optional = true, version = "8.0" }
 
 [dev-dependencies]
 wtx = { default-features = false, features = ["crypto-ring", "macros", "nightly", "std"], path = "." }
@@ -136,6 +138,7 @@ libc = ["dep:libc"]
 macros = ["dep:wtx-macros"]
 memchr = ["dep:memchr"]
 nightly = []
+odf = ["quick-xml", "zip"]
 optimizations = ["memchr", "simdutf8"]
 optimizations-std = ["optimizations", "socket2", "std"]
 parking_lot = ["dep:parking_lot"]

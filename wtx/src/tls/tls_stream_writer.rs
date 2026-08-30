@@ -10,8 +10,8 @@ use crate::{
     protocol::{
       alert::Alert,
       key_update::{KeyUpdate, KeyUpdateRequest},
-      record_content_ty::RecordContentTy,
     },
+    record_content_ty::RecordContentTy,
     tls_stream_common::TlsStreamCommon,
   },
 };

@@ -6,14 +6,13 @@ use crate::{
   misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
     AlertDescription, MaxFragmentLength, TlsError,
-    de::De,
     misc::{decode_extension_ty, u16_chunk},
     protocol::{
       alpn::Alpn, extension::Extension, extension_ty::ExtensionTy,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
     },
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -48,7 +47,7 @@ impl EncryptedExtensions {
   }
 }
 
-impl<'de> Decode<'de, De> for EncryptedExtensions {
+impl<'de> Decode<'de, TlsCc> for EncryptedExtensions {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidEncryptedExtensions;
@@ -82,7 +81,7 @@ impl<'de> Decode<'de, De> for EncryptedExtensions {
   }
 }
 
-impl Encode<De> for EncryptedExtensions {
+impl Encode<TlsCc> for EncryptedExtensions {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     let Self { alpn, max_fragment_length, server_name, supported_groups } = self;

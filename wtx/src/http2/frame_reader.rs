@@ -1,14 +1,14 @@
 macro_rules! prft {
   ($fi:expr, $hdpm:ident, $inner:expr, $nrb:expr, $stream_reader:expr) => {
     ProcessReceiptFrameTy {
-      conn_windows: &mut $hdpm.windows,
+      conn_windows: &mut *$hdpm.windows,
       fi: $fi,
-      hp: &mut $hdpm.hp,
+      hp: &mut *$hdpm.hp,
       hpack_dec: &mut $hdpm.hb.hpack_dec,
-      hps: &mut $hdpm.hps,
-      last_stream_id: &mut $hdpm.last_stream_id,
+      hps: &mut *$hdpm.hps,
+      last_stream_id: &mut *$hdpm.last_stream_id,
       nrb: $nrb,
-      recv_streams_num: &mut $hdpm.recv_streams_num,
+      recv_streams_num: &mut *$hdpm.recv_streams_num,
       stream_reader: $stream_reader,
     }
   };
@@ -113,7 +113,7 @@ async fn finish<SW, TCX, const IS_CLIENT: bool>(
     *hdpm.frame_reader_error = Some(elem);
   }
   mem::swap(nrb, &mut hdpm.hb.nrb);
-  _trace!(target: crate::_WTX_HTTP2, "Finishing the reading of frames");
+  _trace!("Finishing the reading of frames");
 }
 
 // Returns `false` if the connection should be closed.
@@ -166,7 +166,7 @@ where
     FrameInitTy::Data => {
       let frame = {
         let mut hd_guard = inner.hd.lock().await;
-        let mut hdpm = hd_guard.parts_mut();
+        let hdpm = hd_guard.parts_mut();
         prft!(fi, hdpm, inner, nrb, stream_reader).data(&mut hdpm.hb.sorps)?
       };
       write_array([&frame], &mut *inner.wd.lock().await).await?;
@@ -177,7 +177,7 @@ where
     }
     FrameInitTy::Headers => {
       let mut hd_guard = inner.hd.lock().await;
-      let mut hdpm = hd_guard.parts_mut();
+      let hdpm = hd_guard.parts_mut();
       if hdpm.hb.scrps.contains_key(&fi.stream_id) {
         return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
       }
@@ -225,7 +225,7 @@ where
     }
     FrameInitTy::WindowUpdate => {
       let mut hd_guard = inner.hd.lock().await;
-      let mut hdpm = hd_guard.parts_mut();
+      let hdpm = hd_guard.parts_mut();
       if fi.stream_id.is_zero() {
         let wuf = WindowUpdateFrame::read(nrb.current(), fi)?;
         hdpm.windows.send_mut().deposit(None, wuf.size_increment().i32())?;

@@ -156,7 +156,7 @@ impl<'module, 'others>
               #freqdiv_ident<#freqdiv_params>
             >: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
             for<'__de, '__drsr> wtx::codec::protocol::#dfe_ext_res_ctnt_wrapper<
-              #fresdiv_ident<#(#res_lf_iter0)*>
+              #fresdiv_ident<#(#res_lf_iter0,)*>
             >: wtx::codec::DecodeSeq<'__de, wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
             __API: wtx::client_api_framework::Api<
                 Error = <<#id as wtx::client_api_framework::ApiId>::Api<__APIPARAMS> as wtx::client_api_framework::Api>::Error,
@@ -169,7 +169,7 @@ impl<'module, 'others>
               #freqdiv_ident<#freqdiv_params>
             >;
             type ExternalResponseContent<'__de> = wtx::codec::protocol::#dfe_ext_res_ctnt_wrapper<
-              #fresdiv_ident<#(#res_lf_iter1)*>
+              #fresdiv_ident<#(#res_lf_iter1,)*>
             >;
             type PackageParams = #fpiv_ident< #(#fpiv_params_iter1,)* >;
 

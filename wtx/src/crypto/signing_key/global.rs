@@ -8,7 +8,7 @@ type EcdsaP256SigningKeyTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::EcdsaP256SigningKeyGraviola,
   feature = "crypto-alr" => crate::crypto::EcdsaP256SigningKeyAlr,
   feature = "crypto-ruco" => crate::crypto::EcdsaP256SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 64]>
+  _ => crate::crypto::SigningKeyDummy::<[u8; 64]>,
 };
 
 type EcdsaP384SigningKeyTy = cfg_select! {
@@ -16,7 +16,7 @@ type EcdsaP384SigningKeyTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::EcdsaP384SigningKeyGraviola,
   feature = "crypto-alr" => crate::crypto::EcdsaP384SigningKeyAlr,
   feature = "crypto-ruco" => crate::crypto::EcdsaP384SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 96]>
+  _ => crate::crypto::SigningKeyDummy::<[u8; 96]>,
 };
 
 type Ed25519SigningKeyTy = cfg_select! {
@@ -24,7 +24,7 @@ type Ed25519SigningKeyTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::Ed25519SigningKeyGraviola,
   feature = "crypto-alr" => crate::crypto::Ed25519SigningKeyAlr,
   feature = "crypto-ruco" => crate::crypto::Ed25519SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 64]>
+  _ => crate::crypto::SigningKeyDummy::<[u8; 64]>,
 };
 
 type RsaPkcs1SigningKeyTy = cfg_select! {
@@ -32,7 +32,7 @@ type RsaPkcs1SigningKeyTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::RsaPkcs1SigningKeyGraviola,
   feature = "crypto-alr" => crate::crypto::RsaPkcs1SigningKeyAlr,
   feature = "crypto-ruco" => crate::crypto::RsaPkcs1SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 0]>
+  _ => crate::crypto::SigningKeyDummy::<[u8; 0]>,
 };
 
 type RsaPssSigningKeyTy = cfg_select! {
@@ -40,7 +40,7 @@ type RsaPssSigningKeyTy = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::RsaPssSigningKeyGraviola,
   feature = "crypto-alr" => crate::crypto::RsaPssSigningKeyAlr,
   feature = "crypto-ruco" => crate::crypto::RsaPssSigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 0]>
+  _ => crate::crypto::SigningKeyDummy::<[u8; 0]>,
 };
 
 /// A structure that delegates execution to the selected crypto backend.

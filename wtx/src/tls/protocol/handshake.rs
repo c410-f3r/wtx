@@ -4,8 +4,10 @@ use crate::{
   codec::{Decode, Encode},
   misc::counter_writer::{CounterWriterBytesTy, u24_write},
   tls::{
-    TlsError, de::De, misc::u24_chunk, protocol::handshake_ty::HandshakeTy,
-    tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    HandshakeTy, TlsError,
+    misc::u24_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -30,21 +32,21 @@ impl Handshake<&[u8]> {
   }
 }
 
-impl<'de, T> Decode<'de, De> for Handshake<T>
+impl<'de, T> Decode<'de, TlsCc> for Handshake<T>
 where
-  T: Decode<'de, De>,
+  T: Decode<'de, TlsCc>,
 {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let msg_type = HandshakeTy::try_from(<u8 as Decode<De>>::decode(dw)?)?;
+    let msg_type = HandshakeTy::try_from(<u8 as Decode<TlsCc>>::decode(dw)?)?;
     let data = u24_chunk(dw, TlsError::InvalidHandshakeLen, |local_dw| T::decode(local_dw))?;
     Ok(Self { msg_type, data })
   }
 }
 
-impl<T> Encode<De> for Handshake<T>
+impl<T> Encode<TlsCc> for Handshake<T>
 where
-  T: Encode<De>,
+  T: Encode<TlsCc>,
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {

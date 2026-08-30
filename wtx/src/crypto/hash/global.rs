@@ -4,28 +4,28 @@ type Sha1Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha1Ring,
   feature = "crypto-alr" => crate::crypto::Sha1Alr,
   feature = "crypto-ruco" => crate::crypto::Sha1Ruco,
-  _ => crate::crypto::HashDummy::<[u8; 20]>
+  _ => crate::crypto::HashDummy::<[u8; 20]>,
 };
 type Sha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha256Ring,
   feature = "crypto-graviola" => crate::crypto::Sha256Graviola,
   feature = "crypto-alr" => crate::crypto::Sha256Alr,
   feature = "crypto-ruco" => crate::crypto::Sha256Ruco,
-  _ => crate::crypto::HashDummy::<[u8; 32]>
+  _ => crate::crypto::HashDummy::<[u8; 32]>,
 };
 type Sha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha384Ring,
   feature = "crypto-graviola" => crate::crypto::Sha384Graviola,
   feature = "crypto-alr" => crate::crypto::Sha384Alr,
   feature = "crypto-ruco" => crate::crypto::Sha384Ruco,
-  _ => crate::crypto::HashDummy::<[u8; 48]>
+  _ => crate::crypto::HashDummy::<[u8; 48]>,
 };
 type Sha512Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Sha512Ring,
   feature = "crypto-graviola" => crate::crypto::Sha512Graviola,
   feature = "crypto-alr" => crate::crypto::Sha512Alr,
   feature = "crypto-ruco" => crate::crypto::Sha512Ruco,
-  _ => crate::crypto::HashDummy::<[u8; 64]>
+  _ => crate::crypto::HashDummy::<[u8; 64]>,
 };
 
 /// A structure that delegates execution to the selected crypto backend.

@@ -1,7 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
   tls::{
-    TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper,
+    TlsError,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -48,7 +50,7 @@ impl MaxFragmentLength {
   }
 }
 
-impl<'de> Decode<'de, De> for MaxFragmentLength {
+impl<'de> Decode<'de, TlsCc> for MaxFragmentLength {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let [b0, rest @ ..] = dw.bytes() else {
@@ -59,7 +61,7 @@ impl<'de> Decode<'de, De> for MaxFragmentLength {
   }
 }
 
-impl Encode<De> for MaxFragmentLength {
+impl Encode<TlsCc> for MaxFragmentLength {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     ew.buffer().push(u8::from(*self))

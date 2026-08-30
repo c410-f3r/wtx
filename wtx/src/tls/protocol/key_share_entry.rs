@@ -2,8 +2,10 @@ use crate::{
   codec::{Decode, Encode},
   misc::Lease,
   tls::{
-    NamedGroup, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    NamedGroup, TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -27,7 +29,7 @@ impl<B> KeyShareEntry<B> {
   }
 }
 
-impl<'de, B> Decode<'de, De> for KeyShareEntry<B>
+impl<'de, B> Decode<'de, TlsCc> for KeyShareEntry<B>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -44,7 +46,7 @@ where
   }
 }
 
-impl<B> Encode<De> for KeyShareEntry<B>
+impl<B> Encode<TlsCc> for KeyShareEntry<B>
 where
   B: Lease<[u8]>,
 {

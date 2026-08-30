@@ -1,11 +1,14 @@
 use crate::{
   codec::{CodecController, Decode, Encode},
-  tls::{TlsError, tls_decode_wrapper::TlsDecodeWrapper, tls_encode_wrapper::TlsEncodeWrapper},
+  tls::{
+    TlsError,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
+  },
 };
 
-pub(crate) struct De;
+pub(crate) struct TlsCc;
 
-impl CodecController for De {
+impl CodecController for TlsCc {
   type DecodeWrapper<'inner, 'outer, 'misc>
     = TlsDecodeWrapper<'inner>
   where
@@ -17,7 +20,7 @@ impl CodecController for De {
     'inner: 'outer;
 }
 
-impl<'de> Decode<'de, De> for &'de [u8] {
+impl<'de> Decode<'de, TlsCc> for &'de [u8] {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -25,7 +28,7 @@ impl<'de> Decode<'de, De> for &'de [u8] {
   }
 }
 
-impl<'de> Decode<'de, De> for u8 {
+impl<'de> Decode<'de, TlsCc> for u8 {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -37,7 +40,7 @@ impl<'de> Decode<'de, De> for u8 {
   }
 }
 
-impl<'de> Decode<'de, De> for u16 {
+impl<'de> Decode<'de, TlsCc> for u16 {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -49,7 +52,7 @@ impl<'de> Decode<'de, De> for u16 {
   }
 }
 
-impl<'de> Decode<'de, De> for u32 {
+impl<'de> Decode<'de, TlsCc> for u32 {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -61,7 +64,7 @@ impl<'de> Decode<'de, De> for u32 {
   }
 }
 
-impl<'de, const N: usize> Decode<'de, De> for [u8; N] {
+impl<'de, const N: usize> Decode<'de, TlsCc> for [u8; N] {
   #[inline]
   #[track_caller]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
@@ -73,7 +76,7 @@ impl<'de, const N: usize> Decode<'de, De> for [u8; N] {
   }
 }
 
-impl Encode<De> for [u8] {
+impl Encode<TlsCc> for [u8] {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
@@ -82,7 +85,7 @@ impl Encode<De> for [u8] {
   }
 }
 
-impl Encode<De> for u16 {
+impl Encode<TlsCc> for u16 {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
@@ -91,7 +94,7 @@ impl Encode<De> for u16 {
   }
 }
 
-impl Encode<De> for u32 {
+impl Encode<TlsCc> for u32 {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {

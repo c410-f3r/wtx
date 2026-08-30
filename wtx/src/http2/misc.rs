@@ -237,7 +237,7 @@ where
       nrb.read_payload(data_len_usize, stream_reader).await?;
       continue;
     };
-    _trace!(target: crate::_WTX_HTTP2, "Received frame: {fi:?}");
+    _trace!("Received frame: {fi:?}");
     nrb.read_payload(data_len_usize, stream_reader).await?;
     return Ok(Some(fi));
   }
@@ -421,7 +421,7 @@ where
   SW: StreamWriter,
   TCX: TlsCtx,
 {
-  _trace!(target: crate::_WTX_HTTP2, "Sending frame(s): {:?}", {
+  _trace!("Sending frame(s): {:?}", {
     let process = |elem: &mut Option<_>, frame: &[u8]| {
       let [b0, b1, b2, b3, b4, b5, b6, b7, b8, rest @ ..] = frame else {
         return;

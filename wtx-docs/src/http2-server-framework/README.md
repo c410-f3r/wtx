@@ -32,8 +32,8 @@ extern crate wtx;
 
 use wtx::http::http2_server_framework::State;
 
-async fn print_request(state: State<'_, ()>) {
-  assert_eq!(state.req.msg_data.body.len(), 0);
+async fn print_request(State { req, .. }: State<'_, ()>) {
+  assert_eq!(req.msg_data.body.len(), 0);
 }
 ```
 

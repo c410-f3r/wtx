@@ -10,7 +10,7 @@ cfg_select! {
     /// Waits until a certain duration has elapsed.
     #[derive(Debug)]
     pub struct Sleep {
-      item: embassy_time::Timer
+      item: embassy_time::Timer,
     }
   }
   feature = "tokio" => {
@@ -27,7 +27,7 @@ cfg_select! {
     /// Waits until a certain duration has elapsed.
     #[derive(Debug)]
     pub struct Sleep {
-      item: (Duration, crate::calendar::Instant)
+      item: (Duration, crate::calendar::Instant),
     }
   }
 }
@@ -40,7 +40,7 @@ impl Sleep {
       item: cfg_select! {
         feature = "embassy-time" => embassy_time::Timer::after(duration.try_into()?),
         feature = "tokio" => tokio::time::sleep(duration),
-        _ => (duration, crate::calendar::Instant::new())
+        _ => (duration, crate::calendar::Instant::new()),
       },
     })
   }
@@ -71,12 +71,12 @@ impl Future for Sleep {
         let Self { item } = &mut *self;
         core::task::ready!(core::pin::pin!(item).as_mut().poll(cx));
         Poll::Ready(Ok(()))
-      },
+      }
       feature = "tokio" => {
         let projection = self.project();
         core::task::ready!(projection.item.poll(cx));
         Poll::Ready(Ok(()))
-      },
+      }
       _ => {
         let Self { item } = &mut *self;
         if item.1.elapsed()? >= item.0 {

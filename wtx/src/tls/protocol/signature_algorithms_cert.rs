@@ -3,8 +3,10 @@ use crate::{
   collections::ArrayVectorCopy,
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    SignatureScheme, TlsError, de::De, misc::u16_chunk, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    SignatureScheme, TlsError,
+    misc::u16_chunk,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -21,7 +23,7 @@ impl SignatureAlgorithmsCert {
   }
 }
 
-impl<'de> Decode<'de, De> for SignatureAlgorithmsCert {
+impl<'de> Decode<'de, TlsCc> for SignatureAlgorithmsCert {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let mut signature_schemes = ArrayVectorCopy::new();
@@ -35,7 +37,7 @@ impl<'de> Decode<'de, De> for SignatureAlgorithmsCert {
   }
 }
 
-impl Encode<De> for SignatureAlgorithmsCert {
+impl Encode<TlsCc> for SignatureAlgorithmsCert {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(

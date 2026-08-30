@@ -113,7 +113,7 @@ impl ToSocketAddrs for (&str, u16) {
         } else {
           Ok(vec::Vec::from_iter(tokio::net::lookup_host(self).await?).into_iter())
         }
-      },
+      }
       feature = "std" => Ok(<Self as std::net::ToSocketAddrs>::to_socket_addrs(self)?),
       _ => Err(crate::net::NetError::NoResolutionBackend.into()),
     }

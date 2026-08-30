@@ -8,10 +8,10 @@ pub fn fence(order: core::sync::atomic::Ordering) {
   cfg_select! {
     feature = "portable-atomic" => {
       portable_atomic::fence(order);
-    },
+    }
     _ => {
       #[expect(clippy::disallowed_methods, reason = "this is the only placed")]
       core::sync::atomic::fence(order);
-    },
+    }
   }
 }

@@ -1,19 +1,11 @@
 #![expect(
   clippy::allow_attributes_without_reason,
   clippy::arithmetic_side_effects,
-  clippy::as_conversions,
-  clippy::as_pointer_underscore,
   clippy::indexing_slicing,
-  clippy::ptr_as_ptr,
-  clippy::ref_as_ptr,
-  clippy::renamed_function_params,
-  clippy::std_instead_of_core,
   non_camel_case_types,
-  trivial_casts,
   unreachable_pub,
   unsafe_op_in_unsafe_fn,
   unused,
-  unused_results,
   reason = "generated code"
 )]
 
@@ -21,32 +13,36 @@
 
 #[repr(C)]
 #[derive(Default)]
-pub struct __IncompleteArrayField<T>(::std::marker::PhantomData<T>, [T; 0]);
+pub struct __IncompleteArrayField<T>(::core::marker::PhantomData<T>, [T; 0]);
 impl<T> __IncompleteArrayField<T> {
   #[inline]
   pub const fn new() -> Self {
-    __IncompleteArrayField(::std::marker::PhantomData, [])
+    __IncompleteArrayField(::core::marker::PhantomData, [])
   }
   #[inline]
   pub const fn as_ptr(&self) -> *const T {
-    self as *const _ as *const T
+    let ptr_self: *const Self = self;
+    let ptr_ty: *const T = ptr_self.cast();
+    ptr_ty
   }
   #[inline]
   pub const fn as_mut_ptr(&mut self) -> *mut T {
-    self as *mut _ as *mut T
+    let ptr_self: *mut Self = self;
+    let ptr_ty: *mut T = ptr_self.cast();
+    ptr_ty
   }
   #[inline]
   pub const unsafe fn as_slice(&self, len: usize) -> &[T] {
-    ::std::slice::from_raw_parts(self.as_ptr(), len)
+    ::core::slice::from_raw_parts(self.as_ptr(), len)
   }
   #[inline]
   pub const unsafe fn as_mut_slice(&mut self, len: usize) -> &mut [T] {
-    ::std::slice::from_raw_parts_mut(self.as_mut_ptr(), len)
+    ::core::slice::from_raw_parts_mut(self.as_mut_ptr(), len)
   }
 }
-impl<T> ::std::fmt::Debug for __IncompleteArrayField<T> {
-  fn fmt(&self, fmt: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-    fmt.write_str("__IncompleteArrayField")
+impl<T> ::core::fmt::Debug for __IncompleteArrayField<T> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    f.write_str("__IncompleteArrayField")
   }
 }
 pub const __BITS_PER_LONG: u32 = 64;
@@ -130,13 +126,13 @@ pub struct __kernel_fd_set {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of __kernel_fd_set"][::std::mem::size_of::<__kernel_fd_set>() - 128usize];
-  ["Alignment of __kernel_fd_set"][::std::mem::align_of::<__kernel_fd_set>() - 8usize];
-  ["Offset of field: __kernel_fd_set::fds_bits"]
-    [::std::mem::offset_of!(__kernel_fd_set, fds_bits) - 0usize];
+  let _ = ["Size of __kernel_fd_set"][::core::mem::size_of::<__kernel_fd_set>() - 128usize];
+  let _ = ["Alignment of __kernel_fd_set"][::core::mem::align_of::<__kernel_fd_set>() - 8usize];
+  let _ = ["Offset of field: __kernel_fd_set::fds_bits"]
+    [::core::mem::offset_of!(__kernel_fd_set, fds_bits) - 0usize];
 };
 pub type __kernel_sighandler_t =
-  ::std::option::Option<unsafe extern "C" fn(arg1: ::std::os::raw::c_int)>;
+  ::core::option::Option<unsafe extern "C" fn(arg1: ::std::os::raw::c_int)>;
 pub type __kernel_key_t = ::std::os::raw::c_int;
 pub type __kernel_mqd_t = ::std::os::raw::c_int;
 pub type __kernel_old_uid_t = ::std::os::raw::c_ushort;
@@ -164,9 +160,10 @@ pub struct __kernel_fsid_t {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of __kernel_fsid_t"][::std::mem::size_of::<__kernel_fsid_t>() - 8usize];
-  ["Alignment of __kernel_fsid_t"][::std::mem::align_of::<__kernel_fsid_t>() - 4usize];
-  ["Offset of field: __kernel_fsid_t::val"][::std::mem::offset_of!(__kernel_fsid_t, val) - 0usize];
+  let _ = ["Size of __kernel_fsid_t"][::core::mem::size_of::<__kernel_fsid_t>() - 8usize];
+  let _ = ["Alignment of __kernel_fsid_t"][::core::mem::align_of::<__kernel_fsid_t>() - 4usize];
+  let _ = ["Offset of field: __kernel_fsid_t::val"]
+    [::core::mem::offset_of!(__kernel_fsid_t, val) - 0usize];
 };
 pub type __kernel_off_t = __kernel_long_t;
 pub type __kernel_loff_t = ::std::os::raw::c_longlong;
@@ -198,12 +195,12 @@ pub struct tls_crypto_info {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls_crypto_info"][::std::mem::size_of::<tls_crypto_info>() - 4usize];
-  ["Alignment of tls_crypto_info"][::std::mem::align_of::<tls_crypto_info>() - 2usize];
-  ["Offset of field: tls_crypto_info::version"]
-    [::std::mem::offset_of!(tls_crypto_info, version) - 0usize];
-  ["Offset of field: tls_crypto_info::cipher_type"]
-    [::std::mem::offset_of!(tls_crypto_info, cipher_type) - 2usize];
+  let _ = ["Size of tls_crypto_info"][::core::mem::size_of::<tls_crypto_info>() - 4usize];
+  let _ = ["Alignment of tls_crypto_info"][::core::mem::align_of::<tls_crypto_info>() - 2usize];
+  let _ = ["Offset of field: tls_crypto_info::version"]
+    [::core::mem::offset_of!(tls_crypto_info, version) - 0usize];
+  let _ = ["Offset of field: tls_crypto_info::cipher_type"]
+    [::core::mem::offset_of!(tls_crypto_info, cipher_type) - 2usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -216,20 +213,20 @@ pub struct tls12_crypto_info_aes_gcm_128 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_aes_gcm_128"]
-    [::std::mem::size_of::<tls12_crypto_info_aes_gcm_128>() - 40usize];
-  ["Alignment of tls12_crypto_info_aes_gcm_128"]
-    [::std::mem::align_of::<tls12_crypto_info_aes_gcm_128>() - 2usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_128::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_128, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_128::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_128, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_128::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_128, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_128::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_128, salt) - 28usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_128::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_128, rec_seq) - 32usize];
+  let _ = ["Size of tls12_crypto_info_aes_gcm_128"]
+    [::core::mem::size_of::<tls12_crypto_info_aes_gcm_128>() - 40usize];
+  let _ = ["Alignment of tls12_crypto_info_aes_gcm_128"]
+    [::core::mem::align_of::<tls12_crypto_info_aes_gcm_128>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_128::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_128, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_128::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_128, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_128::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_128, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_128::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_128, salt) - 28usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_128::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_128, rec_seq) - 32usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -242,20 +239,20 @@ pub struct tls12_crypto_info_aes_gcm_256 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_aes_gcm_256"]
-    [::std::mem::size_of::<tls12_crypto_info_aes_gcm_256>() - 56usize];
-  ["Alignment of tls12_crypto_info_aes_gcm_256"]
-    [::std::mem::align_of::<tls12_crypto_info_aes_gcm_256>() - 2usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_256::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_256, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_256::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_256, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_256::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_256, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_256::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_256, salt) - 44usize];
-  ["Offset of field: tls12_crypto_info_aes_gcm_256::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_gcm_256, rec_seq) - 48usize];
+  let _ = ["Size of tls12_crypto_info_aes_gcm_256"]
+    [::core::mem::size_of::<tls12_crypto_info_aes_gcm_256>() - 56usize];
+  let _ = ["Alignment of tls12_crypto_info_aes_gcm_256"]
+    [::core::mem::align_of::<tls12_crypto_info_aes_gcm_256>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_256::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_256, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_256::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_256, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_256::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_256, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_256::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_256, salt) - 44usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_gcm_256::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_gcm_256, rec_seq) - 48usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -268,20 +265,20 @@ pub struct tls12_crypto_info_aes_ccm_128 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_aes_ccm_128"]
-    [::std::mem::size_of::<tls12_crypto_info_aes_ccm_128>() - 40usize];
-  ["Alignment of tls12_crypto_info_aes_ccm_128"]
-    [::std::mem::align_of::<tls12_crypto_info_aes_ccm_128>() - 2usize];
-  ["Offset of field: tls12_crypto_info_aes_ccm_128::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_ccm_128, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_aes_ccm_128::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_ccm_128, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_aes_ccm_128::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_ccm_128, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_aes_ccm_128::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_ccm_128, salt) - 28usize];
-  ["Offset of field: tls12_crypto_info_aes_ccm_128::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_aes_ccm_128, rec_seq) - 32usize];
+  let _ = ["Size of tls12_crypto_info_aes_ccm_128"]
+    [::core::mem::size_of::<tls12_crypto_info_aes_ccm_128>() - 40usize];
+  let _ = ["Alignment of tls12_crypto_info_aes_ccm_128"]
+    [::core::mem::align_of::<tls12_crypto_info_aes_ccm_128>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_ccm_128::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_ccm_128, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_ccm_128::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_ccm_128, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_ccm_128::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_ccm_128, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_ccm_128::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_ccm_128, salt) - 28usize];
+  let _ = ["Offset of field: tls12_crypto_info_aes_ccm_128::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_aes_ccm_128, rec_seq) - 32usize];
 };
 #[repr(C)]
 #[derive(Debug)]
@@ -294,20 +291,20 @@ pub struct tls12_crypto_info_chacha20_poly1305 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_chacha20_poly1305"]
-    [::std::mem::size_of::<tls12_crypto_info_chacha20_poly1305>() - 56usize];
-  ["Alignment of tls12_crypto_info_chacha20_poly1305"]
-    [::std::mem::align_of::<tls12_crypto_info_chacha20_poly1305>() - 2usize];
-  ["Offset of field: tls12_crypto_info_chacha20_poly1305::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_chacha20_poly1305::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_chacha20_poly1305::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, key) - 16usize];
-  ["Offset of field: tls12_crypto_info_chacha20_poly1305::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, salt) - 48usize];
-  ["Offset of field: tls12_crypto_info_chacha20_poly1305::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, rec_seq) - 48usize];
+  let _ = ["Size of tls12_crypto_info_chacha20_poly1305"]
+    [::core::mem::size_of::<tls12_crypto_info_chacha20_poly1305>() - 56usize];
+  let _ = ["Alignment of tls12_crypto_info_chacha20_poly1305"]
+    [::core::mem::align_of::<tls12_crypto_info_chacha20_poly1305>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_chacha20_poly1305::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_chacha20_poly1305::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_chacha20_poly1305::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, key) - 16usize];
+  let _ = ["Offset of field: tls12_crypto_info_chacha20_poly1305::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, salt) - 48usize];
+  let _ = ["Offset of field: tls12_crypto_info_chacha20_poly1305::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_chacha20_poly1305, rec_seq) - 48usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -320,20 +317,20 @@ pub struct tls12_crypto_info_sm4_gcm {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_sm4_gcm"]
-    [::std::mem::size_of::<tls12_crypto_info_sm4_gcm>() - 40usize];
-  ["Alignment of tls12_crypto_info_sm4_gcm"]
-    [::std::mem::align_of::<tls12_crypto_info_sm4_gcm>() - 2usize];
-  ["Offset of field: tls12_crypto_info_sm4_gcm::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_gcm, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_sm4_gcm::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_gcm, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_sm4_gcm::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_gcm, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_sm4_gcm::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_gcm, salt) - 28usize];
-  ["Offset of field: tls12_crypto_info_sm4_gcm::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_gcm, rec_seq) - 32usize];
+  let _ = ["Size of tls12_crypto_info_sm4_gcm"]
+    [::core::mem::size_of::<tls12_crypto_info_sm4_gcm>() - 40usize];
+  let _ = ["Alignment of tls12_crypto_info_sm4_gcm"]
+    [::core::mem::align_of::<tls12_crypto_info_sm4_gcm>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_gcm::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_gcm, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_gcm::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_gcm, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_gcm::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_gcm, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_gcm::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_gcm, salt) - 28usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_gcm::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_gcm, rec_seq) - 32usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -346,20 +343,20 @@ pub struct tls12_crypto_info_sm4_ccm {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_sm4_ccm"]
-    [::std::mem::size_of::<tls12_crypto_info_sm4_ccm>() - 40usize];
-  ["Alignment of tls12_crypto_info_sm4_ccm"]
-    [::std::mem::align_of::<tls12_crypto_info_sm4_ccm>() - 2usize];
-  ["Offset of field: tls12_crypto_info_sm4_ccm::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_ccm, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_sm4_ccm::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_ccm, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_sm4_ccm::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_ccm, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_sm4_ccm::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_ccm, salt) - 28usize];
-  ["Offset of field: tls12_crypto_info_sm4_ccm::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_sm4_ccm, rec_seq) - 32usize];
+  let _ = ["Size of tls12_crypto_info_sm4_ccm"]
+    [::core::mem::size_of::<tls12_crypto_info_sm4_ccm>() - 40usize];
+  let _ = ["Alignment of tls12_crypto_info_sm4_ccm"]
+    [::core::mem::align_of::<tls12_crypto_info_sm4_ccm>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_ccm::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_ccm, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_ccm::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_ccm, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_ccm::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_ccm, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_ccm::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_ccm, salt) - 28usize];
+  let _ = ["Offset of field: tls12_crypto_info_sm4_ccm::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_sm4_ccm, rec_seq) - 32usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -372,20 +369,20 @@ pub struct tls12_crypto_info_aria_gcm_128 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_aria_gcm_128"]
-    [::std::mem::size_of::<tls12_crypto_info_aria_gcm_128>() - 40usize];
-  ["Alignment of tls12_crypto_info_aria_gcm_128"]
-    [::std::mem::align_of::<tls12_crypto_info_aria_gcm_128>() - 2usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_128::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_128, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_128::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_128, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_128::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_128, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_128::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_128, salt) - 28usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_128::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_128, rec_seq) - 32usize];
+  let _ = ["Size of tls12_crypto_info_aria_gcm_128"]
+    [::core::mem::size_of::<tls12_crypto_info_aria_gcm_128>() - 40usize];
+  let _ = ["Alignment of tls12_crypto_info_aria_gcm_128"]
+    [::core::mem::align_of::<tls12_crypto_info_aria_gcm_128>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_128::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_128, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_128::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_128, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_128::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_128, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_128::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_128, salt) - 28usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_128::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_128, rec_seq) - 32usize];
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -398,20 +395,20 @@ pub struct tls12_crypto_info_aria_gcm_256 {
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-  ["Size of tls12_crypto_info_aria_gcm_256"]
-    [::std::mem::size_of::<tls12_crypto_info_aria_gcm_256>() - 56usize];
-  ["Alignment of tls12_crypto_info_aria_gcm_256"]
-    [::std::mem::align_of::<tls12_crypto_info_aria_gcm_256>() - 2usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_256::info"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_256, info) - 0usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_256::iv"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_256, iv) - 4usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_256::key"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_256, key) - 12usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_256::salt"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_256, salt) - 44usize];
-  ["Offset of field: tls12_crypto_info_aria_gcm_256::rec_seq"]
-    [::std::mem::offset_of!(tls12_crypto_info_aria_gcm_256, rec_seq) - 48usize];
+  let _ = ["Size of tls12_crypto_info_aria_gcm_256"]
+    [::core::mem::size_of::<tls12_crypto_info_aria_gcm_256>() - 56usize];
+  let _ = ["Alignment of tls12_crypto_info_aria_gcm_256"]
+    [::core::mem::align_of::<tls12_crypto_info_aria_gcm_256>() - 2usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_256::info"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_256, info) - 0usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_256::iv"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_256, iv) - 4usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_256::key"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_256, key) - 12usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_256::salt"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_256, salt) - 44usize];
+  let _ = ["Offset of field: tls12_crypto_info_aria_gcm_256::rec_seq"]
+    [::core::mem::offset_of!(tls12_crypto_info_aria_gcm_256, rec_seq) - 48usize];
 };
 pub const TLS_INFO_UNSPEC: _bindgen_ty_1 = 0;
 pub const TLS_INFO_VERSION: _bindgen_ty_1 = 1;

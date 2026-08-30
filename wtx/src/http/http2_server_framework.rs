@@ -9,11 +9,13 @@ mod cors_middleware;
 mod dyn_params;
 mod endpoint;
 mod endpoint_node;
+mod form_data;
 mod http2_server_framework_error;
 mod http_router;
 mod json_reply;
 mod methods;
 mod middleware;
+mod misc;
 mod path;
 mod path_params;
 mod redirect;
@@ -42,6 +44,7 @@ pub use cors_middleware::{CorsMiddleware, OriginResponse};
 pub use dyn_params::DynParams;
 pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
+pub use form_data::*;
 pub use http_router::HttpRouter;
 pub use http2_server_framework_error::Http2ServerFrameworkError;
 pub use json_reply::*;
@@ -610,7 +613,7 @@ where
 fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
   let _method = _req.method.strings().custom[0];
   let _path = _req.msg_data.uri.path();
-  _trace!(target: crate::_WTX_HTTP, r#"{_peer} "{_method} {_path}""#,);
+  _trace!(r#"{_peer} "{_method} {_path}""#,);
 }
 
 #[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]

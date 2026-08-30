@@ -15,26 +15,6 @@ pub trait DbClient {
   /// Sometimes the backend can discontinue the connection.
   fn connection_state(&self) -> ConnectionState;
 
-  /// Execute - Ignored
-  ///
-  /// A version of [`DbClient::execute_many`] where returned values are ignored. This
-  /// is the most performant variation.
-  #[inline]
-  fn execute_ignored(
-    &mut self,
-    cmd: &str,
-  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>> {
-    // FIXME(STABLE): For some reason this method makes `http2-server-framework-session` !Send.
-    const fn nothing() -> &'static mut () {
-      static mut NOTHING: &mut () = &mut ();
-      // SAFETY: Does nothing, pointer means nothing and is not actually used or referenced. See
-      // `TryExtend::IS_UNIT`
-      unsafe { NOTHING }
-    }
-
-    self.execute_many(nothing(), cmd, |_| Ok(()))
-  }
-
   /// Execute - Many
   ///
   /// Allows the evaluation of severals commands separated by semicolons but nothing is cached
@@ -56,6 +36,67 @@ pub trait DbClient {
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>;
+
+  /// Execute Statement - Many
+  ///
+  /// Executes a **single** statement automatically binding the values of `rv`. Expects and
+  /// returns an arbitrary number of records.
+  ///
+  /// `cb` returns the most recent record and can be used in case you don't need to wait for the
+  /// full set of records potentially reducing some branches, in other words, an optional
+  /// optimization.
+  fn execute_stmt_many<SC, RV>(
+    &mut self,
+    sc: SC,
+    rv: RV,
+    cb: impl FnMut(
+      <Self::Database as Database>::Record<'_>,
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> impl Future<
+    Output = Result<
+      <Self::Database as Database>::Records<'_>,
+      <Self::Database as CodecController>::Error,
+    >,
+  >
+  where
+    RV: RecordValues<Self::Database>,
+    SC: StmtCmd;
+
+  /// Pings the server to signal an active connection
+  fn ping(
+    &mut self,
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
+
+  /// Caches the passed command to create a statement, which speeds up subsequent calls that match
+  /// the same `cmd`.
+  ///
+  /// The returned integer is an identifier of the added statement.
+  fn prepare(
+    &mut self,
+    cmd: &str,
+  ) -> impl Future<Output = Result<u64, <Self::Database as CodecController>::Error>>;
+
+  // PROVIDED
+
+  /// Execute - Ignored
+  ///
+  /// A version of [`DbClient::execute_many`] where returned values are ignored. This
+  /// is the most performant variation.
+  #[inline]
+  fn execute_ignored(
+    &mut self,
+    cmd: &str,
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>> {
+    // FIXME(STABLE): For some reason this method makes `http2-server-framework-session` !Send.
+    const fn nothing() -> &'static mut () {
+      static mut NOTHING: &mut () = &mut ();
+      // SAFETY: Does nothing, pointer means nothing and is not actually used or referenced. See
+      // `TryExtend::IS_UNIT`
+      unsafe { NOTHING }
+    }
+
+    self.execute_many(nothing(), cmd, |_| Ok(()))
+  }
 
   /// Execute - None
   ///
@@ -147,31 +188,6 @@ pub trait DbClient {
     }
   }
 
-  /// Execute Statement - Many
-  ///
-  /// Executes a **single** statement automatically binding the values of `rv`. Expects and
-  /// returns an arbitrary number of records.
-  ///
-  /// `cb` returns the most recent record and can be used in case you don't need to wait for the
-  /// full set of records potentially reducing some branches, in other words, an optional
-  /// optimization.
-  fn execute_stmt_many<SC, RV>(
-    &mut self,
-    sc: SC,
-    rv: RV,
-    cb: impl FnMut(
-      <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as CodecController>::Error>,
-  ) -> impl Future<
-    Output = Result<
-      <Self::Database as Database>::Records<'_>,
-      <Self::Database as CodecController>::Error,
-    >,
-  >
-  where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd;
-
   /// Execute Statement - None
   ///
   /// A version of [`DbClient::execute_stmt_many`] where no records are expected.
@@ -248,20 +264,6 @@ pub trait DbClient {
       Ok(record)
     }
   }
-
-  /// Pings the server to signal an active connection
-  fn ping(
-    &mut self,
-  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
-
-  /// Caches the passed command to create a statement, which speeds up subsequent calls that match
-  /// the same `cmd`.
-  ///
-  /// The returned integer is an identifier of the added statement.
-  fn prepare(
-    &mut self,
-    cmd: &str,
-  ) -> impl Future<Output = Result<u64, <Self::Database as CodecController>::Error>>;
 
   /// Makes internal calls to "BEGIN" and "COMMIT".
   #[inline]

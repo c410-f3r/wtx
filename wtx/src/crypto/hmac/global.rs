@@ -5,7 +5,7 @@ type HmacSha256Ty = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::HmacSha256Graviola,
   feature = "crypto-alr" => crate::crypto::HmacSha256Alr,
   feature = "crypto-ruco" => crate::crypto::HmacSha256Ruco,
-  _ => crate::crypto::HmacDummy::<[u8; 32]>
+  _ => crate::crypto::HmacDummy::<[u8; 32]>,
 };
 
 type HmacSha384Ty = cfg_select! {
@@ -13,7 +13,7 @@ type HmacSha384Ty = cfg_select! {
   feature = "crypto-graviola" => crate::crypto::HmacSha384Graviola,
   feature = "crypto-alr" => crate::crypto::HmacSha384Alr,
   feature = "crypto-ruco" => crate::crypto::HmacSha384Ruco,
-  _ => crate::crypto::HmacDummy::<[u8; 48]>
+  _ => crate::crypto::HmacDummy::<[u8; 48]>,
 };
 
 /// A structure that delegates HMAC-SHA-256 execution to the selected crypto backend.

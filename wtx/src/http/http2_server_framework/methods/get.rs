@@ -3,7 +3,7 @@ use crate::{
   futures::FnFut,
   http::{
     AutoStream, ManualStream, Method, OperationMode, StatusCode,
-    http2_server_framework::{Endpoint, EndpointNode, RouteMatch, methods::check_method},
+    http2_server_framework::{Endpoint, EndpointNode, RouteMatch, misc::check_method},
   },
 };
 

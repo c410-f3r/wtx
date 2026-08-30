@@ -250,6 +250,8 @@ pub enum Error {
   UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
+  /// Wrapper serialization should be called only once.
+  WrapperSerializationDoesNotExpectConcurrentAccess,
 
   // Internal
   //

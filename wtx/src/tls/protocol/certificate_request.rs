@@ -6,13 +6,12 @@ use crate::{
   misc::counter_writer::{CounterWriterBytesTy, u8_write, u16_write},
   tls::{
     AlertDescription, TlsError,
-    de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, signature_algorithms::SignatureAlgorithms,
     },
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -22,7 +21,7 @@ pub(crate) struct CertificateRequest {
   pub(crate) signature_algorithms: SignatureAlgorithms,
 }
 
-impl<'de> Decode<'de, De> for CertificateRequest {
+impl<'de> Decode<'de, TlsCc> for CertificateRequest {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidCertificateRequest;
@@ -50,7 +49,7 @@ impl<'de> Decode<'de, De> for CertificateRequest {
   }
 }
 
-impl Encode<De> for CertificateRequest {
+impl Encode<TlsCc> for CertificateRequest {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {

@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVector, LinearStorageLen, Vector},
+  collections::{ArrayVector, LinearStorageLen, ShortBoxSlice, Vector},
   sync::Arc,
 };
 use alloc::{rc::Rc, vec::Vec};
@@ -66,6 +66,13 @@ impl<T> SingleTypeStorage for Vector<T> {
 }
 
 impl<L, T, const N: usize> SingleTypeStorage for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+{
+  type Item = T;
+}
+
+impl<L, T> SingleTypeStorage for ShortBoxSlice<L, T>
 where
   L: LinearStorageLen,
 {

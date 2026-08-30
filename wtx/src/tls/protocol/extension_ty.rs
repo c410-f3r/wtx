@@ -3,8 +3,9 @@
 use crate::{
   codec::{Decode, Encode},
   tls::{
-    AlertDescription, TlsError, de::De, tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    AlertDescription, TlsError,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -102,17 +103,17 @@ impl TryFrom<u16> for ExtensionTy {
   }
 }
 
-impl<'de> Decode<'de, De> for ExtensionTy {
+impl<'de> Decode<'de, TlsCc> for ExtensionTy {
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
-    let tag: u16 = Decode::<'_, De>::decode(dw)?;
+    let tag: u16 = Decode::<'_, TlsCc>::decode(dw)?;
     Self::try_from(tag)
   }
 }
 
-impl Encode<De> for ExtensionTy {
+impl Encode<TlsCc> for ExtensionTy {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    <u16 as Encode<De>>::encode(&u16::from(*self), ew)
+    <u16 as Encode<TlsCc>>::encode(&u16::from(*self), ew)
   }
 }

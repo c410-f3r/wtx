@@ -7,11 +7,10 @@ use crate::{
   },
   tls::{
     AlertDescription, TlsError,
-    de::De,
     misc::{decode_extension_ty, u8_chunk, u16_chunk},
     protocol::extension_ty::ExtensionTy,
-    tls_decode_wrapper::TlsDecodeWrapper,
-    tls_encode_wrapper::TlsEncodeWrapper,
+    tls_cc::TlsCc,
+    tls_cc_wrappers::{TlsDecodeWrapper, TlsEncodeWrapper},
   },
 };
 
@@ -50,7 +49,7 @@ impl<B> NewSessionTicket<B> {
   }
 }
 
-impl<'de, B> Decode<'de, De> for NewSessionTicket<B>
+impl<'de, B> Decode<'de, TlsCc> for NewSessionTicket<B>
 where
   B: Lease<[u8]> + TryFrom<&'de [u8]>,
   B::Error: Into<crate::Error>,
@@ -58,10 +57,10 @@ where
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     let err = TlsError::InvalidNewSessionTicket;
-    let ticket_lifetime: u32 = Decode::<'_, De>::decode(dw)?;
-    let ticket_age_add: u32 = Decode::<'_, De>::decode(dw)?;
+    let ticket_lifetime: u32 = Decode::<'_, TlsCc>::decode(dw)?;
+    let ticket_age_add: u32 = Decode::<'_, TlsCc>::decode(dw)?;
     let ticket_nonce = u8_chunk(dw, err, |el| Ok(el.bytes()))?.try_into()?;
-    let len: u16 = Decode::<'_, De>::decode(dw)?;
+    let len: u16 = Decode::<'_, TlsCc>::decode(dw)?;
     let Some((opaque, rest)) = dw.bytes().split_at_checked(len.into()) else {
       return Err(TlsError::InvalidServerName.into());
     };
@@ -85,14 +84,14 @@ where
   }
 }
 
-impl<B> Encode<De> for NewSessionTicket<B>
+impl<B> Encode<TlsCc> for NewSessionTicket<B>
 where
   B: Lease<[u8]>,
 {
   #[inline]
   fn encode(&self, ew: &mut TlsEncodeWrapper<'_>) -> crate::Result<()> {
-    <u32 as Encode<De>>::encode(&self.ticket_lifetime, ew)?;
-    <u32 as Encode<De>>::encode(&self.ticket_age_add, ew)?;
+    <u32 as Encode<TlsCc>>::encode(&self.ticket_lifetime, ew)?;
+    <u32 as Encode<TlsCc>>::encode(&self.ticket_age_add, ew)?;
     u8_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       local_ew.buffer().extend_from_copyable_slice(self.ticket_nonce.lease())?;
       crate::Result::Ok(())
