@@ -69,6 +69,13 @@ impl<const N: usize> FixedString<N> {
     unsafe { str::from_utf8_unchecked(&self.0) }
   }
 
+  /// The inner bytes reinterpreted as a mutable string
+  #[inline]
+  pub const fn as_str_mut(&mut self) -> &mut str {
+    // SAFETY: All constructors verify if the provided bytes are UTF-8
+    unsafe { str::from_utf8_unchecked_mut(&mut self.0) }
+  }
+
   /// Returns the inner array
   #[inline]
   pub const fn into_inner(self) -> [u8; N] {

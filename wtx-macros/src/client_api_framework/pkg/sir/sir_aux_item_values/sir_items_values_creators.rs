@@ -102,7 +102,13 @@ impl SirAuxItemValues {
   pub(super) fn create_builder_struct(bcv: BuilderCommonValues<'_>) -> TokenStream {
     let (lts, tys) = Self::builder_params(bcv);
     let where_predicates = Self::builder_where_predicates(bcv);
-    let FirAuxItemValues { faiv_ty, .. } = *bcv.fauxiv;
+    let FirAuxItemValues {
+      faiv_ty,
+      faiv_user_data_method: _,
+      faiv_user_params_method: _,
+      faiv_params: _,
+      faiv_where_predicates: _,
+    } = *bcv.fauxiv;
     let data_ty = bcv.freqdiv.map(|el| &el.freqdiv_ty).into_iter();
     let params_ty = bcv.fparamsiv.map(|el| &el.fpiv_ty).into_iter();
     let ident = bcv.ident;
@@ -193,7 +199,7 @@ impl SirAuxItemValues {
     let CreateMethodReturningBuilderParams {
       bev:
         BuilderExtendedValues {
-          bcv: BuilderCommonValues { ident: builder_ident, .. },
+          bcv: BuilderCommonValues { ident: builder_ident, fauxiv: _, fparamsiv: _, freqdiv: _ },
           data_field_constr: builder_data_field_constr,
           fn_stmts: builder_fn_stmts,
           params_field_constr: builder_params_field_constr,

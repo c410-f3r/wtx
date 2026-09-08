@@ -29,21 +29,14 @@ where
   /// ```ignore
   /// use wtx::{
   ///   collection::Vector,
-  ///   misc::{EnvVars, Secret},
+  ///   misc::{EnvVars, SecretStr},
   ///   rng::{ChaCha20, CryptoSeedableRng},
   /// };
   ///
   /// #[derive(wtx::FromVars)]
   /// struct Vars {
-  ///   #[from_vars(map_secret)]
-  ///   database_uri: Secret,
+  ///   database_uri: SecretStr,
   ///   root_ca: String,
-  /// }
-  ///
-  /// fn map_secret(var: String) -> wtx::Result<Secret> {
-  ///   let mut rng = ChaCha20::from_std_random()?;
-  ///   let secret_context = SecretContext::new(&mut rng)?;
-  ///   Ok(Secret::new(&mut var.into_bytes(), &mut rng, secret_context)?)
   /// }
   ///
   /// async fn fetch_database_uri() -> String {

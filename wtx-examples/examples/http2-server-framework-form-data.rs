@@ -11,8 +11,8 @@ use wtx::{
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let rng = ChaCha20::from_std_random()?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router =
     HttpRouter::new(wtx::paths!(("/form_data", post(form_data))), CorsMiddleware::permissive())?;
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
@@ -21,7 +21,7 @@ fn main() -> wtx::Result<()> {
 }
 
 async fn form_data(
-  State { req, .. }: State<'_, ()>,
+  State { req, data: _ }: State<'_, ()>,
   FormData(delimiter): FormData,
 ) -> wtx::Result<()> {
   for block_rslt in FormDataIter::new(&req.msg_data.body, &delimiter)? {

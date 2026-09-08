@@ -149,7 +149,7 @@ where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
     _trace!("Executing `{cmd}`");
-    let ClientBuffer { common, .. } = &mut self.cb;
+    let ClientBuffer { common, conn_params: _ } = &mut self.cb;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
     Self::simple_query_execute(
@@ -180,7 +180,7 @@ where
   {
     _trace!("Executing `{:?}`", sc.cmd());
     let Self { cb: client_buffer, cs, phantom: _, stream } = self;
-    let ClientBuffer { common, .. } = client_buffer;
+    let ClientBuffer { common, conn_params: _ } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
     let tuple =
@@ -233,7 +233,7 @@ where
   #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
     let Self { cb, cs, phantom: _, stream } = self;
-    let ClientBuffer { common, .. } = cb;
+    let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
     Ok(Self::write_send_await_stmt_prepare(cs, read_buffer, &(), cmd, stmts, stream).await?.0)

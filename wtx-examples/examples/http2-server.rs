@@ -22,7 +22,7 @@ async fn main() -> wtx::Result<()> {
   let (stream, _) = listener.accept().await?;
   let mut rng = ChaCha20::from_std_random()?;
   let hb = Http2Buffer::new(&mut rng);
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let tls_stream = TlsAcceptor::new(tls_config, rng, stream).accept().await?.tls_stream;
   let hrp = HttpRecvParams::with_optioned_params();
   let (frame_reader, http2) = Http2::accept(hb, hrp, tls_stream.into_split()?).await?;

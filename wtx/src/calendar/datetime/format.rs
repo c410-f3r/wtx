@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, DateTime, TimeZone,
+    CalendarError, CalendarToken, Datetime, TimeZone,
     format::{
       parsed_data::ParsedData,
       push::{push_four_digits_year, push_two_spaces_day},
@@ -11,7 +11,7 @@ use crate::{
   collections::{ArrayString, ArrayStringU8},
 };
 
-impl<TZ> DateTime<TZ>
+impl<TZ> Datetime<TZ>
 where
   TZ: TimeZone,
 {
@@ -23,8 +23,8 @@ where
     bytes: &[u8],
     tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<Self> {
-    let ParsedData::DateTime(elem) = ParsedData::new(bytes, tokens)? else {
-      return Err(CalendarError::InvalidParsingDateTime.into());
+    let ParsedData::Datetime(elem) = ParsedData::new(bytes, tokens)? else {
+      return Err(CalendarError::InvalidParsingDatetime.into());
     };
     Ok(elem)
   }
@@ -114,7 +114,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::calendar::{DateTime, DynTz, Local, Utc, format::parse_bytes_into_tokens};
+  use crate::calendar::{Datetime, DynTz, Local, Utc, format::parse_bytes_into_tokens};
 
   static _0_DATA: &[u8] = b"Mon, 12 May 2025 14:30:00 GMT";
   static _0_FMT: &[u8] = b"%a, %d %b %Y %H:%M:%S GMT";
@@ -147,7 +147,7 @@ mod tests {
   fn _0() {
     let _0_tokens = parse_bytes_into_tokens(_0_FMT).unwrap();
     assert_eq!(
-      DateTime::<Utc>::parse(_0_DATA, _0_tokens.clone())
+      Datetime::<Utc>::parse(_0_DATA, _0_tokens.clone())
         .unwrap()
         .to_string::<38>(_0_tokens)
         .unwrap()
@@ -161,7 +161,7 @@ mod tests {
   fn _1() {
     let _1_tokens = parse_bytes_into_tokens(_1_FMT).unwrap();
     assert_eq!(
-      DateTime::<Utc>::parse(_1_DATA, _1_tokens.clone())
+      Datetime::<Utc>::parse(_1_DATA, _1_tokens.clone())
         .unwrap()
         .to_string::<38>(_1_tokens)
         .unwrap()
@@ -175,7 +175,7 @@ mod tests {
   fn _2() {
     let _2_tokens = parse_bytes_into_tokens(_2_FMT).unwrap();
     assert_eq!(
-      DateTime::<Utc>::parse(_2_DATA, _2_tokens.clone())
+      Datetime::<Utc>::parse(_2_DATA, _2_tokens.clone())
         .unwrap()
         .to_string::<38>(_2_tokens)
         .unwrap()
@@ -189,7 +189,7 @@ mod tests {
   fn _3() {
     let _3_tokens = parse_bytes_into_tokens(_3_FMT).unwrap();
     assert_eq!(
-      DateTime::<Utc>::parse(_3_DATA, _3_tokens.clone())
+      Datetime::<Utc>::parse(_3_DATA, _3_tokens.clone())
         .unwrap()
         .to_string::<38>(_3_tokens)
         .unwrap()
@@ -203,7 +203,7 @@ mod tests {
   fn _4() {
     let _4_tokens = parse_bytes_into_tokens(_4_FMT).unwrap();
     assert_eq!(
-      DateTime::<Utc>::parse(_4_DATA, _4_tokens.clone())
+      Datetime::<Utc>::parse(_4_DATA, _4_tokens.clone())
         .unwrap()
         .to_string::<38>(_4_tokens)
         .unwrap()
@@ -217,7 +217,7 @@ mod tests {
   fn _5() {
     let _5_tokens = parse_bytes_into_tokens(_5_FMT).unwrap();
     assert_eq!(
-      DateTime::<Local>::parse(_5_DATA0, _5_tokens.clone())
+      Datetime::<Local>::parse(_5_DATA0, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -226,7 +226,7 @@ mod tests {
       _5_DATA0
     );
     assert_eq!(
-      DateTime::<Utc>::parse(_5_DATA1, _5_tokens.clone())
+      Datetime::<Utc>::parse(_5_DATA1, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -235,7 +235,7 @@ mod tests {
       _5_DATA1
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA2, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA2, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -244,7 +244,7 @@ mod tests {
       _5_DATA4
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA3, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA3, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -253,7 +253,7 @@ mod tests {
       _5_DATA4
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA4, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA4, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -262,7 +262,7 @@ mod tests {
       _5_DATA4
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA5, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA5, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -271,7 +271,7 @@ mod tests {
       _5_DATA5
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA6, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA6, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -280,7 +280,7 @@ mod tests {
       _5_DATA8
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA7, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA7, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -289,7 +289,7 @@ mod tests {
       _5_DATA8
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA8, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA8, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens.clone())
         .unwrap()
@@ -298,7 +298,7 @@ mod tests {
       _5_DATA8
     );
     assert_eq!(
-      DateTime::<DynTz>::parse(_5_DATA9, _5_tokens.clone())
+      Datetime::<DynTz>::parse(_5_DATA9, _5_tokens.clone())
         .unwrap()
         .to_string::<38>(_5_tokens)
         .unwrap()

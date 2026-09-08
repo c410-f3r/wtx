@@ -11,12 +11,15 @@ use rust_decimal::Decimal;
 /// * `1₁₀  = 10²%    = 10⁴bps = 10⁶ppm`
 /// * `1ppm = 10⁻²bps = 10⁻⁴%  = 10⁻⁶₁₀`
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Ppm {
   value: i32,
 }
 
 impl Ppm {
+  /// `0.5₁₀` | `50%` | `5_000bps` | `500_000ppm`
+  pub const HALF_MILLION: Self = Self { value: 500_000 };
   /// `+2_147.483647₁₀` | `+214_748.3647%` | `+21_474_836.47bps` | `+2_147_483_647ppm`
   pub const MAX: Self = Self { value: 2_147_483_647 };
   /// `-2_147.483647₁₀` | `-214_748.3647%` | `-21_474_836.47bps` | `-2_147_483_647ppm`
@@ -55,6 +58,17 @@ impl Ppm {
   #[inline]
   pub const fn from_decimal_u8(from: u8) -> Self {
     Self { value: u8i32(from).wrapping_mul(1_000_000) }
+  }
+
+  /// Lossy conversion from a `f64` percentage
+  ///
+  /// From `-327.68₁₀` | `-32_768%` | `-3_276_800bps` | `-327_680_000ppm`
+  /// To   `+327.67₁₀` | `+32_767%` | `+3_276_700bps` | `+327_670_000ppm`
+  #[expect(clippy::as_conversions, clippy::cast_possible_truncation, reason = "purposefully lossy")]
+  #[inline]
+  pub const fn from_pct_f64(value: f64) -> crate::Result<Self> {
+    let ppm = value * 10_000.0;
+    Ok(Self { value: ppm as i32 })
   }
 
   /// From `-327.68₁₀` | `-32_768%` | `-3_276_800bps` | `-327_680_000ppm`

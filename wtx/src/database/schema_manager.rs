@@ -37,9 +37,9 @@ pub const DEFAULT_BATCH_SIZE: usize = 128;
 pub const DEFAULT_CFG_FILE_NAME: &str = "wtx.toml";
 /// Schema API version
 pub const VERSION: u32 = 1;
-pub(crate) const _WTX: &str = "wtx";
-pub(crate) const _WTX_PREFIX: &str = "_wtx";
-pub(crate) const _WTX_SCHEMA: &str = "_wtx.";
+
+#[cfg(feature = "postgres")]
+pub(crate) const WTX_SCHEMA: &str = "_wtx.";
 
 /// Useful in constant environments where the type must be explicitly declared.
 ///
@@ -267,7 +267,7 @@ mod postgres {
       DatabaseTy, DbClient as _, Identifier,
       client::postgres::PostgresClient,
       schema_manager::{
-        _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
+        DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup, WTX_SCHEMA,
         fixed_sql_commands::{
           common::{delete_migrations, insert_migrations, migrations_by_mg_uid_query},
           postgres::{CREATE_MIGRATION_TABLES, all_elements, clear, table_names},
@@ -328,7 +328,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, uid).await
+      delete_migrations(buffer_cmd, self, mg, WTX_SCHEMA, uid).await
     }
 
     #[inline]
@@ -343,7 +343,7 @@ mod postgres {
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
       S: Lease<str> + 'migration,
     {
-      insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA).await
+      insert_migrations(buffer_cmd, self, mg, migrations, WTX_SCHEMA).await
     }
 
     #[inline]
@@ -356,7 +356,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, _WTX_SCHEMA).await
+      migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, WTX_SCHEMA).await
     }
 
     #[inline]

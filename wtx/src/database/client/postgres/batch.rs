@@ -36,9 +36,9 @@ where
   TCX: TlsCtx,
 {
   pub(crate) fn new(client: &'exec mut PostgresClient<E, S, TCX>) -> Self {
-    let PostgresClient { cb, .. } = client;
-    let ClientBuffer { common, .. } = cb;
-    let CommonClientBuffer { read_buffer, records_params, values_params, .. } = common;
+    let PostgresClient { cb, cs: _, phantom: _, stream: _ } = client;
+    let ClientBuffer { common, conn_params: _ } = cb;
+    let CommonClientBuffer { read_buffer, records_params, values_params, stmts: _ } = common;
     clear_query_buffers(records_params, values_params);
     let initial_len = read_buffer.buffer_mut().len();
     *read_buffer.forbid_clear_mut() = true;
@@ -57,7 +57,7 @@ where
     B: TryExtend<[<Postgres<E> as Database>::Records<'this>; 1]>,
   {
     let PostgresClient { cb: client_buffer, cs, phantom: _, stream } = self.client;
-    let ClientBuffer { common, .. } = client_buffer;
+    let ClientBuffer { common, conn_params: _ } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     {
       let sw = read_buffer.buffer_mut();
@@ -153,9 +153,9 @@ where
     RV: RecordValues<Postgres<E>>,
     SC: StmtCmd,
   {
-    let PostgresClient { cb, .. } = self.client;
-    let ClientBuffer { common, .. } = cb;
-    let CommonClientBuffer { read_buffer, stmts, .. } = common;
+    let PostgresClient { cb, cs: _, phantom: _, stream: _ } = self.client;
+    let ClientBuffer { common, conn_params: _ } = cb;
+    let CommonClientBuffer { read_buffer, stmts, records_params: _, values_params: _ } = common;
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
     let stmt_cmd_id_array = u64_string(stmt_cmd_id);
     let is_already_known_externally = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some();

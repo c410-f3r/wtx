@@ -1,7 +1,7 @@
 // https://datatracker.ietf.org/doc/html/rfc9846#section-4.1.2
 
 use crate::{
-  calendar::DateTime,
+  calendar::Datetime,
   codec::{Decode, Encode},
   collections::{ArrayVectorCopy, ArrayVectorU8, ShortBoxSliceU8, SingleTypeStorage},
   misc::{
@@ -145,7 +145,7 @@ impl<'de> Decode<'de, TlsCc>
         alpn: extensions.alpn,
         cipher_suites,
         ctx: (),
-        cv_policy: CvPolicy::new(DateTime::default()),
+        cv_policy: CvPolicy::new(Datetime::default()),
         max_fragment_length: extensions.max_fragment_length,
         max_fragment_length_send: None,
         supported_groups,

@@ -56,9 +56,30 @@ impl SirAuxItemValues {
     impl_values: BuilderCommonValues<'_>,
   ) {
     let mut do_push = |aux_call: &TokenStream, fn_ident: &Ident, wrapper_ident: &Ident| {
-      let FirParamsItemValues { fpiv_params, .. } = *fparamsiv;
-      let FirReqItemValues { freqdiv_ident, freqdiv_params, .. } = *freqdiv;
-      let FirRespItemValues { fresdiv_params, fresdiv_where_predicates, .. } = *frespdiv;
+      let FirParamsItemValues {
+        fpiv_params,
+        fpiv_fields_attrs: _,
+        fpiv_ident: _,
+        fpiv_item: _,
+        fpiv_ty: _,
+        fpiv_where_predicates: _,
+      } = *fparamsiv;
+      let FirReqItemValues {
+        freqdiv_ident,
+        freqdiv_params,
+        freqdiv_fields_attrs: _,
+        freqdiv_item: _,
+        freqdiv_ty: _,
+        freqdiv_where_predicates: _,
+      } = *freqdiv;
+      let FirRespItemValues {
+        fresdiv_params,
+        fresdiv_where_predicates,
+        fresdiv_fields_attrs: _,
+        fresdiv_ident: _,
+        fresdiv_item: _,
+        fresdiv_ty: _,
+      } = *frespdiv;
       let fpiv_params_iter = fpiv_params.iter();
       let fresdiv_params_iter0 = fresdiv_non_lf_params(fresdiv_params);
       let fresdiv_params_iter1 = fresdiv_non_lf_params(fresdiv_params);
@@ -146,8 +167,13 @@ impl SirAuxItemValues {
       fn_name_ident: pkgs_aux_fn_name_ident,
       fn_this: &quote::quote!(&'aux mut self),
     });
-    let FirAuxItemValues { faiv_params, faiv_ty, faiv_where_predicates, .. } =
-      *ret_values.bcv.fauxiv;
+    let FirAuxItemValues {
+      faiv_params,
+      faiv_ty,
+      faiv_where_predicates,
+      faiv_user_data_method: _,
+      faiv_user_params_method: _,
+    } = *ret_values.bcv.fauxiv;
     saiv_tts.push(quote::quote!(
       impl<#faiv_params> #faiv_ty
       where

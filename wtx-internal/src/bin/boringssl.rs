@@ -200,7 +200,7 @@ async fn exec_tests<TCX, const IS_CLIENT: bool>(
       };
       fut.await
     };
-    wtx::futures::Sleep::new(Duration::from_millis(50)).unwrap().await.unwrap();
+    wtx::futures::Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
     boringssl_handle_err::handle_err(&options, rslt);
   }
 }
@@ -296,11 +296,9 @@ where
 }
 
 fn make_server_cfg(options: &Options) -> TlsConfig<SkCtx> {
-  let mut rng = ChaCha20::from_std_random().unwrap();
-  let mut cfg = TlsConfig::new(
-    SkCtx::from_pems(options.keys_pem.iter().map(|elem| elem.as_bytes()), &mut rng).unwrap(),
-  )
-  .unwrap();
+  let mut cfg =
+    TlsConfig::new(SkCtx::from_pems(options.keys_pem.iter().map(|elem| elem.as_bytes())).unwrap())
+      .unwrap();
   cfg.set_public_keys_pem(options.certs_pem.iter().map(|el| el.as_bytes())).unwrap();
   *cfg.max_fragment_length_send_mut() = options.max_fragment;
   if options.select_empty_alpn {

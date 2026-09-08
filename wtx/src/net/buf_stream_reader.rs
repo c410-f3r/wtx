@@ -147,7 +147,8 @@ impl BufStreamReader {
     SR: StreamReader,
   {
     self.manage_capacity(LEN)?;
-    let Self { antecedent_end_idx, buffer, current_end_idx, .. } = self;
+    let Self { antecedent_end_idx, buffer, current_end_idx, capacity_ub: _, forbid_clear: _ } =
+      self;
     let read_fut = async move {
       let local_current_end_idx = *current_end_idx;
       loop {

@@ -2,27 +2,19 @@
 
 extern crate wtx;
 
-use crate::wtx::rng::CryptoSeedableRng;
 use std::{env, sync::OnceLock};
-use wtx::{
-  collections::Vector,
-  misc::{Secret, SecretContext},
-  rng::ChaCha20,
-};
+use wtx::secret::{Secret, SecretStr};
 
-static SECRET: OnceLock<Secret> = OnceLock::new();
+static SECRET: OnceLock<SecretStr> = OnceLock::new();
 
 fn main() -> wtx::Result<()> {
-  let data = env::args()
+  let mut data = env::args()
     .nth(1)
     .ok_or_else(|| wtx::Error::GenericStatic("No data".try_into().unwrap_or_default()))?;
-  let mut rng = ChaCha20::from_std_random()?;
-  let secret_context = SecretContext::new(&mut rng)?;
-  let secret = Secret::new(data.into_bytes().as_mut(), &mut rng, secret_context)?;
+  let secret = Secret::new(data.as_mut_str())?;
   let _rslt = SECRET.set(secret);
   std::thread::spawn(|| {
-    let mut buffer = Vector::new();
-    let _sp = SECRET.wait().peek(&mut buffer)?;
+    let _bytes = SECRET.wait().peek()?;
     // Make API requests, decrypt AES, sign documents, do a flip, etc...
     wtx::Result::Ok(())
   })

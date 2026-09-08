@@ -184,6 +184,5 @@ postgres = ["tokio", "wtx/postgres", "wtx/tokio"]
 edition = "2024"
 name = "wtx-examples"
 publish = false
-rust-version = "1.96"
 version = "0.0.0"
 

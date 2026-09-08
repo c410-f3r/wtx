@@ -6,7 +6,7 @@ use std::{
   io::BufReader,
 };
 use wtx::{
-  calendar::{Date, DateTime, Instant, SigDuration, Time, Utc, parse_bytes_into_tokens},
+  calendar::{Date, Datetime, Instant, SigDuration, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, Vector},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
@@ -160,13 +160,13 @@ impl<'any> CertificateMetadata<'any> {
     }
   }
 
-  fn distrust_for_tls_after_date(&self) -> Option<DateTime<Utc>> {
+  fn distrust_for_tls_after_date(&self) -> Option<Datetime<Utc>> {
     if self.distrust_for_tls_after_date.is_empty() {
       return None;
     }
     let tokens = parse_bytes_into_tokens(b"%Y.%m.%d").unwrap();
     let date = Date::parse(self.distrust_for_tls_after_date, tokens).unwrap();
-    Some(DateTime::new(date, Time::default(), Utc))
+    Some(Datetime::new(date, Time::default(), Utc))
   }
 
   fn is_suitable_for_tls(&self) -> bool {
@@ -180,7 +180,7 @@ impl<'any> CertificateMetadata<'any> {
       return true;
     };
     let days = SigDuration::from_days(398).unwrap();
-    Instant::now_date_time().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
+    Instant::now_datetime().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
   }
 
   fn trust_bits(&self) -> ArrayVectorCopy<TrustBits, 4> {
@@ -281,7 +281,7 @@ fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor
 }
 
 fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
-  let not_before = ta.validity().not_before.date_time().timestamp_secs_and_ns().0;
-  let not_after = ta.validity().not_after.date_time().timestamp_secs_and_ns().0;
+  let not_before = ta.validity().not_before.datetime().timestamp_secs_and_ns().0;
+  let not_after = ta.validity().not_after.datetime().timestamp_secs_and_ns().0;
   file_buffer.write_fmt(format_args!("({},{})", not_before, not_after)).unwrap();
 }

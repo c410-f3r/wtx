@@ -307,6 +307,14 @@ mod str {
       self
     }
   }
+
+  impl LeaseMut<str> for str {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut str {
+      self
+    }
+  }
+
   impl LeaseMut<str> for String {
     #[inline]
     fn lease_mut(&mut self) -> &mut str {

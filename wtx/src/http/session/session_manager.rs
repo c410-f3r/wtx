@@ -1,13 +1,14 @@
 use crate::{
   calendar::Instant,
-  collections::{ArrayString, ArrayStringU8, ArrayVectorCopy, Vector},
+  collections::{ArrayString, ArrayStringU8, Vector},
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
     Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
     SessionStore, cookie::cookie_generic::CookieGeneric,
   },
-  misc::{AsciiGraphic, Lease as _, LeaseMut, Secret},
+  misc::{AsciiGraphic, Lease as _, LeaseMut},
   rng::CryptoRng,
+  secret::SecretArray,
   sync::{Arc, AsyncMutex},
 };
 use alloc::string::String;
@@ -72,7 +73,7 @@ where
     S: SessionStore<CS, E>,
   {
     let inner = &mut *self.inner.1.lock().await;
-    let SessionManagerInner { cookie_def, session_secret, .. } = inner;
+    let SessionManagerInner { cookie_def, session_secret, phantom: _ } = inner;
     let ascii = AsciiGraphic::default();
     let session_csrf = ArrayString::from_iterator(rng.ascii_iter(ascii).take(32).map(Into::into))?;
     let session_key = ArrayString::from_iterator(rng.ascii_iter(ascii).take(32).map(Into::into))?;
@@ -84,7 +85,7 @@ where
         elem
       }
       (Some(_) | None, Some(max_age)) => {
-        let expires_at = Instant::now_date_time()?
+        let expires_at = Instant::now_datetime()?
           .add(max_age.try_into()?)
           .map_err(crate::Error::from)?
           .trunc_to_us();
@@ -97,14 +98,12 @@ where
     serde_json::to_writer(&mut msg_data.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
     {
-      let mut buffer = ArrayVectorCopy::<_, { 16 + 28 }>::new();
-      let sp = session_secret.peek(&mut buffer)?;
       let rslt = Aes128GcmGlobal::encrypt_to_buffer_base64(
         cookie_def.name.as_bytes(),
         &mut cookie_def.value,
         gen_aead_nonce(rng),
         msg_data.lease().body.get(idx..).unwrap_or_default(),
-        sp.data().try_into().map_err(crate::Error::from)?,
+        &*session_secret.peek()?,
       );
       msg_data.lease_mut().body.truncate(idx);
       let _ = rslt?;
@@ -139,7 +138,7 @@ impl<CS, E> Clone for SessionManager<CS, E> {
 pub struct SessionManagerInner<CS, E> {
   pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
-  pub(crate) session_secret: Secret,
+  pub(crate) session_secret: SecretArray<16>,
 }
 
 impl<CS, E> SessionManagerInner<CS, E>

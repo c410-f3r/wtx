@@ -18,7 +18,7 @@ use core::str;
 #[derive(Debug)]
 pub struct FormData(
   /// Delimiter
-  pub ArrayStringU8<48>,
+  pub ArrayStringU8<63>,
 );
 
 impl<D, E, F, RES, S> Endpoint<D, E, S> for FnFutWrapper<(State<'_, D>, FormData), F>

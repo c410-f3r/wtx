@@ -93,11 +93,8 @@ where
 pub(crate) mod database {
   macro_rules! _executor {
     ($uri_secret:expr, |$config:ident, $uri:ident| $cb:expr) => {{
-      let mut buffer = Vector::new();
-      let sp = $uri_secret.peek(&mut buffer)?;
-      // SAFETY: URI is a string.
-      let string = unsafe { core::str::from_utf8_unchecked(sp.data()) };
-      let $uri = crate::net::UriRef::new(string);
+      let peek = $uri_secret.peek()?;
+      let $uri = crate::net::UriRef::new(&*peek);
       let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
       let $config = config_rslt?;
       $cb.await?
@@ -105,16 +102,15 @@ pub(crate) mod database {
   }
 
   use crate::{
-    collections::Vector,
     database::{
       DEFAULT_MAX_STMTS, DbClient as _,
       client::postgres::{ClientBuffer, PostgresClient},
     },
     executor::Executor,
-    misc::{Secret, SecretContext},
     net::TcpParams,
     pool::ResourceManager,
     rng::ChaCha20,
+    secret::SecretStr,
     sync::{Arc, AtomicCell},
     tls::{TlsConfig, TlsConnectorBuilder, TlsCtx},
   };
@@ -127,22 +123,17 @@ pub(crate) mod database {
     max_stmts: usize,
     phantom: PhantomData<fn() -> ER>,
     rng: AtomicCell<ChaCha20>,
-    secret: Secret,
     tcp_params: TcpParams,
     tls_config: Arc<TlsConfig<TCX>>,
+    uri: SecretStr,
   }
 
   #[cfg(feature = "tokio")]
   impl<ER, TCX> PostgresRM<ER, crate::executor::TokioExecutor, TCX> {
     /// [`Self::new`] with the elements provided by the tokio project.
     #[inline]
-    pub fn tokio(
-      rng: ChaCha20,
-      secret_context: SecretContext,
-      tls_config: TlsConfig<TCX>,
-      uri: &mut [u8],
-    ) -> crate::Result<Self> {
-      Self::new(crate::executor::TokioExecutor::default(), rng, secret_context, tls_config, uri)
+    pub fn tokio(rng: ChaCha20, tls_config: TlsConfig<TCX>, uri: SecretStr) -> crate::Result<Self> {
+      Self::new(crate::executor::TokioExecutor::default(), rng, tls_config, uri)
     }
   }
 
@@ -151,20 +142,18 @@ pub(crate) mod database {
     #[inline]
     pub fn new(
       executor: EX,
-      mut rng: ChaCha20,
-      secret_context: SecretContext,
+      rng: ChaCha20,
       tls_config: TlsConfig<TCX>,
-      uri: &mut [u8],
+      uri: SecretStr,
     ) -> crate::Result<Self> {
-      let secret = Secret::new(uri, &mut rng, secret_context)?;
       Ok(Self {
         _executor: executor,
         max_stmts: DEFAULT_MAX_STMTS,
         phantom: PhantomData,
         rng: AtomicCell::new(rng),
-        secret,
         tcp_params: TcpParams::default(),
         tls_config: tls_config.into(),
+        uri,
       })
     }
   }
@@ -185,7 +174,7 @@ pub(crate) mod database {
       let client_buffer = ClientBuffer::new(self.max_stmts, &mut &self.rng);
       let rng = &mut &self.rng;
       let tls_config = &*self.tls_config;
-      Ok(_executor!(&self.secret, |postgres_config, uri| {
+      Ok(_executor!(&self.uri, |postgres_config, uri| {
         let tls_connector = TlsConnectorBuilder::new(EX::default(), uri)
           .set_tcp_params(self.tcp_params)
           .build(tls_config, rng)
@@ -209,7 +198,7 @@ pub(crate) mod database {
       let rng = &mut &self.rng;
       let tls_config = &*self.tls_config;
       mem::swap(&mut client_buffer, &mut resource.cb);
-      *resource = _executor!(&self.secret, |postgres_config, uri| {
+      *resource = _executor!(&self.uri, |postgres_config, uri| {
         let tls_connector = TlsConnectorBuilder::new(EX::default(), uri)
           .set_tcp_params(self.tcp_params)
           .build(tls_config, rng)

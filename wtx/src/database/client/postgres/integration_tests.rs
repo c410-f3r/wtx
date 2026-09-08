@@ -395,7 +395,7 @@ fn serde_json() {
 }
 
 async fn executor() -> PostgresClient<crate::Error, TcpStream, PlaintextCtx> {
-  let uri = UriRef::new(_vars().database_uri_postgres.as_str());
+  let uri = UriRef::new(_vars().wtx_database_uri_postgres.as_str());
   let mut rng = ChaCha20::from_std_random().unwrap();
   let client_buffer = ClientBuffer::new(usize::MAX, &mut rng);
   PostgresClient::connect(

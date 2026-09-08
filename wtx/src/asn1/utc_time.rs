@@ -3,15 +3,15 @@ use crate::{
     Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, UTC_TIME_TAG, decode_asn1_tlv,
     parse_datetime,
   },
-  calendar::{DateTime, Utc},
+  calendar::{Datetime, Utc},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec},
 };
 
 /// X509 time, which has two different representations.
 #[derive(Debug, PartialEq)]
 pub struct UtcTime(
-  /// See [`DateTime`].
-  pub DateTime<Utc>,
+  /// See [`Datetime`].
+  pub Datetime<Utc>,
 );
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for UtcTime {

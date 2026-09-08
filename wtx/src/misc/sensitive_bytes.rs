@@ -7,7 +7,7 @@ use core::{
 /// Bytes that are zeroed when dropped. See `Secret` for a more confidential container.
 pub struct SensitiveBytes<B>
 where
-  B: LeaseMut<[u8]>,
+  B: LeaseMut<[u8]> + ?Sized,
 {
   bytes: B,
 }
@@ -57,7 +57,7 @@ where
 
 impl<B> Drop for SensitiveBytes<B>
 where
-  B: LeaseMut<[u8]>,
+  B: LeaseMut<[u8]> + ?Sized,
 {
   #[inline]
   fn drop(&mut self) {

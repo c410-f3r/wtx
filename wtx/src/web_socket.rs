@@ -22,7 +22,7 @@ mod web_socket_payload_origin;
 pub(crate) mod write_frame;
 
 use crate::{
-  _MAX_PAYLOAD_LEN,
+  MAX_PAYLOAD_LEN,
   collections::Vector,
   misc::LeaseMut,
   net::{ConnectionState, Stream},
@@ -114,7 +114,7 @@ where
     let nc_rsv1 = nc.rsv1();
     Self {
       is_in_continuation_frame: None,
-      max_payload_len: _MAX_PAYLOAD_LEN,
+      max_payload_len: MAX_PAYLOAD_LEN,
       nc,
       nc_rsv1,
       no_masking,
@@ -148,7 +148,7 @@ where
       stream,
       wsb,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_buffer, .. } = wsb;
+    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer: _ } = wsb;
     read_frame::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       is_in_continuation_frame,
       *max_payload_len,

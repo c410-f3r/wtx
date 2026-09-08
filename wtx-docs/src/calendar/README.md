@@ -4,7 +4,7 @@ Provides basic primitives to work with time-related operations.
 
 * `Date`: Proleptic Gregorian calendar. Can represent years from -32767 to 32767.
 
-* `DateTime`: ISO-8601 representation with timezones.
+* `Datetime`: ISO-8601 representation with timezones.
 
 * `Duration`: Time span in nanoseconds. Can be negative unlike `core::time::Duration`.
 

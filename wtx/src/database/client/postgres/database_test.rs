@@ -8,7 +8,7 @@ use crate::{
   executor::{Executor, Runtime as _},
   misc::EnvVars,
   net::TcpStream,
-  rng::{ChaCha20, Rng as _, SeedableRng as _, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsConfig, TlsConnectorBuilder, TlsCtx},
 };
 use alloc::string::String;
@@ -17,9 +17,6 @@ const BATCH_SIZE: usize = 8;
 const MAX_STMTS: usize = 16;
 
 /// Used in testing environments by the `db` macro.
-//
-// FIXME(STABLE): Use `from_std_random` instead of an insecure seed. In the meanwhile such a
-//               case shouldn't be a serious problem for tests
 #[doc(hidden)]
 #[inline]
 pub fn database_test<ER, EX, FUT, TCX, TS>(
@@ -36,7 +33,7 @@ where
 {
   EX::LocalRuntime::new()?.block_on(async move {
     let local_vars: DatabaseUriFromVars = EnvVars::from_available([])?.finish();
-    let uri = local_vars.uri.as_str().into();
+    let uri = local_vars.wtx_database_uri.as_str().into();
 
     let mut config = Config::from_uri(&uri)?;
     let mut db_name = String::new();
@@ -44,7 +41,7 @@ where
     db_name.push_str(timestamp_str(|dur| dur.as_nanos())?.1.as_str());
 
     let orig_db = String::from(config.db());
-    let mut rng = ChaCha20::from_key(Xorshift64::from_simple_seed()?.u8_32());
+    let mut rng = ChaCha20::from_std_random()?;
     {
       let mut client = PostgresClient::<_, _, _>::connect(
         ClientBuffer::new(MAX_STMTS, &mut rng),

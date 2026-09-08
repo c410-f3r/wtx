@@ -196,7 +196,6 @@ where
   ///
   /// You must call this method from within an existing async environment. Preferably, a
   /// multi-thread environment.
-  #[cfg(feature = "nightly")]
   #[inline]
   pub async fn run<WSR>(mut self, addr: &str, wsr: WSR) -> Result<(), ER>
   where

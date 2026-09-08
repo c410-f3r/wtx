@@ -1,5 +1,5 @@
 use crate::{
-  calendar::DateTime,
+  calendar::Datetime,
   codec::PercentDecode,
   collections::{ArrayStringU8, ArrayVectorCopy, Vector},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
@@ -75,7 +75,7 @@ impl<'str> CookieStr<'str> {
           cookie.domain = value;
         }
         (b"expires", [_, ..]) => {
-          cookie.expires = Some(DateTime::parse(value.as_bytes(), FMT1.iter().copied())?);
+          cookie.expires = Some(Datetime::parse(value.as_bytes(), FMT1.iter().copied())?);
         }
         (b"httponly", _) => cookie.http_only = true,
         (b"max-age", [first, rest @ ..]) => {

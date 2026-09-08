@@ -10,7 +10,7 @@ mod macros;
 
 mod ce_days;
 mod date;
-mod date_time;
+mod datetime;
 mod day;
 mod day_of_year;
 #[cfg(feature = "epoch-sync")]
@@ -35,7 +35,7 @@ use crate::codec::{U64String, u64_string};
 pub use calendar_error::CalendarError;
 pub use ce_days::CeDays;
 pub use date::Date;
-pub use date_time::DateTime;
+pub use datetime::Datetime;
 pub use day::Day;
 pub use day_of_year::DayOfYear;
 pub use format::{calendar_token::CalendarToken, parse_bytes_into_tokens};
@@ -43,6 +43,10 @@ pub use hour::Hour;
 pub use instant::Instant;
 pub use microsecond::Microsecond;
 pub use millisecond::Millisecond;
+#[cfg(feature = "serde")]
+pub use misc::{
+  serde_serialize_datetime_iso8601_without_tz, serde_serialize_datetime_iso8601_without_tz_opt,
+};
 pub use month::Month;
 pub use nanosecond::Nanosecond;
 pub use sig_duration::SigDuration;
@@ -129,6 +133,6 @@ mod tests {
     let addr = "pool.ntp.org:123".to_socket_addrs().unwrap().into_iter().next().unwrap();
     let _ = fetch_and_set_epoch_offset(addr, &mut udp_socket).await.unwrap();
     assert!(EPOCH_OFFSET.get() > 1000000);
-    assert!(Instant::now_date_time().unwrap().timestamp_secs_and_ns().0 > 1784244618);
+    assert!(Instant::now_datetime().unwrap().timestamp_secs_and_ns().0 > 1784244618);
   }
 }

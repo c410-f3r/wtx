@@ -238,7 +238,6 @@ where
       &[][..]
     } else {
       signature = self.config.lease().inner.ctx.sign(
-        &mut self.buffer.writer_buffer,
         &server_sig_msg(self.transcript_hash.clone().finalize().lease())?,
         &mut self.rng,
         output.signature_scheme.0,

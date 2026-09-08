@@ -7,7 +7,9 @@ use crate::{
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::{
+  borrow::Borrow,
   fmt::{Debug, Formatter},
+  hash::{Hash, Hasher},
   mem::ManuallyDrop,
   ops::{Deref, DerefMut},
   ptr::{self, NonNull},
@@ -51,6 +53,16 @@ where
   #[inline]
   pub const fn len(&self) -> L {
     self.len
+  }
+}
+
+impl<L, T> Borrow<[T]> for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn borrow(&self) -> &[T] {
+    self
   }
 }
 
@@ -177,6 +189,20 @@ where
   L: LinearStorageLen,
   T: Eq,
 {
+}
+
+impl<L, T> Hash for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+  T: Hash,
+{
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    (**self).hash(state);
+  }
 }
 
 impl<L, T> IntoIterator for ShortBoxSlice<L, T>

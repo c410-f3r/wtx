@@ -28,7 +28,6 @@ impl TlsCtxSk for SkCtx {
   #[inline]
   fn sign<RNG>(
     &self,
-    _: &mut Vector<u8>,
     msg: &[u8],
     rng: &mut RNG,
     sc: SignatureScheme,
@@ -52,13 +51,9 @@ impl TlsCtxSkLoader for SkCtx {
   type SkInputPem<'data> = &'data [u8];
 
   #[inline]
-  fn from_ders<'data, RNG>(
+  fn from_ders<'data>(
     input: impl IntoIterator<Item = Self::SkInputDer<'data>>,
-    _: &mut RNG,
-  ) -> crate::Result<Self>
-  where
-    RNG: CryptoRng,
-  {
+  ) -> crate::Result<Self> {
     let mut vector = Vector::new();
     for value in input {
       let key_ty = secret_key_ty(&value)?;
@@ -69,13 +64,9 @@ impl TlsCtxSkLoader for SkCtx {
 
   /// From a secret key in PEM format.
   #[inline]
-  fn from_pems<'data, RNG>(
+  fn from_pems<'data>(
     input: impl IntoIterator<Item = Self::SkInputPem<'data>>,
-    _: &mut RNG,
-  ) -> crate::Result<Self>
-  where
-    RNG: CryptoRng,
-  {
+  ) -> crate::Result<Self> {
     let mut vector = Vector::new();
     for pem in input {
       vector.push(secret_key_from_pem(pem)?)?;

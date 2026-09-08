@@ -1,9 +1,9 @@
 use crate::calendar::{
-  Date, DateTime, DayOfYear, DynTz, Hour, Nanosecond, SigDuration, Sixty, Time, TimeZone, Utc, Year,
+  Date, Datetime, DayOfYear, DynTz, Hour, Nanosecond, SigDuration, Sixty, Time, TimeZone, Utc, Year,
 };
 
-fn _2025_04_20_14_20_30_1234() -> DateTime<Utc> {
-  DateTime::new(
+fn _2025_04_20_14_20_30_1234() -> Datetime<Utc> {
+  Datetime::new(
     Date::new(Year::from_num(2025).unwrap(), DayOfYear::from_num(110).unwrap()).unwrap(),
     Time::from_hms_ns(Hour::N14, Sixty::N20, Sixty::N30, Nanosecond::from_num(1234).unwrap()),
     Utc,
@@ -53,7 +53,7 @@ fn add_and_sub() {
 
 #[test]
 fn add_days_with_tzs() {
-  fn base<TZ>(tz: TZ) -> DateTime<TZ>
+  fn base<TZ>(tz: TZ) -> Datetime<TZ>
   where
     TZ: TimeZone,
   {
@@ -64,32 +64,32 @@ fn add_days_with_tzs() {
   let west = DynTz::from_minutes(-5 * 60).unwrap();
 
   assert_eq!(
-    &base(east).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(),
+    &base(east).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(true),
     "2014-05-11T07:08:09+09:00"
   );
   assert_eq!(
-    &base(west).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(),
+    &base(west).add(SigDuration::from_days(5).unwrap()).unwrap().iso8601(true),
     "2014-05-11T07:08:09-05:00"
   );
 
   assert_eq!(
-    &base(east).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(),
+    &base(east).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(true),
     "2014-06-10T07:08:09+09:00"
   );
   assert_eq!(
-    &base(west).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(),
+    &base(west).add(SigDuration::from_days(35).unwrap()).unwrap().iso8601(true),
     "2014-06-10T07:08:09-05:00"
   );
 }
 
 #[test]
 fn from_iso8601() {
-  let _datetime = DateTime::<Utc>::from_iso8601(b"2022-02-10T10:10:10").unwrap();
-  let _datetime = DateTime::<Utc>::from_iso8601(b"2022-02-10T10:10:10.000").unwrap();
-  let _datetime = DateTime::<Utc>::from_iso8601(b"2022-02-10T10:10:10.000Z").unwrap();
-  let _datetime = DateTime::<DynTz>::from_iso8601(b"2022-02-10T10:10:10.000-04").unwrap();
-  let _datetime = DateTime::<DynTz>::from_iso8601(b"2022-02-10T10:10:10.000+04:30").unwrap();
-  let _datetime = DateTime::<DynTz>::from_iso8601(b"2022-01-10T10:10:10.000-00:00").unwrap();
+  let _datetime = Datetime::<Utc>::from_iso8601(b"2022-02-10T10:10:10").unwrap();
+  let _datetime = Datetime::<Utc>::from_iso8601(b"2022-02-10T10:10:10.000").unwrap();
+  let _datetime = Datetime::<Utc>::from_iso8601(b"2022-02-10T10:10:10.000Z").unwrap();
+  let _datetime = Datetime::<DynTz>::from_iso8601(b"2022-02-10T10:10:10.000-04").unwrap();
+  let _datetime = Datetime::<DynTz>::from_iso8601(b"2022-02-10T10:10:10.000+04:30").unwrap();
+  let _datetime = Datetime::<DynTz>::from_iso8601(b"2022-01-10T10:10:10.000-00:00").unwrap();
 }
 
 #[test]
@@ -105,27 +105,27 @@ fn from_timestamp_secs() {
     (2034061609, "2034-06-16T09:06:49Z"),
   ];
   for (timestamp, str) in elements {
-    let instance = DateTime::from_timestamp_secs(timestamp).unwrap();
-    assert_eq!(instance.iso8601().as_str(), str);
+    let instance = Datetime::from_timestamp_secs(timestamp).unwrap();
+    assert_eq!(instance.iso8601(true).as_str(), str);
     assert_eq!(instance.timestamp_secs_and_ns().0, timestamp);
   }
 }
 
 #[test]
 fn iso8601() {
-  fn base0<TZ>(tz: TZ) -> DateTime<TZ>
+  fn base0<TZ>(tz: TZ) -> Datetime<TZ>
   where
     TZ: TimeZone,
   {
     instance(2014, 5, 6, 7, 8, 9, 0, tz)
   }
-  fn base1<TZ>(tz: TZ) -> DateTime<TZ>
+  fn base1<TZ>(tz: TZ) -> Datetime<TZ>
   where
     TZ: TimeZone,
   {
     instance(2014, 5, 6, 0, 0, 0, 0, tz)
   }
-  fn base2<TZ>(tz: TZ) -> DateTime<TZ>
+  fn base2<TZ>(tz: TZ) -> Datetime<TZ>
   where
     TZ: TimeZone,
   {
@@ -135,79 +135,79 @@ fn iso8601() {
   let edt = DynTz::from_minutes(-4 * 60).unwrap();
   let kst = DynTz::from_minutes(9 * 60).unwrap();
 
-  assert_eq!(&base0(Utc).iso8601(), "2014-05-06T07:08:09Z");
-  assert_eq!(&base0(edt).iso8601(), "2014-05-06T07:08:09-04:00");
-  assert_eq!(&base0(kst).iso8601(), "2014-05-06T07:08:09+09:00");
+  assert_eq!(&base0(Utc).iso8601(true), "2014-05-06T07:08:09Z");
+  assert_eq!(&base0(edt).iso8601(true), "2014-05-06T07:08:09-04:00");
+  assert_eq!(&base0(kst).iso8601(true), "2014-05-06T07:08:09+09:00");
 
-  assert_eq!(&base1(Utc).iso8601(), "2014-05-06T00:00:00Z");
-  assert_eq!(&base1(edt).iso8601(), "2014-05-06T00:00:00-04:00");
-  assert_eq!(&base1(kst).iso8601(), "2014-05-06T00:00:00+09:00");
+  assert_eq!(&base1(Utc).iso8601(true), "2014-05-06T00:00:00Z");
+  assert_eq!(&base1(edt).iso8601(true), "2014-05-06T00:00:00-04:00");
+  assert_eq!(&base1(kst).iso8601(true), "2014-05-06T00:00:00+09:00");
 
-  assert_eq!(&base2(Utc).iso8601(), "2014-05-06T23:59:59Z");
-  assert_eq!(&base2(edt).iso8601(), "2014-05-06T23:59:59-04:00");
-  assert_eq!(&base2(kst).iso8601(), "2014-05-06T23:59:59+09:00");
+  assert_eq!(&base2(Utc).iso8601(true), "2014-05-06T23:59:59Z");
+  assert_eq!(&base2(edt).iso8601(true), "2014-05-06T23:59:59-04:00");
+  assert_eq!(&base2(kst).iso8601(true), "2014-05-06T23:59:59+09:00");
 
-  assert_eq!(DateTime::MIN.iso8601().as_str(), "-32767-01-01T00:00:00Z");
-  assert_eq!(DateTime::MAX.iso8601().as_str(), "32767-12-31T23:59:59.999999999Z");
-  assert_eq!(_2025_04_20_14_20_30_1234().iso8601().as_str(), "2025-04-20T14:20:30.000001234Z");
+  assert_eq!(Datetime::MIN.iso8601(true).as_str(), "-32767-01-01T00:00:00Z");
+  assert_eq!(Datetime::MAX.iso8601(true).as_str(), "32767-12-31T23:59:59.999999999Z");
+  assert_eq!(_2025_04_20_14_20_30_1234().iso8601(true).as_str(), "2025-04-20T14:20:30.000001234Z");
 }
 
 #[test]
 fn matches_utc_conversion() {
-  let local = DateTime::new(Date::EPOCH, Time::ZERO, DynTz::new(60).unwrap());
+  let local = Datetime::new(Date::EPOCH, Time::ZERO, DynTz::new(60).unwrap());
   let utc = local.to_utc().unwrap();
   assert_eq!(local.timestamp_secs_and_ns(), utc.timestamp_secs_and_ns());
 }
 
 #[test]
 fn timestamp() {
-  assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971890963199);
+  assert_eq!(Datetime::MIN.timestamp_secs_and_ns().0, -1096193779200);
+  assert_eq!(Datetime::MAX.timestamp_secs_and_ns().0, 971890963199);
   assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
 #[test]
 fn times_zones() {
-  assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971890963199);
+  assert_eq!(Datetime::MIN.timestamp_secs_and_ns().0, -1096193779200);
+  assert_eq!(Datetime::MAX.timestamp_secs_and_ns().0, 971890963199);
   assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
 #[test]
 fn to_tz() {
   assert_eq!(
-    DateTime::<DynTz>::from_iso8601(b"1234-10-15T14:33:10-04:00")
+    Datetime::<DynTz>::from_iso8601(b"1234-10-15T14:33:10-04:00")
       .unwrap()
       .to_tz(DynTz::from_minutes(60).unwrap())
       .unwrap(),
-    DateTime::<DynTz>::from_iso8601(b"1234-10-15T19:33:10+01:00").unwrap()
+    Datetime::<DynTz>::from_iso8601(b"1234-10-15T19:33:10+01:00").unwrap()
   );
   assert_eq!(
-    DateTime::<DynTz>::from_iso8601(b"1234-10-15T14:33:10+04:30")
+    Datetime::<DynTz>::from_iso8601(b"1234-10-15T14:33:10+04:30")
       .unwrap()
       .to_tz(DynTz::from_minutes(-60).unwrap())
       .unwrap(),
-    DateTime::<DynTz>::from_iso8601(b"1234-10-15T09:03:10-01:00").unwrap()
+    Datetime::<DynTz>::from_iso8601(b"1234-10-15T09:03:10-01:00").unwrap()
   );
 }
 
 #[test]
 fn to_utc() {
   assert_eq!(
-    DateTime::<DynTz>::from_iso8601(b"0123-01-04T03:20:01-04").unwrap().to_utc().unwrap(),
-    DateTime::<Utc>::from_iso8601(b"0123-01-04T07:20:01Z").unwrap()
+    Datetime::<DynTz>::from_iso8601(b"0123-01-04T03:20:01-04").unwrap().to_utc().unwrap(),
+    Datetime::<Utc>::from_iso8601(b"0123-01-04T07:20:01Z").unwrap()
   );
   assert_eq!(
-    DateTime::<DynTz>::from_iso8601(b"3210-02-28T13:25:10+04:05").unwrap().to_utc().unwrap(),
-    DateTime::<Utc>::from_iso8601(b"3210-02-28T09:20:10Z").unwrap()
+    Datetime::<DynTz>::from_iso8601(b"3210-02-28T13:25:10+04:05").unwrap().to_utc().unwrap(),
+    Datetime::<Utc>::from_iso8601(b"3210-02-28T09:20:10Z").unwrap()
   );
 }
 
-fn instance<TZ>(y: i16, mon: u8, d: u8, h: u8, min: u8, s: u8, ms: u16, tz: TZ) -> DateTime<TZ>
+fn instance<TZ>(y: i16, mon: u8, d: u8, h: u8, min: u8, s: u8, ms: u16, tz: TZ) -> Datetime<TZ>
 where
   TZ: TimeZone,
 {
-  DateTime::new(
+  Datetime::new(
     Date::from_ymd(y.try_into().unwrap(), mon.try_into().unwrap(), d.try_into().unwrap()).unwrap(),
     Time::from_hms_ms(
       h.try_into().unwrap(),

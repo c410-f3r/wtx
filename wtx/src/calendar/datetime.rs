@@ -14,13 +14,13 @@ use core::fmt::{Debug, Display, Formatter};
 
 /// ISO-8601 representation with timezones.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DateTime<TZ> {
+pub struct Datetime<TZ> {
   date: Date,
   time: Time,
   tz: TZ,
 }
 
-impl DateTime<Utc> {
+impl Datetime<Utc> {
   /// Instance that refers the common era (0001-01-01).
   pub const CE: Self = Self::new(Date::CE, Time::ZERO, Utc);
   /// Instance that refers the UNIX epoch (1970-01-01).
@@ -88,7 +88,7 @@ impl DateTime<Utc> {
   }
 }
 
-impl<TZ> DateTime<TZ>
+impl<TZ> Datetime<TZ>
 where
   TZ: TimeZone,
 {
@@ -145,12 +145,14 @@ where
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso8601(self) -> ArrayStringU8<38> {
+  pub fn iso8601(self, tz: bool) -> ArrayStringU8<38> {
     let mut rslt = ArrayString::new();
     let _rslt0 = rslt.push_str(&self.date.iso8601());
     let _rslt1 = rslt.push('T');
     let _rslt2 = rslt.push_str(&self.time.iso8601());
-    let _rslt3 = rslt.push_str(&self.tz.iso8601());
+    if tz {
+      let _rslt3 = rslt.push_str(&self.tz.iso8601());
+    }
     rslt
   }
 
@@ -188,25 +190,25 @@ where
 
   /// Returns a new instance with the internal values converted to the provided timezone.
   #[inline]
-  pub fn to_tz<NTZ>(self, tz: NTZ) -> Result<DateTime<NTZ>, CalendarError>
+  pub fn to_tz<NTZ>(self, tz: NTZ) -> Result<Datetime<NTZ>, CalendarError>
   where
     NTZ: TimeZone,
   {
     if (TZ::IS_LOCAL || TZ::IS_UTC) && (NTZ::IS_LOCAL || NTZ::IS_UTC) {
-      return Ok(DateTime::new(self.date, self.time, tz));
+      return Ok(Datetime::new(self.date, self.time, tz));
     }
-    let date_time = self.to_utc()?.add(SigDuration::from_minutes(i64::from(tz.minutes()))?)?;
-    Ok(DateTime::new(date_time.date, date_time.time, tz))
+    let datetime = self.to_utc()?.add(SigDuration::from_minutes(i64::from(tz.minutes()))?)?;
+    Ok(Datetime::new(datetime.date, datetime.time, tz))
   }
 
   /// Returns a new instance with the internal values converted to UTC.
   #[inline]
-  pub fn to_utc(self) -> Result<DateTime<Utc>, CalendarError> {
+  pub fn to_utc(self) -> Result<Datetime<Utc>, CalendarError> {
     if TZ::IS_LOCAL || TZ::IS_UTC {
-      Ok(DateTime::new(self.date, self.time, Utc))
+      Ok(Datetime::new(self.date, self.time, Utc))
     } else {
-      let date_time = self.sub(SigDuration::from_minutes(i64::from(self.tz.minutes()))?)?;
-      Ok(DateTime::new(date_time.date, date_time.time, Utc))
+      let datetime = self.sub(SigDuration::from_minutes(i64::from(self.tz.minutes()))?)?;
+      Ok(Datetime::new(datetime.date, datetime.time, Utc))
     }
   }
 
@@ -238,43 +240,43 @@ where
   }
 }
 
-impl<TZ> Debug for DateTime<TZ>
+impl<TZ> Debug for Datetime<TZ>
 where
   TZ: TimeZone,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso8601())
+    f.write_str(&self.iso8601(true))
   }
 }
 
-impl Default for DateTime<Utc> {
+impl Default for Datetime<Utc> {
   #[inline]
   fn default() -> Self {
     Self::EPOCH
   }
 }
 
-impl<TZ> Display for DateTime<TZ>
+impl<TZ> Display for Datetime<TZ>
 where
   TZ: TimeZone,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso8601())
+    f.write_str(&self.iso8601(true))
   }
 }
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::calendar::{DateTime, TimeZone};
+  use crate::calendar::{Datetime, TimeZone};
   use core::{fmt, marker::PhantomData};
   use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{Error, Visitor},
   };
 
-  impl<'de, TZ> Deserialize<'de> for DateTime<TZ>
+  impl<'de, TZ> Deserialize<'de> for Datetime<TZ>
   where
     TZ: TimeZone,
   {
@@ -289,7 +291,7 @@ mod serde {
       where
         TZ: TimeZone,
       {
-        type Value = DateTime<TZ>;
+        type Value = Datetime<TZ>;
 
         #[inline]
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -301,7 +303,7 @@ mod serde {
         where
           E: Error,
         {
-          DateTime::from_iso8601(v).map_err(E::custom)
+          Datetime::from_iso8601(v).map_err(E::custom)
         }
 
         #[inline]
@@ -309,7 +311,7 @@ mod serde {
         where
           E: Error,
         {
-          DateTime::from_iso8601(v.as_bytes()).map_err(E::custom)
+          Datetime::from_iso8601(v.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -317,7 +319,7 @@ mod serde {
     }
   }
 
-  impl<TZ> Serialize for DateTime<TZ>
+  impl<TZ> Serialize for Datetime<TZ>
   where
     TZ: TimeZone,
   {
@@ -326,7 +328,7 @@ mod serde {
     where
       S: Serializer,
     {
-      serializer.serialize_str(&self.iso8601())
+      serializer.serialize_str(&self.iso8601(true))
     }
   }
 }

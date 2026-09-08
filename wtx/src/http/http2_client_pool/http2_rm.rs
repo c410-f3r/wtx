@@ -13,7 +13,7 @@ use core::fmt::Debug;
 /// Resource manager for `ClientPool`.
 #[derive(Debug)]
 pub struct Http2RM<AUX, EX, TCX> {
-  pub(crate) aux_fn: fn() -> AUX,
+  pub(crate) aux_fn: fn() -> crate::Result<AUX>,
   pub(crate) disable_auto_sni: bool,
   pub(crate) executor: EX,
   pub(crate) hrp: HttpRecvParams,
@@ -66,7 +66,7 @@ where
     let tls_stream = self.tls_stream(aux).await?;
     let tuple = Http2::connect(Http2Buffer::default(), self.hrp, tls_stream.into_split()?).await?;
     let _jh = self.executor.spawn(tuple.0);
-    Ok(Http2ClientPoolResource { aux: (self.aux_fn)(), client: tuple.1 })
+    Ok(Http2ClientPoolResource { aux: (self.aux_fn)()?, client: tuple.1 })
   }
 
   #[inline]

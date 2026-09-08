@@ -1,4 +1,4 @@
-use crate::_SIMD_LEN;
+use crate::SIMD_LEN;
 
 /// Processes a sequence of bytes with the most suitable simd length according to the current host.
 ///
@@ -10,7 +10,7 @@ use crate::_SIMD_LEN;
 pub fn simd_bytes<A>(
   aux: &mut A,
   bytes: &[u8],
-  mut aligned: impl FnMut(&mut A, &[u8; _SIMD_LEN]),
+  mut aligned: impl FnMut(&mut A, &[u8; SIMD_LEN]),
   mut unaligned: impl FnMut(&mut A, &[u8]),
 ) {
   // SAFETY: From bytes to bytes, the method is just logically separating chunks.
@@ -27,7 +27,7 @@ pub fn simd_bytes<A>(
 pub fn simd_bytes_mut<A>(
   aux: &mut A,
   bytes: &mut [u8],
-  mut aligned: impl FnMut(&mut A, &mut [u8; _SIMD_LEN]),
+  mut aligned: impl FnMut(&mut A, &mut [u8; SIMD_LEN]),
   mut unaligned: impl FnMut(&mut A, &mut [u8]),
 ) {
   // SAFETY: From bytes to bytes, the method is just logically separating chunks.

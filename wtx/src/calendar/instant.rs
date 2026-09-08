@@ -27,12 +27,12 @@ impl Instant {
     }
   }
 
-  /// Returns a new `DateTime` instance with the current date and time in UTC based on the
+  /// Returns a new `Datetime` instance with the current date and time in UTC based on the
   /// UNIX epoch.
   #[inline]
-  pub fn now_date_time() -> crate::Result<crate::calendar::DateTime<crate::calendar::Utc>> {
+  pub fn now_datetime() -> crate::Result<crate::calendar::Datetime<crate::calendar::Utc>> {
     let timestamp = Instant::now_timestamp()?;
-    Ok(crate::calendar::DateTime::from_timestamp_secs_and_ns(
+    Ok(crate::calendar::Datetime::from_timestamp_secs_and_ns(
       timestamp.as_secs().cast_signed(),
       timestamp.subsec_nanos().try_into()?,
     )?)

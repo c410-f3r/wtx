@@ -20,9 +20,9 @@ use wtx::{
     },
   },
   http2::{Http2ErrorCode, ServerStream},
-  misc::SecretContext,
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
+  secret::SecretStr,
   tls::{SkCtx, TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
@@ -30,19 +30,16 @@ use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
 
 fn main() -> wtx::Result<()> {
-  let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut rng = ChaCha20::from_std_random()?;
-  let secret_context = SecretContext::new(&mut rng)?;
   let db_pool = LocalPool::new(
     4,
     PostgresRM::tokio(
       ChaCha20::from_crypto_rng(&mut rng)?,
-      secret_context.clone(),
       TlsConfig::from_trust_anchors_pem([ROOT_CA])?,
-      &mut uri,
+      SecretStr::new(String::from("postgres://USER:PASSWORD@localhost/DB_NAME").as_mut_str())?,
     )?,
   );
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::paths(wtx::paths!(
     ("/db/{id}", get(db)),
     ("/json", json(Method::Post, deserialization_and_serialization)),
@@ -73,7 +70,7 @@ async fn db(
 }
 
 async fn deserialization_and_serialization(
-  State { req, .. }: State<'_, LocalPool>,
+  State { req, data: _ }: State<'_, LocalPool>,
 ) -> wtx::Result<JsonReply> {
   let deserialize_example: DeserializeExample = serde_json::from_slice(&req.msg_data.body)?;
   let serialize_example = SerializeExample {

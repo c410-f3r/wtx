@@ -158,14 +158,8 @@ where
   {
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
     let stmt_cmd_id_array = u64_string(stmt_cmd_id);
-    if stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some() {
-      // FIXME(STABLE): Use `if let Some ...` with polonius
-      #[expect(clippy::unwrap_used, reason = "borrow-checker")]
-      return Ok((
-        stmt_cmd_id,
-        stmt_cmd_id_array,
-        stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).unwrap(),
-      ));
+    if let Some(elem) = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id) {
+      return Ok((stmt_cmd_id, stmt_cmd_id_array, elem));
     }
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
     {

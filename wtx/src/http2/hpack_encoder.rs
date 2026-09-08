@@ -84,7 +84,7 @@ impl HpackEncoder {
       let idx = self.encode_idx(("", value, false), hhb, Self::shi_pseudo((hhb, value)))?;
       Self::manage_encode(buffer, ("", value), idx)?;
     }
-    for Header { is_sensitive, name, value, .. } in user_headers_iter {
+    for Header { is_sensitive, name, value, is_trailer: _ } in user_headers_iter {
       let idx = self.encode_idx(
         (name, value, is_sensitive),
         HpackHeaderBasic::Field,

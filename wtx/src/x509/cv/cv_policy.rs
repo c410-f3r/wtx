@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{DateTime, Utc},
+  calendar::{Datetime, Utc},
   collections::Vector,
   x509::{
     CvCrl, CvPolicyMode,
@@ -19,7 +19,7 @@ pub struct CvPolicy<B> {
   extended_key_usage: ExtendedKeyUsage,
   key_usage: KeyUsage,
   mode: CvPolicyMode,
-  validation_time: DateTime<Utc>,
+  validation_time: Datetime<Utc>,
 }
 
 impl<B> CvPolicy<B> {
@@ -27,7 +27,7 @@ impl<B> CvPolicy<B> {
   //
   // FIXME(STABLE): Use `::default()`
   #[inline]
-  pub const fn new(validation_time: DateTime<Utc>) -> Self {
+  pub const fn new(validation_time: Datetime<Utc>) -> Self {
     Self {
       cep: CvCrlExpiration::Enforce,
       crls: Vector::new(),
@@ -113,13 +113,13 @@ impl<B> CvPolicy<B> {
 
   /// Overwrites the validation time.
   #[inline]
-  pub const fn set_validation_time(&mut self, value: DateTime<Utc>) {
+  pub const fn set_validation_time(&mut self, value: Datetime<Utc>) {
     self.validation_time = value.trunc_to_sec();
   }
 
   /// No certificate can have an expiration time lesser than this value.
   #[inline]
-  pub const fn validation_time(&self) -> &DateTime<Utc> {
+  pub const fn validation_time(&self) -> &Datetime<Utc> {
     &self.validation_time
   }
 }

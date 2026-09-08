@@ -105,6 +105,7 @@ mod tests {
     misc::{mlock, mlock_slice, munlock, munlock_slice},
   };
 
+  #[cfg_attr(miri, ignore)]
   #[test]
   fn mlock_and_munlock() {
     let mut data = Vector::with_capacity(1024).unwrap();
@@ -116,6 +117,7 @@ mod tests {
     }
   }
 
+  #[cfg_attr(miri, ignore)]
   #[test]
   fn mlock_and_munlock_slice() {
     let mut data = [1, 2, 3, 4];

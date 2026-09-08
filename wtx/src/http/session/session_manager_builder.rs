@@ -1,14 +1,14 @@
 use crate::{
-  calendar::{DateTime, Utc},
+  calendar::{Datetime, Utc},
   collections::Vector,
   futures::Sleep,
   http::{
-    SessionError, SessionManager, SessionStore,
+    SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
     session::SessionManagerInner,
   },
-  misc::{Secret, SecretContext},
   rng::CryptoRng,
+  secret::SecretArray,
   sync::{Arc, AsyncMutex},
 };
 use alloc::string::String;
@@ -50,7 +50,6 @@ impl SessionManagerBuilder {
   pub fn build_generating_key<CS, E, RNG, SS>(
     self,
     rng: &mut RNG,
-    secret_context: SecretContext,
     session_store: SS,
   ) -> crate::Result<(
     impl Future<Output = Result<(), E>> + use<CS, E, RNG, SS>,
@@ -63,7 +62,7 @@ impl SessionManagerBuilder {
   {
     let mut session_secret = [0u8; 16];
     rng.fill_slice(&mut session_secret);
-    Self::build_with_key(self, rng, secret_context, &mut session_secret, session_store)
+    Self::build_with_key(self, SecretArray::new(&mut session_secret)?, session_store)
   }
 
   /// Creates a new [`SessionManager`] with the provided key. It is up to the caller to
@@ -75,24 +74,15 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, RNG, SS>(
+  pub fn build_with_key<CS, E, SS>(
     self,
-    rng: &mut RNG,
-    secret_context: SecretContext,
-    session_secret: &mut [u8],
+    session_secret: SecretArray<16>,
     mut session_store: SS,
-  ) -> crate::Result<(
-    impl Future<Output = Result<(), E>> + use<CS, E, RNG, SS>,
-    SessionManager<CS, E>,
-  )>
+  ) -> crate::Result<(impl Future<Output = Result<(), E>>, SessionManager<CS, E>)>
   where
     E: From<crate::Error>,
-    RNG: CryptoRng,
     SS: SessionStore<CS, E>,
   {
-    if session_secret.len() != 16 {
-      return Err(SessionError::InvalidSecretLength.into());
-    }
     let Self { cookie_def, inspection_interval } = self;
     Ok((
       async move {
@@ -104,11 +94,7 @@ impl SessionManagerBuilder {
       SessionManager {
         inner: Arc::new((
           cookie_def.name,
-          AsyncMutex::new(SessionManagerInner {
-            cookie_def,
-            phantom: PhantomData,
-            session_secret: Secret::new(session_secret, rng, secret_context)?,
-          }),
+          AsyncMutex::new(SessionManagerInner { cookie_def, phantom: PhantomData, session_secret }),
         )),
       },
     ))
@@ -128,7 +114,7 @@ impl SessionManagerBuilder {
   /// header.
   #[inline]
   #[must_use]
-  pub const fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
+  pub const fn expires(mut self, elem: Option<Datetime<Utc>>) -> Self {
     self.cookie_def.expires = elem;
     self
   }

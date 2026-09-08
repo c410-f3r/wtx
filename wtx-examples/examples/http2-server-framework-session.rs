@@ -32,9 +32,10 @@ use wtx::{
       DynParams, Http2ServerFramework, HttpRouter, State, StateClean, VerbatimParams, get, post,
     },
   },
-  misc::{SecretContext, argon2_pwd},
+  misc::argon2_pwd,
   pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
+  secret::SecretStr,
   tls::{TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
@@ -43,29 +44,23 @@ type DbPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
-  let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut rng = ChaCha20::from_std_random()?;
-  let secret_context = SecretContext::new(&mut rng)?;
   let db_pool = DbPool::new(
     4,
     PostgresRM::tokio(
       ChaCha20::from_crypto_rng(&mut rng)?,
-      secret_context.clone(),
       TlsConfig::from_trust_anchors_pem([ROOT_CA])?,
-      &mut uri,
+      SecretStr::new(String::from("postgres://USER:PASSWORD@localhost/DB_NAME").as_mut_str())?,
     )?,
   );
-  let (cleaner, session_manager) = LocalSessionManager::builder().build_generating_key(
-    &mut rng,
-    secret_context.clone(),
-    db_pool.clone(),
-  )?;
+  let (cleaner, session_manager) =
+    LocalSessionManager::builder().build_generating_key(&mut rng, db_pool.clone())?;
   tokio::spawn(async move {
     if let Err(err) = cleaner.await {
       eprintln!("{err}");
     }
   });
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
     SessionMiddleware::new(Vector::new(), session_manager.clone(), db_pool.clone()),
@@ -98,7 +93,7 @@ async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
   let pw_req = argon2_pwd::<32>(&mut Vector::new(), user.password.as_bytes(), salt.as_bytes())?;
   req.clear();
   if pw_db != pw_req {
-    return Ok(DynParams::ClearAll(StatusCode::Unauthorized));
+    return Ok(DynParams::ClearAll(StatusCode::Forbidden));
   }
   serde_json::to_writer(&mut req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);

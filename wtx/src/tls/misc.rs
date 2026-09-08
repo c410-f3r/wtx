@@ -40,7 +40,7 @@ pub(crate) fn build_header(ty: RecordContentTy, len: u16) -> [u8; RECORD_HEADER_
 pub(crate) fn decode_extension_ty(
   dw: &mut TlsDecodeWrapper<'_>,
   err: TlsError,
-  seen_unknowns: &mut ArrayVectorCopy<u16, 9>,
+  seen_unknowns: &mut ArrayVectorCopy<u16, 12>,
 ) -> crate::Result<Option<ExtensionTy>> {
   let tag: u16 = Decode::<'_, TlsCc>::decode(dw)?;
   if let Ok(el) = ExtensionTy::try_from(tag) {

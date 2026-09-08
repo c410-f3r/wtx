@@ -21,10 +21,10 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   let var = {
     wtx::misc::tracing_tree_init(None)?;
-    EnvVars::<DatabaseUriFromVars>::from_available([])?.finish().uri
+    EnvVars::<DatabaseUriFromVars>::from_available([])?.finish().wtx_database_uri
   };
   #[cfg(not(feature = "schema-manager-dev"))]
-  let var = EnvVars::<DatabaseUriFromVars>::from_process([])?.finish().uri;
+  let var = EnvVars::<DatabaseUriFromVars>::from_process([])?.finish().wtx_database_uri;
 
   let uri = UriRef::new(&var);
   match uri.scheme() {

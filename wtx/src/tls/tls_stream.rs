@@ -1,5 +1,5 @@
 use crate::{
-  _AFTER_CLOSE_TIMEOUT_MS,
+  AFTER_CLOSE_TIMEOUT_MS,
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   futures::Sleep,
   net::{ConnectionState, Stream, StreamCommon, StreamReader, StreamWriter},
@@ -84,7 +84,7 @@ where
       split_begin: 0,
       split_len: 0,
       stream,
-      timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
+      timer: Box::pin(Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS))?),
       warning_alerts: 0,
     })
   }

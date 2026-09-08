@@ -3,21 +3,23 @@ use crate::{
   rng::CryptoRng,
 };
 
-type EcdsaP256SigningKeyTy = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::EcdsaP256SigningKeyRing,
-  feature = "crypto-graviola" => crate::crypto::EcdsaP256SigningKeyGraviola,
-  feature = "crypto-alr" => crate::crypto::EcdsaP256SigningKeyAlr,
-  feature = "crypto-ruco" => crate::crypto::EcdsaP256SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 64]>,
-};
+type EcdsaP256SigningKeyTy =
+  cfg_select! {
+    feature = "crypto-ring" => crate::crypto::EcdsaP256SigningKeyRing,
+    feature = "crypto-graviola" => crate::crypto::EcdsaP256SigningKeyGraviola,
+    feature = "crypto-alr" => crate::crypto::EcdsaP256SigningKeyAlr,
+    feature = "crypto-ruco" => crate::crypto::EcdsaP256SigningKeyRuco,
+    _ => crate::crypto::SigningKeyDummy::<[u8; 64]>,
+  };
 
-type EcdsaP384SigningKeyTy = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::EcdsaP384SigningKeyRing,
-  feature = "crypto-graviola" => crate::crypto::EcdsaP384SigningKeyGraviola,
-  feature = "crypto-alr" => crate::crypto::EcdsaP384SigningKeyAlr,
-  feature = "crypto-ruco" => crate::crypto::EcdsaP384SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 96]>,
-};
+type EcdsaP384SigningKeyTy =
+  cfg_select! {
+    feature = "crypto-ring" => crate::crypto::EcdsaP384SigningKeyRing,
+    feature = "crypto-graviola" => crate::crypto::EcdsaP384SigningKeyGraviola,
+    feature = "crypto-alr" => crate::crypto::EcdsaP384SigningKeyAlr,
+    feature = "crypto-ruco" => crate::crypto::EcdsaP384SigningKeyRuco,
+    _ => crate::crypto::SigningKeyDummy::<[u8; 96]>,
+  };
 
 type Ed25519SigningKeyTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Ed25519SigningKeyRing,
@@ -27,13 +29,14 @@ type Ed25519SigningKeyTy = cfg_select! {
   _ => crate::crypto::SigningKeyDummy::<[u8; 64]>,
 };
 
-type RsaPkcs1SigningKeyTy = cfg_select! {
-  feature = "crypto-ring" => crate::crypto::RsaPkcs1SigningKeyRing,
-  feature = "crypto-graviola" => crate::crypto::RsaPkcs1SigningKeyGraviola,
-  feature = "crypto-alr" => crate::crypto::RsaPkcs1SigningKeyAlr,
-  feature = "crypto-ruco" => crate::crypto::RsaPkcs1SigningKeyRuco,
-  _ => crate::crypto::SigningKeyDummy::<[u8; 0]>,
-};
+type RsaPkcs1SigningKeyTy =
+  cfg_select! {
+    feature = "crypto-ring" => crate::crypto::RsaPkcs1SigningKeyRing,
+    feature = "crypto-graviola" => crate::crypto::RsaPkcs1SigningKeyGraviola,
+    feature = "crypto-alr" => crate::crypto::RsaPkcs1SigningKeyAlr,
+    feature = "crypto-ruco" => crate::crypto::RsaPkcs1SigningKeyRuco,
+    _ => crate::crypto::SigningKeyDummy::<[u8; 0]>,
+  };
 
 type RsaPssSigningKeyTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::RsaPssSigningKeyRing,
