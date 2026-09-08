@@ -85,6 +85,12 @@ pub enum Error {
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
+  #[cfg(feature = "quick-xml")]
+  #[doc = associated_element_doc!()]
+  QuickXml(Box<quick_xml::Error>),
+  #[cfg(feature = "quick-xml")]
+  #[doc = associated_element_doc!()]
+  QuickXmlAttr(Box<quick_xml::events::attributes::AttrError>),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
@@ -115,6 +121,9 @@ pub enum Error {
   #[cfg(feature = "uuid")]
   #[doc = associated_element_doc!()]
   UuidError(Box<uuid::Error>),
+  #[cfg(feature = "zip")]
+  #[doc = associated_element_doc!()]
+  Zip(Box<zip::result::ZipError>),
   #[cfg(feature = "zlib-rs")]
   #[doc = associated_element_doc!()]
   ZlibRsDeflateError(zlib_rs::DeflateError),

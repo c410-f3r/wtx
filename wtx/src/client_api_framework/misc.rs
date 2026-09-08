@@ -95,11 +95,12 @@ pub(crate) fn log_http_req<T, TP>(
   T: Transport<TP>,
 {
   let _body = if _log_data { from_utf8_basic(_bytes).ok() } else { None };
+  let _uri_display = if _log_data { _uri.as_str() } else { _uri.origin() };
   _trace!(
     body = debug(_body),
     method = %_method,
     trans_ty = display(_trans.ty()),
-    uri = display(_uri.origin()),
+    uri = display(_uri_display),
     "Request"
   );
 }

@@ -331,7 +331,7 @@ where
       let is_valid = crl
         .next_update
         .as_ref()
-        .is_some_and(|next_update| *cv_policy.validation_time() < next_update.date_time());
+        .is_some_and(|next_update| *cv_policy.validation_time() < next_update.datetime());
       if !is_valid {
         *last_err = Some(X509CvError::HasExpiredCerts);
         return false;
@@ -640,8 +640,8 @@ where
     *last_err = Some(X509CvError::CertsMustNotHaveCriticalUnknownExtensions);
     return false;
   }
-  let not_before = validity.not_before.date_time();
-  let not_after = validity.not_after.date_time();
+  let not_before = validity.not_before.datetime();
+  let not_after = validity.not_after.datetime();
   if *cv_policy.validation_time() < not_before || *cv_policy.validation_time() > not_after {
     *last_err = Some(X509CvError::HasExpiredCerts);
     return false;

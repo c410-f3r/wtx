@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
+  calendar::{Date, Datetime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
   codec::{Decode, Encode},
   collections::ShortStrU8,
   database::{
@@ -9,7 +9,7 @@ use crate::{
   misc::TryArithmetic as _,
 };
 
-const PG_EPOCH: DateTime<Utc> = DateTime::new(
+const PG_EPOCH: Datetime<Utc> = Datetime::new(
   if let Ok(date) = Date::from_ymd(
     if let Ok(year) = Year::from_num(2000) {
       year
@@ -26,7 +26,7 @@ const PG_EPOCH: DateTime<Utc> = DateTime::new(
   Time::ZERO,
   Utc,
 );
-const PG_MIN: DateTime<Utc> = DateTime::new(
+const PG_MIN: Datetime<Utc> = Datetime::new(
   if let Ok(date) = Date::from_ymd(
     if let Ok(year) = Year::from_num(-4713) {
       year
@@ -44,7 +44,7 @@ const PG_MIN: DateTime<Utc> = DateTime::new(
   Utc,
 );
 
-impl<E> Decode<'_, Postgres<E>> for DateTime<Utc>
+impl<E> Decode<'_, Postgres<E>> for Datetime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -56,7 +56,7 @@ where
     let this_nanoseconds = u32::try_from(micros.rem_euclid(1_000_000)).map_err(From::from)?;
     let ts_diff = epoch_secs.wrapping_add(this_secs);
     Ok(
-      DateTime::from_timestamp_secs_and_ns(
+      Datetime::from_timestamp_secs_and_ns(
         ts_diff,
         Nanosecond::from_num(this_nanoseconds.wrapping_mul(1_000)).map_err(crate::Error::from)?,
       )
@@ -64,13 +64,13 @@ where
     )
   }
 }
-impl<E> Encode<Postgres<E>> for DateTime<Utc>
+impl<E> Encode<Postgres<E>> for Datetime<Utc>
 where
   E: From<crate::Error>,
 {
   #[inline]
   fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
-    if self < &PG_MIN || self > &DateTime::MAX {
+    if self < &PG_MIN || self > &Datetime::MAX {
       return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
     let (this_secs, this_ns) = self.timestamp_secs_and_ns();
@@ -84,7 +84,7 @@ where
     Encode::<Postgres<E>>::encode(&rslt, ew)
   }
 }
-impl<E> Typed<Postgres<E>> for DateTime<Utc>
+impl<E> Typed<Postgres<E>> for Datetime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -108,7 +108,7 @@ where
     let days: i32 = Decode::<Postgres<E>>::decode(dw)?;
     let days_in_secs = i64::from(SECONDS_PER_DAY).wrapping_mul(days.into());
     let timestamp = days_in_secs.wrapping_add(PG_EPOCH.timestamp_secs_and_ns().0);
-    Ok(DateTime::from_timestamp_secs(timestamp).map_err(crate::Error::from)?.date())
+    Ok(Datetime::from_timestamp_secs(timestamp).map_err(crate::Error::from)?.date())
   }
 }
 
@@ -124,7 +124,7 @@ where
           .into(),
       ));
     }
-    let this_timestamp = DateTime::new(*self, Time::ZERO, Utc).timestamp_secs_and_ns().0;
+    let this_timestamp = Datetime::new(*self, Time::ZERO, Utc).timestamp_secs_and_ns().0;
     let diff = this_timestamp.wrapping_sub(PG_EPOCH.timestamp_secs_and_ns().0);
     let days =
       i32::try_from(diff.try_div(i64::from(SECONDS_PER_DAY))?).map_err(crate::Error::from)?;
@@ -149,6 +149,6 @@ where
 test!(date, Date, Date::from_ymd(4.try_into().unwrap(), Month::January, Day::N6).unwrap());
 test!(
   datetime,
-  DateTime<Utc>,
-  DateTime::from_timestamp_secs_and_ns(123456789, Nanosecond::from_num(12000).unwrap()).unwrap()
+  Datetime<Utc>,
+  Datetime::from_timestamp_secs_and_ns(123456789, Nanosecond::from_num(12000).unwrap()).unwrap()
 );

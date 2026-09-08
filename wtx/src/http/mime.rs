@@ -14,7 +14,7 @@ pub enum Mime {
   /// application/vnd.google.protobuf
   ApplicationVndGoogleProtobuf,
   /// application/vnd.oasis.opendocument.spreadsheet
-  ApplicationVndOasisOpendocumentSspreadsheet,
+  ApplicationVndOasisOpendocumentSpreadsheet,
   /// application/wasm
   ApplicationWasm,
   /// application/xml
@@ -83,7 +83,7 @@ impl Mime {
       Self::ApplicationOctetStream => "application/octet-stream",
       Self::ApplicationPdf => "application/pdf",
       Self::ApplicationVndGoogleProtobuf => "application/vnd.google.protobuf",
-      Self::ApplicationVndOasisOpendocumentSspreadsheet => {
+      Self::ApplicationVndOasisOpendocumentSpreadsheet => {
         "application/vnd.oasis.opendocument.spreadsheet"
       }
       Self::ApplicationWasm => "application/wasm",

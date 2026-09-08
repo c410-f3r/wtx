@@ -71,10 +71,30 @@ impl<'module, 'others>
       Option<FirBeforeSendingItemValues<'module>>,
     ),
   ) -> Result<Self, Self::Error> {
-    let FirParamsItemValues { fpiv_ident, fpiv_params, fpiv_where_predicates, .. } = &fparamsiv;
-    let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = &freqdiv;
-    let FirRespItemValues { fresdiv_ident, fresdiv_params, fresdiv_where_predicates, .. } =
-      &frespdiv;
+    let FirParamsItemValues {
+      fpiv_ident,
+      fpiv_params,
+      fpiv_where_predicates,
+      fpiv_fields_attrs: _,
+      fpiv_item: _,
+      fpiv_ty: _,
+    } = &fparamsiv;
+    let FirReqItemValues {
+      freqdiv_ident,
+      freqdiv_params,
+      freqdiv_where_predicates,
+      freqdiv_fields_attrs: _,
+      freqdiv_item: _,
+      freqdiv_ty: _,
+    } = &freqdiv;
+    let FirRespItemValues {
+      fresdiv_ident,
+      fresdiv_params,
+      fresdiv_where_predicates,
+      fresdiv_fields_attrs: _,
+      fresdiv_item: _,
+      fresdiv_ty: _,
+    } = &frespdiv;
     let SirPkaAttr { data_formats, id, transport_groups } = &spa;
 
     let camel_case_pkg_ident = &{
@@ -110,8 +130,12 @@ impl<'module, 'others>
     let mut package_impls = Vec::new();
 
     for data_format in data_formats {
-      let DataFormatElems { dfe_ext_req_ctnt_wrapper, dfe_ext_res_ctnt_wrapper, .. } =
-        data_format.elems();
+      let DataFormatElems {
+        dfe_ext_req_ctnt_wrapper,
+        dfe_ext_res_ctnt_wrapper,
+        dfe_data_format_builder_fn: _,
+        dfe_pkgs_aux_call: _,
+      } = data_format.elems();
       let iter = transport_groups
         .iter()
         .map(|el| (false, el))

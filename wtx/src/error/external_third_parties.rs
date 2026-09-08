@@ -124,6 +124,22 @@ impl From<quick_protobuf::Error> for crate::Error {
   }
 }
 
+#[cfg(feature = "quick-xml")]
+impl From<quick_xml::Error> for crate::Error {
+  #[inline]
+  fn from(from: quick_xml::Error) -> Self {
+    Self::QuickXml(from.into())
+  }
+}
+
+#[cfg(feature = "quick-xml")]
+impl From<quick_xml::events::attributes::AttrError> for crate::Error {
+  #[inline]
+  fn from(from: quick_xml::events::attributes::AttrError) -> Self {
+    Self::QuickXmlAttr(from.into())
+  }
+}
+
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for crate::Error {
   #[inline]
@@ -190,6 +206,14 @@ impl From<uuid::Error> for crate::Error {
   #[inline]
   fn from(value: uuid::Error) -> Self {
     Self::UuidError(value.into())
+  }
+}
+
+#[cfg(feature = "zip")]
+impl From<zip::result::ZipError> for crate::Error {
+  #[inline]
+  fn from(value: zip::result::ZipError) -> Self {
+    Self::Zip(value.into())
   }
 }
 

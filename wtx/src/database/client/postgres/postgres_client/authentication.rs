@@ -45,8 +45,8 @@ where
   where
     RNG: CryptoRng,
   {
-    let ClientBuffer { common, .. } = &mut self.cb;
-    let CommonClientBuffer { read_buffer, .. } = common;
+    let ClientBuffer { common, conn_params: _ } = &mut self.cb;
+    let CommonClientBuffer { read_buffer, records_params: _, stmts: _, values_params: _ } = common;
     let msg0 = Self::fetch_msg(&mut self.cs, read_buffer, &mut self.stream).await?;
     match msg0.ty {
       MessageTy::Authentication(Authentication::Ok) => {
@@ -120,7 +120,8 @@ where
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
     loop {
       let ClientBuffer { common, conn_params } = &mut self.cb;
-      let CommonClientBuffer { read_buffer, .. } = common;
+      let CommonClientBuffer { read_buffer, records_params: _, stmts: _, values_params: _ } =
+        common;
       let msg = Self::fetch_msg(&mut self.cs, read_buffer, &mut self.stream).await?;
       match msg.ty {
         MessageTy::BackendKeyData => {}

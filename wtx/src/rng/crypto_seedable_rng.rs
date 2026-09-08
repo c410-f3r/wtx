@@ -26,7 +26,7 @@ pub trait CryptoSeedableRng: Sized {
   }
 
   /// Creates a new instance based on the entropy provided by `std::random`.
-  #[cfg(all(feature = "nightly", feature = "std"))]
+  #[cfg(feature = "std")]
   #[inline]
   fn from_std_random() -> crate::Result<Self> {
     use core::random::Rng as _;

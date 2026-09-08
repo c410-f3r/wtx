@@ -10,7 +10,7 @@ To use this functionality, it is necessary to activate the `schema-manager` feat
 # Example
 
 cargo install --git https://github.com/c410-f3r/wtx --features schema-manager-dev wtx-ui
-echo DATABASE_URI="postgres://USER:PASSWORD@localhost:5432/DATABASE" > .env
+echo WTX_DATABASE_URI="postgres://USER:PASSWORD@localhost:5432/DATABASE" > .env
 RUST_LOG=debug wtx-cli migrate
 ```
 

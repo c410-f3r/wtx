@@ -1,5 +1,5 @@
 use crate::{
-  _AFTER_CLOSE_TIMEOUT_MS,
+  AFTER_CLOSE_TIMEOUT_MS,
   futures::Sleep,
   http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, U31},
   http2::{
@@ -173,7 +173,7 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
   let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
   do_send_go_away(error_code, last_stream_id, &mut *inner.wd.lock().await).await;
   wake_tasks(&mut *inner.hd.lock().await);
-  let Ok(sleep) = Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS)) else {
+  let Ok(sleep) = Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS)) else {
     close(Http2ErrorCode::ProtocolError, inner, last_stream_id).await;
     return;
   };

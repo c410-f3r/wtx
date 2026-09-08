@@ -14,7 +14,7 @@ use crate::{
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
 pub struct Http2ClientPoolBuilder<AUX, EX, TCX> {
-  aux_fn: fn() -> AUX,
+  aux_fn: fn() -> crate::Result<AUX>,
   disable_auto_sni: bool,
   executor: EX,
   hrp: HttpRecvParams,
@@ -37,7 +37,7 @@ impl<EX, TCX> Http2ClientPoolBuilder<(), EX, TCX> {
   ) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
     Ok(Self {
-      aux_fn: || {},
+      aux_fn: || Ok(()),
       disable_auto_sni: false,
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
@@ -85,7 +85,10 @@ impl<AUX, EX, TCX> Http2ClientPoolBuilder<AUX, EX, TCX> {
 
   /// Function that returns auxiliary data.
   #[inline]
-  pub fn set_aux_fn<_AUX>(self, value: fn() -> _AUX) -> Http2ClientPoolBuilder<_AUX, EX, TCX> {
+  pub fn set_aux_fn<_AUX>(
+    self,
+    value: fn() -> crate::Result<_AUX>,
+  ) -> Http2ClientPoolBuilder<_AUX, EX, TCX> {
     Http2ClientPoolBuilder {
       aux_fn: value,
       disable_auto_sni: self.disable_auto_sni,

@@ -1,5 +1,5 @@
 use crate::{
-  _AFTER_CLOSE_TIMEOUT_MS,
+  AFTER_CLOSE_TIMEOUT_MS,
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   futures::Sleep,
   misc::Either,
@@ -72,7 +72,7 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
       split_len: 0,
       stream_bridge,
       stream_reader,
-      timer: Box::pin(Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?),
+      timer: Box::pin(Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS))?),
       warning_alerts: 0,
     })
   }

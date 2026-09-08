@@ -4,7 +4,9 @@ use crate::{
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{
+  borrow::Borrow,
   fmt::{Debug, Formatter},
+  hash::{Hash, Hasher},
   ops::Deref,
   str,
 };
@@ -66,6 +68,16 @@ where
 {
   #[inline]
   fn as_ref(&self) -> &str {
+    self
+  }
+}
+
+impl<L> Borrow<str> for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn borrow(&self) -> &str {
     self
   }
 }
@@ -136,13 +148,26 @@ where
   }
 }
 
+impl<L> Hash for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    (**self).hash(state);
+  }
+}
+
 impl<L> PartialEq for ShortBoxStr<L>
 where
   L: LinearStorageLen,
 {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
-    self.0 == other.0
+    **self == **other
   }
 }
 

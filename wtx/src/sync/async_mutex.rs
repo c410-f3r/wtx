@@ -173,10 +173,10 @@ impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
       return Poll::Ready(mutex_guard);
     }
 
-    let AsyncMutex { state, waiters, .. } = mutex;
+    let AsyncMutex { state, waiters, value: _ } = mutex;
     let mut waiters_guard = waiters.lock();
     if let Some(idx) = self.idx_opt {
-      let Waiters { deque, last_added, waiting_count, .. } = &mut *waiters_guard;
+      let Waiters { deque, last_added, waiting_count, added: _ } = &mut *waiters_guard;
       let actual_idx = backward_deque_idx(idx, *last_added);
       if let Some(elem) = deque.get_mut(actual_idx) {
         elem.register(waiting_count, cx.waker());

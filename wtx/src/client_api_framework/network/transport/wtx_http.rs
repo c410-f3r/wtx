@@ -126,7 +126,14 @@ where
   let log_data = pkgs_aux.log_data;
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, resp_params) = tp.ext_params_mut();
-  let HttpReqParams { msg_buffer, .. } = req_params;
+  let HttpReqParams {
+    msg_buffer,
+    host: _,
+    method: _,
+    mime: _,
+    user_agent_custom: _,
+    user_agent_default: _,
+  } = req_params;
   let HttpResParams { status_code } = resp_params;
   let mut local_rrb = MsgBufferString::default();
   mem::swap(&mut local_rrb.body, &mut pkgs_aux.bytes_buffer);
@@ -157,15 +164,30 @@ where
   TP: LeaseMut<HttpParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
-  let PkgsAux { log_data, tp, .. } = pkgs_aux;
+  let PkgsAux { log_data, tp, api: _, built_requests: _, bytes_buffer: _, drsr: _, encode_data: _ } =
+    pkgs_aux;
   {
-    let HttpReqParams { method, msg_buffer, .. } = tp.lease_mut().ext_params_mut().0;
+    let HttpReqParams {
+      method,
+      msg_buffer,
+      host: _,
+      mime: _,
+      user_agent_custom: _,
+      user_agent_default: _,
+    } = tp.lease_mut().ext_params_mut().0;
     let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
     log_http_req::<_, TP>(local_bytes0, *log_data, *method, client, &msg_buffer.uri);
     manage_params(local_bytes0.len(), pkgs_aux)?;
   }
   {
-    let HttpReqParams { method, msg_buffer, .. } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
+    let HttpReqParams {
+      method,
+      msg_buffer,
+      host: _,
+      mime: _,
+      user_agent_custom: _,
+      user_agent_default: _,
+    } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
     let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
     let rb = ReqBuilder::new(*method, (local_bytes1, &msg_buffer.headers, msg_buffer.uri.to_ref()));
     let rslt = client.send_req(&mut msg_buffer.body, rb.into_request()).await?;
@@ -195,7 +217,14 @@ where
     &pkgs_aux.tp.lease().ext_req_params().msg_buffer.uri,
   );
   manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
-  let HttpReqParams { method, msg_buffer, .. } = &mut *pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let HttpReqParams {
+    method,
+    msg_buffer,
+    host: _,
+    mime: _,
+    user_agent_custom: _,
+    user_agent_default: _,
+  } = &mut *pkgs_aux.tp.lease_mut().ext_params_mut().0;
   let rb = ReqBuilder::new(
     *method,
     (&pkgs_aux.bytes_buffer, &msg_buffer.headers, msg_buffer.uri.to_ref()),

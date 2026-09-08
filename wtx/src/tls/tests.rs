@@ -33,7 +33,7 @@ async fn simple_connection(runtime: &StdRuntime) {
 
   let stream = listener.accept().unwrap().0;
   let mut tls_stream = TlsAcceptor::new(
-    TlsConfig::from_keys_pem(_PUBLIC_KEY, &mut server_rng, _SECRET_KEY).unwrap(),
+    TlsConfig::from_keys_pem(_PUBLIC_KEY, _SECRET_KEY).unwrap(),
     &mut server_rng,
     stream,
   )

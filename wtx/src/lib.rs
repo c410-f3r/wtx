@@ -1,8 +1,8 @@
-#![allow(unused_features, reason = "remove this once `return_type_notation` is stabilized")]
+#![allow(unused_features, reason = "remove this once the features are stabilized")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(feature = "nightly", feature(random, return_type_notation))]
 #![doc = include_str!("../README.md")]
+#![feature(random, return_type_notation)]
 #![no_std]
 
 extern crate alloc;
@@ -43,6 +43,8 @@ pub mod misc;
 pub mod net;
 pub mod pool;
 pub mod rng;
+#[cfg(feature = "secret")]
+pub mod secret;
 #[cfg(feature = "smtp")]
 pub mod smtp;
 pub mod sync;
@@ -59,9 +61,13 @@ pub use error::{Error, RecvError, SendError};
 #[cfg(feature = "macros")]
 pub use wtx_macros::*;
 
-const _AFTER_CLOSE_TIMEOUT_MS: u64 = 50;
-const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
-const _SIMD_LEN: usize = _simd! {
+#[cfg(any(feature = "http2", feature = "tls"))]
+const AFTER_CLOSE_TIMEOUT_MS: u64 = 100;
+#[cfg(feature = "web-socket")]
+const MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
+
+/// The wider length based on the selected host at compile time.
+pub const SIMD_LEN: usize = _simd! {
   4 => { 4 },
   16 => { 16 },
   32 => { 32 },

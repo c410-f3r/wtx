@@ -195,7 +195,7 @@ impl<D, M> BlocksDeque<D, M> {
   /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
   pub fn pop_back(&mut self) -> Option<M> {
-    let Self { data, metadata, .. } = self;
+    let Self { data, metadata, logical_begin: _ } = self;
     let local_metadata = metadata.pop_back()?;
     data.truncate_back(data.len().wrapping_sub(local_metadata.len));
     Some(local_metadata.misc)
@@ -230,7 +230,7 @@ impl<D, M> BlocksDeque<D, M> {
   where
     B: TryExtend<[D; 1]>,
   {
-    let Self { data, metadata, .. } = self;
+    let Self { data, metadata, logical_begin: _ } = self;
     let local_metadata = metadata.pop_back()?;
     let new_len = data.len().wrapping_sub(local_metadata.len);
     if let Err(err) = data.truncate_back_to_buffer(buffer, new_len) {
@@ -287,7 +287,7 @@ impl<D, M> BlocksDeque<D, M> {
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
   pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> crate::Result<()> {
-    let Self { data, metadata, .. } = self;
+    let Self { data, metadata, logical_begin: _ } = self;
     let _ = metadata.reserve_front(blocks).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     let _ = data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     Ok(())

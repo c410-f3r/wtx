@@ -4,23 +4,20 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  collections::{ShortBoxSliceU16, Vector},
-  misc::SecretContext,
-  rng::{ChaCha20, CryptoRng, CryptoSeedableRng},
+  collections::ShortBoxSliceU16,
+  rng::CryptoRng,
+  secret::SecretSlice,
   tls::{SignatureScheme, TlsConfig, TlsCtx, TlsCtxSk, TlsMode},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_std_random()?;
-  let secret_context = SecretContext::new(&mut rng)?;
-
   // Secure connection with an encrypted secret key
-  let _enc_sk = TlsConfig::from_keys_der([], &mut rng, (secret_context, &mut [][..]))?;
+  let _enc_sk = TlsConfig::from_keys_der([], SecretSlice::new(&mut [][..])?)?;
   // Unencrypted connection
   let _plaintext_ctx = TlsConfig::plaintext();
   // Secure connection with a plaintext secret key
-  let _sk = TlsConfig::from_keys_der([], &mut rng, ShortBoxSliceU16::default())?;
+  let _sk = TlsConfig::from_keys_der([], ShortBoxSliceU16::default())?;
   // Encrypted connection that does not verify certificates
   let _unverified_ctx = TlsConfig::unverified();
 
@@ -40,13 +37,7 @@ impl TlsCtx for TopSecretSuperSecureSigner {
 impl TlsCtxSk for TopSecretSuperSecureSigner {
   type Signature = [u8; 0];
 
-  fn sign<RNG>(
-    &self,
-    _: &mut Vector<u8>,
-    _: &[u8],
-    _: &mut RNG,
-    _: SignatureScheme,
-  ) -> wtx::Result<Self::Signature>
+  fn sign<RNG>(&self, _: &[u8], _: &mut RNG, _: SignatureScheme) -> wtx::Result<Self::Signature>
   where
     RNG: CryptoRng,
   {

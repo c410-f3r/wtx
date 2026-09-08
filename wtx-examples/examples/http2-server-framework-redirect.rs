@@ -12,8 +12,8 @@ use wtx::{
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let rng = ChaCha20::from_std_random()?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router =
     HttpRouter::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
@@ -25,6 +25,6 @@ async fn permanent() -> Redirect {
   Redirect::permanent("/some/path")
 }
 
-async fn temporary(StateClean { req, .. }: StateClean<'_, ()>) -> wtx::Result<StatusCode> {
+async fn temporary(StateClean { req, data: _ }: StateClean<'_, ()>) -> wtx::Result<StatusCode> {
   Redirect::temporary_raw(&mut req.msg_data.headers, "/another/path")
 }

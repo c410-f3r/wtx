@@ -1,5 +1,4 @@
 use crate::{
-  collections::Vector,
   rng::CryptoRng,
   tls::{SignatureScheme, TlsCtx, TlsCtxSk, TlsMode},
 };
@@ -30,13 +29,7 @@ impl TlsCtxSk for UnverifiedCtx {
   type Signature = [u8; 0];
 
   #[inline]
-  fn sign<RNG>(
-    &self,
-    _: &mut Vector<u8>,
-    _: &[u8],
-    _: &mut RNG,
-    _: SignatureScheme,
-  ) -> crate::Result<Self::Signature>
+  fn sign<RNG>(&self, _: &[u8], _: &mut RNG, _: SignatureScheme) -> crate::Result<Self::Signature>
   where
     RNG: CryptoRng,
   {

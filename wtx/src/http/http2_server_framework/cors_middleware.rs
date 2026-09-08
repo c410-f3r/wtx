@@ -354,7 +354,12 @@ impl CorsMiddleware {
 
   fn manage_local_params(&self) -> crate::Result<()> {
     let Self {
-      allow_credentials, allow_headers, allow_methods, allow_origins, expose_headers, ..
+      allow_credentials,
+      allow_headers,
+      allow_methods,
+      allow_origins,
+      expose_headers,
+      max_age: _,
     } = self;
     let has_wildcard = allow_headers.0 || allow_methods.0 || allow_origins.0 || expose_headers.0;
     if has_wildcard && *allow_credentials {

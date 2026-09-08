@@ -23,8 +23,6 @@ mod mem;
 mod optimizations;
 mod partial_char;
 mod ppm;
-#[cfg(feature = "secret")]
-mod secret;
 mod sensitive_bytes;
 mod simd_slice;
 mod to_owned;
@@ -51,8 +49,6 @@ pub use mem::*;
 pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
 pub use ppm::Ppm;
-#[cfg(feature = "secret")]
-pub use secret::{Secret, SecretContext, SecretPeek};
 pub use sensitive_bytes::SensitiveBytes;
 pub use simd_slice::{simd_bytes, simd_bytes_mut};
 pub use to_owned::ToOwned;

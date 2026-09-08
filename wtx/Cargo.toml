@@ -58,7 +58,7 @@ x25519-dalek = { default-features = false, optional = true, version = "3.0" }
 zip = { default-features = false, optional = true, version = "8.0" }
 
 [dev-dependencies]
-wtx = { default-features = false, features = ["crypto-ring", "macros", "nightly", "std"], path = "." }
+wtx = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }
 
 [features]
 32-tuple-impls = []
@@ -128,8 +128,8 @@ grpc-server = ["grpc", "http2-server-framework"]
 hashbrown = ["dep:hashbrown", "hashbrown?/default-hasher", "hashbrown?/inline-more"]
 http = []
 http2 = ["foldhash", "hashbrown", "http", "tls"]
-http2-client-pool = ["http2", "nightly", "std"]
-http2-server-framework = ["http2", "nightly"]
+http2-client-pool = ["http2", "std"]
+http2-server-framework = ["http2"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
 http-session = ["http-cookie-secure", "secret", "serde_json"]
@@ -137,8 +137,7 @@ httparse = ["dep:httparse"]
 libc = ["dep:libc"]
 macros = ["dep:wtx-macros"]
 memchr = ["dep:memchr"]
-nightly = []
-odf = ["quick-xml", "zip"]
+odf = ["quick-xml", "std", "zip"]
 optimizations = ["memchr", "simdutf8"]
 optimizations-std = ["optimizations", "socket2", "std"]
 parking_lot = ["dep:parking_lot"]
@@ -152,7 +151,7 @@ rand_core = ["dep:rand_core"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal?/maths"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
-secret = ["crypto"]
+secret = ["libc"]
 serde = ["hashbrown?/serde", "dep:serde", "serde?/alloc", "serde?/derive"]
 serde_json = ["serde", "dep:serde_json", "serde_json?/alloc", "serde_json?/std", "std"]
 sha3 = ["dep:sha3"]
@@ -167,7 +166,7 @@ tracing-subscriber = ["std", "dep:tracing-subscriber", "tracing-subscriber?/env-
 tracing-tree = ["std", "dep:tracing-tree"]
 uuid = ["dep:uuid"]
 web-socket = ["crypto", "http", "httparse", "tls"]
-web-socket-server-framework = ["nightly", "web-socket"]
+web-socket-server-framework = ["web-socket"]
 wtx-macros = ["dep:wtx-macros"]
 x509 = ["asn1", "crypto", "hashbrown"]
 zlib-rs = ["dep:zlib-rs", "zlib-rs?/rust-allocator"]
@@ -190,9 +189,7 @@ homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["api", "database", "http", "tls", "websocket"]
 license = "MPL-2.0"
 name = "wtx"
-readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-rust-version = "1.96"
 version = "0.52.1"
 
 [package.metadata.docs.rs]

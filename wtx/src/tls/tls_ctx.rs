@@ -8,8 +8,8 @@ use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper, Pem},
   collections::{ShortBoxSliceU16, Vector},
-  misc::SecretContext,
   rng::CryptoRng,
+  secret::{SecretSlice, SecretStr},
   tls::{SignatureScheme, TlsMode},
   x509::{KeyTy, Pkcs8},
 };
@@ -33,7 +33,6 @@ pub trait TlsCtxSk: TlsCtx {
   /// Sign the given message and return a digital signature.
   fn sign<RNG>(
     &self,
-    buffer: &mut Vector<u8>,
     msg: &[u8],
     rng: &mut RNG,
     sc: SignatureScheme,
@@ -50,20 +49,14 @@ pub trait TlsCtxSkLoader: Sized + TlsCtxSk {
   type SkInputPem<'data>: TlsCtxSkInput<TlsCtxSk = Self>;
 
   /// From a secret key in DER format.
-  fn from_ders<'data, RNG>(
+  fn from_ders<'data>(
     input: impl IntoIterator<Item = Self::SkInputDer<'data>>,
-    rng: &mut RNG,
-  ) -> crate::Result<Self>
-  where
-    RNG: CryptoRng;
+  ) -> crate::Result<Self>;
 
   /// From a secret key in PEM format.
-  fn from_pems<'data, RNG>(
+  fn from_pems<'data>(
     input: impl IntoIterator<Item = Self::SkInputPem<'data>>,
-    rng: &mut RNG,
-  ) -> crate::Result<Self>
-  where
-    RNG: CryptoRng;
+  ) -> crate::Result<Self>;
 }
 
 /// Used for type inference. Doesn't contain any internal logic.
@@ -80,7 +73,11 @@ impl TlsCtxSkInput for ShortBoxSliceU16<u8> {
   type TlsCtxSk = sk_ctx::SkCtx;
 }
 
-impl TlsCtxSkInput for (SecretContext, &mut [u8]) {
+impl TlsCtxSkInput for SecretSlice {
+  type TlsCtxSk = hardened_sk_ctx::HardenedSkCtx;
+}
+
+impl TlsCtxSkInput for SecretStr {
   type TlsCtxSk = hardened_sk_ctx::HardenedSkCtx;
 }
 

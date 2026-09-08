@@ -1,5 +1,5 @@
 use crate::{
-  _AFTER_CLOSE_TIMEOUT_MS,
+  AFTER_CLOSE_TIMEOUT_MS,
   collections::{ArrayVectorU8, ArrayVectorU16, Vector},
   futures::{Sleep, TryJoinArrayVector},
   http::{Headers, StatusCode, U31},
@@ -37,7 +37,7 @@ where
   pub async fn clear(&self) -> crate::Result<()> {
     let Self { inner, linger, span: _, stream_id } = self;
     if *linger {
-      Sleep::new(Duration::from_millis(_AFTER_CLOSE_TIMEOUT_MS))?.await?;
+      Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS))?.await?;
     }
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();

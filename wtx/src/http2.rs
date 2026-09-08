@@ -324,8 +324,6 @@ impl<SW, TCX, const IS_CLIENT: bool> Clone for Http2<SW, TCX, IS_CLIENT> {
 #[derive(Debug)]
 pub(crate) struct Http2Inner<SW, TCX, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
-  // FIXME(STABLE): `Arc::map` to use `Arc<AtomicU8>` instead of `Arc<TlsStreamCommon>` and then
-  //                remove `pub(crate)` from the `tls_stream_common` module.
   pub(crate) is_conn_open: Arc<TlsStreamCommon>,
   pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TCX, IS_CLIENT>>,
 }

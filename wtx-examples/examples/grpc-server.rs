@@ -24,8 +24,8 @@ use wtx_examples::{
 };
 
 fn main() -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY.try_into()?, &mut rng, SECRET_KEY)?;
+  let rng = ChaCha20::from_std_random()?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::new(
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,

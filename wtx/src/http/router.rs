@@ -593,7 +593,7 @@ impl<T, const MC: usize, const MD: usize> RouterMatch<'_, T, MC, MD> {
   /// Iterator over all parameters
   #[inline]
   pub fn params(&self) -> impl Iterator<Item = RouterMatchParam<'_>> {
-    let Self { rmpi, route, rows, .. } = self;
+    let Self { rmpi, route, rows, value: _ } = self;
     rmpi.iter().filter_map(|RouterMatchParamIndices { ident_param_range, row_idx }| {
       let row = rows.get(usize::from(*row_idx))?;
       let name = match row.ty {

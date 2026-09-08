@@ -51,6 +51,7 @@ pub(crate) fn log_generic_res(_bytes: &[u8], _log_data: bool, _tg: TransportGrou
   let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   _trace!(body = debug(_body), trans_ty = display(_tg), "Response");
 }
+
 #[cfg(feature = "http2")]
 pub(crate) fn log_http_res(
   _bytes: &[u8],
@@ -60,11 +61,12 @@ pub(crate) fn log_http_res(
   _uri: &crate::net::UriString,
 ) {
   let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
+  let _uri_display = if _log_data { _uri.as_str() } else { _uri.origin() };
   _trace!(
     body = debug(_body),
     status_code = display(_status_code),
     trans_ty = display(_tg),
-    uri = display(_uri.origin()),
+    uri = display(_uri_display),
     "Response"
   );
 }

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, Date, DateTime, Hour, Month, Nanosecond, Sixty, Time, TimeZone,
+    CalendarError, CalendarToken, Date, Datetime, Hour, Month, Nanosecond, Sixty, Time, TimeZone,
     Weekday,
   },
   codec::FromRadix10 as _,
@@ -12,7 +12,7 @@ const NANO_MULTIPLIERS: &[u32; 10] =
 pub(crate) enum ParsedData<TZ> {
   Time(Time),
   Date(Date),
-  DateTime(DateTime<TZ>),
+  Datetime(Datetime<TZ>),
 }
 
 impl<TZ> ParsedData<TZ>
@@ -47,7 +47,7 @@ where
         let tz_minutes = params.time_zone.unwrap_or(0);
         let date = Date::from_ymd(year.try_into()?, month, day.try_into()?)?;
         check_weekday(date, params.weekday)?;
-        Ok(Self::DateTime(DateTime::new(
+        Ok(Self::Datetime(Datetime::new(
           date,
           Time::from_hms_ns(hour.try_into()?, minute.try_into()?, second.try_into()?, nano),
           TZ::from_minutes(tz_minutes)?,

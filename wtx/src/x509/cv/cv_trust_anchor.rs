@@ -231,15 +231,15 @@ where
     }
   }
 
-  #[cfg(feature = "ccadb")]
-  pub(crate) fn _from_raw(raw: CvTrustAnchorRaw) -> crate::Result<Self>
+  #[cfg(all(feature = "ccadb", feature = "tls"))]
+  pub(crate) fn from_raw(raw: CvTrustAnchorRaw) -> crate::Result<Self>
   where
     B0: TryFrom<&'static [u8]>,
     B0::Error: Into<crate::Error>,
   {
     use crate::{
       asn1::{Len, Oid},
-      calendar::DateTime,
+      calendar::Datetime,
       collections::ArrayVectorCopy,
       x509::{KeyIdentifier, Time},
     };
@@ -271,8 +271,8 @@ where
         )
       },
       Validity::new(
-        Time::new(DateTime::from_timestamp_secs(raw.7.0)?, false),
-        Time::new(DateTime::from_timestamp_secs(raw.7.1)?, false),
+        Time::new(Datetime::from_timestamp_secs(raw.7.0)?, false),
+        Time::new(Datetime::from_timestamp_secs(raw.7.1)?, false),
       ),
     ))
   }

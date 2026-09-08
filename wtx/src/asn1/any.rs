@@ -14,8 +14,6 @@ pub struct Any<B> {
 
 impl<B> Any<B> {
   /// Doesn't perform checks that ensure that `len` is equal to the length of `bytes`.
-  //
-  // FIXME(STABLE): Return `Result`
   #[inline]
   pub const fn new(bytes: B, tag: u8, len: Len) -> Self {
     Self { bytes, tag, len }

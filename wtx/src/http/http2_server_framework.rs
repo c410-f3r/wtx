@@ -246,7 +246,6 @@ where
   ///
   /// You must call this method from within an existing async environment. Preferably, a
   /// multi-thread environment.
-  #[cfg(feature = "nightly")]
   #[inline]
   pub async fn run<EN, M>(
     mut self,

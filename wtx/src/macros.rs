@@ -14,8 +14,8 @@ macro_rules! concat_slices {
 macro_rules! concat_strings {
   ($($string:expr),* $(,)?) => {
     const {
-      $( let _type_hint: &str = $string; )*
       use $crate::collections::FixedString;
+      $( let _type_hint: &str = $string; )*
       const LEN: usize = 0 $(+ $string.len())*;
       const ARRAY: FixedString<LEN> = {
         let arrays = &[$($string.as_bytes()),*];
@@ -163,6 +163,21 @@ macro_rules! create_enum {
       }
     }
   }
+}
+
+/// Creates an array string from a literal string
+#[macro_export]
+macro_rules! fixed_string {
+  ($input:expr) => {
+    const {
+      use $crate::collections::FixedString;
+      const LEN: usize = $input.len();
+      let _type_hint: &str = $input;
+      let mut array = [0; LEN];
+      array.copy_from_slice($input.as_bytes());
+      FixedString::from_array_opt(array).unwrap()
+    }
+  };
 }
 
 /// Decodes a sequence of adhoc hexadecimal bytes.

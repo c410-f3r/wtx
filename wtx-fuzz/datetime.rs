@@ -1,8 +1,8 @@
-//! DateTime
+//! Datetime
 
 #![no_main]
 
-use wtx::calendar::{DateTime, Utc};
+use wtx::calendar::{Datetime, Utc};
 
 libfuzzer_sys::fuzz_target!(|data: (Vec<u8>, Vec<u8>)| {
   let (value, fmt) = data;
@@ -10,6 +10,6 @@ libfuzzer_sys::fuzz_target!(|data: (Vec<u8>, Vec<u8>)| {
     let Ok(token) = chunk.try_into() else {
       continue;
     };
-    let _rslt = DateTime::<Utc>::parse(&value, [token]);
+    let _rslt = Datetime::<Utc>::parse(&value, [token]);
   }
 });

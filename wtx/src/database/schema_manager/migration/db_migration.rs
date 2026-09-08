@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{DateTime, Utc},
+  calendar::{Datetime, Utc},
   database::{
     DatabaseTy, Identifier,
     schema_manager::{DbMigrationGroup, Uid, migration::migration_common::MigrationCommon},
@@ -11,7 +11,7 @@ use core::fmt;
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DbMigration {
   common: MigrationCommon<Identifier>,
-  created_on: DateTime<Utc>,
+  created_on: Datetime<Utc>,
   db_ty: DatabaseTy,
   group: DbMigrationGroup<Identifier>,
 }
@@ -25,7 +25,7 @@ impl DbMigration {
 
   /// When the migration was created.
   #[inline]
-  pub const fn created_on(&self) -> &DateTime<Utc> {
+  pub const fn created_on(&self) -> &Datetime<Utc> {
     &self.created_on
   }
 

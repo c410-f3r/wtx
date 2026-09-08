@@ -98,7 +98,7 @@ pub enum CalendarError {
   /// Provided data can not represent a single date
   InvalidParsingDate,
   /// Provided data can not represent a single datetime
-  InvalidParsingDateTime,
+  InvalidParsingDatetime,
   /// Provided format contains invalid syntax
   InvalidParsingFormat,
   /// A literal from the provided format does not match in the provided data

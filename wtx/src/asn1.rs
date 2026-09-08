@@ -27,7 +27,7 @@ mod set;
 mod u32;
 
 use crate::{
-  calendar::{Date, DateTime, Day, Hour, Month, Sixty, Time, Utc, Year},
+  calendar::{Date, Datetime, Day, Hour, Month, Sixty, Time, Utc, Year},
   codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10 as _, GenericCodec, Pem},
   collections::{ExpansionTy, TryExtend},
 };
@@ -191,7 +191,7 @@ pub(crate) fn decode_asn1_tlv(bytes: &[u8]) -> crate::Result<(u8, Len, &[u8], &[
 }
 
 #[inline]
-fn parse_datetime(year: i16, bytes: [&u8; 10]) -> crate::Result<DateTime<Utc>> {
+fn parse_datetime(year: i16, bytes: [&u8; 10]) -> crate::Result<Datetime<Utc>> {
   let [month0, month1, day0, day1, hour0, hour1, min0, min1, sec0, sec1] = bytes;
   let date = Date::from_ymd(
     Year::from_num(year)?,
@@ -203,7 +203,7 @@ fn parse_datetime(year: i16, bytes: [&u8; 10]) -> crate::Result<DateTime<Utc>> {
     Sixty::from_num(u8::from_radix_10(&[*min0, *min1])?)?,
     Sixty::from_num(u8::from_radix_10(&[*sec0, *sec1])?)?,
   );
-  Ok(DateTime::new(date, time, Utc))
+  Ok(Datetime::new(date, time, Utc))
 }
 
 /// Auxiliary wrapper used for decoding

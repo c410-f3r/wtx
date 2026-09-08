@@ -1,6 +1,6 @@
 use crate::{
-  calendar::{DateTime, Instant, Utc},
-  collections::{ArrayVectorU8, Vector},
+  calendar::{Datetime, Instant, Utc},
+  collections::Vector,
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
     KnownHeaderName, MsgBufferString, Request, Response, SessionManager, SessionManagerInner,
@@ -73,8 +73,6 @@ where
       }
       return Ok(ControlFlow::Continue(()));
     }
-    let mut has_invalid_session = false;
-    let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
     for header in &req.msg_data.headers {
       if data.lease_mut().is_some() && x_csrf_token_value.is_some() {
@@ -96,16 +94,14 @@ where
           continue;
         }
         let mut session_guard = self.session_manager.inner.1.lock().await;
-        let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
+        let SessionManagerInner { cookie_def, session_secret, phantom: _ } = &mut *session_guard;
         {
           let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-          let mut buffer = ArrayVectorU8::<_, { 16 + 28 }>::new();
-          let sp = session_secret.peek(&mut buffer)?;
           let rslt = Aes128GcmGlobal::decrypt_base64_to_buffer(
             name.as_bytes(),
             &mut cookie_def.value,
             value.as_bytes(),
-            sp.data().try_into().map_err(crate::Error::from)?,
+            &*session_secret.peek()?,
           );
           req.msg_data.body.truncate(idx);
           let json_rslt = serde_json_deserialize_from_slice(rslt?.0);
@@ -117,26 +113,16 @@ where
       let Some(ss_db) =
         self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?
       else {
-        has_stored_session = false;
-        break;
+        _trace!("Session found in headers does not exist in database");
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       };
       if ss_db.custom_state != ss_des.custom_state {
-        has_invalid_session = true;
-        break;
+        _trace!("Connection session does not match database ssion");
+        delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
+        return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
       *data.lease_mut() = Some(ss_des);
-    }
-    // FIXME(STABLE): Polonius
-    if has_invalid_session {
-      _trace!("Connection session does not match database ssion");
-      delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
-      return Ok(ControlFlow::Break(StatusCode::Forbidden));
-    }
-    // FIXME(STABLE): Polonius
-    if !has_stored_session {
-      _trace!("Session found in headers does not exist in database");
-      delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
-      return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
     if let Some(elem) = data.lease_mut() {
       if check_expiration(&elem.expires_at)? {
@@ -174,9 +160,9 @@ where
 }
 
 #[inline]
-fn check_expiration(expires_at: &Option<DateTime<Utc>>) -> crate::Result<bool> {
+fn check_expiration(expires_at: &Option<Datetime<Utc>>) -> crate::Result<bool> {
   if let Some(elem) = expires_at
-    && *elem < Instant::now_date_time()?.trunc_to_us()
+    && *elem < Instant::now_datetime()?.trunc_to_us()
   {
     Ok(true)
   } else {

@@ -1,8 +1,7 @@
 use crate::{
-  calendar::{DateTime, Instant, Utc},
+  calendar::{Datetime, Instant, Utc},
   collections::{ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, Vector},
   misc::{Lease, LeaseMut},
-  rng::CryptoRng,
   tls::{
     Alpn, CipherSuite, MaxFragmentLength, NamedGroup, PlaintextCtx, PublicKeys, ServerNameList,
     TlsCtxSkInput, TlsCtxSkLoader, TrustedCtx, UnverifiedCtx,
@@ -26,7 +25,7 @@ impl TlsConfig<PlaintextCtx> {
   /// Placeholder used in locals where data is expected to be unencrypted.
   #[inline]
   pub fn plaintext() -> Self {
-    Self { inner: TlsConfigInner::new(PlaintextCtx::new(), DateTime::default()) }
+    Self { inner: TlsConfigInner::new(PlaintextCtx::new(), Datetime::default()) }
   }
 }
 
@@ -39,7 +38,7 @@ impl TlsConfig<TrustedCtx> {
   pub fn from_ccadb() -> crate::Result<Self> {
     let mut trust_anchors = Vector::new();
     for elem in crate::x509::CCADB {
-      trust_anchors.push(CvTrustAnchor::_from_raw(*elem)?)?;
+      trust_anchors.push(CvTrustAnchor::from_raw(*elem)?)?;
     }
     let mut this = Self::new(TrustedCtx::new())?;
     this.inner.trust_anchors = trust_anchors.try_into()?;
@@ -63,7 +62,7 @@ impl TlsConfig<UnverifiedCtx> {
   /// Placeholder used in locals where data is expected to be unverified.
   #[inline]
   pub fn unverified() -> Self {
-    Self { inner: TlsConfigInner::new(UnverifiedCtx::new(), DateTime::default()) }
+    Self { inner: TlsConfigInner::new(UnverifiedCtx::new(), Datetime::default()) }
   }
 }
 
@@ -75,17 +74,15 @@ where
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
-  pub fn from_keys_der<'pk, 'sk, RNG, SK>(
+  pub fn from_keys_der<'pk, 'sk, SK>(
     public_key: impl IntoIterator<Item = &'pk [u8]>,
-    rng: &mut RNG,
     secret_key: SK,
   ) -> crate::Result<Self>
   where
-    RNG: CryptoRng,
     SK: TlsCtxSkInput<TlsCtxSk = TCX>,
     TCX: TlsCtxSkLoader<SkInputDer<'sk> = SK>,
   {
-    let mut this = Self::new(TCX::from_ders([secret_key], rng)?)?;
+    let mut this = Self::new(TCX::from_ders([secret_key])?)?;
     this.set_public_keys_der([public_key])?;
     Ok(this)
   }
@@ -94,17 +91,12 @@ where
   ///
   /// Fetches the current timestamp to verify certificates
   #[inline]
-  pub fn from_keys_pem<'sk, RNG, SK>(
-    public_key: &[u8],
-    rng: &mut RNG,
-    secret_key: SK,
-  ) -> crate::Result<Self>
+  pub fn from_keys_pem<'sk, SK>(public_key: &[u8], secret_key: SK) -> crate::Result<Self>
   where
-    RNG: CryptoRng,
     SK: TlsCtxSkInput<TlsCtxSk = TCX>,
     TCX: TlsCtxSkLoader<SkInputPem<'sk> = SK>,
   {
-    let mut this = Self::new(TCX::from_pems([secret_key], rng)?)?;
+    let mut this = Self::new(TCX::from_pems([secret_key])?)?;
     this.set_public_keys_pem([public_key])?;
     Ok(this)
   }
@@ -117,14 +109,14 @@ impl<TCX> TlsConfig<TCX> {
   /// Fetches the current timestamp to verify certificates.
   #[inline]
   pub fn new(ctx: TCX) -> crate::Result<Self> {
-    Ok(Self::from_validation_time(ctx, Instant::now_date_time()?))
+    Ok(Self::from_validation_time(ctx, Instant::now_datetime()?))
   }
 
   /// Adjusts the validation time of [`CvPolicy`] that regulates certificate expiration.
   ///
   /// Taking aside [`Self::plaintext`], all other constructors implicitly fetch the current time.
   #[inline]
-  pub fn from_validation_time(ctx: TCX, validation_time: DateTime<Utc>) -> Self {
+  pub fn from_validation_time(ctx: TCX, validation_time: Datetime<Utc>) -> Self {
     Self { inner: TlsConfigInner::new(ctx, validation_time) }
   }
 }
@@ -397,7 +389,7 @@ where
   B: Default,
 {
   #[inline]
-  fn new(ctx: TCX, validation_time: DateTime<Utc>) -> Self {
+  fn new(ctx: TCX, validation_time: Datetime<Utc>) -> Self {
     Self {
       alpn: None,
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::PRIORITY),

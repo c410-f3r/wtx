@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{DateTime, Utc},
+  calendar::{Datetime, Utc},
   collections::{ArrayStringU8, Clear},
   http::{
     Header, Headers, KnownHeaderName,
@@ -15,7 +15,7 @@ use core::{
 #[derive(Debug)]
 pub(crate) struct CookieGeneric<T, V> {
   pub(crate) domain: T,
-  pub(crate) expires: Option<DateTime<Utc>>,
+  pub(crate) expires: Option<Datetime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
   pub(crate) name: ArrayStringU8<15>,
@@ -33,7 +33,7 @@ impl<T, V> CookieGeneric<T, V> {
   {
     let prev_expires = self.expires;
     let prev_max_age = self.max_age;
-    self.expires = Some(DateTime::EPOCH);
+    self.expires = Some(Datetime::EPOCH);
     self.max_age = Some(Duration::ZERO);
     self.value.clear();
     let rslt = headers.push_from_fmt(Header::from_name_and_value(

@@ -7,7 +7,6 @@ extern crate wtx;
 
 use tokio::net::{TcpListener, TcpStream};
 use wtx::{
-  misc::SecretContext,
   net::{StreamReader, StreamWriter},
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsAcceptor, TlsConfig},
@@ -28,13 +27,8 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn connection(stream: TcpStream) -> wtx::Result<()> {
-  let mut rng = ChaCha20::from_std_random()?;
-  let secret_context = SecretContext::new(&mut rng)?;
-  let tls_config = TlsConfig::from_keys_pem(
-    PUBLIC_KEY.try_into()?,
-    &mut rng,
-    (secret_context, SECRET_KEY.to_vec().as_mut_slice()), // Encrypted secret key
-  )?;
+  let rng = ChaCha20::from_std_random()?;
+  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let tls_connector = TlsAcceptor::new(tls_config, rng, stream);
   let mut tls_stream = tls_connector.accept().await?.tls_stream;
   loop {

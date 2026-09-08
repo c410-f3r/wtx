@@ -32,7 +32,7 @@ pub use value_ident::ValueIdent;
 /// The default value for the maximum number of cached statements
 pub const DEFAULT_MAX_STMTS: usize = 128;
 /// Default environment variable name for the database URL
-pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
+pub const DEFAULT_URI_VAR: &str = "WTX_DATABASE_URI";
 
 /// The maximum number of characters that a database identifier can have. For example, tables,
 /// procedures, triggers, etc.
@@ -64,7 +64,7 @@ impl Database for () {
 #[derive(Debug)]
 pub struct DatabaseUriFromVars {
   /// Uri
-  pub uri: alloc::string::String,
+  pub wtx_database_uri: alloc::string::String,
 }
 
 #[cfg(feature = "std")]
@@ -79,9 +79,9 @@ impl crate::misc::FromVars for DatabaseUriFromVars {
         rslt = Some(value);
       }
     }
-    let uri = rslt.ok_or_else(|| {
+    let wtx_database_uri = rslt.ok_or_else(|| {
       crate::Error::MissingVar(crate::collections::ShortStrU8::new_truncated_u8(DEFAULT_URI_VAR))
     })?;
-    Ok(Self { uri })
+    Ok(Self { wtx_database_uri })
   }
 }

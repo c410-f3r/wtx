@@ -34,7 +34,14 @@ pub enum ArrayVectorError {
   /// Inner array is not totally full
   IntoInnerIncomplete,
   #[doc = doc_reserve_overflow!()]
-  ReserveOverflow,
+  ReserveOverflow {
+    /// Additional
+    additional: u16,
+    /// Current
+    curr: u32,
+    /// Maximum
+    max: u32,
+  },
 }
 
 /// Storage backed by an arbitrary array.

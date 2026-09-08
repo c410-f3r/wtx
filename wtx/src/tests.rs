@@ -11,7 +11,7 @@ pub(crate) static _ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 #[allow(unused, reason = "depends on feature")]
 #[derive(Debug, wtx::FromVars)]
 pub(crate) struct Vars {
-  pub(crate) database_uri_postgres: String,
+  pub(crate) wtx_database_uri_postgres: String,
 }
 
 pub(crate) fn _uri() -> UriString {
