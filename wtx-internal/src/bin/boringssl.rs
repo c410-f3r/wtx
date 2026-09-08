@@ -200,7 +200,7 @@ async fn exec_tests<TCX, const IS_CLIENT: bool>(
       };
       fut.await
     };
-    wtx::futures::Sleep::new(Duration::from_millis(5)).unwrap().await.unwrap();
+    wtx::futures::Sleep::new(Duration::from_millis(200)).unwrap().await.unwrap();
     boringssl_handle_err::handle_err(&options, rslt);
   }
 }

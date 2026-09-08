@@ -62,7 +62,7 @@ pub use error::{Error, RecvError, SendError};
 pub use wtx_macros::*;
 
 #[cfg(any(feature = "http2", feature = "tls"))]
-const AFTER_CLOSE_TIMEOUT_MS: u64 = 100;
+const AFTER_CLOSE_TIMEOUT_MS: u64 = 50;
 #[cfg(feature = "web-socket")]
 const MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
