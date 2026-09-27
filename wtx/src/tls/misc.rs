@@ -1,6 +1,6 @@
 use crate::{
   codec::Decode,
-  collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, Vector},
+  collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, VectorUsize},
   crypto::AEAD_TAG_LEN,
   futures::FnMutFut,
   misc::{TryArithmetic as _, unlikely_elem},
@@ -487,7 +487,7 @@ pub(crate) async fn write_payloads<SW>(
   max_fragment_length_send: u16,
   payloads: &[&[u8]],
   stream_writer: &mut SW,
-  writer_buffer: &mut Vector<u8>,
+  writer_buffer: &mut VectorUsize<u8>,
 ) -> crate::Result<()>
 where
   SW: StreamWriter,

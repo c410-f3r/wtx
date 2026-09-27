@@ -1,5 +1,5 @@
 use crate::{
-  collections::{SingleTypeStorage, Vector},
+  collections::{SingleTypeStorage, VectorUsize},
   http::{Method, MsgBufferString, MsgData, Protocol, Response, U31},
   http2::{
     CommonStream, Http2Inner, Http2RecvStatus, Http2SendStatus,
@@ -117,7 +117,7 @@ where
   #[inline]
   pub async fn send_res<MD>(
     &mut self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     res: Response<MD>,
   ) -> crate::Result<Http2SendStatus>
   where

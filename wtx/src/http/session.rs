@@ -14,8 +14,10 @@ pub use session_middleware::SessionMiddleware;
 pub use session_state::SessionState;
 pub use session_store::SessionStore;
 
-type SessionCsrf = crate::collections::ArrayStringU8<32>;
-type SessionKey = crate::collections::ArrayStringU8<32>;
+/// Cross-site request forgery token
+pub type SessionCsrf = crate::collections::ArrayStringU8<32>;
+/// Session key token
+pub type SessionKey = crate::collections::ArrayStringU8<32>;
 
 /// Convert an optional [`SessionState`] a `Result`.
 #[inline]

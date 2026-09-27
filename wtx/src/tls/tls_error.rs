@@ -221,7 +221,7 @@ pub enum TlsError {
   /// Unknown Protocol Version
   UnknownProtocolVersion,
   /// Unknown record content type
-  UnknownRecordContentType,
+  UnknownRecordContentType(u8),
   /// Wrong alert
   WrongAlert,
 }

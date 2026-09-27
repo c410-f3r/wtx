@@ -1,6 +1,8 @@
 use crate::{
   calendar::{Datetime, Instant, Utc},
-  collections::{ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, Vector},
+  collections::{
+    ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, VectorUsize,
+  },
   misc::{Lease, LeaseMut},
   tls::{
     Alpn, CipherSuite, MaxFragmentLength, NamedGroup, PlaintextCtx, PublicKeys, ServerNameList,
@@ -36,7 +38,7 @@ impl TlsConfig<TrustedCtx> {
   #[cfg(feature = "ccadb")]
   #[inline]
   pub fn from_ccadb() -> crate::Result<Self> {
-    let mut trust_anchors = Vector::new();
+    let mut trust_anchors = VectorUsize::new();
     for elem in crate::x509::CCADB {
       trust_anchors.push(CvTrustAnchor::from_raw(*elem)?)?;
     }
@@ -263,7 +265,7 @@ impl<TCX> TlsConfig<TCX> {
     &mut self,
     pems: impl IntoIterator<Item = &'pems [u8]>,
   ) -> crate::Result<()> {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     self.inner.public_keys.clear();
     for pem in pems {
       self.inner.public_keys.push_public_key_pem(&mut buffer, pem)?;
@@ -278,8 +280,8 @@ impl<TCX> TlsConfig<TCX> {
     &mut self,
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
   ) -> crate::Result<()> {
-    let mut buffer = Vector::new();
-    let mut local_trust_anchors: Vector<_> = mem::take(&mut self.inner.trust_anchors).into();
+    let mut buffer = VectorUsize::new();
+    let mut local_trust_anchors: VectorUsize<_> = mem::take(&mut self.inner.trust_anchors).into();
     local_trust_anchors.clear();
     for trust_anchor in trust_anchors {
       buffer.clear();

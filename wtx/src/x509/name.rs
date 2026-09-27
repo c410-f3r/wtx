@@ -1,7 +1,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
   x509::RelativeDistinguishedName,
 };
@@ -12,13 +12,13 @@ pub struct Name<B> {
   /// Bytes that compose all sequences
   bytes: B,
   /// Entries
-  rdn_sequence: Vector<RelativeDistinguishedName<B>>,
+  rdn_sequence: VectorUsize<RelativeDistinguishedName<B>>,
 }
 
 impl<B> Name<B> {
   /// Shortcut
   #[inline]
-  pub const fn new(bytes: B, rdn_sequence: Vector<RelativeDistinguishedName<B>>) -> Self {
+  pub const fn new(bytes: B, rdn_sequence: VectorUsize<RelativeDistinguishedName<B>>) -> Self {
     Self { bytes, rdn_sequence }
   }
 
@@ -30,7 +30,7 @@ impl<B> Name<B> {
 
   /// Returns the inner elements
   #[inline]
-  pub fn into_parts(self) -> (B, Vector<RelativeDistinguishedName<B>>) {
+  pub fn into_parts(self) -> (B, VectorUsize<RelativeDistinguishedName<B>>) {
     (self.bytes, self.rdn_sequence)
   }
 

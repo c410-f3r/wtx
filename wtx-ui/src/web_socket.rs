@@ -3,7 +3,7 @@ use tokio::{
   net::TcpListener,
 };
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   net::UriRef,
   rng::{ChaCha20, CryptoSeedableRng as _},
   tls::{TlsAcceptor, TlsConfig, TlsConnectorBuilder},
@@ -19,7 +19,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
         .await?,
     )
     .await?;
-  let mut read_frame_buffer = Vector::new();
+  let mut read_frame_buffer = VectorUsize::new();
   let mut stdin_buffer = Vec::new();
   let mut buf_reader = BufReader::new(tokio::io::stdin());
   loop {
@@ -53,7 +53,7 @@ pub(crate) async fn serve(
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let fun = async move {
-        let mut buffer = Vector::new();
+        let mut buffer = VectorUsize::new();
         let mut ws = WebSocketAcceptor::default()
           .accept(TlsAcceptor::new(&TlsConfig::plaintext(), ChaCha20::from_std_random()?, stream))
           .await?;

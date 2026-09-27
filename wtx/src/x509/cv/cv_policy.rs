@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Datetime, Utc},
-  collections::Vector,
+  collections::VectorUsize,
   x509::{
     CvCrl, CvPolicyMode,
     cv::{cv_crl_expiration::CvCrlExpiration, cv_evaluation_depth::CvEvaluationDepth},
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub struct CvPolicy<B> {
   cep: CvCrlExpiration,
-  crls: Vector<CvCrl<B>>,
+  crls: VectorUsize<CvCrl<B>>,
   evaluation_depth: CvEvaluationDepth,
   extended_key_usage: ExtendedKeyUsage,
   key_usage: KeyUsage,
@@ -30,7 +30,7 @@ impl<B> CvPolicy<B> {
   pub const fn new(validation_time: Datetime<Utc>) -> Self {
     Self {
       cep: CvCrlExpiration::Enforce,
-      crls: Vector::new(),
+      crls: VectorUsize::new(),
       evaluation_depth: CvEvaluationDepth::Chain(8),
       extended_key_usage: ExtendedKeyUsage::EMPTY,
       key_usage: KeyUsage::new((0, 0)),
@@ -47,7 +47,7 @@ impl<B> CvPolicy<B> {
 
   /// Mutable version of [`Self::crls`].
   #[inline]
-  pub const fn crls_mut(&mut self) -> &mut Vector<CvCrl<B>> {
+  pub const fn crls_mut(&mut self) -> &mut VectorUsize<CvCrl<B>> {
     &mut self.crls
   }
 

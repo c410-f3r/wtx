@@ -5,7 +5,7 @@ mod schema;
 
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, DbClient, Identifier,
     schema_manager::{
@@ -35,9 +35,9 @@ macro_rules! create_integration_tests {
   ) => {
     pub(crate) async fn $fn_name() {
       let mut _buffer_cmd = String::new();
-      let mut _buffer_db_migrations = Vector::<DbMigration>::new();
-      let mut _buffer_idents = Vector::<Identifier>::new();
-      let mut _buffer_status = Vector::<MigrationStatus>::new();
+      let mut _buffer_db_migrations = VectorUsize::<DbMigration>::new();
+      let mut _buffer_idents = VectorUsize::<Identifier>::new();
+      let mut _buffer_status = VectorUsize::<MigrationStatus>::new();
 
       #[cfg(feature = "postgres")]
       create_integration_test!(

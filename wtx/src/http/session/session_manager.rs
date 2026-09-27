@@ -1,6 +1,6 @@
 use crate::{
   calendar::Instant,
-  collections::{ArrayString, ArrayStringU8, Vector},
+  collections::{ArrayString, ArrayStringU8, VectorUsize},
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
     Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
@@ -106,7 +106,7 @@ where
         &*session_secret.peek()?,
       );
       msg_data.lease_mut().body.truncate(idx);
-      let _ = rslt?;
+      let _encrypted = rslt?;
     };
     let headers_rslt = msg_data.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
@@ -136,7 +136,7 @@ impl<CS, E> Clone for SessionManager<CS, E> {
 
 /// Allows the management of state across requests within a connection.
 pub struct SessionManagerInner<CS, E> {
-  pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
+  pub(crate) cookie_def: CookieGeneric<String, VectorUsize<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
   pub(crate) session_secret: SecretArray<16>,
 }

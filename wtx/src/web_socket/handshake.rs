@@ -197,13 +197,13 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
     let rslt = if let Some(elem) = base64_encoded_len(I, false) { elem } else { 0 };
     assert!(O >= rslt);
   }
-  base64_encode(Base64Alphabet::Standard, input, output).map(str::as_bytes).unwrap_or_default()
+  base64_encode(Base64Alphabet::Standard, input, output).map_or_default(str::as_bytes)
 }
 
 /// Client request
 fn build_req<'headers, 'kb, C, RNG, STR>(
   compression: &C,
-  sw: &mut SuffixGuardVectorMut<'_, u8>,
+  sw: &mut SuffixGuardVectorMut<'_, usize, u8>,
   headers: impl IntoIterator<Item = (&'headers str, &'headers str)>,
   key_buffer: &'kb mut [u8; 26],
   no_masking: bool,

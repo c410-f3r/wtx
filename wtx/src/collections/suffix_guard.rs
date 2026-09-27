@@ -5,17 +5,17 @@ use crate::{
 use core::ops::{Deref, DerefMut};
 
 /// [`SuffixGuard`] with a mutable vector reference.
-pub type SuffixGuardVectorMut<'inner, T> = SuffixGuard<&'inner mut Vector<T>>;
+pub type SuffixGuardVectorMut<'inner, L, T> = SuffixGuard<&'inner mut Vector<L, T>>;
 
 #[derive(Debug)]
 /// A [`SuffixGuard`] where the elements are bytes that can also be zeroed.
 pub struct SensitiveSuffixGuard<T>(SuffixGuard<T>)
 where
-  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>;
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate;
 
 impl<T> Deref for SensitiveSuffixGuard<T>
 where
-  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate,
 {
   type Target = SuffixGuard<T>;
 
@@ -27,7 +27,7 @@ where
 
 impl<T> DerefMut for SensitiveSuffixGuard<T>
 where
-  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate,
 {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
@@ -37,7 +37,7 @@ where
 
 impl<T> Drop for SensitiveSuffixGuard<T>
 where
-  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate,
 {
   #[inline]
   fn drop(&mut self) {
@@ -47,7 +47,7 @@ where
 
 impl<T> From<T> for SensitiveSuffixGuard<T>
 where
-  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate<usize>,
+  T: LeaseMut<[u8]> + SingleTypeStorage<Item = u8> + Truncate,
 {
   #[inline]
   fn from(value: T) -> Self {
@@ -59,7 +59,7 @@ where
 #[derive(Debug)]
 pub struct SuffixGuard<T>
 where
-  T: Truncate<usize>,
+  T: Truncate,
 {
   initial_idx: usize,
   inner: T,
@@ -67,7 +67,7 @@ where
 
 impl<T> SuffixGuard<T>
 where
-  T: Truncate<usize>,
+  T: Truncate,
 {
   /// Initial buffer index when this instance was created.
   #[inline]
@@ -96,7 +96,7 @@ where
 
 impl<T, U> SuffixGuard<T>
 where
-  T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
+  T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate,
 {
   /// All bytes written after the creation of this instance
   #[inline]
@@ -107,7 +107,7 @@ where
 
 impl<T, U> SuffixGuard<T>
 where
-  T: LeaseMut<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
+  T: LeaseMut<[U]> + SingleTypeStorage<Item = U> + Truncate,
 {
   /// All mutable bytes written after the creation of this instance
   #[inline]
@@ -118,7 +118,7 @@ where
 
 impl<T, U> From<T> for SuffixGuard<T>
 where
-  T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate<usize>,
+  T: Lease<[U]> + SingleTypeStorage<Item = U> + Truncate,
 {
   #[inline]
   fn from(value: T) -> Self {
@@ -128,7 +128,7 @@ where
 
 impl<T> Lease<SuffixGuard<T>> for SuffixGuard<T>
 where
-  T: Truncate<usize>,
+  T: Truncate,
 {
   #[inline]
   fn lease(&self) -> &SuffixGuard<T> {
@@ -138,7 +138,7 @@ where
 
 impl<T> LeaseMut<SuffixGuard<T>> for SuffixGuard<T>
 where
-  T: Truncate<usize>,
+  T: Truncate,
 {
   #[inline]
   fn lease_mut(&mut self) -> &mut SuffixGuard<T> {
@@ -148,7 +148,7 @@ where
 
 impl<T> Drop for SuffixGuard<T>
 where
-  T: Truncate<usize>,
+  T: Truncate,
 {
   #[inline]
   fn drop(&mut self) {
@@ -158,7 +158,7 @@ where
 
 impl<T> core::fmt::Write for SuffixGuard<T>
 where
-  T: Truncate<usize> + for<'any> TryExtend<&'any [u8]>,
+  T: Truncate + for<'any> TryExtend<&'any [u8]>,
 {
   #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
@@ -170,7 +170,7 @@ where
 #[cfg(feature = "std")]
 impl<T> std::io::Write for SuffixGuard<T>
 where
-  T: Truncate<usize> + std::io::Write,
+  T: Truncate + std::io::Write,
 {
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {

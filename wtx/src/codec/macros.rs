@@ -28,7 +28,7 @@ macro_rules! _impl_dec_seq {
     impl<'de, EA, $($ty: $($bound)?,)*> crate::codec::DecodeSeq<'de, crate::codec::GenericCodec<&mut $drsr, EA>> for $struct<$($ty,)*> {
       #[inline]
       fn decode_seq(
-        $buffer: &mut crate::collections::Vector<Self>,
+        $buffer: &mut crate::collections::VectorUsize<Self>,
         $dw: &mut crate::codec::DecodeWrapper<'de, &mut $drsr>,
       ) -> crate::Result<()> {
         $impl
@@ -112,7 +112,7 @@ macro_rules! _impl_se_collections {
       }
     }
 
-    impl<DA, T> crate::codec::Encode<crate::codec::GenericCodec<DA, &mut $drsr>> for crate::collections::Vector<T>
+    impl<DA, T> crate::codec::Encode<crate::codec::GenericCodec<DA, &mut $drsr>> for crate::collections::VectorUsize<T>
     where
       T: $bound,
     {

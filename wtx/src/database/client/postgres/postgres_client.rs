@@ -18,7 +18,7 @@ use crate::{
       rdbms::{clear_query_buffers, common_client_buffer::CommonClientBuffer},
     },
   },
-  misc::Lease,
+  misc::{Lease, LeaseMut},
   net::{ConnectionState, Stream, StreamWriter as _, Uri},
   rng::CryptoRng,
   tls::{TlsConfig, TlsConnector, TlsCtx, TlsServerEndPoint, TlsStream},
@@ -148,7 +148,7 @@ where
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
-    _trace!("Executing `{cmd}`");
+    _debug!("Executing `{cmd}`");
     let ClientBuffer { common, conn_params: _ } = &mut self.cb;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
@@ -178,7 +178,7 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    _trace!("Executing `{:?}`", sc.cmd());
+    _debug!("Executing `{:?}`", sc.cmd());
     let Self { cb: client_buffer, cs, phantom: _, stream } = self;
     let ClientBuffer { common, conn_params: _ } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
@@ -237,5 +237,19 @@ where
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
     Ok(Self::write_send_await_stmt_prepare(cs, read_buffer, &(), cmd, stmts, stream).await?.0)
+  }
+}
+
+impl<E, S, TCX> Lease<PostgresClient<E, S, TCX>> for PostgresClient<E, S, TCX> {
+  #[inline]
+  fn lease(&self) -> &PostgresClient<E, S, TCX> {
+    self
+  }
+}
+
+impl<E, S, TCX> LeaseMut<PostgresClient<E, S, TCX>> for PostgresClient<E, S, TCX> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut PostgresClient<E, S, TCX> {
+    self
   }
 }

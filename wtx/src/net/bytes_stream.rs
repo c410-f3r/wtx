@@ -1,5 +1,5 @@
 use crate::{
-  collections::{MaybeUninitSlice, Vector},
+  collections::{MaybeUninitSlice, VectorUsize},
   net::{Stream, StreamCommon, StreamReader, StreamWriter},
 };
 use core::{cmp::Ordering, num::NonZeroUsize};
@@ -7,7 +7,7 @@ use core::{cmp::Ordering, num::NonZeroUsize};
 /// Stores written data to transfer when read.
 #[derive(Debug, Default)]
 pub struct BytesStream {
-  buffer: Vector<u8>,
+  buffer: VectorUsize<u8>,
   idx: usize,
 }
 

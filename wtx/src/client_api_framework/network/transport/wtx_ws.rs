@@ -15,7 +15,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collections::Vector,
+  collections::VectorUsize,
   futures::FnMutFut,
   misc::LeaseMut,
   web_socket::{Frame, OpCode},
@@ -36,7 +36,7 @@ async fn send_bytes<A, DRSR, T, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
-    (Frame<&'any mut Vector<u8>>, &'any mut T),
+    (Frame<&'any mut VectorUsize<u8>>, &'any mut T),
     Result = crate::Result<()>,
   >,
 ) -> Result<(), A::Error>
@@ -60,7 +60,7 @@ async fn send_pkg<A, DRSR, P, T, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
-    (Frame<&'any mut Vector<u8>>, &'any mut T),
+    (Frame<&'any mut VectorUsize<u8>>, &'any mut T),
     Result = crate::Result<()>,
   >,
 ) -> Result<(), A::Error>

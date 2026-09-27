@@ -75,7 +75,7 @@ fn attrs_ts(attrs: proc_macro::TokenStream) -> crate::Result<[proc_macro2::Token
     if let Some(elem) = tls_config_ts {
       quote::quote!(#elem)
     } else {
-      quote::quote!(wtx::tls::TlsConfig::new(Default::default()).unwrap())
+      quote::quote!(&wtx::tls::TlsConfig::new(Default::default()).unwrap())
     },
   ])
 }

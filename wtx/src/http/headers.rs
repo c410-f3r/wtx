@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   http::HttpError,
   misc::{Lease, LeaseMut, SensitiveBytes, TryArithmetic as _},
 };
@@ -35,7 +35,7 @@ impl Trailers {
 /// Internal operations are usually faster without sensitive content or trailers. If trailers
 /// are necessary, then they should be preferably placed at the end.
 pub struct Headers {
-  bytes: Vector<u8>,
+  bytes: VectorUsize<u8>,
   headers: u16,
   sensitive_headers: u16,
   trailers: Trailers,
@@ -45,7 +45,7 @@ impl Headers {
   /// Empty instance
   #[inline]
   pub const fn new() -> Self {
-    Self { bytes: Vector::new(), headers: 0, sensitive_headers: 0, trailers: Trailers::None }
+    Self { bytes: VectorUsize::new(), headers: 0, sensitive_headers: 0, trailers: Trailers::None }
   }
 
   /// Pre-allocates bytes according to the number of passed elements.
@@ -54,7 +54,7 @@ impl Headers {
   #[inline]
   pub fn with_capacity(cap: usize) -> crate::Result<Self> {
     Ok(Self {
-      bytes: Vector::with_capacity(cap)?,
+      bytes: VectorUsize::with_capacity(cap)?,
       headers: 0,
       sensitive_headers: 0,
       trailers: Trailers::None,

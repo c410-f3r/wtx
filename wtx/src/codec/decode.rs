@@ -1,4 +1,4 @@
-use crate::{codec::CodecController, collections::Vector};
+use crate::{codec::CodecController, collections::VectorUsize};
 
 /// A data structure that can be deserialized from a data format.
 pub trait Decode<'de, CC>: Sized
@@ -37,28 +37,28 @@ where
 {
   /// Decodes a sequence of itself into a buffer
   fn decode_seq(
-    buffer: &mut Vector<Self>,
+    buffer: &mut VectorUsize<Self>,
     dw: &mut CC::DecodeWrapper<'de, '_, '_>,
   ) -> Result<(), CC::Error>;
 }
 
 impl DecodeSeq<'_, ()> for &str {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut ()) -> crate::Result<()> {
+  fn decode_seq(_: &mut VectorUsize<Self>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl DecodeSeq<'_, ()> for u32 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut ()) -> crate::Result<()> {
+  fn decode_seq(_: &mut VectorUsize<Self>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl DecodeSeq<'_, ()> for u64 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut ()) -> crate::Result<()> {
+  fn decode_seq(_: &mut VectorUsize<Self>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }

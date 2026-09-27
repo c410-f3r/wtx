@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{MsgBufferString, MsgData, Request, Response},
   misc::Lease,
 };
@@ -19,7 +19,7 @@ pub trait HttpClient {
   /// Sends a request
   fn send_req<MD>(
     &self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     req: Request<MD>,
   ) -> impl Future<Output = crate::Result<Self::ReqId>>
   where
@@ -30,7 +30,7 @@ pub trait HttpClient {
   #[inline]
   fn send_req_recv_res<MD>(
     &self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     req: Request<MD>,
   ) -> impl Future<Output = crate::Result<Response<MsgBufferString>>>
   where
@@ -58,7 +58,7 @@ where
   #[inline]
   async fn send_req<MD>(
     &self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     req: Request<MD>,
   ) -> crate::Result<Self::ReqId>
   where
@@ -72,7 +72,7 @@ where
 #[cfg(feature = "http2")]
 mod http2 {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     http::{HttpClient, MsgBufferString, MsgData, Request, Response},
     http2::{ClientStream, Http2, Http2RecvStatus},
     misc::Lease,
@@ -101,7 +101,7 @@ mod http2 {
     #[inline]
     async fn send_req<MD>(
       &self,
-      enc_buffer: &mut Vector<u8>,
+      enc_buffer: &mut VectorUsize<u8>,
       req: Request<MD>,
     ) -> crate::Result<Self::ReqId>
     where
@@ -120,7 +120,7 @@ mod http2 {
 #[cfg(feature = "http2-client-pool")]
 mod http_client_pool {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     http::{
       HttpClient, MsgBufferString, MsgData, Request, Response,
       http2_client_pool::{Http2ClientPool, Http2ClientPoolResource, Http2RM},
@@ -153,7 +153,7 @@ mod http_client_pool {
     #[inline]
     async fn send_req<MD>(
       &self,
-      enc_buffer: &mut Vector<u8>,
+      enc_buffer: &mut VectorUsize<u8>,
       req: Request<MD>,
     ) -> crate::Result<Self::ReqId>
     where
@@ -166,7 +166,7 @@ mod http_client_pool {
     #[inline]
     async fn send_req_recv_res<MD>(
       &self,
-      enc_buffer: &mut Vector<u8>,
+      enc_buffer: &mut VectorUsize<u8>,
       req: Request<MD>,
     ) -> crate::Result<Response<MsgBufferString>>
     where
@@ -205,7 +205,7 @@ mod http_client_pool {
     #[inline]
     async fn send_req<MD>(
       &self,
-      enc_buffer: &mut Vector<u8>,
+      enc_buffer: &mut VectorUsize<u8>,
       req: Request<MD>,
     ) -> crate::Result<Self::ReqId>
     where

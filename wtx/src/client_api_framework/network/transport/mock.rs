@@ -20,7 +20,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collections::{Deque, Vector},
+  collections::{Deque, VectorUsize},
   misc::Lease,
 };
 use alloc::borrow::{Cow, ToOwned};
@@ -54,7 +54,7 @@ where
 {
   asserted: usize,
   phantom: PhantomData<TP>,
-  requests: Vector<Cow<'static, T>>,
+  requests: VectorUsize<Cow<'static, T>>,
   responses: Deque<Cow<'static, T>>,
 }
 
@@ -180,6 +180,11 @@ where
 {
   #[inline]
   fn default() -> Self {
-    Self { asserted: 0, phantom: PhantomData, requests: Vector::new(), responses: Deque::new() }
+    Self {
+      asserted: 0,
+      phantom: PhantomData,
+      requests: VectorUsize::new(),
+      responses: Deque::new(),
+    }
   }
 }

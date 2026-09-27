@@ -12,7 +12,7 @@ use crate::{
   codec::{
     Base64Alphabet, base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
-  collections::{ExpansionTy, Vector},
+  collections::{ExpansionTy, VectorUsize},
   crypto::{AEAD_NONCE_LEN, AEAD_TAG_LEN, CryptoError, dummy_crypto_call},
   misc::SensitiveBytes,
 };
@@ -45,7 +45,7 @@ pub trait Aead {
   #[inline]
   fn decrypt_base64_to_buffer<'buffer>(
     associated_data: &[u8],
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     data: &[u8],
     secret: &Self::Secret,
   ) -> crate::Result<(&'buffer mut [u8], Range<usize>)> {
@@ -80,7 +80,7 @@ pub trait Aead {
   #[inline]
   fn encrypt_to_buffer<'buffer>(
     associated_data: &[u8],
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &[u8],
     secret: &Self::Secret,
@@ -111,7 +111,7 @@ pub trait Aead {
   #[inline]
   fn encrypt_to_buffer_base64<'buffer>(
     associated_data: &[u8],
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &[u8],
     secret: &Self::Secret,

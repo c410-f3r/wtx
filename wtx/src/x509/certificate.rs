@@ -127,7 +127,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::Vector, x509::Certificate};
+  use crate::{collections::VectorUsize, x509::Certificate};
 
   #[test]
   fn empty_sequence() {
@@ -142,6 +142,6 @@ mod tests {
     ZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDRwAwRAIgS9iooj3BeyKGWamWBmjt1Sou\n\
     GsT1IxNxAG6MSRj8vXkCIA6hk7SbTgKaaF0MvHzE8kOyIHivtVXv63XwyC3326R0\n\
     -----END CERTIFICATE-----\n";
-    drop(Certificate::<&[u8]>::from_pem(&mut Vector::new(), pem.as_bytes()).unwrap());
+    drop(Certificate::<&[u8]>::from_pem(&mut VectorUsize::new(), pem.as_bytes()).unwrap());
   }
 }

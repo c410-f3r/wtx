@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   misc::Either,
   net::{ConnectionState, StreamCommon, StreamWriter},
   sync::Arc,
@@ -26,7 +26,7 @@ pub struct TlsStreamWriter<SW, TCX, const IS_CLIENT: bool> {
   max_fragment_length_send: u16,
   phantom: PhantomData<TCX>,
   stream_writer: SW,
-  writer_buffer: Vector<u8>,
+  writer_buffer: VectorUsize<u8>,
 }
 
 impl<SW, TCX, const IS_CLIENT: bool> TlsStreamWriter<SW, TCX, IS_CLIENT>
@@ -41,7 +41,7 @@ where
     ksw: KeyScheduleWrite,
     max_fragment_length_send: u16,
     stream_writer: SW,
-    writer_buffer: Vector<u8>,
+    writer_buffer: VectorUsize<u8>,
   ) -> Self {
     Self {
       common,

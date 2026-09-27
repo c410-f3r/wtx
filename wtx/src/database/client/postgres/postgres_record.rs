@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Record, ValueIdent,
     client::{
@@ -31,12 +31,12 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     record: &'exec [u8],
     stmt: PostgresStatement<'exec>,
     values_len: u16,
-    values_params: &'exec mut Vector<(bool, Range<usize>)>,
+    values_params: &'exec mut VectorUsize<(bool, Range<usize>)>,
   ) -> crate::Result<Self> {
     fn fun(
       [b0, b1, b2, b3]: [u8; 4],
       curr_value_offset: &mut usize,
-      values_params: &mut Vector<(bool, Range<usize>)>,
+      values_params: &mut VectorUsize<(bool, Range<usize>)>,
     ) -> crate::Result<()> {
       let begin = *curr_value_offset;
       let n = i32::from_be_bytes([b0, b1, b2, b3]);

@@ -1,6 +1,6 @@
 use crate::{
   codec::{U64String, u64_string},
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -73,7 +73,7 @@ where
       })
       .await?;
 
-    let pd_begin = read_buffer.current_end_idx().wrapping_add(6);
+    let pd_begin = read_buffer.current_end_idx().wrapping_add(7);
     let types_len = {
       let msg1 = Self::fetch_msg(cs, read_buffer, stream).await?;
       let MessageTy::ParameterDescription(types_len) = msg1.ty else {
@@ -182,7 +182,7 @@ where
   pub(crate) fn write_stmt_bind<RV, const SYNC: bool>(
     rv: RV,
     stmt_cmd_id_array: &U64String,
-    sw: &mut Vector<u8>,
+    sw: &mut VectorUsize<u8>,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,
@@ -196,7 +196,7 @@ where
   }
 
   pub(crate) fn write_stmt_prepare<RV, const SYNC: bool>(
-    buffer: &mut Vector<u8>,
+    buffer: &mut VectorUsize<u8>,
     rv: &RV,
     stmt_cmd: &str,
     stmt_cmd_id_array: &U64String,

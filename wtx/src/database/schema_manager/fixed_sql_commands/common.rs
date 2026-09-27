@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, DatabaseTy, FromRecords,
     db_client::DbClient,
@@ -103,7 +103,7 @@ pub(crate) async fn migrations_by_mg_uid_query<'exec, E, ERR, D>(
   buffer_cmd: &mut String,
   executor: &'exec mut E,
   mg_uid: Uid,
-  results: &mut Vector<DbMigration>,
+  results: &mut VectorUsize<DbMigration>,
   schema_prefix: &str,
 ) -> Result<(), ERR>
 where

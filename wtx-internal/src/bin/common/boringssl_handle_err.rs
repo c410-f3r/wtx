@@ -65,7 +65,7 @@ pub fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::UnencryptedRecord => ":BAD_DECRYPT:",
       TlsError::UnexpectedAfterHandshakeInnerRecord => ":UNEXPECTED_RECORD:",
       TlsError::UnknownHandshakeTy(_) => ":UNEXPECTED_MESSAGE:",
-      TlsError::UnknownRecordContentType => ":BAD_DECRYPT:",
+      TlsError::UnknownRecordContentType(_) => ":BAD_DECRYPT:",
       TlsError::UnofferedExtension => ":UNEXPECTED_EXTENSION:",
       TlsError::WrongAlert => ":BAD_ALERT:",
       _ => ":FIXME:",

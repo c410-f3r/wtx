@@ -1,7 +1,7 @@
 // https://fetch.spec.whatwg.org/#http-cors-protocol
 
 use crate::{
-  collections::{ShortBoxStrU8, Vector},
+  collections::{ShortBoxStrU8, VectorUsize},
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, MsgBufferString, Request, Response,
     StatusCode,
@@ -11,10 +11,10 @@ use crate::{
 };
 use core::{ops::ControlFlow, str};
 
-type AllowHeaders = (bool, Vector<ShortBoxStrU8>);
-type AllowMethods = (bool, Vector<Method>);
-type AllowOrigins = (bool, Vector<ShortBoxStrU8>);
-type ExposeHeaders = (bool, Vector<ShortBoxStrU8>);
+type AllowHeaders = (bool, VectorUsize<ShortBoxStrU8>);
+type AllowMethods = (bool, VectorUsize<Method>);
+type AllowOrigins = (bool, VectorUsize<ShortBoxStrU8>);
+type ExposeHeaders = (bool, VectorUsize<ShortBoxStrU8>);
 
 /// Used internally to manage the origins of CORS responses.
 #[derive(Debug)]
@@ -50,10 +50,10 @@ impl CorsMiddleware {
   pub const fn new() -> Self {
     Self {
       allow_credentials: false,
-      allow_headers: (false, Vector::new()),
-      allow_methods: (false, Vector::new()),
-      allow_origins: (false, Vector::new()),
-      expose_headers: (false, Vector::new()),
+      allow_headers: (false, VectorUsize::new()),
+      allow_methods: (false, VectorUsize::new()),
+      allow_origins: (false, VectorUsize::new()),
+      expose_headers: (false, VectorUsize::new()),
       max_age: None,
     }
   }
@@ -67,10 +67,10 @@ impl CorsMiddleware {
   pub const fn permissive() -> Self {
     Self {
       allow_credentials: false,
-      allow_headers: (true, Vector::new()),
-      allow_methods: (true, Vector::new()),
-      allow_origins: (true, Vector::new()),
-      expose_headers: (true, Vector::new()),
+      allow_headers: (true, VectorUsize::new()),
+      allow_methods: (true, VectorUsize::new()),
+      allow_origins: (true, VectorUsize::new()),
+      expose_headers: (true, VectorUsize::new()),
       max_age: None,
     }
   }
@@ -299,7 +299,7 @@ impl CorsMiddleware {
         Self::apply_allow_credentials(*allow_credentials, headers)?;
         Self::apply_allow_origin(
           true,
-          self.allow_origins.1.get(*idx).map(ShortBoxStrU8::as_str).unwrap_or_default(),
+          self.allow_origins.1.get(*idx).map_or_default(ShortBoxStrU8::as_str),
           headers,
         )?;
         Self::apply_expose_headers(expose_headers, headers)?;
@@ -372,7 +372,7 @@ impl CorsMiddleware {
   fn manage_preflight_headers(
     &self,
     acrh: Header<&str, &str>,
-    body: &mut Vector<u8>,
+    body: &mut VectorUsize<u8>,
   ) -> crate::Result<()> {
     if self.allow_headers.0 {
       body.extend_from_copyable_slice(acrh.value.as_bytes())?;
@@ -404,7 +404,7 @@ impl CorsMiddleware {
 
   fn manage_preflight_origin(
     &self,
-    body: &mut Vector<u8>,
+    body: &mut VectorUsize<u8>,
     origin: Header<&str, &str>,
   ) -> crate::Result<bool> {
     let mut apply_vary = false;
@@ -422,7 +422,7 @@ impl CorsMiddleware {
 
   fn push_preflight_headers(
     &self,
-    body: &mut Vector<u8>,
+    body: &mut VectorUsize<u8>,
     (prefix, elem): (&[u8], &str),
   ) -> crate::Result<()> {
     if elem.is_empty() {

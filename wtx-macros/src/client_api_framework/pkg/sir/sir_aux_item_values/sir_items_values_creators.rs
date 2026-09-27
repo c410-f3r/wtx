@@ -132,7 +132,7 @@ impl SirAuxItemValues {
     fn_name: &str,
   ) -> crate::Result<(FnCommonValues<'iim>, TokenStream)> {
     if iif.sig.ident != fn_name {
-      return Err(crate::Error::BadAuxData(iif.sig.ident.span(), fn_name.to_owned()));
+      return Err(crate::Error::BadAuxData(iif.sig.ident.span(), fn_name.into()));
     }
 
     let (fn_params, fn_where_predicates) = parts_from_generics(&iif.sig.generics);

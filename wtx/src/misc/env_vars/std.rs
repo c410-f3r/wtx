@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   misc::{AsciiGeneric, EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;
@@ -28,7 +28,7 @@ where
   ///
   /// ```ignore
   /// use wtx::{
-  ///   collection::Vector,
+  ///   collection::VectorUsize,
   ///   misc::{EnvVars, SecretStr},
   ///   rng::{ChaCha20, CryptoSeedableRng},
   /// };
@@ -44,7 +44,7 @@ where
   /// }
   ///
   /// async fn manage_vars() -> Vars {
-  ///   let mut others = Vector::new();
+  ///   let mut others = VectorUsize::new();
   ///   if cfg!(feature = "production") {
   ///     others.push(("DATABASE_URI".into(), fetch_database_uri().await)).unwrap();
   ///   }
@@ -116,13 +116,13 @@ where
   }
 }
 
-fn env<R>(read: R) -> crate::Result<Vector<(String, String)>>
+fn env<R>(read: R) -> crate::Result<VectorUsize<(String, String)>>
 where
   R: Read,
 {
   let buffer = &mut String::new();
   let reader = &mut BufReader::new(read);
-  let mut vars = Vector::new();
+  let mut vars = VectorUsize::new();
   loop {
     if reader.read_line(buffer)? == 0 {
       break;
@@ -167,7 +167,7 @@ fn process_multiline<R>(
   delimiter: u8,
   key_trimmed: String,
   value_begin: usize,
-  vars: &mut Vector<(String, String)>,
+  vars: &mut VectorUsize<(String, String)>,
 ) -> crate::Result<()>
 where
   R: Read,

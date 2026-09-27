@@ -3,7 +3,7 @@
 //! The existence of some elements does not necessarily mean that `WTX` support them.
 
 use crate::{
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, VectorUsize},
   http::HttpError,
 };
 
@@ -401,7 +401,7 @@ pub struct PublicKeyCredentialCreationOptions<B, S> {
   pub timeout: Option<u64>,
   /// Credentials to exclude. Prevents re-registration of existing authenticators.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-  pub exclude_credentials: Option<Vector<PublicKeyCredentialDescriptor<B>>>,
+  pub exclude_credentials: Option<VectorUsize<PublicKeyCredentialDescriptor<B>>>,
   /// Criteria for selecting an appropriate authenticator.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
   pub authenticator_selection: Option<AuthenticatorSelectionCriteria>,
@@ -459,7 +459,7 @@ pub struct PublicKeyCredentialRequestOptions<B, S> {
   pub rp_id: Option<S>,
   /// Credentials acceptable for this authentication ceremony.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-  pub allow_credentials: Option<Vector<PublicKeyCredentialDescriptor<B>>>,
+  pub allow_credentials: Option<VectorUsize<PublicKeyCredentialDescriptor<B>>>,
   /// The RP's user-verification requirement.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
   pub user_verification: Option<UserVerificationRequirement>,

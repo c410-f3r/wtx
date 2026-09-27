@@ -2,7 +2,7 @@
 
 use core::pin::pin;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   futures::PollOnce,
   web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
@@ -11,7 +11,7 @@ use wtx_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 #[tokio::main]
 async fn main() {
   let host = "127.0.0.1:9080";
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await.unwrap() {
     let ws = autobahn_case_conn(case, host).await.unwrap();
     let (stream_bridge, mut stream_reader, mut stream_writer) = ws.into_split().unwrap();

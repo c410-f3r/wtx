@@ -212,7 +212,7 @@ const fn hex_to_bytes(lhs: u8, rhs: u8) -> Result<u8, HexError> {
 mod test {
   use crate::{
     codec::{HexDisplay, HexEncMode, hex_decode, hex_encode},
-    collections::{ArrayVectorCopy, Vector},
+    collections::{ArrayVectorCopy, VectorUsize},
   };
 
   #[test]
@@ -282,10 +282,10 @@ mod test {
   #[test]
   fn roundtrip_various_lengths() {
     for len in 0u8..=20 {
-      let data = Vector::from_iterator(0..len).unwrap();
-      let mut enc_buf = Vector::from_iterator(0u8..len * 2 + 2).unwrap();
+      let data = VectorUsize::from_iterator(0..len).unwrap();
+      let mut enc_buf = VectorUsize::from_iterator(0u8..len * 2 + 2).unwrap();
       let hex = hex_encode(&data, None, &mut enc_buf).unwrap();
-      let mut dec_buf = Vector::from_iterator(0u8..len).unwrap();
+      let mut dec_buf = VectorUsize::from_iterator(0u8..len).unwrap();
       let decoded = hex_decode(hex.as_bytes(), &mut dec_buf).unwrap();
       assert_eq!(decoded, &data[..]);
     }

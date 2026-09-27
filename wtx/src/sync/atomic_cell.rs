@@ -322,7 +322,6 @@ fn lock(addr: usize) -> &'static SeqLock {
 #[cfg(feature = "rand_core")]
 mod rand_core {
   use crate::{rng::Rng, sync::AtomicCell};
-  use core::convert::Infallible;
 
   impl<T> rand_core::TryCryptoRng for AtomicCell<T> where T: Copy + Eq + Rng {}
 
@@ -332,7 +331,7 @@ mod rand_core {
   where
     T: Copy + Eq + Rng,
   {
-    type Error = Infallible;
+    type Error = !;
 
     #[inline(always)]
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
@@ -355,7 +354,7 @@ mod rand_core {
   where
     T: Copy + Eq + Rng,
   {
-    type Error = Infallible;
+    type Error = !;
 
     #[inline(always)]
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {

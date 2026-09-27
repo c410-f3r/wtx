@@ -32,6 +32,8 @@ pub mod crypto;
 pub mod database;
 mod error;
 pub mod executor;
+#[cfg(feature = "fixed-point")]
+pub mod fixed_point;
 pub mod futures;
 #[cfg(feature = "grpc")]
 pub mod grpc;
@@ -41,6 +43,8 @@ pub mod http;
 pub mod http2;
 pub mod misc;
 pub mod net;
+#[cfg(feature = "odf")]
+pub mod odf;
 pub mod pool;
 pub mod rng;
 #[cfg(feature = "secret")]

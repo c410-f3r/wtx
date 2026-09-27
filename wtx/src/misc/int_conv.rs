@@ -2,6 +2,8 @@
 
 // FIXME(STABLE): Constant traits
 
+use crate::misc::Usize;
+
 pub(crate) const fn boolu16(val: bool) -> u16 {
   val as u16
 }
@@ -14,6 +16,7 @@ pub(crate) const fn boolusize(val: bool) -> usize {
   val as usize
 }
 
+#[cfg(feature = "fixed-point")]
 pub(crate) const fn i8i32(val: i8) -> i32 {
   val as i32
 }
@@ -30,6 +33,12 @@ pub(crate) const fn i32i64(val: i32) -> i64 {
   val as i64
 }
 
+#[cfg(feature = "fixed-point")]
+pub(crate) const fn i32i128(val: i32) -> i128 {
+  val as i128
+}
+
+#[cfg(feature = "fixed-point")]
 pub(crate) const fn i32f64(val: i32) -> f64 {
   val as f64
 }
@@ -72,4 +81,8 @@ pub(crate) const fn u16u32(val: u16) -> u32 {
 
 pub(crate) const fn u32i64(val: u32) -> i64 {
   val as i64
+}
+
+pub(crate) const fn u32usize(val: u32) -> usize {
+  Usize::from_u32(val).into_usize()
 }

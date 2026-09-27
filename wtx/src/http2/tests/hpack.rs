@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{DEFAULT_MAX_HPACK_LEN, Header, StatusCode},
   http2::{
     hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
@@ -26,7 +26,7 @@ const MAX_HEADER_LEN: u32 = 16384;
 #[test]
 fn hpack_test_cases() {
   fetch_project();
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
   let mut decoder = HpackDecoder::new();
   let mut encoder = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
   decoder.set_max_bytes(MAX_HEADER_LEN);
@@ -53,7 +53,7 @@ fn hpack_test_cases() {
 #[derive(Debug, serde::Deserialize)]
 struct Case {
   header_table_size: Option<u32>,
-  headers: Vector<CaseHeader>,
+  headers: VectorUsize<CaseHeader>,
   seqno: Option<u16>,
   wire: Option<String>,
 }
@@ -101,7 +101,7 @@ impl<'de> Deserialize<'de> for CaseHeader {
 
 #[derive(Debug, serde::Deserialize)]
 struct Root {
-  cases: Vector<Case>,
+  cases: VectorUsize<Case>,
 }
 
 fn fetch_project() {
@@ -124,7 +124,7 @@ pub(crate) const fn hhb_name(hhb: HpackHeaderBasic, name: &str) -> &str {
   }
 }
 
-fn parse_hex(hex: &[u8]) -> Vector<u8> {
+fn parse_hex(hex: &[u8]) -> VectorUsize<u8> {
   let mut hex_bytes = hex
     .iter()
     .filter_map(|b| match b {
@@ -134,7 +134,7 @@ fn parse_hex(hex: &[u8]) -> Vector<u8> {
       _ => None,
     })
     .fuse();
-  let mut bytes = Vector::new();
+  let mut bytes = VectorUsize::new();
   while let (Some(h), Some(l)) = (hex_bytes.next(), hex_bytes.next()) {
     bytes.push(h << 4 | l).unwrap();
   }
@@ -158,7 +158,7 @@ fn strs<'key, 'value>(
 }
 
 fn test_story(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   (_impl_path, story_path): (&Path, &Path),
   (decoder, encoder): (&mut HpackDecoder, &mut HpackEncoder),
 ) {
@@ -182,7 +182,7 @@ fn test_story(
 }
 
 fn test_story_encoding_and_decoding(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   cases: &[Case],
   (decoder, encoder): (&mut HpackDecoder, &mut HpackEncoder),
 ) {
@@ -195,7 +195,7 @@ fn test_story_encoding_and_decoding(
       encoder.set_max_dyn_sub_bytes(DEFAULT_MAX_HPACK_LEN).unwrap();
     }
 
-    let mut pseudo_headers = Vector::from_iterator(case.headers.iter().filter_map(|header| {
+    let mut pseudo_headers = VectorUsize::from_iterator(case.headers.iter().filter_map(|header| {
       Some(match header.name.as_str() {
         ":authority" => (HpackHeaderBasic::Authority, header.value.as_str()),
         ":method" => {
@@ -217,7 +217,7 @@ fn test_story_encoding_and_decoding(
     }))
     .unwrap();
 
-    let mut user_headers = Vector::from_iterator(case.headers.iter().filter_map(|header| {
+    let mut user_headers = VectorUsize::from_iterator(case.headers.iter().filter_map(|header| {
       if header.name.starts_with(":") {
         None
       } else {
@@ -252,7 +252,7 @@ fn test_story_encoding_and_decoding(
   }
 }
 
-fn test_story_wired_decoding(cases: &mut Vector<Case>, decoder: &mut HpackDecoder) {
+fn test_story_wired_decoding(cases: &mut VectorUsize<Case>, decoder: &mut HpackDecoder) {
   for case in cases.iter_mut() {
     if let Some(elem) = case.header_table_size {
       decoder.set_max_bytes(elem);

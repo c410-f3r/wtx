@@ -8,7 +8,7 @@ use std::{
 use wtx::{
   calendar::{Date, Datetime, Instant, SigDuration, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
-  collections::{ArrayVectorCopy, HashSet, Vector},
+  collections::{ArrayVectorCopy, HashSet, VectorUsize},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   net::UriRef,
   tls::TlsConfig,
@@ -25,7 +25,7 @@ async fn main() {
     Http2ClientPoolBuilder::tokio(1, TlsConfig::from_ccadb().unwrap())
       .unwrap()
       .build()
-      .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(UriRef::new(uri)).into_request())
+      .send_req_recv_res(&mut VectorUsize::new(), ReqBuilder::get(UriRef::new(uri)).into_request())
       .await
       .unwrap()
       .msg_data
@@ -33,9 +33,9 @@ async fn main() {
   };
 
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));
-  let mut file_buffer = Vector::new();
-  let mut line_buffer = Vector::new();
-  let mut pem_buffer = Vector::new();
+  let mut file_buffer = VectorUsize::new();
+  let mut line_buffer = VectorUsize::new();
+  let mut pem_buffer = VectorUsize::new();
   let mut unique_certs = HashSet::new();
 
   file_buffer
@@ -219,7 +219,7 @@ impl Display for Bytes<'_> {
   }
 }
 
-fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_authority_key_identifier(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(ki) = ta.authority_key_identifier().as_ref().and_then(|aki| aki.key_identifier.as_ref())
   else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
@@ -228,15 +228,18 @@ fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnch
   file_buffer.write_fmt(format_args!("Some({}),", Bytes(ki.bytes().as_inner().unwrap()))).unwrap();
 }
 
-fn write_has_unknown_critical_extension(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_has_unknown_critical_extension(
+  file_buffer: &mut VectorUsize<u8>,
+  ta: &CvTrustAnchor<&[u8]>,
+) {
   file_buffer.write_fmt(format_args!("{},", ta.has_unknown_critical_extension())).unwrap();
 }
 
-fn write_is_self_signed(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_is_self_signed(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("{},", ta.is_self_signed())).unwrap();
 }
 
-fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_key_usage(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(ku) = ta.key_usage() else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
@@ -245,15 +248,15 @@ fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("Some(({},{})),", bytes.0, bytes.1)).unwrap();
 }
 
-fn write_name_constraints(_: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_name_constraints(_: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   assert!(ta.name_constraints().is_none());
 }
 
-fn write_subject(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_subject(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("&{},", Bytes(ta.subject()))).unwrap();
 }
 
-fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_subject_public_key_info(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let spki = ta.subject_public_key_info();
   file_buffer.write_fmt(format_args!("(b\"{}\",", spki.algorithm.algorithm)).unwrap();
   if let Some(params) = &spki.algorithm.parameters {
@@ -266,7 +269,7 @@ fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAncho
   file_buffer.write_fmt(format_args!("&{}),", Bytes(spki.subject_public_key.bytes()))).unwrap();
 }
 
-fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_subject_key_identifier(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(el) = ta.subject_key_identifier() else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
@@ -280,7 +283,7 @@ fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor
     .unwrap();
 }
 
-fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
+fn write_validity(file_buffer: &mut VectorUsize<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let not_before = ta.validity().not_before.datetime().timestamp_secs_and_ns().0;
   let not_after = ta.validity().not_after.datetime().timestamp_secs_and_ns().0;
   file_buffer.write_fmt(format_args!("({},{})", not_before, not_after)).unwrap();

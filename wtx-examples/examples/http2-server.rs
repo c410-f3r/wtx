@@ -6,7 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpListener;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{HttpRecvParams, Response, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   net::{Stream, Uri},
@@ -38,7 +38,7 @@ async fn main() -> wtx::Result<()> {
   }
   println!("An arbitrary request has been received: {msg:#?}");
   let _ = stream
-    .send_res(&mut Vector::new(), Response::new(b"By tea, for tea\n", StatusCode::ImATeapot))
+    .send_res(&mut VectorUsize::new(), Response::new(b"By tea, for tea\n", StatusCode::ImATeapot))
     .await?;
   http2.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())

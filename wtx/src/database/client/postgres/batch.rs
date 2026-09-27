@@ -182,6 +182,6 @@ impl<E, S, TCX> Drop for Batch<'_, E, S, TCX> {
   fn drop(&mut self) {
     let read_buffer = &mut self.client.cb.common.read_buffer;
     *read_buffer.forbid_clear_mut() = false;
-    read_buffer.buffer_mut().truncate(self.initial_len);
+    read_buffer.truncate(self.initial_len);
   }
 }

@@ -10,7 +10,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collections::Vector,
+  collections::VectorUsize,
   misc::LeaseMut,
   net::Stream,
   tls::TlsCtx,
@@ -87,7 +87,7 @@ where
 }
 
 async fn cb<NC, S, TCX>(
-  mut frame: Frame<&mut Vector<u8>>,
+  mut frame: Frame<&mut VectorUsize<u8>>,
   trans: &mut WebSocket<NC, S, TCX, true>,
 ) -> crate::Result<()>
 where

@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -39,7 +39,7 @@ where
     S: Lease<str> + 'migration,
   {
     let mut buffer_cmd = String::new();
-    let mut buffer_db_migrations = Vector::new();
+    let mut buffer_db_migrations = VectorUsize::new();
     self.executor.create_wtx_tables().await?;
     self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
     self
@@ -55,7 +55,10 @@ where
     path: &Path,
   ) -> Result<(), <E::Database as CodecController>::Error> {
     self
-      .do_migrate_from_dir((&mut String::new(), &mut Vector::new(), &mut Vector::new()), path)
+      .do_migrate_from_dir(
+        (&mut String::new(), &mut VectorUsize::new(), &mut VectorUsize::new()),
+        path,
+      )
       .await
   }
 
@@ -83,8 +86,8 @@ where
     S: Lease<str>,
   {
     let mut buffer_cmd = String::new();
-    let mut buffer_db_migrations = Vector::new();
-    let mut buffer_status = Vector::new();
+    let mut buffer_db_migrations = VectorUsize::new();
+    let mut buffer_status = VectorUsize::new();
     self.executor.create_wtx_tables().await?;
     buffer_status.clear();
     for (migration_group, migration) in groups {
@@ -113,7 +116,10 @@ where
     crate::database::schema_manager::misc::is_sorted_and_unique(migration_groups)?;
     for mg in migration_groups {
       self
-        .do_migrate_from_dir((&mut String::new(), &mut Vector::new(), &mut Vector::new()), mg)
+        .do_migrate_from_dir(
+          (&mut String::new(), &mut VectorUsize::new(), &mut VectorUsize::new()),
+          mg,
+        )
         .await?;
     }
     Ok(())
@@ -121,7 +127,7 @@ where
 
   async fn do_migrate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut VectorUsize<DbMigration>),
     mg: &UserMigrationGroup<S>,
     user_migrations: I,
   ) -> Result<MigrationStatus, <E::Database as CodecController>::Error>
@@ -169,14 +175,14 @@ where
     &mut self,
     (buffer_cmd, buffer_db_migrations, buffer_status): (
       &mut String,
-      &mut Vector<DbMigration>,
-      &mut Vector<MigrationStatus>,
+      &mut VectorUsize<DbMigration>,
+      &mut VectorUsize<MigrationStatus>,
     ),
     path: &Path,
   ) -> Result<(), <E::Database as CodecController>::Error> {
     let (mg, mut migrations) = group_and_migrations_from_path(path, Ord::cmp)?;
     self.executor.migrations(buffer_cmd, &mg, buffer_db_migrations).await?;
-    let mut tmp_migrations = Vector::new();
+    let mut tmp_migrations = VectorUsize::new();
     buffer_status.clear();
     loop_files!(
       tmp_migrations,

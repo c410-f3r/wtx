@@ -16,7 +16,7 @@ pub type ShortSliceU16<'any, T> = ShortSlice<'any, u16, T>;
 
 /// An unaligned structure that has 9~10 bytes in `x86_64`. Useful in places where a bunch of
 /// standard slices would take too much space.
-#[expect(clippy::repr_packed_without_abi, reason = "only used internally")]
+#[expect(clippy::repr_packed_without_abi, reason = "not intended for FFI")]
 #[repr(packed)]
 pub struct ShortSlice<'any, L, T> {
   ptr: *const T,

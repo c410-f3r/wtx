@@ -49,7 +49,7 @@ where
 #[cfg(feature = "web-socket")]
 pub(crate) fn log_generic_res(_bytes: &[u8], _log_data: bool, _tg: TransportGroup) {
   let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
-  _trace!(body = debug(_body), trans_ty = display(_tg), "Response");
+  _debug!(body = debug(_body), trans_ty = display(_tg), "Response");
 }
 
 #[cfg(feature = "http2")]
@@ -62,7 +62,7 @@ pub(crate) fn log_http_res(
 ) {
   let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   let _uri_display = if _log_data { _uri.as_str() } else { _uri.origin() };
-  _trace!(
+  _debug!(
     body = debug(_body),
     status_code = display(_status_code),
     trans_ty = display(_tg),
@@ -91,7 +91,7 @@ mod tests {
   use crate::{
     client_api_framework::pkg::Package,
     codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-    collections::Vector,
+    collections::VectorUsize,
   };
 
   #[derive(Debug, Eq, PartialEq)]
@@ -146,7 +146,10 @@ mod tests {
 
   impl<'de, DRSR> DecodeSeq<'de, GenericCodec<DRSR, DRSR>> for _Pong {
     #[inline]
-    fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, DRSR>) -> crate::Result<()> {
+    fn decode_seq(
+      _: &mut VectorUsize<Self>,
+      _: &mut DecodeWrapper<'de, DRSR>,
+    ) -> crate::Result<()> {
       Ok(())
     }
   }

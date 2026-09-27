@@ -83,7 +83,10 @@ impl<T> Clear for Vec<T> {
   }
 }
 
-impl<T> Clear for Vector<T> {
+impl<L, T> Clear for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn clear(&mut self) {
     (*self).clear();

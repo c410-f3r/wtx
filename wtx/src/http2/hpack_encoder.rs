@@ -9,7 +9,7 @@
 // bytes or runtime performance.
 
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
@@ -64,7 +64,7 @@ impl HpackEncoder {
 
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
-    buffer: &mut Vector<u8>,
+    buffer: &mut VectorUsize<u8>,
     bytes_len_hint: usize,
     pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo str)>,
     user_headers: impl IntoIterator<Item = Header<&'user str, &'user str>>,
@@ -215,7 +215,7 @@ impl HpackEncoder {
     }
   }
 
-  fn encode_int(buffer: &mut Vector<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
+  fn encode_int(buffer: &mut VectorUsize<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
     const fn last_byte(n: u32) -> u8 {
       n.to_be_bytes()[3]
     }
@@ -244,7 +244,7 @@ impl HpackEncoder {
 
   // * `1`:     0 -> 0xxxx -> 4xxxx
   // * `2/3/4`: 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
-  fn encode_str(buffer: &mut Vector<u8>, bytes: &str) -> crate::Result<()> {
+  fn encode_str(buffer: &mut VectorUsize<u8>, bytes: &str) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;
     if bytes.is_empty() {
@@ -350,7 +350,7 @@ impl HpackEncoder {
   }
 
   fn manage_encode(
-    buffer: &mut Vector<u8>,
+    buffer: &mut VectorUsize<u8>,
     (name, value): (&str, &str),
     idx: EncodeIdx,
   ) -> crate::Result<()> {
@@ -380,7 +380,7 @@ impl HpackEncoder {
     Ok(())
   }
 
-  fn manage_size_update(&mut self, buffer: &mut Vector<u8>) -> crate::Result<()> {
+  fn manage_size_update(&mut self, buffer: &mut VectorUsize<u8>) -> crate::Result<()> {
     match self.max_dyn_sub_bytes.take() {
       Some((lower, None)) => {
         self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata| {
@@ -638,7 +638,7 @@ struct StaticHeader {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     http::{Method, StatusCode},
     http2::{
       hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
@@ -650,7 +650,7 @@ mod tests {
   #[test]
   fn duplicated_is_indexed() {
     let headers = [(HpackHeaderBasic::Method(Method::Patch), Method::Patch.strings().custom[0])];
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc.encode(&mut buffer, 0, headers, []).unwrap();
@@ -664,7 +664,7 @@ mod tests {
 
   #[test]
   fn encodes_status_code() {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc
       .encode(
@@ -679,7 +679,7 @@ mod tests {
 
   #[test]
   fn encodes_methods_that_are_not_get_or_post() {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc

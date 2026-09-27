@@ -88,7 +88,7 @@ mod tests {
       OID_PKCS1_RSASSAPSS,
     },
     codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
-    collections::Vector,
+    collections::VectorUsize,
     x509::AlgorithmIdentifier,
   };
 
@@ -108,7 +108,7 @@ mod tests {
     };
     assert_eq!(ai.params_oid(), Some(OID_NIST_HASH_SHA256));
 
-    let mut encoded = Vector::new();
+    let mut encoded = VectorUsize::new();
     ai.encode(&mut EncodeWrapper::new(&mut encoded, Asn1EncodeWrapperAux::default())).unwrap();
     assert_eq!(
       AlgorithmIdentifier::<&[u8]>::decode(&mut DecodeWrapper::new(

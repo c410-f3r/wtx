@@ -47,11 +47,20 @@ pub(crate) trait LinearStorage<T> {
     unsafe { Self::Slice::from_raw_parts(self.as_ptr(), self.len().usize()) }
   }
 
-  /// Returns the capacity left in the storage.
+  /// Returns the number of elements that can be added to the storage without requiring a
+  /// reallocation in the underlying buffer.
   #[inline]
-  fn remaining(&self) -> Self::Len {
+  fn remaining_capacity(&self) -> Self::Len {
     use linear_storage_len::LinearStorageLen as _;
     self.capacity().wrapping_sub(self.len())
+  }
+
+  /// Returns the total number of elements that can be added before reaching the absolute maximum
+  /// capacity supported by the length type.
+  #[inline]
+  fn remaining_capacity_max(&self) -> Self::Len {
+    use linear_storage_len::LinearStorageLen as _;
+    Self::Len::UPPER_BOUND.wrapping_sub(self.len())
   }
 }
 

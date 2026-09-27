@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   crypto::{
     AEAD_NONCE_LEN, AEAD_TAG_LEN, Aead as _, Aes256GcmGlobal, Hash as _, Sha256Global,
     gen_aead_nonce,
@@ -47,8 +47,8 @@ impl EncryptedChunk {
 
   /// Data
   #[inline]
-  pub(crate) fn data(&self) -> crate::Result<(Vector<u8>, Range<usize>)> {
-    let mut buffer = Vector::new();
+  pub(crate) fn data(&self) -> crate::Result<(VectorUsize<u8>, Range<usize>)> {
+    let mut buffer = VectorUsize::new();
     buffer.extend_from_copyable_slice(&self.aead)?;
     let (_, range) = Aes256GcmGlobal::decrypt_in_place(
       &[],
@@ -132,7 +132,10 @@ impl<const N: usize> SecretData for EncryptedChunkArray<N> {
 }
 /// Temporary plaintext guard for [`EncryptedChunkArray`].
 #[derive(Debug)]
-pub struct EncryptedChunkArrayReprSrc<const N: usize>(SensitiveBytes<Vector<u8>>, Range<usize>);
+pub struct EncryptedChunkArrayReprSrc<const N: usize>(
+  SensitiveBytes<VectorUsize<u8>>,
+  Range<usize>,
+);
 impl<const N: usize> Deref for EncryptedChunkArrayReprSrc<N> {
   type Target = [u8; N];
 
@@ -164,7 +167,7 @@ impl SecretData for EncryptedChunkSlice {
 }
 /// Temporary plaintext guard for [`EncryptedChunkSlice`].
 #[derive(Debug)]
-pub struct EncryptedChunkSliceReprSrc(SensitiveBytes<Vector<u8>>, Range<usize>);
+pub struct EncryptedChunkSliceReprSrc(SensitiveBytes<VectorUsize<u8>>, Range<usize>);
 impl Deref for EncryptedChunkSliceReprSrc {
   type Target = [u8];
 
@@ -197,7 +200,7 @@ impl SecretData for EncryptedChunkStr {
 }
 /// Temporary plaintext guard for [`EncryptedChunkStr`].
 #[derive(Debug)]
-pub struct EncryptedChunkStrReprSrc(SensitiveBytes<Vector<u8>>, Range<usize>);
+pub struct EncryptedChunkStrReprSrc(SensitiveBytes<VectorUsize<u8>>, Range<usize>);
 impl Deref for EncryptedChunkStrReprSrc {
   type Target = str;
 

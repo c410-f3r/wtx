@@ -42,6 +42,31 @@ macro_rules! as_ptr_mut_doc {
   };
 }
 
+macro_rules! as_str_doc {
+  ($struct:literal, $new:literal, $slice:literal) => {
+    concat!(
+      "Extracts the string slice containing the entire instance.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator(",
+      $new,
+      ").unwrap();\n",
+      "assert_eq!(instance.as_str(), ",
+      $slice,
+      ");\n",
+      "```"
+    )
+  };
+}
+
+macro_rules! as_str_mut_doc {
+  () => {
+    concat!("Extracts a mutable slice containing the entire instance.\n",)
+  };
+}
+
 macro_rules! as_slice_doc {
   ($struct:literal, $new:literal, $slice:literal) => {
     concat!(
@@ -303,10 +328,10 @@ macro_rules! push_doc {
   };
 }
 
-macro_rules! remaining_doc {
+macro_rules! remaining_capacity_doc {
   ($struct:literal, $elem:literal) => {
     concat!(
-      "How many elements can be added to this collection.\n",
+      "Returns the number of elements that can be added to the storage without requiring a reallocation in the underlying buffer.\n",
       "\n",
       "```rust\n",
       "let mut instance = wtx::collections::",
@@ -316,8 +341,16 @@ macro_rules! remaining_doc {
       $elem,
       ").unwrap();\n",
       "let remaining = instance.capacity().wrapping_sub(instance.len());\n",
-      "assert_eq!(instance.remaining(), remaining);\n",
+      "assert_eq!(instance.remaining_capacity(), remaining);\n",
       "```"
+    )
+  };
+}
+
+macro_rules! remaining_capacity_max_doc {
+  ($struct:literal) => {
+    concat!(
+      "Returns the total number of elements that can be added before reaching the absolute maximum capacity supported by the length type."
     )
   };
 }

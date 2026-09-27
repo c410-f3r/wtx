@@ -1,7 +1,7 @@
 //! WebSocket autobahn client.
 
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
 use wtx_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
@@ -9,7 +9,7 @@ use wtx_internal::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let host = "127.0.0.1:9080";
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await.unwrap() {
     let mut ws = autobahn_case_conn(case, host).await.unwrap();
     let (mut common, mut reader, mut writer) = ws.split_mut();

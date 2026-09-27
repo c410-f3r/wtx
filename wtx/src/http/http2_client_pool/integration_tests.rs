@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   executor::StdExecutor,
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   net::UriRef,
@@ -24,7 +24,7 @@ async fn send_recv(uri: UriRef<'_>) {
   .unwrap()
   .build();
   let _res = client
-    .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(uri).into_request())
+    .send_req_recv_res(&mut VectorUsize::new(), ReqBuilder::get(uri).into_request())
     .await
     .unwrap();
 }

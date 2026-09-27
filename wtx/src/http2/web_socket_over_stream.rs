@@ -1,7 +1,7 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collections::{ArrayVectorU16, SingleTypeStorage, Vector},
+  collections::{ArrayVectorU16, SingleTypeStorage, VectorUsize},
   futures::JoinArrayVector,
   http::{Headers, StatusCode},
   http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
@@ -42,7 +42,7 @@ where
     let hss = stream
       .lease_mut()
       .common()
-      .send_headers(&mut Vector::new(), headers, false, StatusCode::Ok)
+      .send_headers(&mut VectorUsize::new(), headers, false, StatusCode::Ok)
       .await?;
     if hss.is_closed() {
       return Err(crate::Error::ClosedHttpConnection);
@@ -65,7 +65,7 @@ where
   #[inline]
   pub async fn read_frame<'buffer>(
     &mut self,
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
   ) -> crate::Result<FrameMut<'buffer>> {
     buffer.clear();
     let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
@@ -113,7 +113,7 @@ where
 }
 
 fn extend_buffer(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   no_masking: bool,
   mut slice: &[u8],
 ) -> crate::Result<(ReadFrameInfo, usize)> {
@@ -124,7 +124,7 @@ fn extend_buffer(
 }
 
 async fn recv_data<SW, TCX>(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   no_masking: bool,
   stream: &mut ServerStream<SW, TCX>,
 ) -> crate::Result<(ReadFrameInfo, bool)>

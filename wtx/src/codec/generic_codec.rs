@@ -1,6 +1,6 @@
 use crate::{
   codec::{CodecController, Decode, DecodeSeq, Encode},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
 };
 use core::marker::PhantomData;
@@ -33,7 +33,7 @@ impl<DA, EA> Decode<'_, GenericCodec<DA, EA>> for () {
 
 impl<DA, EA> DecodeSeq<'_, GenericCodec<DA, EA>> for () {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'_, DA>) -> crate::Result<()> {
+  fn decode_seq(_: &mut VectorUsize<Self>, _: &mut DecodeWrapper<'_, DA>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -73,7 +73,7 @@ impl<DA> Lease<[u8]> for DecodeWrapper<'_, DA> {
 #[derive(Debug)]
 pub struct EncodeWrapper<'any, EA> {
   /// Buffer where the encoded contents are stored.
-  pub buffer: &'any mut Vector<u8>,
+  pub buffer: &'any mut VectorUsize<u8>,
   /// Auxiliary encoding data
   pub encode_aux: EA,
 }
@@ -81,7 +81,7 @@ pub struct EncodeWrapper<'any, EA> {
 impl<'any, EA> EncodeWrapper<'any, EA> {
   /// Shortcut
   #[inline]
-  pub const fn new(buffer: &'any mut Vector<u8>, encode_aux: EA) -> Self {
+  pub const fn new(buffer: &'any mut VectorUsize<u8>, encode_aux: EA) -> Self {
     Self { buffer, encode_aux }
   }
 }

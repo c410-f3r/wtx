@@ -168,7 +168,7 @@ where
 
   #[inline]
   fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
-    if additional > self.remaining() {
+    if additional > self.remaining_capacity() {
       return Err(
         ArrayVectorError::ReserveOverflow {
           additional: additional.usize().try_into().unwrap_or(u16::MAX),
@@ -183,7 +183,7 @@ where
 
   #[inline]
   fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()> {
-    if additional > self.remaining() {
+    if additional > self.remaining_capacity() {
       return Err(
         ArrayVectorError::ReserveOverflow {
           additional: additional.usize().try_into().unwrap_or(u16::MAX),

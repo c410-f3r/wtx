@@ -27,7 +27,7 @@ macro_rules! frame_params {
 }
 
 use crate::{
-  collections::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, VectorUsize},
   http::{Headers, Trailers, U31},
   http2::{
     Http2Data, Http2Error, Http2Inner, Http2SendStatus,
@@ -52,7 +52,7 @@ use core::{
 };
 
 pub(crate) fn encode_headers<const IS_CLIENT: bool>(
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,
   (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
@@ -178,7 +178,7 @@ pub(crate) fn push_headers<const IS_CLIENT: bool>(
 }
 
 pub(crate) fn push_trailers(
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   frames: &mut ArrayVectorU8<FrameParams, 4>,
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,
@@ -218,7 +218,7 @@ pub(crate) fn push_trailers(
 /// * At most one continuation frame can be sent
 pub(crate) async fn send_msg<SW, TCX, const IS_CLIENT: bool>(
   data: &[u8],
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   headers: &Headers,
   inner: &Http2Inner<SW, TCX, IS_CLIENT>,
   (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
@@ -359,7 +359,7 @@ fn data_frame_len(bytes_len: usize) -> u32 {
 fn do_send_msg<const IS_CLIENT: bool>(
   data: &[u8],
   data_idx: &mut u32,
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   frames: &mut ArrayVectorU8<FrameParams, 4>,
   hd: &mut Http2Data<IS_CLIENT>,
   headers: &Headers,
@@ -500,7 +500,7 @@ fn do_send_msg<const IS_CLIENT: bool>(
 }
 
 fn encode_trailers(
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,
 ) -> crate::Result<()> {
@@ -541,7 +541,7 @@ fn push_fast_path<const IS_CLIENT: bool>(
   available_send: u32,
   data: &[u8],
   data_idx: &mut u32,
-  enc_buffer: &mut Vector<u8>,
+  enc_buffer: &mut VectorUsize<u8>,
   frames: &mut ArrayVectorU8<FrameParams, 4>,
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,

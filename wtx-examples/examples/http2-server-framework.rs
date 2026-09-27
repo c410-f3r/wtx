@@ -20,20 +20,20 @@ use wtx::{
     },
   },
   http2::{Http2ErrorCode, ServerStream},
-  pool::{PostgresRM, SimplePool},
+  pool::{PostgresRMDefault, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
   secret::SecretStr,
   tls::{SkCtx, TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type LocalPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
+type LocalPool = SimplePool<PostgresRMDefault<wtx::Error, TokioExecutor, TrustedCtx>>;
 
 fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_std_random()?;
   let db_pool = LocalPool::new(
     4,
-    PostgresRM::tokio(
+    PostgresRMDefault::tokio(
       ChaCha20::from_crypto_rng(&mut rng)?,
       TlsConfig::from_trust_anchors_pem([ROOT_CA])?,
       SecretStr::new(String::from("postgres://USER:PASSWORD@localhost/DB_NAME").as_mut_str())?,

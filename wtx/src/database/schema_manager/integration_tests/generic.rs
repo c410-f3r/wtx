@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DbClient, Identifier,
     schema_manager::{
@@ -16,9 +16,9 @@ use std::path::Path;
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schema<E>(
   (buffer_cmd, _, buffer_idents, _): (
     &mut String,
-    &mut Vector<DbMigration>,
-    &mut Vector<Identifier>,
-    &mut Vector<MigrationStatus>,
+    &mut VectorUsize<DbMigration>,
+    &mut VectorUsize<Identifier>,
+    &mut VectorUsize<MigrationStatus>,
   ),
   c: &mut Commands<E>,
   aux: AuxTestParams,
@@ -35,9 +35,9 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
 pub(crate) async fn rollback_works<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents, _): (
     &mut String,
-    &mut Vector<DbMigration>,
-    &mut Vector<Identifier>,
-    &mut Vector<MigrationStatus>,
+    &mut VectorUsize<DbMigration>,
+    &mut VectorUsize<Identifier>,
+    &mut VectorUsize<MigrationStatus>,
   ),
   c: &mut Commands<E>,
   aux: AuxTestParams,

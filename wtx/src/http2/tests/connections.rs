@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   executor::StdRuntime,
   http::{
     Header, Headers, HttpRecvParams, MsgBufferString, MsgData, MsgDataMut, ReqBuilder, Request,
@@ -118,7 +118,8 @@ async fn stream_server(
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
   cb(req_rrb.as_request_mut(stream.method()));
-  let _ = stream.send_res(&mut Vector::new(), req_rrb.as_response(StatusCode::Ok)).await.unwrap();
+  let _ =
+    stream.send_res(&mut VectorUsize::new(), req_rrb.as_response(StatusCode::Ok)).await.unwrap();
 }
 
 async fn stream_client(
@@ -128,7 +129,7 @@ async fn stream_client(
 ) -> MsgBufferString {
   let mut stream = client.stream().await.unwrap();
   let rb = ReqBuilder::get((msg_buffer.body.as_ref(), &msg_buffer.headers, uri));
-  let _ = stream.send_req(&mut Vector::new(), rb.into_request()).await.unwrap();
+  let _ = stream.send_req(&mut VectorUsize::new(), rb.into_request()).await.unwrap();
   stream.recv_res().await.unwrap().1
 }
 

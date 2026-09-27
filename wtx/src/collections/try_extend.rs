@@ -357,8 +357,9 @@ where
 
 // Vector
 
-impl<T> TryExtend<(T, usize)> for Vector<T>
+impl<L, T> TryExtend<(T, usize)> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: Clone,
 {
   #[inline]
@@ -368,8 +369,9 @@ where
   }
 }
 
-impl<'slice, T> TryExtend<&'slice [T]> for Vector<T>
+impl<'slice, L, T> TryExtend<&'slice [T]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: Copy,
 {
   #[inline]
@@ -379,7 +381,10 @@ where
   }
 }
 
-impl<T, const N: usize> TryExtend<[T; N]> for Vector<T> {
+impl<L, T, const N: usize> TryExtend<[T; N]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn try_extend(&mut self, set: [T; N]) -> crate::Result<()> {
     self.extend_from_iter(set)?;
@@ -387,9 +392,10 @@ impl<T, const N: usize> TryExtend<[T; N]> for Vector<T> {
   }
 }
 
-impl<I, T> TryExtend<Wrapper<I>> for Vector<T>
+impl<I, L, T> TryExtend<Wrapper<I>> for Vector<L, T>
 where
   I: IntoIterator<Item = T>,
+  L: LinearStorageLen,
 {
   #[inline]
   fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {

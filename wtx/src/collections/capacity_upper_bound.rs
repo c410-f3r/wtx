@@ -38,11 +38,11 @@ impl<T, const N: usize> CapacityUpperBound for [T; N] {
 }
 
 impl<T> CapacityUpperBound for &'_ [T] {
-  const CAPACITY_UPPER_BOUND: usize = capacity_upper_bound_of_type::<T>();
+  const CAPACITY_UPPER_BOUND: usize = isize::MAX.unsigned_abs();
 }
 
 impl<T> CapacityUpperBound for &'_ mut [T] {
-  const CAPACITY_UPPER_BOUND: usize = capacity_upper_bound_of_type::<T>();
+  const CAPACITY_UPPER_BOUND: usize = isize::MAX.unsigned_abs();
 }
 
 impl<L, T, const N: usize> CapacityUpperBound for ArrayVector<L, T, N>
@@ -60,19 +60,16 @@ where
 }
 
 impl CapacityUpperBound for String {
-  const CAPACITY_UPPER_BOUND: usize = capacity_upper_bound_of_type::<u8>();
+  const CAPACITY_UPPER_BOUND: usize = isize::MAX.unsigned_abs();
 }
 
 impl<T> CapacityUpperBound for Vec<T> {
-  const CAPACITY_UPPER_BOUND: usize = capacity_upper_bound_of_type::<T>();
+  const CAPACITY_UPPER_BOUND: usize = isize::MAX.unsigned_abs();
 }
 
-impl<T> CapacityUpperBound for Vector<T> {
-  const CAPACITY_UPPER_BOUND: usize = capacity_upper_bound_of_type::<T>();
-}
-
-#[inline]
-const fn capacity_upper_bound_of_type<T>() -> usize {
-  let isize_max_usize = isize::MAX.unsigned_abs();
-  if let Some(elem) = isize_max_usize.checked_div(size_of::<T>()) { elem } else { 0 }
+impl<L, T> CapacityUpperBound for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
+  const CAPACITY_UPPER_BOUND: usize = L::UPPER_BOUND_USIZE;
 }

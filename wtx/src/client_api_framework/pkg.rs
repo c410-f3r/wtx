@@ -8,7 +8,7 @@ mod pkgs_aux;
 use crate::{
   client_api_framework::Api,
   codec::{DecodeSeq, Encode, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
 };
 pub use pkg_with_helper::*;
 pub use pkgs_aux::*;
@@ -40,7 +40,7 @@ where
   #[inline]
   fn after_sending(
     &mut self,
-    _: (&mut A, &mut Vector<u8>, &mut DRSR),
+    _: (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     _: (&mut T, &mut TP),
   ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
@@ -51,7 +51,7 @@ where
   #[inline]
   fn before_sending(
     &mut self,
-    _: (&mut A, &mut Vector<u8>, &mut DRSR),
+    _: (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     _: (&mut T, &mut TP),
   ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
@@ -115,7 +115,7 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (api, bytes, drsr): (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
     (**self).after_sending((api, bytes, drsr), (trans, trans_params)).await
@@ -124,7 +124,7 @@ where
   #[inline]
   async fn before_sending(
     &mut self,
-    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (api, bytes, drsr): (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
     (**self).before_sending((api, bytes, drsr), (trans, trans_params)).await

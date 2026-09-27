@@ -139,7 +139,7 @@ impl TryFrom<u16> for Sign {
 mod tests {
   use crate::{
     codec::{Decode, Encode},
-    collections::{ArrayVectorCopy, Vector},
+    collections::{ArrayVectorCopy, VectorUsize},
     database::client::postgres::{
       Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty,
       tys::pg_numeric::{CAP, PgNumeric, Sign},
@@ -158,7 +158,7 @@ mod tests {
       sign: Sign::Positive,
       weight: 0,
     };
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let mut suffix_pusher = buffer.suffix_pusher();
     let mut ew = PostgresEncodeWrapper::new(suffix_pusher.inner_mut());
     <PgNumeric as Encode<Postgres<crate::Error>>>::encode(&original, &mut ew).unwrap();

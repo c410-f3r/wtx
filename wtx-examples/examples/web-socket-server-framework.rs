@@ -6,7 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpStream;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   http::WebSocketServerFramework,
   tls::{SkCtx, TlsConfig},
   web_socket::{OpCode, WebSocket, WebSocketPayloadOrigin},
@@ -23,7 +23,7 @@ fn main() -> wtx::Result<()> {
     .run_in_threads(&host_from_args(), router)
 }
 
-async fn echo(mut buffer: Vector<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {
+async fn echo(mut buffer: VectorUsize<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   loop {
     let origin = WebSocketPayloadOrigin::Adaptive;

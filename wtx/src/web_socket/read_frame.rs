@@ -11,7 +11,7 @@ use core::hint::cold_path;
 
 use crate::{
   codec::DecompressionFlush,
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   futures::FnMutFut,
   misc::{ExtUtf8Error, PartialChar, from_utf8_basic, from_utf8_ext, process_utf8_stream},
   net::{BufStreamReader, StreamReader, StreamWriter},
@@ -184,11 +184,11 @@ pub(crate) async fn read_frame<
   network_buffer: &'nb mut BufStreamReader,
   no_masking: bool,
   payload_origin: WebSocketPayloadOrigin,
-  reader_buffer: &mut Vector<u8>,
+  reader_buffer: &mut VectorUsize<u8>,
   rng: &mut R,
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
-  user_buffer: &'ub mut Vector<u8>,
+  user_buffer: &'ub mut VectorUsize<u8>,
   mut closed_conn_cb: impl FnMut(&mut S),
   mut stream_reader_cb: impl FnMut(&mut S) -> &mut SR,
   mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
@@ -269,7 +269,7 @@ where
   } else {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
       user_buffer,
-      &mut Vector::new(),
+      &mut VectorUsize::new(),
       is_in_continuation_frame,
       max_payload_len,
       nc,
@@ -316,7 +316,7 @@ fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
   mask: Option<[u8; 4]>,
   network_buffer: &mut BufStreamReader,
   no_masking: bool,
-  reader_buffer_first: &mut Vector<u8>,
+  reader_buffer_first: &mut VectorUsize<u8>,
 ) -> crate::Result<()> {
   let current_mut = network_buffer.current_mut();
   unmask_nb::<IS_CLIENT>(mask, current_mut, no_masking)?;
@@ -329,7 +329,7 @@ fn copy_from_compressed_nb_to_rb1<D, const IS_CLIENT: bool>(
   nc: &mut D,
   network_buffer: &mut BufStreamReader,
   no_masking: bool,
-  reader_buffer: &mut Vector<u8>,
+  reader_buffer: &mut VectorUsize<u8>,
   rfi: &ReadFrameInfo,
 ) -> crate::Result<()>
 where
@@ -349,8 +349,8 @@ where
 fn copy_from_compressed_rb1_to_rb2<D>(
   first_op_code: OpCode,
   nc: &mut D,
-  reader_buffer_first: &mut Vector<u8>,
-  reader_buffer_second: &mut Vector<u8>,
+  reader_buffer_first: &mut VectorUsize<u8>,
+  reader_buffer_second: &mut VectorUsize<u8>,
 ) -> crate::Result<()>
 where
   D: WebSocketDecompression,
@@ -410,7 +410,7 @@ async fn manage_first_finished_frame<
   rng: &mut R,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
   stream_writer: &mut SW,
-  user_buffer: &'rbf mut Vector<u8>,
+  user_buffer: &'rbf mut VectorUsize<u8>,
 ) -> crate::Result<FrameMut<'frame>>
 where
   'nb: 'frame,
@@ -448,7 +448,7 @@ where
 }
 
 fn manage_first_unfinished_frame<'iicf, D, const IS_CLIENT: bool>(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   is_in_continuation_frame: &'iicf mut Option<IsInContinuationFrame>,
   network_buffer: &mut BufStreamReader,
   no_masking: bool,
@@ -483,8 +483,8 @@ async fn read_continuation_frames<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
-  continuation_buffer: &mut Vector<u8>,
-  final_buffer: &mut Vector<u8>,
+  continuation_buffer: &mut VectorUsize<u8>,
+  final_buffer: &mut VectorUsize<u8>,
   is_in_continuation_frame: &mut IsInContinuationFrame,
   max_payload_len: usize,
   nc: &mut D,
@@ -497,8 +497,8 @@ async fn read_continuation_frames<
   reader_buffer_first_cb: &mut impl FnMut(
     OpCode,
     &mut D,
-    &mut Vector<u8>,
-    &mut Vector<u8>,
+    &mut VectorUsize<u8>,
+    &mut VectorUsize<u8>,
   ) -> crate::Result<()>,
   recurrent_text_cb: &mut impl FnMut(&[u8], &mut Option<PartialChar>) -> crate::Result<()>,
   stream_reader: &mut impl FnMut(&mut S) -> &mut SR,

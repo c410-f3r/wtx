@@ -2,7 +2,7 @@
 
 use crate::{
   client_api_framework::network::transport::TransportParams,
-  collections::Vector,
+  collections::VectorUsize,
   http::{Headers, Method, Mime, MsgBufferString, StatusCode},
   misc::{Lease, LeaseMut},
   net::UriString,
@@ -23,7 +23,7 @@ impl HttpParams {
         method: Method::Get,
         mime: None,
         msg_buffer: MsgBufferString {
-          body: Vector::new(),
+          body: VectorUsize::new(),
           headers: Headers::new(),
           uri: UriString::new(uri),
         },

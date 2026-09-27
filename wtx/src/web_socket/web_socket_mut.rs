@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   misc::LeaseMut,
   net::{BufStreamReader, ConnectionState, Stream},
   rng::Xorshift64,
@@ -30,7 +30,7 @@ pub struct WebSocketReaderMut<'instance, NC, S, TCX, const IS_CLIENT: bool> {
   pub(crate) network_buffer: &'instance mut BufStreamReader,
   pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S, TCX)>,
-  pub(crate) reader_buffer: &'instance mut Vector<u8>,
+  pub(crate) reader_buffer: &'instance mut VectorUsize<u8>,
 }
 
 impl<'instance, NC, S, TCX, const IS_CLIENT: bool>
@@ -47,7 +47,7 @@ where
   #[inline]
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     common: &mut WebSocketCommonMut<'instance, NC, S, TCX, IS_CLIENT>,
     payload_origin: WebSocketPayloadOrigin,
   ) -> crate::Result<FrameMut<'frame>>
@@ -82,7 +82,7 @@ where
 pub struct WebSocketWriterMut<'instance, NC, S, TCX, const IS_CLIENT: bool> {
   pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S, TCX)>,
-  pub(crate) writer_buffer: &'instance mut Vector<u8>,
+  pub(crate) writer_buffer: &'instance mut VectorUsize<u8>,
 }
 
 impl<'instance, NC, S, TCX, const IS_CLIENT: bool>

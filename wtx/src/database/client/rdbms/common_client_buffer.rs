@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   database::client::rdbms::statements::Statements,
   misc::{Lease, LeaseMut},
   net::BufStreamReader,
@@ -13,11 +13,11 @@ pub(crate) struct CommonClientBuffer<A, C, T> {
   /// Each element represents a ***whole*** record. The first element is the number of affected
   /// values, the second element is the range delimitates bytes and the third element if the range
   /// that delimitates `values_params`.
-  pub(crate) records_params: Vector<(Range<usize>, Range<usize>)>,
+  pub(crate) records_params: VectorUsize<(Range<usize>, Range<usize>)>,
   pub(crate) stmts: Statements<A, C, T>,
   /// Each element represents the ***data*** of a record that is delimited by the first range of
   /// `records_params`.
-  pub(crate) values_params: Vector<(bool, Range<usize>)>,
+  pub(crate) values_params: VectorUsize<(bool, Range<usize>)>,
 }
 
 impl<A, C, T> CommonClientBuffer<A, C, T> {
@@ -28,9 +28,9 @@ impl<A, C, T> CommonClientBuffer<A, C, T> {
   {
     Self {
       read_buffer: BufStreamReader::new(),
-      records_params: Vector::new(),
+      records_params: VectorUsize::new(),
       stmts: Statements::new(max_stmts, rng),
-      values_params: Vector::new(),
+      values_params: VectorUsize::new(),
     }
   }
 

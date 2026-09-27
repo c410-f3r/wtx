@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   misc::LeaseMut,
   net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   rng::Xorshift64,
@@ -25,7 +25,7 @@ pub struct WebSocketReaderOwned<D, SR, TCX, const IS_CLIENT: bool> {
   pub(crate) network_buffer: BufStreamReader,
   pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<SR>,
-  pub(crate) reader_buffer: Vector<u8>,
+  pub(crate) reader_buffer: VectorUsize<u8>,
   pub(crate) rng: Xorshift64,
   pub(crate) stream_bridge: WebSocketBridge<IS_CLIENT>,
   pub(crate) stream_reader: TlsStreamReader<SR, TCX, IS_CLIENT>,
@@ -44,7 +44,7 @@ where
   #[inline]
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     payload_origin: WebSocketPayloadOrigin,
   ) -> crate::Result<FrameMut<'frame>>
   where
@@ -82,7 +82,7 @@ pub struct WebSocketWriterOwned<C, SW, TCX, const IS_CLIENT: bool> {
   pub(crate) no_masking: bool,
   pub(crate) rng: Xorshift64,
   pub(crate) stream_writer: TlsStreamWriter<SW, TCX, IS_CLIENT>,
-  pub(crate) writer_buffer: Vector<u8>,
+  pub(crate) writer_buffer: VectorUsize<u8>,
 }
 
 impl<C, SW, TCX, const IS_CLIENT: bool> WebSocketWriterOwned<C, SW, TCX, IS_CLIENT>

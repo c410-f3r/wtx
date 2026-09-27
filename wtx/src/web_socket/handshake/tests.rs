@@ -8,7 +8,7 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   executor::StdRuntime,
   futures::Sleep,
   rng::{ChaCha20, CryptoSeedableRng},
@@ -162,7 +162,7 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let text = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "123".as_bytes()), (text.op_code(), &**text.payload()));
   }
@@ -174,7 +174,7 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let hello = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "Hello!".as_bytes()), (hello.op_code(), &**hello.payload()));
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Goodbye!").unwrap()).await.unwrap();
@@ -189,7 +189,7 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Hello!").unwrap()).await.unwrap();
     assert_eq!(
       ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap().payload(),
@@ -206,7 +206,7 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let bytes = || Vector::from_vec(alloc::vec![b'1'; 256 * 1024]);
+    let bytes = || VectorUsize::from_vec(alloc::vec![b'1'; 256 * 1024]).unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut bytes()).unwrap()).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut bytes()).unwrap())
       .await
@@ -236,10 +236,13 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let text = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!(
-      (OpCode::Text, Vector::from_vec(alloc::vec![b'1'; 10 * 256 * 1024]).as_slice().len()),
+      (
+        OpCode::Text,
+        VectorUsize::from_vec(alloc::vec![b'1'; 10 * 256 * 1024]).unwrap().as_slice().len()
+      ),
       (text.op_code(), text.payload().len())
     );
   }
@@ -251,7 +254,7 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"123").unwrap()).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"ipat").unwrap()).await.unwrap();
     assert_eq!(
@@ -261,7 +264,7 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "123".as_bytes()), (frame.op_code(), &**frame.payload()));
     let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
@@ -275,7 +278,7 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut [b'1']).unwrap()).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'9']).unwrap()).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut [b'2', b'3']).unwrap())
@@ -288,7 +291,7 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "9".as_bytes()), (frame.op_code(), &**frame.payload()));
     let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
@@ -302,7 +305,7 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"0").unwrap()).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"1").unwrap()).await.unwrap();
     let zero = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
@@ -313,7 +316,7 @@ where
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let zero = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "0".as_bytes()), (zero.op_code(), &**zero.payload()));
     let one = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await.unwrap();

@@ -10,7 +10,7 @@ mod grpc_status_code;
 
 use crate::{
   codec::{Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
 };
 
 #[cfg(feature = "grpc-client")]
@@ -21,7 +21,7 @@ pub use grpc_middleware::GrpcMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
 
 fn serialize<'drsr, DRSR, T>(
-  bytes: &mut Vector<u8>,
+  bytes: &mut VectorUsize<u8>,
   data: T,
   drsr: &'drsr mut DRSR,
 ) -> crate::Result<()>

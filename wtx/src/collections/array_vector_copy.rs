@@ -198,10 +198,10 @@ where
     self.0.push(elem)
   }
 
-  #[doc = remaining_doc!("ArrayVectorUsize::<_, 16>", "1")]
+  #[doc = remaining_capacity_doc!("ArrayVectorUsize::<_, 16>", "1")]
   #[inline]
-  pub fn remaining(&self) -> u8 {
-    self.0.remaining()
+  pub fn remaining_capacity(&self) -> u8 {
+    self.0.remaining_capacity()
   }
 
   #[doc = remove_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "[1, 3]")]
@@ -495,7 +495,7 @@ where
   }
 }
 
-impl<T, const N: usize> Truncate<usize> for ArrayVectorCopy<T, N>
+impl<T, const N: usize> Truncate for ArrayVectorCopy<T, N>
 where
   T: Copy,
 {
@@ -581,7 +581,7 @@ impl<const N: usize> std::io::Write for ArrayVectorCopy<u8, N> {
 
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-    let len = (self.0.remaining().usize()).min(buf.len());
+    let len = (self.0.remaining_capacity().usize()).min(buf.len());
     let _rslt = self.0.extend_from_copyable_slice(buf.get(..len).unwrap_or_default());
     Ok(len)
   }

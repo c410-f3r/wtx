@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ShortBoxSliceU8, Vector},
+  collections::{ShortBoxSliceU8, VectorUsize},
   crypto::DynSigningOutput,
   rng::CryptoRng,
   secret::{Secret, SecretSlice, SecretStr},
@@ -56,7 +56,7 @@ impl TlsCtxSkLoader for HardenedSkCtx {
   fn from_ders<'data>(
     input: impl IntoIterator<Item = Self::SkInputDer<'data>>,
   ) -> crate::Result<Self> {
-    let mut vector = Vector::new();
+    let mut vector = VectorUsize::new();
     for secret_key in input {
       let key_ty = secret_key_ty(&secret_key.peek()?)?;
       vector.push((secret_key, key_ty))?;
@@ -69,7 +69,7 @@ impl TlsCtxSkLoader for HardenedSkCtx {
   fn from_pems<'data>(
     input: impl IntoIterator<Item = Self::SkInputPem<'data>>,
   ) -> crate::Result<Self> {
-    let mut vector = Vector::new();
+    let mut vector = VectorUsize::new();
     for pem in input {
       let (mut secret_key, key_ty) = secret_key_from_pem(pem.peek()?.as_bytes())?;
       vector.push((Secret::new(&mut *secret_key)?, key_ty))?;

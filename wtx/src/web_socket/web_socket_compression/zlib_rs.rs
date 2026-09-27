@@ -1,6 +1,6 @@
 use crate::{
   codec::{Compression, CompressionFlush, Decompression, DecompressionFlush, FromRadix10 as _},
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   http::GenericHeader,
   misc::bytes_split1,
   web_socket::{
@@ -146,7 +146,7 @@ impl Compression for NegotiatedZlibRs {
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     <Deflate as Compression>::compress(&mut self.deflate, flush, input, output)
   }
@@ -168,7 +168,7 @@ impl Decompression for NegotiatedZlibRs {
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output)
   }
@@ -246,7 +246,7 @@ impl Compression for NegotiatedZlibRsCompression {
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     <Deflate as Compression>::compress(&mut self.deflate, flush, input, output)
   }
@@ -288,7 +288,7 @@ impl Decompression for NegotiatedZlibRsDecompression {
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output)
   }

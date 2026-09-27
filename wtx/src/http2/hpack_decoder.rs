@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{_HeaderNameBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode,
@@ -17,7 +17,7 @@ const DYN_IDX_OFFSET: u32 = 62;
 #[derive(Debug)]
 pub(crate) struct HpackDecoder {
   dyn_headers: HpackHeaders<HpackHeaderBasic>,
-  header_buffers: (_HeaderNameBuffer, Vector<u8>),
+  header_buffers: (_HeaderNameBuffer, VectorUsize<u8>),
   max_bytes: (u32, Option<u32>),
 }
 
@@ -25,7 +25,7 @@ impl HpackDecoder {
   pub(crate) fn new() -> Self {
     Self {
       dyn_headers: HpackHeaders::new(0),
-      header_buffers: (_HeaderNameBuffer::new(), Vector::new()),
+      header_buffers: (_HeaderNameBuffer::new(), VectorUsize::new()),
       max_bytes: (0, None),
     }
   }
@@ -203,7 +203,7 @@ impl HpackDecoder {
   }
 
   fn decode_string_value<'buffer, 'data, 'rslt>(
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     bytes: &mut &'data [u8],
   ) -> crate::Result<&'rslt str>
   where

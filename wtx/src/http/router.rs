@@ -4,7 +4,7 @@ mod bench;
 mod tests;
 
 use crate::{
-  collections::{ArrayVectorCopy, ShortBoxStrU8, ShortSliceU8, ShortStrU8, Vector},
+  collections::{ArrayVectorCopy, ShortBoxStrU8, ShortSliceU8, ShortStrU8, VectorUsize},
   http::{DEFAULT_MAX_CHILDREN, DEFAULT_MAX_DEPTH},
   misc::{bytes_pos1, from_utf8_basic},
 };
@@ -51,14 +51,14 @@ pub enum RouterError {
 /// * `/hey_{anything}/lyrics`: `/hey_/lyrics`, `/hey_you/lyrics`, `/hey_you_what_is_this_now/lyrics`
 #[derive(Clone, Debug)]
 pub struct Router<T, const MC: usize = DEFAULT_MAX_CHILDREN, const MD: usize = DEFAULT_MAX_DEPTH> {
-  rows: Vector<Row<T, MC>>,
+  rows: VectorUsize<Row<T, MC>>,
 }
 
 impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
   /// Empty instance
   #[inline]
   pub const fn new() -> Self {
-    Self { rows: Vector::new() }
+    Self { rows: VectorUsize::new() }
   }
 }
 
@@ -223,7 +223,7 @@ pub struct RouterBuilder<
   const MC: usize = DEFAULT_MAX_CHILDREN,
   const MD: usize = DEFAULT_MAX_DEPTH,
 > {
-  rows: &'instance mut Vector<Row<T, MC>>,
+  rows: &'instance mut VectorUsize<Row<T, MC>>,
 }
 
 impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
@@ -251,7 +251,7 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
   fn add_local_route(
     local_route: &mut &[u8],
     local_ty: RowTy,
-    rows: &mut Vector<Row<T, MC>>,
+    rows: &mut VectorUsize<Row<T, MC>>,
   ) -> crate::Result<u8> {
     let mut row_idx = 0;
 
@@ -315,7 +315,7 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
     common_prefix_len: usize,
     is_single: bool,
     row_idx: &mut u8,
-    rows: &mut Vector<Row<T, MC>>,
+    rows: &mut VectorUsize<Row<T, MC>>,
   ) -> crate::Result<()> {
     let route_str: ShortBoxStrU8 = route.try_into()?;
     let parent_idx = usize::from(*row_idx);
@@ -464,7 +464,7 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
   #[inline]
   fn drop(&mut self) {
     #[inline]
-    fn evaluate_max_depth<T, const MC: usize, const MD: usize>(rows: &mut Vector<Row<T, MC>>) {
+    fn evaluate_max_depth<T, const MC: usize, const MD: usize>(rows: &mut VectorUsize<Row<T, MC>>) {
       let mut depths = alloc::vec![0u8; rows.len()];
       let mut max_depth = 0;
       for (idx, row) in rows.iter().enumerate() {
@@ -494,7 +494,7 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
     }
 
     #[inline]
-    fn fill_first_bytes<T, const MC: usize>(rows: &mut Vector<Row<T, MC>>) {
+    fn fill_first_bytes<T, const MC: usize>(rows: &mut VectorUsize<Row<T, MC>>) {
       let mut row_idx: usize = 0;
       while row_idx < rows.len() {
         let mut first_bytes = ArrayVectorCopy::<_, MC>::new();
@@ -527,7 +527,7 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
     }
 
     #[inline]
-    fn sort_by_the_number_of_children<T, const MC: usize>(rows: &mut Vector<Row<T, MC>>) {
+    fn sort_by_the_number_of_children<T, const MC: usize>(rows: &mut VectorUsize<Row<T, MC>>) {
       let mut weights = alloc::vec![0u32; rows.len()];
       for idx in (0..rows.len()).rev() {
         let Some(row) = rows.get(idx) else {
@@ -567,7 +567,7 @@ pub struct RouterMatch<
 > {
   rmpi: ArrayVectorCopy<RouterMatchParamIndices, MD>,
   route: ShortSliceU8<'any, u8>,
-  rows: &'any Vector<Row<T, MC>>,
+  rows: &'any VectorUsize<Row<T, MC>>,
   value: &'any T,
 }
 

@@ -1,7 +1,7 @@
 use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::{ArrayVectorCopy, ShortBoxSliceU16, Vector},
+  collections::{ArrayVectorCopy, ShortBoxSliceU16, VectorUsize},
   tls::{MAX_CERTS, MAX_KEYS, TlsError},
   x509::{Certificate, KeyTy},
 };
@@ -73,7 +73,7 @@ impl PublicKeys {
     let mut certs: u8 = 0;
     let mut curr_data_offset: u16 = self.data_offsets.last().copied().unwrap_or_default();
     let mut iter = public_key.into_iter();
-    let mut local_data: Vector<u8> = mem::take(&mut self.data).into();
+    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).into();
 
     let Some(first_cert_bytes) = iter.next() else {
       return Err(TlsError::NoLeafCertInChain.into());
@@ -92,14 +92,14 @@ impl PublicKeys {
   #[inline]
   pub(crate) fn push_public_key_pem(
     &mut self,
-    buffer: &mut Vector<u8>,
+    buffer: &mut VectorUsize<u8>,
     pem_bytes: &[u8],
   ) -> crate::Result<()> {
     let pem = Pem::<_, MAX_CERTS>::decode(&mut DecodeWrapper::new(pem_bytes, &mut *buffer))?;
     let mut certs: u8 = 0;
     let mut curr_data_offset: u16 = self.data_offsets.last().copied().unwrap_or_default();
     let mut iter = pem.data.into_iter();
-    let mut local_data: Vector<u8> = mem::take(&mut self.data).into();
+    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).into();
 
     let Some(first) = iter.next() else {
       return Err(TlsError::NoLeafCertInChain.into());
@@ -121,7 +121,7 @@ impl PublicKeys {
   fn finish_push(
     &mut self,
     certs: u8,
-    data: Vector<u8>,
+    data: VectorUsize<u8>,
     public_key_ty: KeyTy,
   ) -> crate::Result<()> {
     self.data = data.try_into()?;
@@ -137,7 +137,7 @@ impl PublicKeys {
     &mut self,
     cert_bytes: &[u8],
     certs: &mut u8,
-    data: &mut Vector<u8>,
+    data: &mut VectorUsize<u8>,
     curr_data_offset: &mut u16,
   ) -> crate::Result<()> {
     *certs = certs.wrapping_add(1);

@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DbClient as _, Record, Typed,
     client::postgres::{
@@ -34,8 +34,8 @@ fn batch() {
   StdRuntime::new().block_on(async {
     let mut executor = executor().await;
     let mut idx: u32 = 0;
-    let mut records = Vector::new();
     let mut batch = executor.batch();
+    let mut records = VectorUsize::new();
     batch.stmt("SELECT 0,1,2 UNION SELECT 3,4,$1", (5,)).unwrap();
     batch.stmt("SELECT 6,7,8 UNION SELECT 9,10,$1", (11,)).unwrap();
     batch.stmt("SELECT 12,13,14 UNION SELECT 15,16,$1", (17,)).unwrap();

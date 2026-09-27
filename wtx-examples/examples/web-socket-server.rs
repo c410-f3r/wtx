@@ -6,7 +6,7 @@ extern crate wtx_examples;
 
 use tokio::net::TcpListener;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsAcceptor, TlsConfig},
   web_socket::{OpCode, WebSocketAcceptor, WebSocketPayloadOrigin},
@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
     let _jh = tokio::spawn(async move {
       let fut = async {
         let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-        let mut buffer = Vector::new();
+        let mut buffer = VectorUsize::new();
         let mut ws = WebSocketAcceptor::default()
           .accept(TlsAcceptor::new(tls_config, conn_rng, stream))
           .await?;

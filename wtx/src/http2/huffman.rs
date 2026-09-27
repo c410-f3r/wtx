@@ -1,5 +1,5 @@
 use crate::{
-  collections::{Clear, SingleTypeStorage, TryExtend, Vector},
+  collections::{Clear, SingleTypeStorage, TryExtend, VectorUsize},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_NBITS, ENCODE_TABLE, END_OF_STRING, ERROR},
@@ -56,7 +56,7 @@ where
   Ok(())
 }
 
-pub(crate) fn huffman_encode(data: &[u8], to: &mut Vector<u8>) -> crate::Result<()> {
+pub(crate) fn huffman_encode(data: &[u8], to: &mut VectorUsize<u8>) -> crate::Result<()> {
   let encoded_len = encoded_len(data);
   let original_len = to.len();
   #[cfg(not(test))]
@@ -200,7 +200,7 @@ fn encoded_len(data: &[u8]) -> usize {
 #[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     http2::huffman::{huffman_decode, huffman_encode},
   };
   use core::hint::black_box;
@@ -218,8 +218,8 @@ mod bench {
     CrkgiCJDE5S+dL5yGWhAY/RRjkhnfNvQ+ST1NFFoDd/h54EU3XvPaTN9J4ozr9yE+Lffbdnnb3N9mMxHOLvVZLsq/GYxpS5+yox99\
     0YS/1WahgpTl89iM2Nhdbv7mwGrXD/X3dxSbSy48tJqxJx9uM7e9lK7fRqm5u/YcmiOGNxvla/e9S5VfQl+Mvk2idbGOYQktWRRbM\
     2YJ2eBAz52J8kkPj7TyVn5ljRhsXGK9jNcG82";
-    let mut to = Vector::with_capacity(original.len()).unwrap();
-    let mut from = Vector::with_capacity(original.len()).unwrap();
+    let mut to = VectorUsize::with_capacity(original.len()).unwrap();
+    let mut from = VectorUsize::with_capacity(original.len()).unwrap();
     b.iter(move || {
       black_box({
         huffman_encode(original.as_bytes(), &mut from).unwrap();
@@ -235,14 +235,14 @@ mod bench {
 #[cfg(test)]
 mod test {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     http2::huffman::{huffman_decode, huffman_encode},
   };
 
   #[test]
   fn decode_and_encode() {
-    let mut decode = Vector::new();
-    let mut encode = Vector::new();
+    let mut decode = VectorUsize::new();
+    let mut encode = VectorUsize::new();
 
     decode_and_encode_cmp((&mut decode, &mut encode), b"o", &[0b00111111]);
     decode_and_encode_cmp((&mut decode, &mut encode), b"0", &[7]);
@@ -253,7 +253,7 @@ mod test {
   }
 
   fn decode_and_encode_cmp(
-    (decode_buffer, encode_buffer): (&mut Vector<u8>, &mut Vector<u8>),
+    (decode_buffer, encode_buffer): (&mut VectorUsize<u8>, &mut VectorUsize<u8>),
     bytes: &[u8],
     encoded: &[u8],
   ) {

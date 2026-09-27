@@ -5,7 +5,7 @@ extern crate wtx;
 use std::sync::OnceLock;
 use wtx::{
   calendar::{Datetime, Utc},
-  collections::Vector,
+  collections::VectorUsize,
   misc::EnvVars,
   secret::SecretStr,
 };
@@ -29,7 +29,7 @@ struct Vars {
   #[from_vars(map_now)]
   now: Option<Datetime<Utc>>,
   port: u16,
-  root_ca: Vector<u8>,
+  root_ca: VectorUsize<u8>,
   rust_log: Option<String>,
 }
 

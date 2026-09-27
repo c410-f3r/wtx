@@ -4,7 +4,7 @@ extern crate std;
 use std::prelude::rust_2021::*;
 extern crate alloc;
 
-use wtx::collections::Vector;
+use wtx::collections::VectorUsize;
 
 pub struct Foo {
     bar0: String,
@@ -13,7 +13,7 @@ pub struct Foo {
     bar2: u16,
     #[from_vars(parse_bar3)]
     bar3: Option<u32>,
-    bar4: Vector<u8>,
+    bar4: VectorUsize<u8>,
 }
 impl wtx::misc::FromVars for Foo {
     fn from_vars(vars:

@@ -1,6 +1,6 @@
 use crate::{
   codec::{Base64Alphabet, U64String, encode_base64_into_buffer},
-  collections::Vector,
+  collections::VectorUsize,
   crypto::{Hash as _, Hmac as _, HmacSha256Global, Sha256Global},
   database::{
     RecordValues,
@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub(crate) fn bind<E, RV>(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   portal: &str,
   rv: RV,
   stmt_cmd_id_array: &U64String,
@@ -91,7 +91,11 @@ where
   )
 }
 
-pub(crate) fn describe(buffer: &mut Vector<u8>, data: &[u8], variant: u8) -> crate::Result<()> {
+pub(crate) fn describe(
+  buffer: &mut VectorUsize<u8>,
+  data: &[u8],
+  variant: u8,
+) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     Some(b'D'),
@@ -103,7 +107,7 @@ pub(crate) fn describe(buffer: &mut Vector<u8>, data: &[u8], variant: u8) -> cra
   )
 }
 
-pub(crate) fn encrypted_conn(sw: &mut Vector<u8>) -> crate::Result<()> {
+pub(crate) fn encrypted_conn(sw: &mut VectorUsize<u8>) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     None,
@@ -117,7 +121,7 @@ pub(crate) fn encrypted_conn(sw: &mut Vector<u8>) -> crate::Result<()> {
   )
 }
 
-pub(crate) fn execute(sw: &mut Vector<u8>, max_rows: i32, portal: &str) -> crate::Result<()> {
+pub(crate) fn execute(sw: &mut VectorUsize<u8>, max_rows: i32, portal: &str) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     Some(b'E'),
@@ -133,7 +137,7 @@ pub(crate) fn execute(sw: &mut Vector<u8>, max_rows: i32, portal: &str) -> crate
   )
 }
 
-pub(crate) fn initial_conn_msg(config: &Config<'_>, sw: &mut Vector<u8>) -> crate::Result<()> {
+pub(crate) fn initial_conn_msg(config: &Config<'_>, sw: &mut VectorUsize<u8>) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     None,
@@ -172,7 +176,7 @@ pub(crate) fn initial_conn_msg(config: &Config<'_>, sw: &mut Vector<u8>) -> crat
 }
 
 pub(crate) fn parse<E, RV>(
-  buffer: &mut Vector<u8>,
+  buffer: &mut VectorUsize<u8>,
   rv: &RV,
   stmt_cmd: &str,
   stmt_cmd_id_array: &U64String,
@@ -211,7 +215,7 @@ where
   )
 }
 
-pub(crate) fn query(cmd: &[u8], sw: &mut Vector<u8>) -> crate::Result<()> {
+pub(crate) fn query(cmd: &[u8], sw: &mut VectorUsize<u8>) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     Some(b'Q'),
@@ -224,7 +228,7 @@ pub(crate) fn query(cmd: &[u8], sw: &mut Vector<u8>) -> crate::Result<()> {
 }
 
 pub(crate) fn sasl_first(
-  sw: &mut Vector<u8>,
+  sw: &mut VectorUsize<u8>,
   (method_bytes, method_header): (&[u8], &[u8]),
   nonce: &[u8],
 ) -> crate::Result<()> {
@@ -244,8 +248,8 @@ pub(crate) fn sasl_first(
 }
 
 pub(crate) fn sasl_second(
-  auth_data: &mut Vector<u8>,
-  (idx, buffer): (usize, &mut Vector<u8>),
+  auth_data: &mut VectorUsize<u8>,
+  (idx, buffer): (usize, &mut VectorUsize<u8>),
   method_header: &[u8],
   response_nonce: &[u8],
   salted_password: &[u8; 32],
@@ -291,7 +295,7 @@ pub(crate) fn sasl_second(
   Ok(())
 }
 
-pub(crate) fn sync(sw: &mut Vector<u8>) -> crate::Result<()> {
+pub(crate) fn sync(sw: &mut VectorUsize<u8>) -> crate::Result<()> {
   i32_write(
     CounterWriterBytesTy::IncludesLen,
     Some(b'S'),

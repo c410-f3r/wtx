@@ -32,7 +32,7 @@ impl TryFrom<u8> for RecordContentTy {
       23 => RecordContentTy::ApplicationData,
       _ => {
         return Err(crate::Error::TlsErrorReply(
-          TlsError::UnknownRecordContentType,
+          TlsError::UnknownRecordContentType(from),
           AlertDescription::UnexpectedMessage,
         ));
       }

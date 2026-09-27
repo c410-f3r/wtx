@@ -69,7 +69,7 @@ macro_rules! manage_after_handshake {
     }
 
     let read_size = $options.read_size.min(2048);
-    let mut buffer = Vector::from_iterator((0..read_size).map(|_| 0))?;
+    let mut buffer = VectorUsize::from_iterator((0..read_size).map(|_| 0))?;
 
     loop {
       let read_rslt = {
@@ -114,7 +114,7 @@ use boringssl_options::Options;
 use std::{env, time::Duration};
 use tokio::net::TcpStream;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   net::{Stream, StreamReader, StreamWriter as _, Uri},
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AsyncMutex},

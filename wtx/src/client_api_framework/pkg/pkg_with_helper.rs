@@ -1,7 +1,7 @@
 use crate::{
   client_api_framework::{Api, pkg::Package},
   codec::{Id, protocol::JsonRpcEncoder},
-  collections::Vector,
+  collections::VectorUsize,
 };
 use core::{
   borrow::Borrow,
@@ -43,7 +43,7 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (api, bytes, drsr): (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
     self.pkg.after_sending((api, bytes, drsr), (trans, trans_params)).await
@@ -52,7 +52,7 @@ where
   #[inline]
   async fn before_sending(
     &mut self,
-    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (api, bytes, drsr): (&mut A, &mut VectorUsize<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
     self.pkg.before_sending((api, bytes, drsr), (trans, trans_params)).await

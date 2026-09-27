@@ -1,6 +1,6 @@
 use crate::{
   AFTER_CLOSE_TIMEOUT_MS,
-  collections::{ArrayVectorU8, ArrayVectorU16, Vector},
+  collections::{ArrayVectorU8, ArrayVectorU16, VectorUsize},
   futures::{Sleep, TryJoinArrayVector},
   http::{Headers, StatusCode, U31},
   http2::{
@@ -63,7 +63,7 @@ where
   pub async fn recv_data<ONG>(
     &mut self,
     mut cb: impl FnMut(&mut [u8]) -> crate::Result<ONG>,
-  ) -> crate::Result<Http2RecvStatus<Vector<u8>, ONG>> {
+  ) -> crate::Result<Http2RecvStatus<VectorUsize<u8>, ONG>> {
     let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching data");
@@ -285,7 +285,7 @@ where
   #[inline]
   pub async fn send_headers(
     &mut self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     headers: &Headers,
     is_eos: bool,
     status_code: StatusCode,
@@ -339,7 +339,7 @@ where
   #[inline]
   pub async fn send_trailers(
     &mut self,
-    enc_buffer: &mut Vector<u8>,
+    enc_buffer: &mut VectorUsize<u8>,
     trailers: &Headers,
   ) -> crate::Result<Http2SendStatus> {
     let Self { inner, linger: _, span, stream_id } = self;

@@ -18,7 +18,6 @@ use alloc::boxed::Box;
 use core::{
   alloc::Layout,
   array::TryFromSliceError,
-  convert::Infallible,
   fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
   slice::GetDisjointMutError,
@@ -137,6 +136,8 @@ pub enum Error {
   AddrParseError(core::net::AddrParseError),
   #[doc = associated_element_doc!()]
   Fmt(core::fmt::Error),
+  #[doc = associated_element_doc!()]
+  FromUtf8Error(Box<alloc::string::FromUtf8Error>),
   #[doc = associated_element_doc!()]
   GetDisjointMutError(GetDisjointMutError),
   #[cfg(feature = "std")]
@@ -292,6 +293,8 @@ pub enum Error {
   #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
   CryptoError(crate::crypto::CryptoError),
+  #[doc = associated_element_doc!()]
+  CsrError(crate::collections::CsrError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
   DatabaseError(crate::database::DatabaseError),
@@ -365,9 +368,9 @@ impl Display for Error {
 
 impl core::error::Error for Error {}
 
-impl From<Infallible> for Error {
+impl From<!> for Error {
   #[inline]
-  fn from(value: Infallible) -> Self {
+  fn from(value: !) -> Self {
     match value {}
   }
 }

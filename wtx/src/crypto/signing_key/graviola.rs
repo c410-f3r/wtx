@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   crypto::{
     EcdsaP256SigningKeyGraviola, EcdsaP384SigningKeyGraviola, Ed25519SigningKeyGraviola, HashTy,
     RsaPkcs1SigningKeyGraviola, RsaPssSigningKeyGraviola, SigningOutput, signing_key::SigningKey,
@@ -114,7 +114,7 @@ impl SigningKey for RsaPkcs1SigningKeyGraviola {
   where
     RNG: CryptoRng,
   {
-    let mut signature = Vector::from_vec(alloc::vec![0; self.0.1.modulus_len_bytes()]);
+    let mut signature = VectorUsize::from_vec(alloc::vec![0; self.0.1.modulus_len_bytes()])?;
     let _ = match self.0.0 {
       HashTy::Sha256 => self.0.1.sign_pkcs1_sha256(&mut signature, msg)?,
       HashTy::Sha384 => self.0.1.sign_pkcs1_sha384(&mut signature, msg)?,
@@ -148,7 +148,7 @@ impl SigningKey for RsaPssSigningKeyGraviola {
   where
     RNG: CryptoRng,
   {
-    let mut signature = Vector::from_vec(alloc::vec![0; self.0.1.modulus_len_bytes()]);
+    let mut signature = VectorUsize::from_vec(alloc::vec![0; self.0.1.modulus_len_bytes()])?;
     let _ = match self.0.0 {
       HashTy::Sha256 => self.0.1.sign_pss_sha256(&mut signature, msg)?,
       HashTy::Sha384 => self.0.1.sign_pss_sha384(&mut signature, msg)?,

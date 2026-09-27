@@ -98,7 +98,7 @@ extern crate wtx;
 
 use std::path::Path;
 use wtx::database::{schema_manager::Commands, DEFAULT_URI_VAR};
-use wtx::collections::Vector;
+use wtx::collections::VectorUsize;
 
 #[wtx::main]
 async fn main() {
@@ -120,7 +120,7 @@ mod embedded_migrations {
 }
 
 use wtx::database::schema_manager::Commands;
-use wtx::collections::Vector;
+use wtx::collections::VectorUsize;
 
 async fn migrate() -> wtx::Result<()> {
   Commands::with_executor(()).migrate_from_groups(embedded_migrations::GROUPS).await

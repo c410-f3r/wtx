@@ -21,7 +21,7 @@ use core::hash::{Hash as _, Hasher as _};
 #[cfg(feature = "std")]
 use {
   crate::{
-    collections::{ArrayVectorCopy, Vector},
+    collections::{ArrayVectorCopy, VectorUsize},
     database::schema_manager::{
       Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
@@ -153,7 +153,7 @@ where
 /// All paths to directories that contain migrations and optional seeds
 #[cfg(feature = "std")]
 #[inline]
-pub fn parse_root_toml(cfg_path: &Path) -> crate::Result<(Vector<PathBuf>, Option<PathBuf>)> {
+pub fn parse_root_toml(cfg_path: &Path) -> crate::Result<(VectorUsize<PathBuf>, Option<PathBuf>)> {
   let cfg_dir = cfg_path.parent().unwrap_or_else(|| Path::new("."));
   parse_root_toml_raw(File::open(cfg_path)?, cfg_dir)
 }
@@ -164,11 +164,11 @@ pub fn parse_root_toml(cfg_path: &Path) -> crate::Result<(Vector<PathBuf>, Optio
 pub fn parse_root_toml_raw<R>(
   read: R,
   root: &Path,
-) -> crate::Result<(Vector<PathBuf>, Option<PathBuf>)>
+) -> crate::Result<(VectorUsize<PathBuf>, Option<PathBuf>)>
 where
   R: Read,
 {
-  let mut migration_groups = Vector::new();
+  let mut migration_groups = VectorUsize::new();
   let mut seeds = None;
 
   for (ident, toml_expr) in toml(read)? {
@@ -280,10 +280,10 @@ fn migration_file_name_parts(str: &str) -> crate::Result<(String, Uid)> {
 }
 
 #[cfg(feature = "std")]
-fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vector<PathBuf>)> {
+fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, VectorUsize<PathBuf>)> {
   let path_str = opt_to_inv_mig!(|| path.file_name()?.to_str())?;
   let (mg_name, mg_uid) = dir_name_parts(path_str)?;
-  let mut migration_paths = Vector::new();
+  let mut migration_paths = VectorUsize::new();
   for rslt in read_dir(path)? {
     migration_paths.push(rslt?.path())?;
   }

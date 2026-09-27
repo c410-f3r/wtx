@@ -96,7 +96,7 @@ mod tests {
   use crate::{
     asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux},
     codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
-    collections::Vector,
+    collections::VectorUsize,
     x509::Pkcs8,
   };
 
@@ -144,8 +144,8 @@ mod tests {
   }
 
   fn check_codec(pem: &str) {
-    let mut codec_buffer = Vector::new();
-    let mut pem_buffer = Vector::new();
+    let mut codec_buffer = VectorUsize::new();
+    let mut pem_buffer = VectorUsize::new();
     let mut ew = EncodeWrapper::new(&mut codec_buffer, Asn1EncodeWrapperAux::default());
     let pkcs = Pkcs8::<&[u8]>::from_pem(&mut pem_buffer, pem.as_bytes()).unwrap().0;
     pkcs.encode(&mut ew).unwrap();

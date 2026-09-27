@@ -97,7 +97,7 @@ pub(crate) mod database {
       let $uri = crate::net::UriRef::new(&*peek);
       let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
       let $config = config_rslt?;
-      $cb.await?
+      <_>::from($cb.await?)
     }};
   }
 
@@ -107,6 +107,7 @@ pub(crate) mod database {
       client::postgres::{ClientBuffer, PostgresClient},
     },
     executor::Executor,
+    misc::{Lease, LeaseMut},
     net::TcpParams,
     pool::ResourceManager,
     rng::ChaCha20,
@@ -116,12 +117,16 @@ pub(crate) mod database {
   };
   use core::{marker::PhantomData, mem};
 
+  /// A [`PostgresRM`] instance with
+  pub type PostgresRMDefault<ER, EX, TCX> =
+    PostgresRM<ER, EX, PostgresClient<ER, <EX as Executor>::TcpStream, TCX>, TCX>;
+
   /// Manages generic database executors.
   #[derive(Debug)]
-  pub struct PostgresRM<ER, EX, TCX> {
+  pub struct PostgresRM<ER, EX, R, TCX> {
     _executor: EX,
     max_stmts: usize,
-    phantom: PhantomData<fn() -> ER>,
+    phantom: PhantomData<(fn() -> ER, R)>,
     rng: AtomicCell<ChaCha20>,
     tcp_params: TcpParams,
     tls_config: Arc<TlsConfig<TCX>>,
@@ -129,7 +134,7 @@ pub(crate) mod database {
   }
 
   #[cfg(feature = "tokio")]
-  impl<ER, TCX> PostgresRM<ER, crate::executor::TokioExecutor, TCX> {
+  impl<ER, R, TCX> PostgresRM<ER, crate::executor::TokioExecutor, R, TCX> {
     /// [`Self::new`] with the elements provided by the tokio project.
     #[inline]
     pub fn tokio(rng: ChaCha20, tls_config: TlsConfig<TCX>, uri: SecretStr) -> crate::Result<Self> {
@@ -137,7 +142,7 @@ pub(crate) mod database {
     }
   }
 
-  impl<ER, EX, TCX> PostgresRM<ER, EX, TCX> {
+  impl<ER, EX, R, TCX> PostgresRM<ER, EX, R, TCX> {
     /// Generic resource manager
     #[inline]
     pub fn new(
@@ -158,16 +163,32 @@ pub(crate) mod database {
     }
   }
 
-  impl<ER, EX, TCX> ResourceManager for PostgresRM<ER, EX, TCX>
+  impl<ER, EX, R, TCX> Lease<PostgresRM<ER, EX, R, TCX>> for PostgresRM<ER, EX, R, TCX> {
+    #[inline]
+    fn lease(&self) -> &PostgresRM<ER, EX, R, TCX> {
+      self
+    }
+  }
+
+  impl<ER, EX, R, TCX> LeaseMut<PostgresRM<ER, EX, R, TCX>> for PostgresRM<ER, EX, R, TCX> {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut PostgresRM<ER, EX, R, TCX> {
+      self
+    }
+  }
+
+  impl<ER, EX, R, TCX> ResourceManager for PostgresRM<ER, EX, R, TCX>
   where
     ER: From<crate::Error>,
     EX: Executor,
+    R: From<PostgresClient<ER, EX::TcpStream, TCX>>
+      + LeaseMut<PostgresClient<ER, EX::TcpStream, TCX>>,
     TCX: TlsCtx,
   {
     type CreateAux = ();
     type Error = ER;
     type RecycleAux = ();
-    type Resource = PostgresClient<ER, EX::TcpStream, TCX>;
+    type Resource = R;
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -185,7 +206,7 @@ pub(crate) mod database {
 
     #[inline]
     fn is_invalid(&self, resource: &Self::Resource) -> bool {
-      resource.connection_state().is_closed()
+      resource.lease().connection_state().is_closed()
     }
 
     #[inline]
@@ -197,7 +218,7 @@ pub(crate) mod database {
       let mut client_buffer = ClientBuffer::new(self.max_stmts, &mut &self.rng);
       let rng = &mut &self.rng;
       let tls_config = &*self.tls_config;
-      mem::swap(&mut client_buffer, &mut resource.cb);
+      mem::swap(&mut client_buffer, &mut resource.lease_mut().cb);
       *resource = _executor!(&self.uri, |postgres_config, uri| {
         let tls_connector = TlsConnectorBuilder::new(EX::default(), uri)
           .set_tcp_params(self.tcp_params)

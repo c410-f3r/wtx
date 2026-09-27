@@ -4,7 +4,7 @@ use crate::{
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
   x509::X509Error,
 };
@@ -111,7 +111,7 @@ impl<B> TryFrom<(u8, B)> for GeneralName<B> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct GeneralNames<B> {
   /// Entries
-  pub entries: Vector<GeneralName<B>>,
+  pub entries: VectorUsize<GeneralName<B>>,
   /// Tag
   pub tag: u8,
 }
@@ -119,7 +119,7 @@ pub struct GeneralNames<B> {
 impl<B> GeneralNames<B> {
   /// If `None`, `tag` will be turned into the default sequence tag.
   #[inline]
-  pub fn new(entries: Vector<GeneralName<B>>, tag: Option<u8>) -> Self {
+  pub fn new(entries: VectorUsize<GeneralName<B>>, tag: Option<u8>) -> Self {
     Self { entries, tag: tag.unwrap_or(SEQUENCE_TAG) }
   }
 }

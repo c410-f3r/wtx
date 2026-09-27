@@ -3,7 +3,7 @@ use crate::{
     Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
-  collections::Vector,
+  collections::VectorUsize,
   grpc::{GrpcStatusCode, serialize},
 };
 
@@ -35,7 +35,7 @@ impl<DRSR> GrpcManager<DRSR> {
 
   /// Serialize to Response Bytes
   #[inline]
-  pub fn ser_to_res_bytes<T>(&mut self, bytes: &mut Vector<u8>, data: T) -> crate::Result<()>
+  pub fn ser_to_res_bytes<T>(&mut self, bytes: &mut VectorUsize<u8>, data: T) -> crate::Result<()>
   where
     VerbatimDecoder<T>: for<'drsr> Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
