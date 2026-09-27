@@ -116,26 +116,6 @@ where
   }
 }
 
-impl<'exec, D> FromRecords<'exec, D> for ()
-where
-  D: Database,
-  i32: Decode<'exec, D>,
-{
-  const FIELDS_BASE: &'static str = "";
-  const FIELDS_NUM: u16 = 0;
-  const ID_IDX: Option<usize> = None;
-
-  type IdTy = i32;
-
-  #[inline]
-  fn from_records(
-    _: &mut FromRecordsParams<D::Record<'exec>>,
-    _: &D::Records<'exec>,
-  ) -> Result<Self, D::Error> {
-    Ok(())
-  }
-}
-
 impl<'exec, D, T> FromRecords<'exec, D> for Box<T>
 where
   D: Database,

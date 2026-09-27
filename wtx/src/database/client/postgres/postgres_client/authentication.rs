@@ -1,6 +1,6 @@
 use crate::{
   codec::{Base64Alphabet, base64_decode},
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   crypto::{Hmac as _, HmacSha256Global},
   database::{
     Identifier,
@@ -175,7 +175,7 @@ where
       let nonce_array = ArrayVectorCopy::<u8, 68>::from_copyable_slice(nonce)?;
       (
         {
-          let mut vec = Vector::with_capacity(64)?;
+          let mut vec = VectorUsize::with_capacity(64)?;
           let arrays = [&b"n=,r="[..], &local_nonce, &b","[..], payload];
           let _ = vec.extend_from_copyable_slices(arrays)?;
           vec

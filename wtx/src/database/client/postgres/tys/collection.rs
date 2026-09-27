@@ -5,7 +5,7 @@ use crate::{
     Typed,
     client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
   },
-  misc::{Lease, from_utf8_basic},
+  misc::from_utf8_basic,
 };
 use alloc::string::String;
 
@@ -208,49 +208,7 @@ where
   }
 }
 
-// Cow (wtx)
-
-impl<'de, E, O> Decode<'de, Postgres<E>> for crate::misc::Cow<'de, str, O>
-where
-  str: crate::misc::ToOwned<O>,
-  E: From<crate::Error>,
-  O: Lease<str>,
-{
-  #[inline]
-  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
-    Ok(crate::misc::Cow::Borrowed(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?))
-  }
-}
-impl<E, O> Encode<Postgres<E>> for crate::misc::Cow<'_, str, O>
-where
-  str: crate::misc::ToOwned<O>,
-  E: From<crate::Error>,
-  O: Lease<str>,
-{
-  #[inline]
-  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), E> {
-    ew.buffer().extend_from_copyable_slice(self.as_bytes())?;
-    Ok(())
-  }
-}
-impl<E, O> Typed<Postgres<E>> for crate::misc::Cow<'_, str, O>
-where
-  str: crate::misc::ToOwned<O>,
-  E: From<crate::Error>,
-  O: Lease<str>,
-{
-  #[inline]
-  fn runtime_ty(&self) -> Option<Ty> {
-    <&Self as Typed<Postgres<E>>>::static_ty()
-  }
-
-  #[inline]
-  fn static_ty() -> Option<Ty> {
-    Some(Ty::Text)
-  }
-}
-
-// Cow (wtx)
+// ShortBoxStr
 
 impl<'de, E, L> Decode<'de, Postgres<E>> for ShortBoxStr<L>
 where

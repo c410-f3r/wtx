@@ -20,7 +20,7 @@ pub(crate) enum Error {
   AbsentReqOrRes(Span),
   BadAfterSending(Span),
   BadAux(Span),
-  BadAuxData(Span, String),
+  BadAuxData(Span, Box<str>),
   BadBeforeSending(Span),
   BadField(Span),
   BadParams(Span),

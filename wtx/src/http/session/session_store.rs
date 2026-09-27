@@ -183,7 +183,6 @@ mod postgres {
 
   impl<CS, E, RM> SessionStore<CS, E> for SimplePool<RM>
   where
-    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>>,
     E: From<crate::Error>,
     RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
     RM::Resource: SessionStore<CS, E>,

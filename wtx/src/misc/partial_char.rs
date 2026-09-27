@@ -43,7 +43,7 @@ impl PartialChar {
   fn push_to_build_valid_char(&mut self, bytes: &[u8]) -> (usize, Option<CompletionErr>) {
     let initial_len: usize = self.0.len().into();
     let to_write_len = {
-      let unwritten: usize = self.0.remaining().into();
+      let unwritten: usize = self.0.remaining_capacity().into();
       let to_write_len = unwritten.min(bytes.len());
       let _rslt = self.0.extend_from_copyable_slice(bytes.get(..to_write_len).unwrap_or_default());
       to_write_len

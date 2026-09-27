@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{FromRecords, Identifier, client::postgres::Postgres, db_client::DbClient},
 };
 use alloc::string::String;
@@ -19,16 +19,16 @@ pub(crate) static CREATE_MIGRATION_TABLES: &str = concat!(
 );
 
 pub(crate) async fn all_elements<E, ERR>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   executor: &mut E,
-  schemas_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  sequences_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  domains_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  functions_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  views_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  table_names_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  procedures_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-  types_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  schemas_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  sequences_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  domains_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  functions_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  views_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  table_names_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  procedures_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
+  types_cb: impl FnOnce((&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()>,
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -62,7 +62,7 @@ where
 }
 
 pub(crate) async fn clear<E, ERR>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   executor: &mut E,
 ) -> Result<(), ERR>
 where
@@ -94,7 +94,7 @@ where
 
 pub(crate) async fn domains<E, ERR>(
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
 ) -> Result<(), ERR>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -116,7 +116,7 @@ where
 }
 
 pub(crate) async fn functions<E, ERR>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   executor: &mut E,
 ) -> Result<(), ERR>
 where
@@ -128,7 +128,7 @@ where
 }
 
 pub(crate) async fn procedures<E, ERR>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   executor: &mut E,
 ) -> Result<(), ERR>
 where
@@ -141,7 +141,7 @@ where
 
 pub(crate) async fn sequences<E, ERR>(
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
 ) -> Result<(), ERR>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -162,7 +162,7 @@ where
 
 pub(crate) async fn schemas<E, ERR>(
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
 ) -> Result<(), ERR>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -186,7 +186,7 @@ where
 pub(crate) async fn table_names<E, ERR>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
   schema: &str,
 ) -> Result<(), ERR>
 where
@@ -229,7 +229,7 @@ where
 
 pub(crate) async fn types<E, ERR>(
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
 ) -> Result<(), ERR>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -261,7 +261,7 @@ where
 
 pub(crate) async fn views<E, ERR>(
   executor: &mut E,
-  results: &mut Vector<Identifier>,
+  results: &mut VectorUsize<Identifier>,
 ) -> Result<(), ERR>
 where
   E: DbClient<Database = Postgres<ERR>>,
@@ -283,7 +283,7 @@ where
 }
 
 async fn pg_proc<E, ERR>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   executor: &mut E,
   prokind: char,
 ) -> Result<(), ERR>
@@ -321,7 +321,7 @@ where
 }
 
 fn push_drop(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
   structure: &str,
 ) -> crate::Result<()> {
   for identifier in buffer_idents.iter() {

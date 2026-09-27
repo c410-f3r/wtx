@@ -29,7 +29,7 @@ pub(crate) fn header_from_params(
       ]);
     }
     126..=65_535 => {
-      let [len_c, len_d] = u16::try_from(payload_len).map(u16::to_be_bytes).unwrap_or_default();
+      let [len_c, len_d] = u16::try_from(payload_len).map_or_default(u16::to_be_bytes);
       let _rslt = header.extend_from_copyable_slice(&[
         first_header_byte(fin, op_code, rsv1),
         126,
@@ -38,7 +38,7 @@ pub(crate) fn header_from_params(
       ]);
     }
     _ => {
-      let len = u64::try_from(payload_len).map(u64::to_be_bytes).unwrap_or_default();
+      let len = u64::try_from(payload_len).map_or_default(u64::to_be_bytes);
       let [len_c, len_d, len_e, len_f, len_g, len_h, len_i, len_j] = len;
       let _rslt = header.extend_from_copyable_slice(&[
         first_header_byte(fin, op_code, rsv1),

@@ -20,7 +20,7 @@ pub mod toml_parser;
 
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{DatabaseTy, Identifier, db_client::DbClient},
   misc::Lease,
 };
@@ -58,13 +58,13 @@ pub trait SchemaManagement: DbClient {
   /// Retrieves all inserted elements.
   fn all_elements(
     &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
+    buffer: (&mut String, &mut VectorUsize<Identifier>),
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Cleans all database resources.
   fn clear(
     &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
+    buffer: (&mut String, &mut VectorUsize<Identifier>),
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Initial tables meant for initialization.
@@ -99,7 +99,7 @@ pub trait SchemaManagement: DbClient {
     &mut self,
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
-    results: &mut Vector<DbMigration>,
+    results: &mut VectorUsize<DbMigration>,
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     S: Lease<str>;
@@ -109,7 +109,7 @@ pub trait SchemaManagement: DbClient {
   fn table_names(
     &mut self,
     buffer_cmd: &mut String,
-    results: &mut Vector<Identifier>,
+    results: &mut VectorUsize<Identifier>,
     schema: &str,
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 }
@@ -121,7 +121,7 @@ where
   #[inline]
   async fn all_elements(
     &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
+    buffer: (&mut String, &mut VectorUsize<Identifier>),
   ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).all_elements(buffer).await
   }
@@ -129,7 +129,7 @@ where
   #[inline]
   async fn clear(
     &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
+    buffer: (&mut String, &mut VectorUsize<Identifier>),
   ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).clear(buffer).await
   }
@@ -172,7 +172,7 @@ where
     &mut self,
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
-    results: &mut Vector<DbMigration>,
+    results: &mut VectorUsize<DbMigration>,
   ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     S: Lease<str>,
@@ -184,7 +184,7 @@ where
   async fn table_names(
     &mut self,
     buffer_cmd: &mut String,
-    results: &mut Vector<Identifier>,
+    results: &mut VectorUsize<Identifier>,
     schema: &str,
   ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).table_names(buffer_cmd, results, schema).await
@@ -193,12 +193,15 @@ where
 
 impl SchemaManagement for () {
   #[inline]
-  async fn all_elements(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+  async fn all_elements(
+    &mut self,
+    _: (&mut String, &mut VectorUsize<Identifier>),
+  ) -> crate::Result<()> {
     Ok(())
   }
 
   #[inline]
-  async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+  async fn clear(&mut self, _: (&mut String, &mut VectorUsize<Identifier>)) -> crate::Result<()> {
     Ok(())
   }
 
@@ -240,7 +243,7 @@ impl SchemaManagement for () {
     &mut self,
     _: &mut String,
     _: &UserMigrationGroup<S>,
-    _: &mut Vector<DbMigration>,
+    _: &mut VectorUsize<DbMigration>,
   ) -> crate::Result<()>
   where
     S: Lease<str>,
@@ -252,7 +255,7 @@ impl SchemaManagement for () {
   async fn table_names(
     &mut self,
     _: &mut String,
-    _: &mut Vector<Identifier>,
+    _: &mut VectorUsize<Identifier>,
     _: &str,
   ) -> crate::Result<()> {
     Ok(())
@@ -262,7 +265,7 @@ impl SchemaManagement for () {
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     database::{
       DatabaseTy, DbClient as _, Identifier,
       client::postgres::PostgresClient,
@@ -289,7 +292,7 @@ mod postgres {
     #[inline]
     async fn all_elements(
       &mut self,
-      (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+      (buffer_cmd, buffer_idents): (&mut String, &mut VectorUsize<Identifier>),
     ) -> Result<(), E> {
       all_elements(
         (buffer_cmd, buffer_idents),
@@ -308,7 +311,10 @@ mod postgres {
     }
 
     #[inline]
-    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> Result<(), E> {
+    async fn clear(
+      &mut self,
+      buffer: (&mut String, &mut VectorUsize<Identifier>),
+    ) -> Result<(), E> {
       clear(buffer, self).await
     }
 
@@ -351,7 +357,7 @@ mod postgres {
       &mut self,
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
-      results: &mut Vector<DbMigration>,
+      results: &mut VectorUsize<DbMigration>,
     ) -> Result<(), E>
     where
       S: Lease<str>,
@@ -363,7 +369,7 @@ mod postgres {
     async fn table_names(
       &mut self,
       buffer_cmd: &mut String,
-      results: &mut Vector<Identifier>,
+      results: &mut VectorUsize<Identifier>,
       schema: &str,
     ) -> Result<(), E> {
       table_names(buffer_cmd, self, results, schema).await

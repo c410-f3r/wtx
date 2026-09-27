@@ -5,7 +5,7 @@ use crate::{
 };
 use core::{marker::PhantomData, range::Range};
 #[cfg(feature = "std")]
-use {crate::collections::Vector, std::io::BufRead};
+use {crate::collections::VectorUsize, std::io::BufRead};
 
 const MAX_COLUMNS: usize = 64;
 
@@ -223,18 +223,18 @@ where
 }
 
 #[cfg(feature = "std")]
-impl<S> Csv<Vector<u8>, fn(&mut Vector<u8>, &mut S) -> crate::Result<usize>, S>
+impl<S> Csv<VectorUsize<u8>, fn(&mut VectorUsize<u8>, &mut S) -> crate::Result<usize>, S>
 where
   S: BufRead,
 {
   /// New instance based on [`BufRead`].
   #[inline]
   pub const fn from_buf_read(source: S) -> Self {
-    fn reader<S>(buffer: &mut Vector<u8>, source: &mut S) -> crate::Result<usize>
+    fn reader<S>(buffer: &mut VectorUsize<u8>, source: &mut S) -> crate::Result<usize>
     where
       S: BufRead,
     {
-      Ok(source.read_until(b'\n', buffer.vec_mut())?)
+      buffer.to_vec_mut(|vec| Ok(source.read_until(b'\n', vec)?))
     }
     Self { indices: ArrayVectorCopy::new(), phantom: PhantomData, reader, source }
   }
@@ -274,28 +274,28 @@ const fn idx16(idx: usize) -> u16 {
 mod tests {
   use crate::{
     codec::Csv,
-    collections::{ArrayVectorCopy, Vector},
+    collections::{ArrayVectorCopy, VectorUsize},
   };
   use core::str;
   use std::io::BufReader;
 
   #[test]
   fn double_quote() {
-    assert!(parse_one(&mut Vector::new(), "\"aaa\"\"aaa\"").is_none());
-    assert!(parse_one(&mut Vector::new(), "aaa\"\"aaa").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"aaa\"\"aaa\"").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "aaa\"\"aaa").is_none());
   }
 
   #[test]
   fn empty_fields_and_quotes() {
-    assert_eq!(parse_one(&mut Vector::new(), ",,").unwrap(), &["", "", ""]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,\"\",c").unwrap(), &["a", "", "c"]);
-    assert_eq!(parse_one(&mut Vector::new(), "\"\"").unwrap(), &[""]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), ",,").unwrap(), &["", "", ""]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,\"\",c").unwrap(), &["a", "", "c"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "\"\"").unwrap(), &[""]);
   }
 
   #[test]
   fn multiline() {
     let data = "1,\"hello\nworld\",2";
-    let mut line_buffer = Vector::new();
+    let mut line_buffer = VectorUsize::new();
     let mut csv = Csv::from_buf_read(BufReader::new(data.as_bytes()));
     {
       let mut fields = csv.next_elements(&mut line_buffer).unwrap().unwrap();
@@ -310,7 +310,7 @@ mod tests {
   #[test]
   fn multiline_many() {
     let data = "\"a\",\"b\"\n\"aaaa\naaaa\",\"aaaa\"\n\"aaaa\",\"aaaa\"\n\"aaaa\",\"aaaa\naaaa\"";
-    let mut line_buffer = Vector::new();
+    let mut line_buffer = VectorUsize::new();
     let mut csv = Csv::from_buf_read(BufReader::new(data.as_bytes()));
     assert_eq!(csv.next_elements(&mut line_buffer).unwrap().unwrap().count(), 2);
     assert_eq!(csv.next_elements(&mut line_buffer).unwrap().unwrap().count(), 2);
@@ -321,45 +321,51 @@ mod tests {
 
   #[test]
   fn quote_followed_by_non_delimiter() {
-    assert!(parse_one(&mut Vector::new(), "\"a\"b").is_none());
-    assert!(parse_one(&mut Vector::new(), "\"a\"x,c").is_none());
-    assert!(parse_one(&mut Vector::new(), "a,\"b\"c").is_none());
-    assert!(parse_one(&mut Vector::new(), "\"a\" ").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"a\"b").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"a\"x,c").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "a,\"b\"c").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"a\" ").is_none());
   }
 
   #[test]
   fn single_field() {
-    assert_eq!(parse_one(&mut Vector::new(), "a").unwrap(), &["a"]);
-    assert_eq!(parse_one(&mut Vector::new(), "abc").unwrap(), &["abc"]);
-    assert_eq!(parse_one(&mut Vector::new(), "\"a\"").unwrap(), &["a"]);
-    assert_eq!(parse_one(&mut Vector::new(), "\"abc\"").unwrap(), &["abc"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a").unwrap(), &["a"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "abc").unwrap(), &["abc"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "\"a\"").unwrap(), &["a"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "\"abc\"").unwrap(), &["abc"]);
   }
 
   #[test]
   fn single_line() {
-    assert_eq!(parse_one(&mut Vector::new(), "a,b,c,d,e").unwrap(), &["a", "b", "c", "d", "e"]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,b,").unwrap(), &["a", "b", ""]);
-    assert_eq!(parse_one(&mut Vector::new(), ",\n").unwrap(), &["", ""]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,b,\n").unwrap(), &["a", "b", ""]);
-    assert_eq!(parse_one(&mut Vector::new(), ",b\n").unwrap(), &["", "b"]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,b").unwrap(), &["a", "b"]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,b,c\n").unwrap(), &["a", "b", "c"]);
-    assert_eq!(parse_one(&mut Vector::new(), "a,b\r\n").unwrap(), &["a", "b"]);
-    assert_eq!(parse_one(&mut Vector::new(), "\"a\",\"b,c\",\"d\"").unwrap(), &["a", "b,c", "d"]);
-    assert_eq!(parse_one(&mut Vector::new(), "\"\",b").unwrap(), &["", "b"]);
+    assert_eq!(
+      parse_one(&mut VectorUsize::new(), "a,b,c,d,e").unwrap(),
+      &["a", "b", "c", "d", "e"]
+    );
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,b,").unwrap(), &["a", "b", ""]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), ",\n").unwrap(), &["", ""]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,b,\n").unwrap(), &["a", "b", ""]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), ",b\n").unwrap(), &["", "b"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,b").unwrap(), &["a", "b"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,b,c\n").unwrap(), &["a", "b", "c"]);
+    assert_eq!(parse_one(&mut VectorUsize::new(), "a,b\r\n").unwrap(), &["a", "b"]);
+    assert_eq!(
+      parse_one(&mut VectorUsize::new(), "\"a\",\"b,c\",\"d\"").unwrap(),
+      &["a", "b,c", "d"]
+    );
+    assert_eq!(parse_one(&mut VectorUsize::new(), "\"\",b").unwrap(), &["", "b"]);
 
-    assert!(parse_one(&mut Vector::new(), "ab\"cd\",ef").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "ab\"cd\",ef").is_none());
   }
 
   #[test]
   fn unclosed_quote() {
-    assert!(parse_one(&mut Vector::new(), "\"a").is_none());
-    assert!(parse_one(&mut Vector::new(), "a,\"b").is_none());
-    assert!(parse_one(&mut Vector::new(), "\"abc,def").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"a").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "a,\"b").is_none());
+    assert!(parse_one(&mut VectorUsize::new(), "\"abc,def").is_none());
   }
 
   fn parse_one<'buffer>(
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     data: &str,
   ) -> Option<ArrayVectorCopy<&'buffer str, 8>> {
     let mut csv = Csv::from_buf_read(BufReader::new(data.as_bytes()));

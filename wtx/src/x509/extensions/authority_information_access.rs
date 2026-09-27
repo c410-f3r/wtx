@@ -1,7 +1,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
   x509::AccessDescription,
 };
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct AuthorityInformationAccess<B>(
   /// Entries
-  pub Vector<AccessDescription<B>>,
+  pub VectorUsize<AccessDescription<B>>,
 );
 
 impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for AuthorityInformationAccess<B>

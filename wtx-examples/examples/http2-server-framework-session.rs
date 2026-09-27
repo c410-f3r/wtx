@@ -23,7 +23,7 @@
 //! ```
 
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   database::{DbClient, Record},
   executor::TokioExecutor,
   http::{
@@ -33,21 +33,21 @@ use wtx::{
     },
   },
   misc::argon2_pwd,
-  pool::{PostgresRM, SimplePool},
+  pool::{PostgresRMDefault, SimplePool},
   rng::{ChaCha20, CryptoSeedableRng},
   secret::SecretStr,
   tls::{TlsConfig, TrustedCtx},
 };
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
-type DbPool = SimplePool<PostgresRM<wtx::Error, TokioExecutor, TrustedCtx>>;
+type DbPool = SimplePool<PostgresRMDefault<wtx::Error, TokioExecutor, TrustedCtx>>;
 type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_std_random()?;
   let db_pool = DbPool::new(
     4,
-    PostgresRM::tokio(
+    PostgresRMDefault::tokio(
       ChaCha20::from_crypto_rng(&mut rng)?,
       TlsConfig::from_trust_anchors_pem([ROOT_CA])?,
       SecretStr::new(String::from("postgres://USER:PASSWORD@localhost/DB_NAME").as_mut_str())?,
@@ -63,7 +63,7 @@ fn main() -> wtx::Result<()> {
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
   let router = HttpRouter::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
-    SessionMiddleware::new(Vector::new(), session_manager.clone(), db_pool.clone()),
+    SessionMiddleware::new(VectorUsize::new(), session_manager.clone(), db_pool.clone()),
   )?;
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
     .set_data(Data { db_pool, session_manager, session_state: None })
@@ -90,7 +90,8 @@ async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
   let first_name = record.decode::<_, &str>(1)?;
   let pw_db = record.decode::<_, &[u8]>(2)?;
   let salt = record.decode::<_, &str>(3)?;
-  let pw_req = argon2_pwd::<32>(&mut Vector::new(), user.password.as_bytes(), salt.as_bytes())?;
+  let pw_req =
+    argon2_pwd::<32>(&mut VectorUsize::new(), user.password.as_bytes(), salt.as_bytes())?;
   req.clear();
   if pw_db != pw_req {
     return Ok(DynParams::ClearAll(StatusCode::Forbidden));

@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
-  collections::{ArrayStringU8, Vector},
+  collections::{ArrayStringU8, VectorUsize},
   misc::Lease,
 };
 use core::{
@@ -44,7 +44,7 @@ where
   R: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, ()>) -> crate::Result<()> {
+  fn decode_seq(_: &mut VectorUsize<Self>, _: &mut DecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }

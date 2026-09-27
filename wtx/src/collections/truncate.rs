@@ -2,55 +2,58 @@ use crate::collections::{ArrayString, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// Truncates the storage, delimiting its length by `I`.
-pub trait Truncate<I> {
+pub trait Truncate {
   /// Truncates the storage, delimiting its length by `I`.
-  fn truncate(&mut self, input: I);
+  fn truncate(&mut self, input: usize);
 }
 
-impl<T, I> Truncate<I> for &mut T
+impl<T> Truncate for &mut T
 where
-  T: Truncate<I>,
+  T: Truncate,
 {
   #[inline]
-  fn truncate(&mut self, input: I) {
+  fn truncate(&mut self, input: usize) {
     (*self).truncate(input);
   }
 }
 
-impl<L, const N: usize> Truncate<L> for ArrayString<L, N>
+impl<L, const N: usize> Truncate for ArrayString<L, N>
 where
   L: LinearStorageLen,
 {
   #[inline]
-  fn truncate(&mut self, input: L) {
-    self.truncate(input);
+  fn truncate(&mut self, input: usize) {
+    self.truncate(L::from_usize(input).unwrap_or(L::UPPER_BOUND));
   }
 }
 
-impl<T, I> Truncate<I> for Option<T> {
+impl<T> Truncate for Option<T> {
   #[inline]
-  fn truncate(&mut self, _: I) {
+  fn truncate(&mut self, _: usize) {
     *self = None;
   }
 }
 
-impl Truncate<usize> for String {
+impl Truncate for String {
   #[inline]
   fn truncate(&mut self, input: usize) {
     self.truncate(input);
   }
 }
 
-impl<T> Truncate<usize> for Vec<T> {
+impl<T> Truncate for Vec<T> {
   #[inline]
   fn truncate(&mut self, input: usize) {
     self.truncate(input);
   }
 }
 
-impl<T> Truncate<usize> for Vector<T> {
+impl<L, T> Truncate for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn truncate(&mut self, input: usize) {
-    self.truncate(input);
+    self.truncate(L::from_usize(input).unwrap_or(L::UPPER_BOUND));
   }
 }

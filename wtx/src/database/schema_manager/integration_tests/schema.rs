@@ -2,7 +2,7 @@ pub(crate) mod with_schema;
 pub(crate) mod without_schema;
 
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database,
     schema_manager::{
@@ -23,7 +23,7 @@ pub(crate) async fn migrate_works<DB, E>(
   E: SchemaManagement<Database = DB>,
 {
   let path = Path::new("../.test-utils/wtx.toml");
-  let mut db_migrations = Vector::new();
+  let mut db_migrations = VectorUsize::new();
   c.migrate_from_toml_path(path).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);
   c._executor_mut().migrations(buffer_cmd, &initial, &mut db_migrations).await.unwrap();
@@ -46,7 +46,7 @@ pub(crate) async fn migrate_works<DB, E>(
   assert_eq!(db_migrations[1].uid(), 2);
   assert_eq!(db_migrations[1].name(), "insert_stuff");
   assert_eq!(db_migrations.get(4), None);
-  let mut idents = Vector::new();
+  let mut idents = VectorUsize::new();
   c._executor_mut().table_names(buffer_cmd, &mut idents, aux.default_schema).await.unwrap();
   assert_eq!(idents.len(), 4 + aux.schema_regulator);
   idents.clear();

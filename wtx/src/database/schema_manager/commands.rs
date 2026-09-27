@@ -10,7 +10,7 @@ mod validate;
 
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, DatabaseTy, Identifier,
     db_client::DbClient,
@@ -78,8 +78,8 @@ where
   #[inline]
   pub async fn all_elements(
     &mut self,
-  ) -> Result<Vector<Identifier>, <E::Database as CodecController>::Error> {
-    let mut buffer = Vector::new();
+  ) -> Result<VectorUsize<Identifier>, <E::Database as CodecController>::Error> {
+    let mut buffer = VectorUsize::new();
     self.executor.all_elements((&mut String::new(), &mut buffer)).await?;
     Ok(buffer)
   }

@@ -23,7 +23,7 @@ pub type ShortBoxSliceU16<T> = ShortBoxSlice<u16, T>;
 
 /// An unaligned structure that has 9~10 bytes in `x86_64`. Useful in places where a bunch of
 /// standard slices would take too much space.
-#[expect(clippy::repr_packed_without_abi, reason = "only used internally")]
+#[expect(clippy::repr_packed_without_abi, reason = "not intended for FFI")]
 #[repr(packed)]
 pub struct ShortBoxSlice<L, T>
 where
@@ -253,16 +253,6 @@ where
   }
 }
 
-impl<L, T> From<ShortBoxSlice<L, T>> for Vector<T>
-where
-  L: LinearStorageLen,
-{
-  #[inline]
-  fn from(value: ShortBoxSlice<L, T>) -> Self {
-    Vector::from_vec(Vec::<T>::from(value))
-  }
-}
-
 impl<L, T> TryFrom<&[T]> for ShortBoxSlice<L, T>
 where
   L: LinearStorageLen,
@@ -300,14 +290,15 @@ where
   }
 }
 
-impl<L, T> TryFrom<Vector<T>> for ShortBoxSlice<L, T>
+impl<L0, L1, T> TryFrom<Vector<L0, T>> for ShortBoxSlice<L1, T>
 where
-  L: LinearStorageLen,
+  L0: LinearStorageLen,
+  L1: LinearStorageLen,
 {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(value: Vector<T>) -> Result<Self, Self::Error> {
+  fn try_from(value: Vector<L0, T>) -> Result<Self, Self::Error> {
     value.into_vec().try_into()
   }
 }
@@ -345,7 +336,7 @@ mod serde {
     where
       D: Deserializer<'de>,
     {
-      let string = Vector::deserialize(deserializer)?;
+      let string = Vector::<L, T>::deserialize(deserializer)?;
       string.try_into().map_err(D::Error::custom)
     }
   }

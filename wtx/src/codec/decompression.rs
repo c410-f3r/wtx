@@ -1,4 +1,4 @@
-use crate::collections::Vector;
+use crate::collections::VectorUsize;
 
 /// Dictates how decompression should work.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub trait Decompression {
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize>;
 
   /// Prepare the instance for a new stream.
@@ -39,7 +39,7 @@ impl Decompression for () {
     &mut self,
     _: DecompressionFlush,
     _: &[u8],
-    _: &mut Vector<u8>,
+    _: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -59,7 +59,7 @@ where
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     if let Some(elem) = self { elem.decompress(flush, input, output) } else { Ok(0) }
   }
@@ -76,7 +76,7 @@ where
 mod zlib_rs {
   use crate::{
     codec::{Decompression, DecompressionFlush},
-    collections::Vector,
+    collections::VectorUsize,
   };
   use zlib_rs::{Inflate, InflateFlush, Status};
 
@@ -86,7 +86,7 @@ mod zlib_rs {
       &mut self,
       flush: DecompressionFlush,
       input: &[u8],
-      output: &mut Vector<u8>,
+      output: &mut VectorUsize<u8>,
     ) -> crate::Result<usize> {
       output.reserve(input.len().max(64))?;
       let mut curr_input = input;

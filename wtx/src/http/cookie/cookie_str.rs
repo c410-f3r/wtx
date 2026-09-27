@@ -1,7 +1,7 @@
 use crate::{
   calendar::Datetime,
   codec::PercentDecode,
-  collections::{ArrayStringU8, ArrayVectorCopy, Vector},
+  collections::{ArrayStringU8, ArrayVectorCopy, VectorUsize},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{AsciiGeneric, str_split_once1, str_split1},
 };
@@ -17,7 +17,7 @@ impl<'str> CookieStr<'str> {
   /// Creates a new instance based on a sequence of bytes received from a request.
   pub(crate) fn parse<'local_str, 'vector>(
     str: &'local_str str,
-    vector: &'vector mut Vector<u8>,
+    vector: &'vector mut VectorUsize<u8>,
   ) -> crate::Result<Self>
   where
     'local_str: 'str,

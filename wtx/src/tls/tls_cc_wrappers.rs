@@ -1,5 +1,5 @@
 use crate::{
-  collections::{TryExtend, Vector},
+  collections::{TryExtend, VectorUsize},
   misc::{Lease, LeaseMut},
   tls::CipherSuite,
 };
@@ -64,17 +64,17 @@ impl Lease<[u8]> for TlsDecodeWrapper<'_> {
 /// Struct used for encoding TLS elements.
 #[derive(Debug)]
 pub(crate) struct TlsEncodeWrapper<'any> {
-  buffer: &'any mut Vector<u8>,
+  buffer: &'any mut VectorUsize<u8>,
   is_hello_retry_request: bool,
 }
 
 impl<'any> TlsEncodeWrapper<'any> {
-  pub(crate) const fn from_buffer(buffer: &'any mut Vector<u8>) -> Self {
+  pub(crate) const fn from_buffer(buffer: &'any mut VectorUsize<u8>) -> Self {
     Self { buffer, is_hello_retry_request: false }
   }
 
   #[inline]
-  pub(crate) const fn buffer(&mut self) -> &mut Vector<u8> {
+  pub(crate) const fn buffer(&mut self) -> &mut VectorUsize<u8> {
     self.buffer
   }
 

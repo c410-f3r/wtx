@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, Identifier,
     schema_manager::{
@@ -12,9 +12,9 @@ use alloc::string::String;
 pub(crate) async fn _migrate_works<DB, E>(
   (buffer_cmd, _, _, _): (
     &mut String,
-    &mut Vector<DbMigration>,
-    &mut Vector<Identifier>,
-    &mut Vector<MigrationStatus>,
+    &mut VectorUsize<DbMigration>,
+    &mut VectorUsize<Identifier>,
+    &mut VectorUsize<MigrationStatus>,
   ),
   c: &mut Commands<E>,
   aux: AuxTestParams,

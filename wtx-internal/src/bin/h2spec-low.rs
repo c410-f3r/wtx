@@ -5,7 +5,7 @@
 use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{HttpRecvParams, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   net::Stream,
@@ -35,7 +35,7 @@ async fn main() -> wtx::Result<()> {
           };
           let (mut http2_stream, headers) = stream;
           let _stream_jh = tokio::spawn(async move {
-            let mut enc_buffer = Vector::new();
+            let mut enc_buffer = VectorUsize::new();
             let mut common = http2_stream.common();
             loop {
               let hrs = common.recv_data(|_| Ok(())).await?;

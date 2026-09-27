@@ -1,7 +1,7 @@
 #![expect(clippy::infinite_loop, reason = "expected behavior of a server")]
 
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   executor::{Executor, Runtime as _},
   http::Router,
   net::{StreamReader, StreamWriter, TcpListener as _, TcpParams, Uri},
@@ -261,7 +261,7 @@ where
     };
     let web_socket_router = Arc::new(wsr);
     let router = build_matcher(&*web_socket_router)?;
-    let mut join_handles = Vector::<std::thread::JoinHandle<Result<(), ER>>>::new();
+    let mut join_handles = VectorUsize::<std::thread::JoinHandle<Result<(), ER>>>::new();
     for _ in 0..runtimes {
       let thread_comp = self.compression.clone();
       let thread_error_cb = self.error_cb.clone();

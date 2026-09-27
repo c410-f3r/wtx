@@ -9,7 +9,7 @@ pub(crate) mod statements_misc;
 
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, ValueIdent,
     client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
@@ -20,8 +20,8 @@ use core::ops::Range;
 
 /// Should be called before executing commands.
 pub(crate) fn clear_query_buffers(
-  records_params: &mut Vector<(Range<usize>, Range<usize>)>,
-  values_params: &mut Vector<(bool, Range<usize>)>,
+  records_params: &mut VectorUsize<(Range<usize>, Range<usize>)>,
+  values_params: &mut VectorUsize<(bool, Range<usize>)>,
 ) {
   records_params.clear();
   values_params.clear();

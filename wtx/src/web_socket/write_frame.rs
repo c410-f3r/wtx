@@ -2,7 +2,7 @@
 
 use crate::{
   codec::CompressionFlush,
-  collections::Vector,
+  collections::VectorUsize,
   misc::{Lease, LeaseMut},
   net::StreamWriter,
   rng::Rng,
@@ -35,7 +35,7 @@ pub(crate) async fn write_frame<C, P, R, SW, const IS_CLIENT: bool>(
   nc_rsv1: u8,
   rng: &mut R,
   stream_writer: &mut SW,
-  writer_buffer: &mut Vector<u8>,
+  writer_buffer: &mut VectorUsize<u8>,
   closed_conn_cb: impl FnOnce(&mut SW),
 ) -> crate::Result<()>
 where
@@ -70,7 +70,7 @@ fn compress_frame<'cb, C, P>(
   frame: &mut Frame<P>,
   nc: &mut C,
   nc_rsv1: u8,
-  writer_buffer: &'cb mut Vector<u8>,
+  writer_buffer: &'cb mut VectorUsize<u8>,
 ) -> crate::Result<FrameMut<'cb>>
 where
   C: WebSocketCompression,
@@ -116,7 +116,7 @@ fn manage_frame_compression<'cb, C, P, R, const IS_CLIENT: bool>(
   frame: &mut Frame<P>,
   no_masking: bool,
   rng: &mut R,
-  writer_buffer: &'cb mut Vector<u8>,
+  writer_buffer: &'cb mut VectorUsize<u8>,
 ) -> crate::Result<FrameMut<'cb>>
 where
   C: WebSocketCompression,

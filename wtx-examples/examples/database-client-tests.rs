@@ -9,10 +9,7 @@ fn main() {}
 mod tests {
   use tokio::net::TcpStream;
   use wtx::{
-    database::{
-      DbClient, Record,
-      client::postgres::{ClientBuffer, PostgresClient},
-    },
+    database::{DbClient, Record, client::postgres::PostgresClient},
     tls::PlaintextCtx,
   };
 

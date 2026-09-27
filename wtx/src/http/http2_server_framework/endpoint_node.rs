@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   http::http2_server_framework::{Endpoint, RouteMatch},
 };
 
@@ -15,7 +15,7 @@ where
   fn paths_indices(
     &self,
     prev: ArrayVectorCopy<RouteMatch, 4>,
-    vec: &mut Vector<ArrayVectorCopy<RouteMatch, 4>>,
+    vec: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>,
   ) -> crate::Result<()>;
 }
 
@@ -30,7 +30,7 @@ where
   fn paths_indices(
     &self,
     prev: ArrayVectorCopy<RouteMatch, 4>,
-    vec: &mut Vector<ArrayVectorCopy<RouteMatch, 4>>,
+    vec: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>,
   ) -> crate::Result<()> {
     (*self).paths_indices(prev, vec)
   }
@@ -39,7 +39,7 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
-    collections::{ArrayVectorCopy, Vector},
+    collections::{ArrayVectorCopy, VectorUsize},
     http::{
       ManualStream, OperationMode, StatusCode,
       http2_server_framework::{EndpointNode, HttpRouter, RouteMatch, StateClean, get},
@@ -77,7 +77,7 @@ mod tests {
         .unwrap()
       ),
     );
-    let mut vec = Vector::new();
+    let mut vec = VectorUsize::new();
     paths.paths_indices(ArrayVectorCopy::new(), &mut vec).unwrap();
     assert_eq!(
       vec.as_slice(),

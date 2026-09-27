@@ -4,7 +4,7 @@
 
 use tokio::net::TcpStream;
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   http::WebSocketServerFramework,
   tls::{PlaintextCtx, TlsConfig},
   web_socket::{
@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn echo(
-  mut buffer: Vector<u8>,
+  mut buffer: VectorUsize<u8>,
   mut ws: WebSocket<Option<NegotiatedZlibRs>, TcpStream, PlaintextCtx, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();

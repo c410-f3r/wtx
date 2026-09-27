@@ -80,7 +80,7 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let mut vec = crate::collections::Vector::new();
+      let mut vec = crate::collections::VectorUsize::new();
       let mut suffix_pusher = vec.suffix_pusher();
       let mut ew = PostgresEncodeWrapper::new(suffix_pusher.inner_mut());
       let instance: $ty = $instance;

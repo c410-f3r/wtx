@@ -1,5 +1,5 @@
 use crate::{
-  collections::{Clear, Vector},
+  collections::{Clear, VectorUsize},
   http::{Headers, Method, MsgData, MsgDataMut, Request, Response, StatusCode},
   misc::{Lease, LeaseMut},
   net::{Uri, UriRef},
@@ -16,8 +16,8 @@ pub type MsgBufferString = MsgBuffer<String>;
 ///
 /// Buffer used for requests or responses.
 pub struct MsgBuffer<S> {
-  /// See [`Vector`].
-  pub body: Vector<u8>,
+  /// See [`VectorUsize`].
+  pub body: VectorUsize<u8>,
   /// See [`Headers`].
   pub headers: Headers,
   /// Generic URI
@@ -28,12 +28,12 @@ impl<S> MsgBuffer<S> {
   /// Empty instance
   #[inline]
   pub const fn from_uri(uri: Uri<S>) -> Self {
-    Self::new(Vector::new(), Headers::new(), uri)
+    Self::new(VectorUsize::new(), Headers::new(), uri)
   }
 
   /// Constructor shortcut
   #[inline]
-  pub const fn new(data: Vector<u8>, headers: Headers, uri: Uri<S>) -> Self {
+  pub const fn new(data: VectorUsize<u8>, headers: Headers, uri: Uri<S>) -> Self {
     Self { body: data, headers, uri }
   }
 
@@ -75,7 +75,7 @@ impl<S> MsgBuffer<S> {
 
   /// Mutable parts
   #[inline]
-  pub const fn parts_mut(&mut self) -> (&mut Vector<u8>, &mut Headers, &mut Uri<S>) {
+  pub const fn parts_mut(&mut self) -> (&mut VectorUsize<u8>, &mut Headers, &mut Uri<S>) {
     (&mut self.body, &mut self.headers, &mut self.uri)
   }
 }
@@ -84,7 +84,7 @@ impl<S> MsgData for MsgBuffer<S>
 where
   S: Lease<str>,
 {
-  type Body = Vector<u8>;
+  type Body = VectorUsize<u8>;
 
   #[inline]
   fn body(&self) -> &Self::Body {
@@ -180,12 +180,12 @@ where
   }
 }
 
-impl<S> From<Vector<u8>> for MsgBuffer<S>
+impl<S> From<VectorUsize<u8>> for MsgBuffer<S>
 where
   S: Default + Lease<str>,
 {
   #[inline]
-  fn from(from: Vector<u8>) -> Self {
+  fn from(from: VectorUsize<u8>) -> Self {
     Self { body: from, headers: Headers::new(), uri: Uri::empty(S::default()) }
   }
 }

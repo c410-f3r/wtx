@@ -3,7 +3,7 @@ use alloc::borrow::Cow;
 use std::{env::current_dir, path::Path};
 use wtx::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DatabaseUriFromVars, Identifier,
     client::postgres::{ClientBuffer, Config, PostgresClient},
@@ -63,9 +63,9 @@ where
   E: SchemaManagement,
 {
   let _buffer_cmd = &mut String::new();
-  let _buffer_db_migrations = &mut Vector::<DbMigration>::new();
-  let _buffer_idents = &mut Vector::<Identifier>::new();
-  let _buffer_status = &mut Vector::<MigrationStatus>::new();
+  let _buffer_db_migrations = &mut VectorUsize::<DbMigration>::new();
+  let _buffer_idents = &mut VectorUsize::<Identifier>::new();
+  let _buffer_status = &mut VectorUsize::<MigrationStatus>::new();
 
   let mut commands = Commands::new(sm.files_num, executor);
   match &sm.commands {

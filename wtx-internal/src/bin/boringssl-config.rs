@@ -1,7 +1,7 @@
 //! Creates the configuration file used by the BoringSSL's testsuite.
 
 use std::fs;
-use wtx::collections::{HashMap, Vector};
+use wtx::collections::{HashMap, VectorUsize};
 
 fn main() {
   let config =
@@ -14,7 +14,7 @@ fn main() {
 #[serde(rename_all = "PascalCase")]
 struct Config {
   disabled_tests: HashMap<&'static str, &'static str>,
-  error_map: HashMap<&'static str, Vector<&'static str>>,
+  error_map: HashMap<&'static str, VectorUsize<&'static str>>,
   #[serde(rename = "HalfRTTTickets")]
   half_rtt_tickets: u64,
 }
@@ -830,19 +830,22 @@ fn disabled_tests() -> HashMap<&'static str, &'static str> {
   .collect()
 }
 
-fn error_map() -> HashMap<&'static str, Vector<&'static str>> {
+fn error_map() -> HashMap<&'static str, VectorUsize<&'static str>> {
   [
     // EC errors are grouped together.
-    (":BAD_ECPOINT:", Vector::from_iterator([":WRONG_CURVE:"]).unwrap()),
+    (":BAD_ECPOINT:", VectorUsize::from_iterator([":WRONG_CURVE:"]).unwrap()),
     // All trailing errors after decoding are group into ":DECODE_ERROR:".
-    (":CLIENTHELLO_PARSE_FAILED:", Vector::from_iterator([":DECODE_ERROR:"]).unwrap()),
+    (":CLIENTHELLO_PARSE_FAILED:", VectorUsize::from_iterator([":DECODE_ERROR:"]).unwrap()),
     // Crypto algorithms usually don't tell why something went wrong, thus the reason of this
     // grouping.
-    (":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
+    (
+      ":DECRYPTION_FAILED_OR_BAD_RECORD_MAC:",
+      VectorUsize::from_iterator([":BAD_DECRYPT:"]).unwrap(),
+    ),
     // After the first CCS is decoded all subsequent CCSs are treated as encrypted data.
-    (":TOO_MANY_EMPTY_FRAGMENTS:", Vector::from_iterator([":BAD_DECRYPT:"]).unwrap()),
+    (":TOO_MANY_EMPTY_FRAGMENTS:", VectorUsize::from_iterator([":BAD_DECRYPT:"]).unwrap()),
     // Groups all errors related to mismatches between key types in certificate and signatures.
-    (":UNSUPPORTED_ALGORITHM:", Vector::from_iterator([":WRONG_SIGNATURE_TYPE:"]).unwrap()),
+    (":UNSUPPORTED_ALGORITHM:", VectorUsize::from_iterator([":WRONG_SIGNATURE_TYPE:"]).unwrap()),
   ]
   .into_iter()
   .collect()

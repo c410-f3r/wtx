@@ -3,11 +3,11 @@ pub(crate) use serde_json::collect_using_serde_json;
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::{collections::Vector, misc::deserialize_seq_into_buffer_with_serde};
+  use crate::{collections::VectorUsize, misc::deserialize_seq_into_buffer_with_serde};
   use serde::Deserialize;
 
   pub(crate) fn collect_using_serde_json<'de, T>(
-    buffer: &mut Vector<T>,
+    buffer: &mut VectorUsize<T>,
     bytes: &mut &'de [u8],
   ) -> crate::Result<()>
   where
@@ -18,7 +18,9 @@ mod serde_json {
 
   #[cfg(test)]
   mod tests {
-    use crate::{codec::protocol::misc::serde_json::collect_using_serde_json, collections::Vector};
+    use crate::{
+      codec::protocol::misc::serde_json::collect_using_serde_json, collections::VectorUsize,
+    };
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Foo {
@@ -29,7 +31,7 @@ mod serde_json {
     #[test]
     fn array_is_deserialized() {
       let json = r#"[{"a":1,"b":90},{"a":7,"b":567}]"#;
-      let mut vector = Vector::<Foo>::new();
+      let mut vector = VectorUsize::<Foo>::new();
       collect_using_serde_json(&mut vector, &mut json.as_bytes()).unwrap();
       assert_eq!(vector.as_slice(), &[Foo { a: 1, b: 90 }, Foo { a: 7, b: 567 }]);
     }

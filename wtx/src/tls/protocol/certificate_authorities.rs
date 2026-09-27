@@ -3,7 +3,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, SEQUENCE_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
-  collections::Vector,
+  collections::VectorUsize,
   misc::{
     Lease,
     counter_writer::{CounterWriterBytesTy, u16_write},
@@ -19,7 +19,7 @@ use crate::{
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct CertificateAuthorities<B> {
-  pub(crate) authorities: Vector<RelativeDistinguishedName<B>>,
+  pub(crate) authorities: VectorUsize<RelativeDistinguishedName<B>>,
 }
 
 impl<'de, B> Decode<'de, TlsCc> for CertificateAuthorities<B>
@@ -30,11 +30,11 @@ where
   #[inline]
   fn decode(dw: &mut TlsDecodeWrapper<'de>) -> crate::Result<Self> {
     u16_chunk(dw, TlsError::InvalidCertificateAuthorities, |local_dw| {
-      let mut authorities = Vector::new();
+      let mut authorities = VectorUsize::new();
       while !local_dw.bytes().is_empty() {
         u16_chunk(local_dw, TlsError::InvalidCertificateAuthorities, |dn_dw| {
           let mut asn1_dw = DecodeWrapper::new(dn_dw.bytes(), Asn1DecodeWrapperAux::default());
-          let (instance, _) = SequenceBuffer::<Vector<_>>::decode(&mut asn1_dw, SEQUENCE_TAG)?;
+          let (instance, _) = SequenceBuffer::<VectorUsize<_>>::decode(&mut asn1_dw, SEQUENCE_TAG)?;
           for rdn in instance.0 {
             authorities.push(rdn)?;
           }

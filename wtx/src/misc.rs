@@ -8,7 +8,6 @@ pub(crate) mod counter_writer;
 pub(crate) mod span;
 
 mod ascii;
-mod cow;
 mod default_array;
 mod either;
 mod enum_var_strings;
@@ -22,7 +21,6 @@ mod lease;
 mod mem;
 mod optimizations;
 mod partial_char;
-mod ppm;
 mod sensitive_bytes;
 mod simd_slice;
 mod to_owned;
@@ -35,7 +33,6 @@ mod wrapper;
 use crate::collections::ShortStrU8;
 pub use ascii::*;
 use core::any::type_name;
-pub use cow::Cow;
 pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
@@ -48,7 +45,6 @@ pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
 pub use partial_char::{CompletionErr, PartialChar, process_utf8_stream};
-pub use ppm::Ppm;
 pub use sensitive_bytes::SensitiveBytes;
 pub use simd_slice::{simd_bytes, simd_bytes_mut};
 pub use to_owned::ToOwned;
@@ -61,7 +57,7 @@ pub use wrapper::Wrapper;
 #[cfg(feature = "argon2")]
 #[inline]
 pub fn argon2_pwd<const N: usize>(
-  blocks: &mut crate::collections::Vector<argon2::Block>,
+  blocks: &mut crate::collections::VectorUsize<argon2::Block>,
   pwd: &[u8],
   salt: &[u8],
 ) -> crate::Result<[u8; N]> {
@@ -106,21 +102,21 @@ where
 #[inline]
 pub fn deserialize_seq_into_buffer_with_serde<'de, D, T>(
   deserializer: D,
-  buffer: &mut crate::collections::Vector<T>,
+  buffer: &mut crate::collections::VectorUsize<T>,
 ) -> crate::Result<()>
 where
   D: serde::de::Deserializer<'de>,
   T: serde::Deserialize<'de>,
   crate::Error: From<D::Error>,
 {
-  use crate::collections::Vector;
+  use crate::collections::VectorUsize;
   use core::fmt::Formatter;
   use serde::{
     Deserialize,
     de::{Error as _, SeqAccess, Visitor},
   };
 
-  struct LocalVisitor<'any, T>(&'any mut Vector<T>);
+  struct LocalVisitor<'any, T>(&'any mut VectorUsize<T>);
 
   impl<'de, T> Visitor<'de> for LocalVisitor<'_, T>
   where

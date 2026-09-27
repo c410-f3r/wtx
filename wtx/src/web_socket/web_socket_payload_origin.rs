@@ -1,4 +1,4 @@
-use crate::collections::Vector;
+use crate::collections::VectorUsize;
 
 /// The payload of a received frame can represent two things:
 ///
@@ -48,7 +48,7 @@ impl WebSocketPayloadOrigin {
   pub(crate) fn manage_payload<'nb, 'rslt, 'ub>(
     self,
     network_buffer: &'nb mut [u8],
-    user_buffer: &'ub mut Vector<u8>,
+    user_buffer: &'ub mut VectorUsize<u8>,
   ) -> crate::Result<&'rslt mut [u8]>
   where
     'nb: 'rslt,

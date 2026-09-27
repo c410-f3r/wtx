@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
 };
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -35,7 +35,10 @@ where
   D: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, &mut ()>) -> crate::Result<()> {
+  fn decode_seq(
+    _: &mut VectorUsize<Self>,
+    _: &mut DecodeWrapper<'de, &mut ()>,
+  ) -> crate::Result<()> {
     Ok(())
   }
 }

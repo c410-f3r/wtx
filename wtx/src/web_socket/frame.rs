@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, Vector},
+  collections::{ArrayVectorCopy, VectorUsize},
   misc::{Lease, from_utf8_basic},
   web_socket::{
     CloseCode, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode, WebSocketError,
@@ -15,11 +15,11 @@ pub type FrameMut<'bytes> = Frame<&'bytes mut [u8]>;
 /// Composed by a sequence of immutable bytes.
 pub type FrameRef<'bytes> = Frame<&'bytes [u8]>;
 /// Composed by an owned vector.
-pub type FrameVector = Frame<Vector<u8>>;
+pub type FrameVector = Frame<VectorUsize<u8>>;
 /// Composed by a mutable vector reference.
-pub type FrameVectorMut<'bytes> = Frame<&'bytes mut Vector<u8>>;
+pub type FrameVectorMut<'bytes> = Frame<&'bytes mut VectorUsize<u8>>;
 /// Composed by a immutable vector reference.
-pub type FrameVectorRef<'bytes> = Frame<&'bytes Vector<u8>>;
+pub type FrameVectorRef<'bytes> = Frame<&'bytes VectorUsize<u8>>;
 
 /// Unit of generic data used for communication.
 #[derive(Debug)]
@@ -157,7 +157,7 @@ where
       fin: self.fin,
       header: self.header,
       op_code: self.op_code,
-      payload: Vector::from_copyable_slice(self.payload.lease())?,
+      payload: VectorUsize::from_copyable_slice(self.payload.lease())?,
     })
   }
 

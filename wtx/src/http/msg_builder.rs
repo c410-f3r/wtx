@@ -3,7 +3,7 @@ mod res_builder;
 
 use crate::{
   codec::u32_string,
-  collections::Vector,
+  collections::VectorUsize,
   http::{Header, KnownHeaderName, Mime, MsgDataMut},
   misc::{Either, LeaseMut},
 };
@@ -197,7 +197,7 @@ where
 impl<MD> MsgBuilder<MD>
 where
   MD: MsgDataMut,
-  MD::Body: LeaseMut<Vector<u8>>,
+  MD::Body: LeaseMut<VectorUsize<u8>>,
 {
   /// Injects a sequence of bytes into the internal buffer.
   ///

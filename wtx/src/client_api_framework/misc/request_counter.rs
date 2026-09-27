@@ -1,4 +1,5 @@
 use crate::{calendar::Instant, client_api_framework::misc::RequestLimit, futures::Sleep};
+use core::time::Duration;
 
 /// Tracks how many requests were performed in a time interval.
 #[derive(Clone, Copy, Debug)]
@@ -21,13 +22,13 @@ impl RequestCounter {
     self.rl.limit().saturating_sub(self.counter)
   }
 
-  /// If the values defined in [`RequestLimit`] are in agreement with the `current` values
-  /// of [`RequestCounter`], then return `T`. Otherwise, awaits until [`RequestCounter`] is updated.
+  /// If the values defined in [`RequestLimit`] are in agreement with the current values
+  /// of [`RequestCounter`], then returns `T`. Otherwise, awaits until [`RequestCounter`] is updated.
   #[inline]
   pub async fn update_params(&mut self) -> crate::Result<()> {
-    let now = Instant::new();
     let duration = *self.rl.duration();
-    let elapsed = now.duration_since(self.instant)?;
+    let mut now = Instant::new();
+    let mut elapsed = now.duration_since(self.instant)?;
     if elapsed > duration || self.counter == 0 {
       _trace!("Elapsed is greater than duration. Re-initializing");
       self.instant = now;
@@ -35,11 +36,15 @@ impl RequestCounter {
       return Ok(());
     }
     if self.counter >= self.rl.limit() {
-      if let Some(diff) = duration.checked_sub(elapsed) {
+      while let Some(diff) = duration.checked_sub(elapsed)
+        && diff > Duration::ZERO
+      {
         _trace!("Call needs to wait {}ms", diff.as_millis());
         Sleep::new(diff)?.await?;
+        now = Instant::new();
+        elapsed = now.duration_since(self.instant)?;
       }
-      self.instant = Instant::new();
+      self.instant = now;
       self.counter = 1;
     } else {
       self.counter = self.counter.wrapping_add(1);

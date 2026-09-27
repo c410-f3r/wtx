@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, Headers, MsgBufferString, Request, StatusCode,
@@ -114,7 +114,7 @@ impl<D> StateTest<D> {
   #[inline]
   pub const fn parts_mut_with_body_and_headers(
     &mut self,
-  ) -> (&mut D, Request<(&mut Vector<u8>, &mut Headers)>) {
+  ) -> (&mut D, Request<(&mut VectorUsize<u8>, &mut Headers)>) {
     (
       &mut self.data,
       Request {

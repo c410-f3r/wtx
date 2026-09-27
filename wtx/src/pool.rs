@@ -4,7 +4,7 @@ mod resource_manager;
 mod simple_pool;
 
 #[cfg(feature = "postgres-pool")]
-pub use resource_manager::database::PostgresRM;
+pub use resource_manager::database::{PostgresRM, PostgresRMDefault};
 pub use resource_manager::{ResourceManager, SimpleRM};
 pub use simple_pool::*;
 

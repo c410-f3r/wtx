@@ -1,6 +1,6 @@
 use crate::{
   codec::{U64String, u64_string},
-  collections::{TryExtend, Vector},
+  collections::{TryExtend, VectorUsize},
   database::{
     StmtCmd as _,
     client::{
@@ -32,10 +32,10 @@ where
     cmd: &str,
     cs: &mut ConnectionState,
     read_buffer: &'exec mut BufStreamReader,
-    records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
+    records_params: &'exec mut VectorUsize<(Range<usize>, Range<usize>)>,
     stmts: &'exec mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
-    values_params: &'exec mut Vector<(bool, Range<usize>)>,
+    values_params: &'exec mut VectorUsize<(bool, Range<usize>)>,
     mut cb: impl FnMut(PostgresRecord<'_, E>) -> Result<(), E>,
   ) -> Result<(), E>
   where

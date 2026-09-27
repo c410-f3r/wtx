@@ -101,7 +101,7 @@ impl<T> Drop for NoStdMutexGuard<'_, T> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     sync::{Arc, NoStdMutex},
   };
   use std::thread;
@@ -119,7 +119,7 @@ mod tests {
     let num_readers = 4;
     let num_writers = 4;
     let ops_per_thread = 5_000;
-    let mut handles = Vector::new();
+    let mut handles = VectorUsize::new();
 
     for _ in 0..num_writers {
       let local_mutex = Arc::clone(&mutex);

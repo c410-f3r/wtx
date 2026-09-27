@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Datetime, Instant, Utc},
-  collections::Vector,
+  collections::VectorUsize,
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
     KnownHeaderName, MsgBufferString, Request, Response, SessionManager, SessionManagerInner,
@@ -20,7 +20,7 @@ pub struct SessionMiddleware<CS, E, RM>
 where
   RM: ResourceManager,
 {
-  allowed_paths: Vector<String>,
+  allowed_paths: VectorUsize<String>,
   session_manager: SessionManager<CS, E>,
   session_store: SimplePool<RM>,
 }
@@ -32,7 +32,7 @@ where
   /// New instance
   #[inline]
   pub const fn new(
-    allowed_paths: Vector<String>,
+    allowed_paths: VectorUsize<String>,
     session_manager: SessionManager<CS, E>,
     session_store: SimplePool<RM>,
   ) -> Self {

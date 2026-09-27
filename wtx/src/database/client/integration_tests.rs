@@ -1,6 +1,6 @@
 use crate::{
   codec::{CodecController, Decode, Encode, u16_string},
-  collections::Vector,
+  collections::VectorUsize,
   database::{Database, DbClient, Typed, record::Record, records::Records},
   executor::StdRuntime,
 };
@@ -16,7 +16,7 @@ where
   StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     let mut idx: u16 = 0;
-    let mut records = Vector::new();
+    let mut records = VectorUsize::new();
     executor
       .execute_many(
         &mut records,
@@ -88,7 +88,7 @@ where
 {
   StdRuntime::new().block_on(async {
     let mut executor = fut.await;
-    let mut records = Vector::new();
+    let mut records = VectorUsize::new();
     executor
       .execute_many(
         &mut records,

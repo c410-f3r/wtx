@@ -125,8 +125,7 @@ impl<'module, 'others>
         ))
       })
       .transpose()?
-      .map(|elem| elem.saiv_tts)
-      .unwrap_or_default();
+      .map_or_default(|elem| elem.saiv_tts);
     let mut package_impls = Vec::new();
 
     for data_format in data_formats {
@@ -200,7 +199,7 @@ impl<'module, 'others>
             #[inline]
             async fn after_sending(
               &mut self,
-              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collections::VectorUsize<u8>, &mut __DRSR),
               (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
             ) -> Result<(), __API::Error> {
               #( #fasiv_fn_name_ident_iter(#fasiv_fn_call_idents).await?; )*
@@ -210,7 +209,7 @@ impl<'module, 'others>
             #[inline]
             async fn before_sending(
               &mut self,
-              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collections::VectorUsize<u8>, &mut __DRSR),
               (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
             ) -> Result<(), __API::Error> {
               #before_sending_defaults

@@ -7,7 +7,6 @@ use crate::{
   },
   misc::{Lease, LeaseMut, from_utf8_basic},
 };
-use alloc::string::String;
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -32,7 +31,16 @@ pub enum ArrayStringError {
   /// Inner array is not fully filled
   IncompleteArray,
   #[doc = doc_reserve_overflow!()]
-  ReserveOverflow,
+  ReserveOverflow {
+    /// Additional
+    additional: u16,
+    /// Current
+    curr: u32,
+    /// Maximum
+    max: u32,
+  },
+  /// The index provided in the `insert` method is out of bounds.
+  OutOfBoundsInsertIdx,
 }
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
@@ -111,12 +119,6 @@ where
 
   /// The filled elements that composed a string.
   #[inline]
-  pub fn as_str(&self) -> &str {
-    self
-  }
-
-  /// The filled elements that composed a string.
-  #[inline]
   pub fn data(&self) -> crate::Result<&[u8; N]> {
     if self.0.len.usize() != N {
       return Err(ArrayStringError::IncompleteArray.into());
@@ -154,6 +156,18 @@ where
   #[doc = as_slice_mut_doc!()]
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut str {
+    self.0.as_slice_mut()
+  }
+
+  #[doc = as_str_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    self.0.as_slice()
+  }
+
+  #[doc = as_slice_mut_doc!()]
+  #[inline]
+  pub fn as_str_mut(&mut self) -> &mut str {
     self.0.as_slice_mut()
   }
 
@@ -210,10 +224,10 @@ where
     self.0.extend_from_copyable_slices(others)
   }
 
-  #[doc = remaining_doc!("ArrayStringUsize::<16>", "'1'")]
+  #[doc = remaining_capacity_doc!("ArrayStringUsize::<16>", "'1'")]
   #[inline]
-  pub fn remaining(&self) -> L {
-    self.0.remaining()
+  pub fn remaining_capacity(&self) -> L {
+    self.0.remaining_capacity()
   }
 
   #[doc = remove_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"13\"")]
@@ -380,12 +394,12 @@ where
   }
 }
 
-impl<L, const N: usize> PartialEq<String> for ArrayString<L, N>
+impl<L, const N: usize> PartialEq<alloc::string::String> for ArrayString<L, N>
 where
   L: LinearStorageLen,
 {
   #[inline]
-  fn eq(&self, other: &String) -> bool {
+  fn eq(&self, other: &alloc::string::String) -> bool {
     self.as_str() == *other
   }
 }
@@ -574,15 +588,29 @@ where
 
   #[inline]
   fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
-    if additional > self.remaining() {
-      return Err(ArrayStringError::ReserveOverflow.into());
+    if additional > self.remaining_capacity() {
+      return Err(
+        ArrayStringError::ReserveOverflow {
+          additional: additional.usize().try_into().unwrap_or(u16::MAX),
+          curr: self.len().usize().try_into().unwrap_or(u32::MAX),
+          max: N.try_into().unwrap_or(u32::MAX),
+        }
+        .into(),
+      );
     }
     Ok(())
   }
 
   fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()> {
-    if additional > self.remaining() {
-      return Err(ArrayStringError::ReserveOverflow.into());
+    if additional > self.remaining_capacity() {
+      return Err(
+        ArrayStringError::ReserveOverflow {
+          additional: additional.usize().try_into().unwrap_or(u16::MAX),
+          curr: self.len().usize().try_into().unwrap_or(u32::MAX),
+          max: N.try_into().unwrap_or(u32::MAX),
+        }
+        .into(),
+      );
     }
     Ok(())
   }

@@ -11,7 +11,7 @@ extern crate wtx;
 extern crate wtx_examples;
 
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   net::Uri,
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::{Arc, AsyncMutex},
@@ -42,7 +42,7 @@ async fn main() -> wtx::Result<()> {
   };
 
   let reader_fut = async {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     loop {
       let frame = stream_reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await?;
       match (frame.op_code(), frame.text_payload()) {

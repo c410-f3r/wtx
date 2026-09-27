@@ -3,7 +3,7 @@ use crate::{
     Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
-  collections::{Clear, Vector},
+  collections::{Clear, VectorUsize},
   grpc::serialize,
   http::{
     Header, Headers, HttpClient, KnownHeaderName, MsgBuffer, MsgBufferString, MsgDataMut as _,
@@ -17,7 +17,7 @@ use crate::{
 pub struct GrpcClient<C, DRSR> {
   client: C,
   drsr: DRSR,
-  enc_buffer: Vector<u8>,
+  enc_buffer: VectorUsize<u8>,
 }
 
 impl<C, DRSR> GrpcClient<C, DRSR>
@@ -27,7 +27,7 @@ where
   /// Constructor
   #[inline]
   pub const fn new(client: C, drsr: DRSR) -> Self {
-    Self { client, drsr, enc_buffer: Vector::new() }
+    Self { client, drsr, enc_buffer: VectorUsize::new() }
   }
 
   /// Deserialize From Response Bytes

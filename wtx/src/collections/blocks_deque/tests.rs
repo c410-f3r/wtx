@@ -6,7 +6,7 @@
 // T = Tail (Exclusive)
 
 use crate::collections::{
-  Block, BlocksDeque, ExpansionTy::Additional, Vector, blocks_deque::BlockRef,
+  Block, BlocksDeque, ExpansionTy::Additional, VectorUsize, blocks_deque::BlockRef,
 };
 
 #[test]
@@ -131,7 +131,7 @@ fn pop_front_to_buffer_updates_logical_begin() {
   bq.push_back_from_copyable_data([&[3, 4][..]], ()).unwrap();
   assert_eq!(bq.get(0).unwrap().data, &[1, 2]);
   assert_eq!(bq.get(1).unwrap().data, &[3, 4]);
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
   drop(bq.pop_front_to_buffer(&mut buffer));
   assert_eq!(bq.blocks_len(), 1);
   assert_eq!(bq.get(0).unwrap().data, &[3, 4]);

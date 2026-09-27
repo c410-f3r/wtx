@@ -7,7 +7,7 @@ use wtx::{
   asn1::parse_der_from_pem_range,
   calendar::Datetime,
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::Vector,
+  collections::VectorUsize,
   x509::{Certificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor},
 };
 
@@ -85,7 +85,7 @@ sycX
 -----END CERTIFICATE-----";
 
 fn main() -> wtx::Result<()> {
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
 
   let end_entity_range = Pem::decode(&mut DecodeWrapper::new(END_ENTITY, &mut buffer))?;
   let intermediate_range = Pem::decode(&mut DecodeWrapper::new(INTERMEDIATE, &mut buffer))?;

@@ -1,12 +1,12 @@
-use crate::{collections::Vector, net::BufStreamReader};
+use crate::{collections::VectorUsize, net::BufStreamReader};
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
 pub struct WebSocketBuffer {
   pub(crate) network_buffer: BufStreamReader,
   // Used for decompression
-  pub(crate) reader_buffer: Vector<u8>,
-  pub(crate) writer_buffer: Vector<u8>,
+  pub(crate) reader_buffer: VectorUsize<u8>,
+  pub(crate) writer_buffer: VectorUsize<u8>,
 }
 
 impl WebSocketBuffer {
@@ -15,8 +15,8 @@ impl WebSocketBuffer {
   pub const fn new() -> Self {
     Self {
       network_buffer: BufStreamReader::new(),
-      reader_buffer: Vector::new(),
-      writer_buffer: Vector::new(),
+      reader_buffer: VectorUsize::new(),
+      writer_buffer: VectorUsize::new(),
     }
   }
 

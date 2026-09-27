@@ -5,7 +5,7 @@ extern crate wtx;
 extern crate wtx_examples;
 
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   net::Uri,
   rng::{ChaCha20, CryptoSeedableRng},
   tls::{TlsConfig, TlsConnectorBuilder},
@@ -20,7 +20,7 @@ async fn main() -> wtx::Result<()> {
     .build(TlsConfig::from_trust_anchors_pem([ROOT_CA])?, ChaCha20::from_std_random()?)
     .await?;
   let mut ws = WebSocketConnector::default().connect(tls_connector).await?;
-  let mut buffer = Vector::new();
+  let mut buffer = VectorUsize::new();
   loop {
     let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await?;
     match (frame.op_code(), frame.text_payload()) {

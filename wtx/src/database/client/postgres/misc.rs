@@ -1,5 +1,5 @@
 use crate::{
-  collections::{TryExtend, Vector},
+  collections::{TryExtend, VectorUsize},
   database::{
     Identifier,
     client::postgres::{
@@ -15,10 +15,10 @@ use core::ops::Range;
 pub(crate) fn data_row<E>(
   begin_data: usize,
   read_buffer: &mut BufStreamReader,
-  records_params: &mut Vector<(Range<usize>, Range<usize>)>,
+  records_params: &mut VectorUsize<(Range<usize>, Range<usize>)>,
   stmt: PostgresStatement<'_>,
   values_len: u16,
-  values_params: &mut Vector<(bool, Range<usize>)>,
+  values_params: &mut VectorUsize<(bool, Range<usize>)>,
   values_params_offset: usize,
   cb: &mut impl FnMut(PostgresRecord<'_, E>) -> Result<(), E>,
 ) -> Result<(), E>
@@ -47,10 +47,10 @@ pub(crate) fn extend_records<'exec, B, E>(
   begin_data: usize,
   buffer: &mut B,
   read_buffer: &'exec mut BufStreamReader,
-  records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
+  records_params: &'exec mut VectorUsize<(Range<usize>, Range<usize>)>,
   stmts: &'exec mut PostgresStatements,
   stmts_identifiers: impl IntoIterator<Item = Either<usize, u64>>,
-  values_params: &'exec mut Vector<(bool, Range<usize>)>,
+  values_params: &'exec mut VectorUsize<(bool, Range<usize>)>,
 ) -> crate::Result<()>
 where
   B: TryExtend<[PostgresRecords<'exec, E>; 1]>,

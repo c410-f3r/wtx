@@ -3,13 +3,37 @@
 #![allow(clippy::unused_unit, reason = "macro-generated code")]
 
 macro_rules! impl_tuples {
-  ($( [$($T:ident($T13:tt))*] )+) => {
+  ($( [$($T:ident($IDX:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
-      use crate::database::{Database, RecordValues, Typed, record_values::encode};
-      use crate::codec::Encode;
+      use crate::database::{Database, FromRecords, FromRecordsParams, Record, Records, RecordValues, Typed, record_values::encode};
+      use crate::codec::{Decode, Encode};
 
       $(
+        impl<'exec, DB, $($T,)*> FromRecords<'exec, DB> for ($( $T, )*)
+        where
+          DB: Database,
+          $($T: Decode<'exec, DB>,)*
+          i32: Decode<'exec, DB>
+        {
+          const FIELDS_BASE: &'static str = "";
+          const FIELDS_NUM: u16 = const { 0 $(+ { const $T: u16 = 1; $T })* };
+          const ID_IDX: Option<usize> = None;
+
+          // Placeholder. Does not have any actual use.
+          type IdTy = i32;
+
+          #[inline]
+          fn from_records(
+            _: &mut FromRecordsParams<DB::Record<'exec>>,
+            records: &DB::Records<'exec>,
+          ) -> Result<Self, DB::Error> {
+            let mut _idx: usize = 0;
+            let _record = crate::misc::into_rslt(records.get(0))?;
+            Ok(($( _record.decode::<_, $T>($IDX)?, )*))
+          }
+        }
+
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)
         where
           DB: Database,
@@ -27,7 +51,7 @@ macro_rules! impl_tuples {
             $(
               encode(
                 _aux,
-                &self.$T13,
+                &self.$IDX,
                 _ew,
                 &mut _n,
                 &mut _prefix_cb,
@@ -45,7 +69,7 @@ macro_rules! impl_tuples {
           #[allow(unused_mut, reason = "0-arity tuple")]
           #[inline]
           fn walk(&self, mut _cb: impl FnMut(bool, Option<DB::Ty>) -> Result<(), DB::Error>) -> Result<(), DB::Error> {
-            $( _cb(self.$T13.is_null(), self.$T13.runtime_ty())?; )*
+            $( _cb(self.$IDX.is_null(), self.$IDX.runtime_ty())?; )*
             Ok(())
           }
         }
@@ -55,7 +79,7 @@ macro_rules! impl_tuples {
     #[cfg(feature = "http2-server-framework")]
     mod http_server_framework {
       use crate::{
-        collections::{ArrayVectorCopy, ShortStrU8, Vector},
+        collections::{ArrayVectorCopy, ShortStrU8, VectorUsize},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           MsgBufferString, Response,
@@ -74,7 +98,7 @@ macro_rules! impl_tuples {
 
           #[inline]
           fn aux(&self) -> Self::Aux {
-            ($(self.$T13.aux(),)*)
+            ($(self.$IDX.aux(),)*)
           }
 
           #[inline]
@@ -85,7 +109,7 @@ macro_rules! impl_tuples {
             _req: &mut Request<MsgBufferString>,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
-              let control_flow = self.$T13.req(_data, &mut _mw_aux.$T13, _req).await?;
+              let control_flow = self.$IDX.req(_data, &mut _mw_aux.$IDX, _req).await?;
               if let ControlFlow::Break(status_code) = control_flow {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -105,7 +129,7 @@ macro_rules! impl_tuples {
                 msg_data: &mut *_res.msg_data,
                 status_code: _res.status_code,
               };
-              let control_flow = self.$T13.res(_data, &mut _mw_aux.$T13, local_res).await?;
+              let control_flow = self.$IDX.res(_data, &mut _mw_aux.$IDX, local_res).await?;
               if let ControlFlow::Break(status_code) = control_flow {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -129,9 +153,9 @@ macro_rules! impl_tuples {
           ) -> Result<StatusCode, ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
-                Some($T13) => {
+                Some($IDX) => {
                   return self
-                    .$T13
+                    .$IDX
                     .value
                     .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
@@ -149,9 +173,9 @@ macro_rules! impl_tuples {
           ) -> Result<(), ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
-                Some($T13) => {
+                Some($IDX) => {
                   return self
-                    .$T13
+                    .$IDX
                     .value
                     .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
@@ -173,13 +197,13 @@ macro_rules! impl_tuples {
           fn paths_indices(
             &self,
             _prev: ArrayVectorCopy<RouteMatch, 4>,
-            _vec: &mut Vector<ArrayVectorCopy<RouteMatch, 4>>
+            _vec: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>
           ) -> crate::Result<()> {
             $({
               let mut local_prev = _prev.clone();
-              local_prev.push(RouteMatch::new($T13, $T::OM, ShortStrU8::new(self.$T13.full_path)?))?;
+              local_prev.push(RouteMatch::new($IDX, $T::OM, ShortStrU8::new(self.$IDX.full_path)?))?;
               if $T::IS_ROUTER {
-                self.$T13.value.paths_indices(local_prev, _vec)?;
+                self.$IDX.value.paths_indices(local_prev, _vec)?;
               } else {
                 _vec.push(local_prev)?;
               }
@@ -243,7 +267,7 @@ macro_rules! impl_tuples {
           fn encode(&self, _ew: &mut PostgresEncodeWrapper<'_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
-              _ev = _ev.encode(&self.$T13)?;
+              _ev = _ev.encode(&self.$IDX)?;
             )*
             Ok(())
           }
@@ -255,7 +279,7 @@ macro_rules! impl_tuples {
     mod web_socket_server_framework {
       use alloc::string::String;
       use crate::{
-        collections::Vector,
+        collections::VectorUsize,
         executor::Executor,
         http::{Router, WebSocketRouter},
         futures::FnFut,
@@ -276,7 +300,7 @@ macro_rules! impl_tuples {
           )*
         )
         where
-          $($T: FnFut<(Vector<u8>, LocalWs<CO, EX, TCX>), Result = Result<(), ER>>,)*
+          $($T: FnFut<(VectorUsize<u8>, LocalWs<CO, EX, TCX>), Result = Result<(), ER>>,)*
           CO: WsCompression<false>,
           ER: From<crate::Error>,
           EX: Executor,
@@ -291,7 +315,7 @@ macro_rules! impl_tuples {
             let rslt = matcher.find(&path)?;
             match rslt.data() {
               $(
-                $T13 => (self.$T13.1).call((path.into_bytes().into(), _ws)).await?,
+                $IDX => (self.$IDX.1).call((path.into_bytes().try_into()?, _ws)).await?,
               )*
               _ => {}
             }
@@ -300,7 +324,7 @@ macro_rules! impl_tuples {
 
           #[inline]
           fn paths(&self) -> impl ExactSizeIterator<Item = &'static str> {
-            [$(self.$T13.0,)*].into_iter()
+            [$(self.$IDX.0,)*].into_iter()
           }
         }
       )+

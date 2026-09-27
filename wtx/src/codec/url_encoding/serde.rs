@@ -3,7 +3,7 @@ use crate::{
     AsciiSet, UrlEncode, i8_string, i16_string, i32_string, i64_string, u8_string, u16_string,
     u32_string, u64_string,
   },
-  collections::Vector,
+  collections::VectorUsize,
 };
 use core::fmt::Write;
 use serde::ser;
@@ -13,11 +13,11 @@ pub type FormUrlSerializer<'buffer> = UrlSerializer<'buffer, false, true>;
 /// Type alias for percent encoding (spaces as `%20`).
 pub type PercentSerializer<'buffer> = UrlSerializer<'buffer, true, true>;
 
-/// Serializes data into a `Vector`.
+/// Serializes data into a `VectorUsize`.
 #[derive(Debug)]
 pub struct UrlSerializer<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
 }
 
 impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool>
@@ -27,7 +27,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool>
   ///
   /// Defaults to [`AsciiSet::UNRESERVED`] if `ascii_set` is `None`.
   #[inline]
-  pub fn new(ascii_set: Option<AsciiSet>, buffer: &'buffer mut Vector<u8>) -> Self {
+  pub fn new(ascii_set: Option<AsciiSet>, buffer: &'buffer mut VectorUsize<u8>) -> Self {
     if IS_TOP_LEVEL {
       buffer.clear();
     }
@@ -284,7 +284,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
 #[derive(Debug)]
 pub struct MapSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
   is_first: bool,
 }
 
@@ -327,7 +327,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffe
 #[derive(Debug)]
 pub struct SeqSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
   is_first: bool,
 }
 
@@ -397,7 +397,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleStruct
 #[derive(Debug)]
 pub struct StructSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
   is_first: bool,
 }
 
@@ -435,7 +435,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeStruct
 #[derive(Debug)]
 pub struct TupleVariantSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
   is_first: bool,
 }
 
@@ -467,7 +467,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleVariant
 
 struct UrlEncodeWriter<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
-  buffer: &'buffer mut Vector<u8>,
+  buffer: &'buffer mut VectorUsize<u8>,
 }
 
 impl<const IS_PERCENT: bool> Write for UrlEncodeWriter<'_, IS_PERCENT> {
@@ -487,7 +487,7 @@ const fn url_encode_str(bytes: &[u8]) -> &str {
 
 #[cfg(test)]
 mod tests {
-  use crate::{codec::FormUrlSerializer, collections::Vector};
+  use crate::{codec::FormUrlSerializer, collections::VectorUsize};
   use serde::Serialize;
 
   #[test]
@@ -498,7 +498,7 @@ mod tests {
       no: bool,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Foo { yes: true, no: false }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"yes=true&no=false");
@@ -513,7 +513,7 @@ mod tests {
       value: Foo,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = FooTy { value: Foo(42) }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"value=42");
@@ -530,7 +530,7 @@ mod tests {
       value: Value,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Foo { value: Value::Count(42) }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"value=Count=42");
@@ -544,7 +544,7 @@ mod tests {
       absent: Option<i32>,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Foo { present: Some(5), absent: None }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"present=5&absent=");
@@ -557,7 +557,7 @@ mod tests {
       items: [i32; 3],
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Foo { items: [1, 2, 3] }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"items=1,2,3");
@@ -571,7 +571,7 @@ mod tests {
       baz: &'static str,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Foo { bar: 123, baz: "hello there!" }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"bar=123&baz=hello+there%21");
@@ -586,7 +586,7 @@ mod tests {
       data: Foo,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Bar { data: Foo(1, "a") }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"data=1,a");
@@ -599,7 +599,7 @@ mod tests {
       Point(i32, i32),
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let serializer = FormUrlSerializer::new(None, &mut buffer);
     let _ = Coords::Point(10, 20).serialize(serializer).unwrap();
     assert_eq!(&buffer, b"Point=10,20");
@@ -618,7 +618,7 @@ mod tests {
       status: Status,
     }
 
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let _ =
       Foo { status: Status::Absent }.serialize(FormUrlSerializer::new(None, &mut buffer)).unwrap();
     assert_eq!(&buffer, b"status=absent");

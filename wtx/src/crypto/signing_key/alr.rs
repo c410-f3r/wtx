@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   crypto::{
     CryptoError, EcdsaP256SigningKeyAlr, EcdsaP384SigningKeyAlr, Ed25519SigningKeyAlr, HashTy,
     RsaPkcs1SigningKeyAlr, RsaPssSigningKeyAlr, SigningOutput, signing_key::SigningKey,
@@ -96,7 +96,7 @@ impl SigningKey for Ed25519SigningKeyAlr {
 }
 
 impl SigningKey for RsaPkcs1SigningKeyAlr {
-  type Signature = Vector<u8>;
+  type Signature = VectorUsize<u8>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], hash_ty: HashTy) -> crate::Result<Self> {
@@ -108,7 +108,7 @@ impl SigningKey for RsaPkcs1SigningKeyAlr {
   where
     RNG: CryptoRng,
   {
-    let mut signature = Vector::from_vec(alloc::vec![0; self.0.1.public_modulus_len()]);
+    let mut signature = VectorUsize::from_vec(alloc::vec![0; self.0.1.public_modulus_len()])?;
     self
       .0
       .1
@@ -124,7 +124,7 @@ impl SigningKey for RsaPkcs1SigningKeyAlr {
 }
 
 impl SigningKey for RsaPssSigningKeyAlr {
-  type Signature = Vector<u8>;
+  type Signature = VectorUsize<u8>;
 
   #[inline]
   fn from_pkcs8(bytes: &[u8], hash_ty: HashTy) -> crate::Result<Self> {
@@ -136,7 +136,7 @@ impl SigningKey for RsaPssSigningKeyAlr {
   where
     RNG: CryptoRng,
   {
-    let mut signature = Vector::from_vec(alloc::vec![0; self.0.1.public_modulus_len()]);
+    let mut signature = VectorUsize::from_vec(alloc::vec![0; self.0.1.public_modulus_len()])?;
     self
       .0
       .1

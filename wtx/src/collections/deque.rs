@@ -62,7 +62,7 @@ mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::collections::{ExpansionTy, TryExtend, misc::drop_elements, vector::Vector};
+use crate::collections::{ExpansionTy, TryExtend, misc::drop_elements, vector::VectorUsize};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
@@ -97,7 +97,7 @@ pub enum DequeueError {
 //
 // The vector length is a shortcut for the sum of head and tail elements.
 pub struct Deque<T> {
-  data: Vector<T>,
+  data: VectorUsize<T>,
   head: usize,
   tail: usize,
 }
@@ -108,24 +108,26 @@ impl<T> Deque<T> {
   /// Creates a new empty instance.
   #[inline]
   pub const fn new() -> Self {
-    Self { data: Vector::new(), head: 0, tail: 0 }
+    Self { data: VectorUsize::new(), head: 0, tail: 0 }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
   pub fn with_capacity(capacity: usize) -> crate::Result<Self> {
     Ok(Self {
-      data: Vector::with_capacity(capacity).map_err(|_err| DequeueError::WithCapacityOverflow)?,
+      data: VectorUsize::with_capacity(capacity)
+        .map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
   }
 
-  /// Constructs a new, empty instance with at least the specified capacity.
+  /// Constructs a new, empty instance with the specified capacity.
   #[inline]
   pub fn with_exact_capacity(capacity: usize) -> crate::Result<Self> {
     Ok(Self {
-      data: Vector::with_capacity(capacity).map_err(|_err| DequeueError::WithCapacityOverflow)?,
+      data: VectorUsize::with_capacity(capacity)
+        .map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
@@ -856,7 +858,7 @@ const fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
 #[inline(always)]
 fn reserve<D, const IS_BACK: bool>(
   additional: usize,
-  data: &mut Vector<D>,
+  data: &mut VectorUsize<D>,
   head: &mut usize,
   tail: &mut usize,
 ) -> crate::Result<ReserveRslt> {

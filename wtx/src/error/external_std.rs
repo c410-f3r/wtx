@@ -19,6 +19,13 @@ impl From<core::fmt::Error> for Error {
   }
 }
 
+impl From<alloc::string::FromUtf8Error> for Error {
+  #[inline]
+  fn from(from: alloc::string::FromUtf8Error) -> Self {
+    Self::FromUtf8Error(from.into())
+  }
+}
+
 impl From<GetDisjointMutError> for Error {
   #[inline]
   fn from(from: GetDisjointMutError) -> Self {

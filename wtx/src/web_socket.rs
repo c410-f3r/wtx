@@ -23,7 +23,7 @@ pub(crate) mod write_frame;
 
 use crate::{
   MAX_PAYLOAD_LEN,
-  collections::Vector,
+  collections::VectorUsize,
   misc::LeaseMut,
   net::{ConnectionState, Stream},
   rng::{SeedableRng as _, Xorshift64},
@@ -131,7 +131,7 @@ where
   #[inline]
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
-    buffer: &'buffer mut Vector<u8>,
+    buffer: &'buffer mut VectorUsize<u8>,
     payload_origin: WebSocketPayloadOrigin,
   ) -> crate::Result<FrameMut<'frame>>
   where

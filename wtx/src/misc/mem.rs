@@ -101,14 +101,14 @@ pub fn munlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
 #[cfg(all(feature = "libc", test))]
 mod tests {
   use crate::{
-    collections::Vector,
+    collections::VectorUsize,
     misc::{mlock, mlock_slice, munlock, munlock_slice},
   };
 
   #[cfg_attr(miri, ignore)]
   #[test]
   fn mlock_and_munlock() {
-    let mut data = Vector::with_capacity(1024).unwrap();
+    let mut data = VectorUsize::with_capacity(1024).unwrap();
     unsafe {
       mlock(data.as_mut_ptr(), data.capacity()).unwrap();
     }

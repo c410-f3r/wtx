@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 mod serde;
 
-use crate::collections::Vector;
+use crate::collections::VectorUsize;
 use core::str;
 #[cfg(feature = "serde")]
 pub use serde::*;
@@ -160,7 +160,7 @@ impl<'bytes, const IS_PERCENT: bool> UrlDecode<'bytes, IS_PERCENT> {
   /// If the inner bytes have a special character, decodes everything into `vector` returning
   /// `true`. Otherwise, returns `false` leaving `vector` untouched.
   #[inline]
-  pub fn decode(self, vector: &mut Vector<u8>) -> crate::Result<bool> {
+  pub fn decode(self, vector: &mut VectorUsize<u8>) -> crate::Result<bool> {
     vector.reserve(self.bytes.len())?;
     let mut bytes = self.bytes;
     let mut idx: usize = 0;
@@ -240,14 +240,14 @@ fn percent_encode_str<const IS_PERCENT: bool>(byte: u8) -> &'static str {
 mod tests {
   use crate::{
     codec::{AsciiSet, FormUrlDecode, FormUrlEncode, PercentDecode, PercentEncode},
-    collections::Vector,
+    collections::VectorUsize,
   };
 
   #[test]
   fn decode_form() {
     let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA== ";
     let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D+";
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let _ = FormUrlDecode::new(encoded.as_bytes()).decode(&mut buffer).unwrap(); // 43 == + 32 == space
     assert_eq!(buffer.as_slice(), decoded.as_bytes());
   }
@@ -256,7 +256,7 @@ mod tests {
   fn decode_form_simple_space() {
     let input = "hello+world";
     let expected = b"hello world";
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let _ = FormUrlDecode::new(input.as_bytes()).decode(&mut buffer).unwrap();
     assert_eq!(buffer.as_slice(), expected);
   }
@@ -265,7 +265,7 @@ mod tests {
   fn decode_percent() {
     let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA== ";
     let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D%20";
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let _ = PercentDecode::new(encoded.as_bytes()).decode(&mut buffer).unwrap();
     assert_eq!(buffer.as_slice(), decoded.as_bytes());
   }
@@ -274,14 +274,14 @@ mod tests {
   fn decode_percent_drops_chars_after_invalid_percent() {
     let input = "foo%ZZbar%21";
     let expected = b"foo%ZZbar!";
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let _ = PercentDecode::new(input.as_bytes()).decode(&mut buffer).unwrap();
     assert_eq!(buffer.as_slice(), expected);
   }
 
   #[test]
   fn encode_form() {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     for elem in FormUrlEncode::new(b"hello world?", AsciiSet::NON_ALPHANUMERIC) {
       buffer.extend_from_copyable_slice(elem).unwrap();
     }
@@ -290,7 +290,7 @@ mod tests {
 
   #[test]
   fn encode_percent() {
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     for elem in PercentEncode::new(b"hello world?", AsciiSet::NON_ALPHANUMERIC) {
       buffer.extend_from_copyable_slice(elem).unwrap();
     }

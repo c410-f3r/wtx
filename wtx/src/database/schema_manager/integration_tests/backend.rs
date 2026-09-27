@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Instant, SigDuration},
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     Database, Identifier,
     schema_manager::{
@@ -14,8 +14,8 @@ use alloc::string::String;
 pub(crate) async fn _backend_has_migration_with_utc_time<DB, E>(
   (buffer_cmd, buffer_db_migrations, _): (
     &mut String,
-    &mut Vector<DbMigration>,
-    &mut Vector<Identifier>,
+    &mut VectorUsize<DbMigration>,
+    &mut VectorUsize<Identifier>,
   ),
   c: &mut Commands<E>,
   _: AuxTestParams,

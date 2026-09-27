@@ -328,12 +328,11 @@ mod bench {
 #[cfg(feature = "rand_core")]
 mod rand_core {
   use crate::rng::{ChaCha20, Rng as _};
-  use core::convert::Infallible;
 
   impl rand_core::TryCryptoRng for ChaCha20 {}
 
   impl rand_core::TryRng for ChaCha20 {
-    type Error = Infallible;
+    type Error = !;
 
     #[inline(always)]
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {

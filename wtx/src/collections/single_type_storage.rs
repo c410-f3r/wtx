@@ -61,7 +61,10 @@ impl<T> SingleTypeStorage for Vec<T> {
   type Item = T;
 }
 
-impl<T> SingleTypeStorage for Vector<T> {
+impl<L, T> SingleTypeStorage for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   type Item = T;
 }
 

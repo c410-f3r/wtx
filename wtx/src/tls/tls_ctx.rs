@@ -7,7 +7,7 @@ pub(crate) mod unverified_ctx;
 use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::{ShortBoxSliceU16, Vector},
+  collections::{ShortBoxSliceU16, VectorU16},
   rng::CryptoRng,
   secret::{SecretSlice, SecretStr},
   tls::{SignatureScheme, TlsMode},
@@ -83,10 +83,10 @@ impl TlsCtxSkInput for SecretStr {
 
 #[inline]
 fn secret_key_from_pem(pem_bytes: &[u8]) -> crate::Result<(ShortBoxSliceU16<u8>, KeyTy)> {
-  let mut buffer = Vector::new();
+  let mut buffer = VectorU16::new();
   let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(pem_bytes, &mut buffer))?;
   let rslt = pem.data.into_inner()?;
-  buffer.truncate(rslt[0].1.end);
+  buffer.truncate(rslt[0].1.end.try_into().unwrap_or(u16::MAX));
   let key_ty = secret_key_ty(&buffer)?;
   Ok((buffer.try_into()?, key_ty))
 }

@@ -1,4 +1,4 @@
-use crate::collections::Vector;
+use crate::collections::VectorUsize;
 
 /// Dictates how compression should work.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub trait Compression {
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize>;
 
   /// Returns the upper bound on the compressed size.
@@ -42,7 +42,7 @@ impl Compression for () {
     &mut self,
     _: CompressionFlush,
     _: &[u8],
-    _: &mut Vector<u8>,
+    _: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -67,7 +67,7 @@ where
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut Vector<u8>,
+    output: &mut VectorUsize<u8>,
   ) -> crate::Result<usize> {
     if let Some(elem) = self { elem.compress(flush, input, output) } else { Ok(0) }
   }
@@ -89,7 +89,7 @@ where
 mod zlib_rs {
   use crate::{
     codec::{Compression, CompressionFlush},
-    collections::Vector,
+    collections::VectorUsize,
   };
   use zlib_rs::{Deflate, DeflateFlush, Status, compress_bound};
 
@@ -99,7 +99,7 @@ mod zlib_rs {
       &mut self,
       flush: CompressionFlush,
       input: &[u8],
-      output: &mut Vector<u8>,
+      output: &mut VectorUsize<u8>,
     ) -> crate::Result<usize> {
       output.reserve((input.len() / 2).max(64))?;
       let mut curr_input = input;

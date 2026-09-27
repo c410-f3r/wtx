@@ -411,7 +411,7 @@ where
 
 impl<S> Uri<S>
 where
-  S: LeaseMut<str> + Truncate<usize> + TryExtend<(u8, usize)>,
+  S: LeaseMut<str> + Truncate + TryExtend<(u8, usize)>,
 {
   /// Allows the usage of the internal buffer to perform arbitrary operations.
   #[inline]
@@ -436,7 +436,7 @@ where
 
 impl<S> Uri<S>
 where
-  for<'any> S: Lease<str> + Truncate<usize> + TryExtend<&'any str> + Write,
+  for<'any> S: Lease<str> + Truncate + TryExtend<&'any str> + Write,
 {
   /// Pushes an additional path only if there is no query.
   #[inline]
@@ -468,22 +468,37 @@ where
     QueryWriter { string: &mut self.uri }.do_write::<_, true>(param, value)
   }
 
-  /// Starts the query writer with an initial `?param=value0(sep)value1(sep)value2...`.
+  /// Starts the query writer with an initial `param=value0,value1,value2...`.
   #[inline]
-  pub fn query_writer_many<ELEM, SEP>(
+  pub fn query_writer_many<ELEM>(
     &mut self,
     param: &str,
     value: impl IntoIterator<Item = ELEM>,
-    sep: SEP,
   ) -> crate::Result<QueryWriter<'_, S>>
   where
     ELEM: Display,
-    SEP: Display,
   {
     if !self.query_and_fragment().is_empty() {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
-    QueryWriter { string: &mut self.uri }.do_write_many::<_, _, true>(param, value, sep)
+    QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, ["", ",", ""])
+  }
+
+  /// Starts the query writer with an initial `param={begin}value0{sep}value1{sep}value2{sep}...valueN{end}`
+  #[inline]
+  pub fn query_writer_many_custom<ELEM>(
+    &mut self,
+    param: &str,
+    value: impl IntoIterator<Item = ELEM>,
+    [begin, sep, end]: [&str; 3],
+  ) -> crate::Result<QueryWriter<'_, S>>
+  where
+    ELEM: Display,
+  {
+    if !self.query_and_fragment().is_empty() {
+      return Err(crate::Error::UriCanNotBeOverwritten);
+    }
+    QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, [begin, sep, end])
   }
 
   /// Truncates the internal storage with the length of the base URI created in this instance.
@@ -617,21 +632,31 @@ where
     self.do_write::<_, false>(param, value)
   }
 
-  /// Writes `?param=value0(sep)value1(sep)value2...` or `&param=value0(sep)value1(sep)value2...`.
-  ///
-  /// The separator (`sep`) will only be used if `value` is greater than one.
+  /// Writes `param=value0,value1,value2...`
   #[inline]
-  pub fn write_many<ELEM, SEP>(
+  pub fn write_many<ELEM>(
     self,
     param: &str,
     value: impl IntoIterator<Item = ELEM>,
-    sep: SEP,
   ) -> crate::Result<Self>
   where
     ELEM: Display,
-    SEP: Display,
   {
-    self.do_write_many::<_, _, false>(param, value, sep)
+    self.do_write_many::<_, false>(param, value, ["", ",", ""])
+  }
+
+  /// Writes `param={begin}value0{sep}value1{sep}value2{sep}...valueN{end}`
+  #[inline]
+  pub fn write_many_custom<ELEM>(
+    self,
+    param: &str,
+    value: impl IntoIterator<Item = ELEM>,
+    [begin, sep, end]: [&str; 3],
+  ) -> crate::Result<Self>
+  where
+    ELEM: Display,
+  {
+    self.do_write_many::<_, false>(param, value, [begin, sep, end])
   }
 
   fn do_write<T, const IS_INITIAL: bool>(self, param: &str, value: T) -> crate::Result<Self>
@@ -646,28 +671,28 @@ where
     Ok(self)
   }
 
-  fn do_write_many<ELEM, SEP, const IS_INITIAL: bool>(
+  fn do_write_many<ELEM, const IS_INITIAL: bool>(
     self,
     param: &str,
     value: impl IntoIterator<Item = ELEM>,
-    sep: SEP,
+    [begin, sep, end]: [&str; 3],
   ) -> crate::Result<Self>
   where
     ELEM: Display,
-    SEP: Display,
   {
     let mut iter = value.into_iter();
     let Some(first) = iter.next() else {
       return Ok(self);
     };
     if IS_INITIAL {
-      self.string.write_fmt(format_args!("?{param}={first}"))?;
+      self.string.write_fmt(format_args!("?{param}={begin}{first}"))?;
     } else {
-      self.string.write_fmt(format_args!("&{param}={first}"))?;
+      self.string.write_fmt(format_args!("&{param}={begin}{first}"))?;
     }
     for elem in iter {
       self.string.write_fmt(format_args!("{sep}{elem}"))?;
     }
+    self.string.write_fmt(format_args!("{end}"))?;
     Ok(self)
   }
 }

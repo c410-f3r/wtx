@@ -4,7 +4,7 @@ use crate::{
     asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
   x509::{
     CRL_ISSUER_TAG, DISTRIBUTION_POINT_TAG, DistributionPointName, GeneralNames, REASONS_TAG,
@@ -16,7 +16,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub struct CrlDistributionPoints<B> {
   /// Identifies how CRL information is obtained.
-  pub entries: Vector<DistributionPoint<B>>,
+  pub entries: VectorUsize<DistributionPoint<B>>,
 }
 
 impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for CrlDistributionPoints<B>

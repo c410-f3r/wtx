@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   misc::{Lease, LeaseMut},
   net::{NetError, StreamReader},
 };
@@ -22,7 +22,7 @@ use core::{fmt::Debug, hint::cold_path, mem::MaybeUninit};
 /// ```
 pub struct BufStreamReader {
   antecedent_end_idx: usize,
-  buffer: Vector<u8>,
+  buffer: VectorUsize<u8>,
   capacity_ub: usize,
   current_end_idx: usize,
   forbid_clear: bool,
@@ -34,7 +34,7 @@ impl BufStreamReader {
   pub const fn new() -> Self {
     Self {
       antecedent_end_idx: 0,
-      buffer: Vector::new(),
+      buffer: VectorUsize::new(),
       capacity_ub: 1024 * 1024 * 32,
       current_end_idx: 0,
       forbid_clear: false,
@@ -163,6 +163,9 @@ impl BufStreamReader {
         }
         let Some(len) = stream_reader.read(uninit.into()).await? else {
           cold_path();
+          if init.len() > local_current_end_idx {
+            return Err(NetError::AbruptDisconnect.into());
+          }
           return Ok(None);
         };
         let new_len = init.len().wrapping_add(len.get());
@@ -224,9 +227,17 @@ impl BufStreamReader {
     self.buffer.split_at_spare_mut()
   }
 
+  /// Shortens the instance, keeping the first len elements and dropping the rest.
+  #[inline]
+  pub fn truncate(&mut self, len: usize) {
+    self.buffer.truncate(len);
+    self.current_end_idx = self.current_end_idx.min(len);
+    self.antecedent_end_idx = self.antecedent_end_idx.min(self.current_end_idx);
+  }
+
   #[cfg(any(feature = "tls", feature = "postgres"))]
   #[inline]
-  pub(crate) const fn buffer_mut(&mut self) -> &mut Vector<u8> {
+  pub(crate) const fn buffer_mut(&mut self) -> &mut VectorUsize<u8> {
     &mut self.buffer
   }
 
@@ -279,7 +290,9 @@ impl BufStreamReader {
   }
 
   #[cfg(any(feature = "postgres", feature = "web-socket"))]
-  pub(crate) fn suffix_pusher(&mut self) -> crate::collections::SuffixGuardVectorMut<'_, u8> {
+  pub(crate) fn suffix_pusher(
+    &mut self,
+  ) -> crate::collections::SuffixGuardVectorMut<'_, usize, u8> {
     crate::collections::SuffixGuardVectorMut::from(&mut self.buffer)
   }
 
@@ -352,7 +365,7 @@ impl LeaseMut<BufStreamReader> for BufStreamReader {
 impl Debug for BufStreamReader {
   #[inline]
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("NetReadBuffer").finish()
+    f.debug_struct("BufStreamReader").finish()
   }
 }
 

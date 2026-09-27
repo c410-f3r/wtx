@@ -6,7 +6,7 @@ use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
   calendar::{Datetime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::Vector,
+  collections::VectorUsize,
   x509::{
     Certificate, Crl, CvCertificate, CvCrl, CvEndEntity, CvEvaluationDepth, CvIntermediate,
     CvPolicy, CvPolicyMode, CvTrustAnchor, ServerName, X509CvError, X509Error,
@@ -18,11 +18,11 @@ fn main() {
   let file = File::open("limbo.json").unwrap();
   let limbo: Limbo = serde_json::from_reader(BufReader::new(file)).unwrap();
 
-  let mut bytes_certs = Vector::new();
-  let mut crls = Vector::new();
-  let mut pems = Vector::new();
-  let mut trusted_certs = Vector::new();
-  let mut untrusted_intermediates = Vector::new();
+  let mut bytes_certs = VectorUsize::new();
+  let mut crls = VectorUsize::new();
+  let mut pems = VectorUsize::new();
+  let mut trusted_certs = VectorUsize::new();
+  let mut untrusted_intermediates = VectorUsize::new();
 
   for testcase in &limbo.testcases {
     let mut local_crls = crls;
@@ -196,7 +196,7 @@ enum ValidationKind {
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 struct Limbo {
   version: u32,
-  testcases: Vector<Testcase>,
+  testcases: VectorUsize<Testcase>,
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -210,18 +210,18 @@ struct Testcase {
   id: String,
   description: String,
   validation_kind: ValidationKind,
-  trusted_certs: Vector<String>,
-  untrusted_intermediates: Vector<String>,
+  trusted_certs: VectorUsize<String>,
+  untrusted_intermediates: VectorUsize<String>,
   peer_certificate: String,
-  signature_algorithms: Vector<SignatureAlgorithm>,
-  key_usage: Vector<KeyUsage>,
-  extended_key_usage: Vector<KnownEKUs>,
+  signature_algorithms: VectorUsize<SignatureAlgorithm>,
+  key_usage: VectorUsize<KeyUsage>,
+  extended_key_usage: VectorUsize<KnownEKUs>,
   expected_result: ExpectedResult,
-  expected_peer_names: Vector<PeerName>,
+  expected_peer_names: VectorUsize<PeerName>,
   #[serde(default)]
-  conflicts_with: Vector<String>,
+  conflicts_with: VectorUsize<String>,
   #[serde(default)]
-  features: Vector<Feature>,
+  features: VectorUsize<Feature>,
   #[serde(default)]
   importance: Importance,
   #[serde(default)]
@@ -233,7 +233,7 @@ struct Testcase {
   #[serde(default)]
   max_chain_depth: Option<u8>,
   #[serde(default)]
-  crls: Vector<String>,
+  crls: VectorUsize<String>,
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -249,7 +249,7 @@ impl<'any> TestcaseResult<'any> {
   }
 }
 
-fn clear_and_recycle<T, U>(mut vector: Vector<T>) -> Vector<U> {
+fn clear_and_recycle<T, U>(mut vector: VectorUsize<T>) -> VectorUsize<U> {
   vector.clear();
   assert_eq!(size_of::<T>(), size_of::<U>());
   assert_eq!(align_of::<T>(), align_of::<U>());
@@ -257,16 +257,16 @@ fn clear_and_recycle<T, U>(mut vector: Vector<T>) -> Vector<U> {
   let ptr = vector.as_mut_ptr().cast();
   mem::forget(vector);
   // SAFETY: storage comes from the non-dropped vector
-  Vector::from_vec(unsafe { Vec::from_raw_parts(ptr, 0, cap) })
+  VectorUsize::from_vec(unsafe { Vec::from_raw_parts(ptr, 0, cap) }).unwrap()
 }
 
 fn evaluate_test_case<'bytes>(
-  bytes_certs: &'bytes mut Vector<u8>,
-  crls: &mut Vector<CvCrl<&'bytes [u8]>>,
-  pems: &mut Vector<Pem<Range<usize>, 1>>,
+  bytes_certs: &'bytes mut VectorUsize<u8>,
+  crls: &mut VectorUsize<CvCrl<&'bytes [u8]>>,
+  pems: &mut VectorUsize<Pem<Range<usize>, 1>>,
   testcase: &Testcase,
-  trusted_certs: &mut Vector<CvTrustAnchor<&'bytes [u8]>>,
-  untrusted_intermediates: &mut Vector<CvCertificate<&'bytes [u8], false>>,
+  trusted_certs: &mut VectorUsize<CvTrustAnchor<&'bytes [u8]>>,
+  untrusted_intermediates: &mut VectorUsize<CvCertificate<&'bytes [u8], false>>,
 ) {
   let unsupported = [
     "bettertls::pathbuilding::tc71",

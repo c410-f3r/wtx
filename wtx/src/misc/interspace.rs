@@ -116,12 +116,12 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::Vector, misc::Intersperse};
+  use crate::{collections::VectorUsize, misc::Intersperse};
 
   #[test]
   fn interspace() {
     assert_eq!(
-      Vector::from_iterator(Intersperse::new(['0', '1', '2'], || ',')).unwrap().as_slice(),
+      VectorUsize::from_iterator(Intersperse::new(['0', '1', '2'], || ',')).unwrap().as_slice(),
       &['0', ',', '1', ',', '2']
     );
   }

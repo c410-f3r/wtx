@@ -37,7 +37,7 @@ use crate::{
     Octetstring,
   },
   codec::{Decode as _, DecodeWrapper},
-  collections::Vector,
+  collections::VectorUsize,
   misc::Lease,
   x509::{
     Crl, Extension, Extensions, RevokedCertificate, RevokedCertificates, Time, X509CvError,
@@ -77,13 +77,13 @@ where
       next_update: value.tbs_cert_list.next_update,
       revoked_certs: {
         if let Some(revoked_certificates) = &value.tbs_cert_list.revoked_certificates {
-          let mut rslt = Vector::new();
+          let mut rslt = VectorUsize::new();
           for revoked_certificate in &revoked_certificates.0 {
             rslt.push(RevokedCertificate {
               user_certificate: revoked_certificate.user_certificate.clone(),
               revocation_date: revoked_certificate.revocation_date,
               crl_entry_extensions: if let Some(exts) = &revoked_certificate.crl_entry_extensions {
-                let mut entries = Vector::new();
+                let mut entries = VectorUsize::new();
                 for ext in &exts.entries {
                   entries.push(Extension {
                     extn_id: ext.extn_id,

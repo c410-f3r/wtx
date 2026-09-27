@@ -356,7 +356,7 @@ where
     RNG: Send,
     TCX: Send + Sync,
   {
-    use crate::collections::Vector;
+    use crate::collections::VectorUsize;
     use alloc::string::String;
 
     let runtimes = if let Some(elem) = self.local_runtimes {
@@ -365,7 +365,7 @@ where
       std::thread::available_parallelism().map_err(crate::Error::from)?.get()
     };
     let http_router = Arc::new(hr);
-    let mut join_handles = Vector::<std::thread::JoinHandle<Result<(), ER>>>::new();
+    let mut join_handles = VectorUsize::<std::thread::JoinHandle<Result<(), ER>>>::new();
     for _ in 0..runtimes {
       let thread_data = self.data.clone();
       let thread_error_cb = self.error_cb.clone();
@@ -612,7 +612,7 @@ where
 fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
   let _method = _req.method.strings().custom[0];
   let _path = _req.msg_data.uri.path();
-  _trace!(r#"{_peer} "{_method} {_path}""#,);
+  _debug!(r#"{_peer} "{_method} {_path}""#,);
 }
 
 #[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]
@@ -674,7 +674,7 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TCX>(
     let enc_buffer = mem::take(&mut auto_stream.req.msg_data.uri).into_inner();
     let _ = server_stream
       .send_res(
-        &mut enc_buffer.into_bytes().into(),
+        &mut enc_buffer.into_bytes().try_into()?,
         Response::new(auto_stream.req.msg_data, status),
       )
       .await?;

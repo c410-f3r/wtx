@@ -3,7 +3,7 @@ use crate::{
     Id,
     protocol::{JsonRpcEncoder, VerbatimEncoder},
   },
-  collections::Vector,
+  collections::VectorUsize,
 };
 
 /// # Packages Auxiliary
@@ -24,7 +24,7 @@ pub struct PkgsAux<A, DRSR, TP> {
   /// Used by practically all transports to serialize or receive data in any desired operation.
   ///
   /// Some transports require a pre-filled buffer so it is important to not modify indiscriminately.
-  pub bytes_buffer: Vector<u8>,
+  pub bytes_buffer: VectorUsize<u8>,
   /// Deserializer/Serializer instance
   pub drsr: DRSR,
   /// Useful in cases where the data is already encoded in the buffers.
@@ -41,7 +41,7 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   pub const fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
     Self {
       api,
-      bytes_buffer: Vector::new(),
+      bytes_buffer: VectorUsize::new(),
       drsr,
       encode_data: true,
       log_data: false,
@@ -55,7 +55,7 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   pub const fn new(
     api: A,
     built_requests: u64,
-    bytes_buffer: Vector<u8>,
+    bytes_buffer: VectorUsize<u8>,
     drsr: DRSR,
     encode_data: bool,
     log_data: bool,

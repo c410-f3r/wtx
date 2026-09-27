@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Datetime, Utc},
-  collections::Vector,
+  collections::VectorUsize,
   futures::Sleep,
   http::{
     SessionManager, SessionStore,
@@ -17,7 +17,7 @@ use core::{marker::PhantomData, time::Duration};
 /// Default and optional parameters for the construction of a [`SessionManager`].
 #[derive(Debug)]
 pub struct SessionManagerBuilder {
-  pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
+  pub(crate) cookie_def: CookieGeneric<String, VectorUsize<u8>>,
   pub(crate) inspection_interval: Duration,
 }
 
@@ -33,7 +33,7 @@ impl SessionManagerBuilder {
         path: "/".into(),
         same_site: Some(SameSite::Strict),
         secure: true,
-        value: Vector::new(),
+        value: VectorUsize::new(),
       },
       inspection_interval: Duration::from_mins(30),
     }

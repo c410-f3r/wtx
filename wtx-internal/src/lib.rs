@@ -4,7 +4,7 @@
 use {
   tokio::net::TcpStream,
   wtx::{
-    collections::{ArrayStringU8, Vector},
+    collections::{ArrayStringU8, VectorUsize},
     net::Uri,
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{PlaintextCtx, TlsConfig, TlsConnectorBuilder},
@@ -54,7 +54,7 @@ pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
 /// Used by autobahn
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
-pub async fn autobahn_get_case_count(buffer: &mut Vector<u8>, host: &str) -> wtx::Result<u32> {
+pub async fn autobahn_get_case_count(buffer: &mut VectorUsize<u8>, host: &str) -> wtx::Result<u32> {
   let uri = ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?;
   let mut ws = WebSocketConnector::default()
     .connect(

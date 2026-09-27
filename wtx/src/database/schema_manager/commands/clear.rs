@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::schema_manager::{Commands, SchemaManagement},
 };
 use alloc::string::String;
@@ -12,6 +12,6 @@ where
   /// Tries to clear all objects of a database, including separated namespaces/schemas.
   #[inline]
   pub async fn clear(&mut self) -> Result<(), <E::Database as CodecController>::Error> {
-    self.executor.clear((&mut String::new(), &mut Vector::new())).await
+    self.executor.clear((&mut String::new(), &mut VectorUsize::new())).await
   }
 }

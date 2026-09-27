@@ -121,30 +121,30 @@ mod bench {
 
 #[cfg(kani)]
 mod kani {
-  use crate::collections::Vector;
+  use crate::collections::VectorUsize;
 
   #[kani::proof]
   fn mask_op() {
     let mask = kani::any();
-    let mut payload = Vector::from(kani::vec::any_vec::<u8, 128>());
+    let mut payload = VectorUsize::from(kani::vec::any_vec::<u8, 128>());
     payload.fill(0);
     crate::web_socket::mask_op::mask_op(&mut payload, mask);
-    let expected = Vector::from_iterator((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
+    let expected = VectorUsize::from_iterator((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
     assert_eq!(payload, expected);
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::Vector, web_socket::mask_op::mask_op};
+  use crate::{collections::VectorUsize, web_socket::mask_op::mask_op};
 
   #[test]
   fn length_variation_unmask() {
     for len in [0, 2, 3, 8, 16, 18, 31, 32, 40, 63, 100, 125, 256] {
-      let mut payload = Vector::from_cloneable_elem(len, 0).unwrap();
+      let mut payload = VectorUsize::from_cloneable_elem(len, 0).unwrap();
       let mask = [1, 2, 3, 4];
       mask_op(&mut payload, mask);
-      let expected = Vector::from_iterator((0..len).map(|idx| mask[idx & 3])).unwrap();
+      let expected = VectorUsize::from_iterator((0..len).map(|idx| mask[idx & 3])).unwrap();
       assert_eq!(payload, expected);
     }
   }

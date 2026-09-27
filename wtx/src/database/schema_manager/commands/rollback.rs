@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collections::Vector,
+  collections::VectorUsize,
   database::{
     DatabaseTy,
     schema_manager::{Commands, SchemaManagement, Uid, UserMigration, UserMigrationGroup},
@@ -36,7 +36,7 @@ where
     S: Lease<str> + 'migration,
   {
     let mut buffer_cmd = String::new();
-    let mut buffer_db_migrations = Vector::new();
+    let mut buffer_db_migrations = VectorUsize::new();
     self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
     let filtered_by_db = Self::filter_by_db(migrations);
     Self::do_validate(&buffer_db_migrations, filtered_by_db.clone())?;
@@ -97,7 +97,7 @@ where
     else {
       return Ok(());
     };
-    let mut tmp_migrations = Vector::new();
+    let mut tmp_migrations = VectorUsize::new();
     loop_files!(
       tmp_migrations,
       migrations,

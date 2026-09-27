@@ -3,7 +3,7 @@ use crate::{
     Base64Alphabet, CodecError, Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec,
     base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
-  collections::{ArrayStringU8, ArrayVectorU8, ExpansionTy, TryExtend, Vector},
+  collections::{ArrayStringU8, ArrayVectorU8, ExpansionTy, TryExtend, VectorUsize},
   misc::{Lease, LeaseMut, bytes_split_once1, strip_new_line},
 };
 use core::ops::Range;
@@ -67,12 +67,12 @@ where
   }
 }
 
-impl<T, const BLK: usize> Encode<GenericCodec<(), &mut Vector<u8>>> for Pem<T, BLK>
+impl<T, const BLK: usize> Encode<GenericCodec<(), &mut VectorUsize<u8>>> for Pem<T, BLK>
 where
   T: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, &mut Vector<u8>>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, &mut VectorUsize<u8>>) -> crate::Result<()> {
     let buffer_base64 = &mut *ew.encode_aux;
     let buffer_out = &mut *ew.buffer;
     let idx = buffer_base64.len();
@@ -144,7 +144,7 @@ fn parse_block(
 mod tests {
   use crate::{
     codec::{DecodeWrapper, Pem, decode::Decode},
-    collections::Vector,
+    collections::VectorUsize,
   };
 
   #[test]
@@ -166,7 +166,7 @@ mod tests {
     UB03rN0wUYWv4lRa5hZyBkEUplzIZNiQTvMFCmNNv9YabMtRK9SV3m99t/n86duC\n\
     soep5aC1gXLUZMEbdUklZCjkLPt9A1gHlFn+dKcf1zU=\n\
     -----END CERTIFICATE-----\n";
-    let mut buffer = Vector::new();
+    let mut buffer = VectorUsize::new();
     let pem = Pem::<_, 1>::decode(&mut DecodeWrapper::new(cert.as_bytes(), &mut buffer)).unwrap();
     let array = pem.data.into_inner().unwrap();
     assert_eq!(array[0].0, "CERTIFICATE");

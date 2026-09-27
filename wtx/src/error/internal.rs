@@ -103,6 +103,14 @@ impl From<crate::crypto::CryptoError> for Error {
   }
 }
 
+impl From<crate::collections::CsrError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: crate::collections::CsrError) -> Self {
+    Self::CsrError(from)
+  }
+}
+
 #[cfg(feature = "database")]
 impl From<crate::database::DatabaseError> for Error {
   #[inline]

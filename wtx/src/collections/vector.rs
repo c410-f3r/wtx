@@ -1,6 +1,6 @@
 use crate::{
   collections::{
-    ExpansionTy, SuffixGuardVectorMut,
+    ExpansionTy, LinearStorageLen, ShortBoxSlice, SuffixGuardVectorMut,
     linear_storage::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
@@ -16,10 +16,21 @@ use core::{
   cmp::Ordering,
   fmt::{Debug, Display, Formatter},
   hash::{Hash, Hasher},
-  mem::{ManuallyDrop, MaybeUninit},
+  marker::PhantomData,
+  mem::{self, ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
+  ptr::NonNull,
   slice::{Iter, IterMut},
 };
+
+/// [`Vector`] with a capacity limited by `u8`.
+pub type VectorU8<T> = Vector<u8, T>;
+/// [`Vector`] with a capacity limited by `u16`.
+pub type VectorU16<T> = Vector<u16, T>;
+/// [`Vector`] with a capacity limited by `u32`.
+pub type VectorU32<T> = Vector<u32, T>;
+/// [`Vector`] with a capacity limited by `usize`.
+pub type VectorUsize<T> = Vector<usize, T>;
 
 /// Errors of [Vector].
 #[derive(Clone, Copy, Debug)]
@@ -30,12 +41,22 @@ pub enum VectorError {
   ExtendFromSliceOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSlicesOverflow,
+  /// When converting to the vector of the standard library, internal parameters were transformed
+  /// into overflowing values.
+  InvalidStdConversion,
   /// The index provided in the `insert` method is out of bounds.
   OutOfBoundsInsertIdx,
   #[doc = doc_single_elem_cap_overflow!()]
   PushOverflow,
   #[doc = doc_reserve_overflow!()]
-  ReserveOverflow,
+  ReserveOverflow {
+    /// Additional
+    additional: u16,
+    /// Current
+    curr: u32,
+    /// Maximum
+    max: u32,
+  },
   /// A temporary `Vec` expanded the capacity beyond the current length type
   VecOverflow,
 }
@@ -54,10 +75,11 @@ impl From<VectorError> for u8 {
       VectorError::CapacityOverflow => 0,
       VectorError::ExtendFromSliceOverflow => 1,
       VectorError::ExtendFromSlicesOverflow => 2,
-      VectorError::OutOfBoundsInsertIdx => 3,
-      VectorError::PushOverflow => 4,
-      VectorError::ReserveOverflow => 5,
-      VectorError::VecOverflow => 6,
+      VectorError::InvalidStdConversion => 3,
+      VectorError::OutOfBoundsInsertIdx => 4,
+      VectorError::PushOverflow => 5,
+      VectorError::ReserveOverflow { additional: _, curr: _, max: _ } => 6,
+      VectorError::VecOverflow => 7,
     }
   }
 }
@@ -65,51 +87,56 @@ impl From<VectorError> for u8 {
 impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
-pub struct Vector<T>(Inner<T>);
+pub struct Vector<L, T>(Inner<L, T>)
+where
+  L: LinearStorageLen;
 
-impl<T> Vector<T> {
+impl<L, T> Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   /// Constructs a new instance based on an arbitrary [Vec].
   ///
   /// ```rust
-  /// let mut vec = wtx::collections::Vector::<u8>::from_vec(Vec::new());
+  /// let mut vec = wtx::collections::VectorU8::<u8>::from_vec(Vec::new()).unwrap();
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
-  pub const fn from_vec(vec: Vec<T>) -> Self {
-    Self(Inner(vec))
+  pub fn from_vec(vec: Vec<T>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_vec(vec)?))
   }
 
   /// Constructs a new, empty instance.
   ///
   /// ```rust
-  /// let mut vec = wtx::collections::Vector::<u8>::new();
+  /// let mut vec = wtx::collections::VectorU8::<u8>::new();
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
   pub const fn new() -> Self {
-    Self(Inner(Vec::new()))
+    Self(Inner::new())
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   /// Constructs a new instance based on an arbitrary [Vec].
   ///
   /// ```rust
-  /// let mut vec = wtx::collections::Vector::<u8>::with_capacity(2).unwrap();
+  /// let mut vec = wtx::collections::VectorU8::<u8>::with_capacity(2).unwrap();
   /// assert!(vec.capacity() >= 2);
   /// ```
   #[inline(always)]
-  pub fn with_capacity(capacity: usize) -> crate::Result<Self> {
-    Ok(Self(Inner(Vec::with_capacity(capacity))))
+  pub fn with_capacity(capacity: L) -> crate::Result<Self> {
+    Ok(Self(Inner::with_capacity(capacity)?))
   }
 
   /// Constructs a new, empty instance with the exact specified capacity.
   ///
   /// ```rust
-  /// let mut vec = wtx::collections::Vector::<u8>::with_exact_capacity(2).unwrap();
+  /// let mut vec = wtx::collections::VectorU8::<u8>::with_exact_capacity(2).unwrap();
   /// assert_eq!(vec.capacity(), 2);
   /// ```
   #[inline(always)]
-  pub fn with_exact_capacity(capacity: usize) -> crate::Result<Self> {
+  pub fn with_exact_capacity(capacity: L) -> crate::Result<Self> {
     let mut this = Self::new();
     this.reserve_exact(capacity)?;
     Ok(this)
@@ -118,27 +145,29 @@ impl<T> Vector<T> {
   /// Transfers memory ownership to the vector of the standard library.
   ///
   /// ```rust
-  /// let vec = wtx::collections::Vector::<u8>::new();
+  /// let vec = wtx::collections::VectorU8::<u8>::new();
   /// assert_eq!(vec.into_vec(), Vec::<u8>::new());
   /// ```
   #[inline]
   pub fn into_vec(self) -> Vec<T> {
-    let mut wrapper = ManuallyDrop::new(self);
-    let capacity = wrapper.capacity();
-    let len = wrapper.len();
-    // SAFETY: `self` has valid parameters that point to valid memory
-    unsafe { Vec::from_raw_parts(wrapper.as_mut_ptr(), len, capacity) }
+    self.0.into_vec()
   }
 
   /// Vector of the standard library.
   #[inline]
-  pub const fn vec_mut(&mut self) -> &mut Vec<T> {
-    &mut self.0.0
+  pub fn to_vec_mut<U>(
+    &mut self,
+    cb: impl FnOnce(&mut Vec<T>) -> crate::Result<U>,
+  ) -> crate::Result<U> {
+    self.0.to_vec_mut(cb)
   }
 }
 
-impl<T> Vector<T> {
-  #[doc = from_cloneable_elem_doc!("Vector")]
+impl<L, T> Vector<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[doc = from_cloneable_elem_doc!("VectorU8")]
   #[inline]
   pub fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
   where
@@ -147,7 +176,7 @@ impl<T> Vector<T> {
     Ok(Self(Inner::from_cloneable_elem(len, value)?))
   }
 
-  #[doc = from_cloneable_slice_doc!("Vector")]
+  #[doc = from_cloneable_slice_doc!("VectorU8")]
   #[inline]
   pub fn from_cloneable_slice(slice: &[T]) -> crate::Result<Self>
   where
@@ -156,7 +185,7 @@ impl<T> Vector<T> {
     Ok(Self(Inner::from_cloneable_slice(slice)?))
   }
 
-  #[doc = from_copyable_slice_doc!("Vector")]
+  #[doc = from_copyable_slice_doc!("VectorU8")]
   #[inline]
   pub fn from_copyable_slice(slice: &[T]) -> crate::Result<Self>
   where
@@ -165,19 +194,19 @@ impl<T> Vector<T> {
     Ok(Self(Inner::from_copyable_slice(slice)?))
   }
 
-  #[doc = from_iter_doc!("Vector", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[doc = from_iter_doc!("VectorU8", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
     Ok(Self(Inner::from_iterator(iter)?))
   }
 
-  #[doc = allocated!("Vector::<u8>")]
+  #[doc = allocated!("VectorU8::<u8>")]
   #[inline]
   pub fn allocated(&self) -> &[MaybeUninit<T>] {
     self.0.allocated()
   }
 
-  #[doc = as_ptr_doc!("Vector", "[1, 2, 3]")]
+  #[doc = as_ptr_doc!("VectorUsize", "[1, 2, 3]")]
   #[inline]
   pub fn as_ptr(&self) -> *const T {
     self.0.as_ptr()
@@ -189,7 +218,7 @@ impl<T> Vector<T> {
     self.0.as_ptr_mut()
   }
 
-  #[doc = as_slice_doc!("Vector", "[1, 2, 3]", "[1, 2, 3]")]
+  #[doc = as_slice_doc!("VectorU8", "[1, 2, 3]", "[1, 2, 3]")]
   #[inline]
   pub fn as_slice(&self) -> &[T] {
     self.0.as_slice()
@@ -201,19 +230,19 @@ impl<T> Vector<T> {
     self.0.as_slice_mut()
   }
 
-  #[doc = capacity_doc!("Vector", "[1, 2, 3]")]
+  #[doc = capacity_doc!("VectorU8", "[1, 2, 3]")]
   #[inline]
-  pub fn capacity(&self) -> usize {
+  pub fn capacity(&self) -> L {
     self.0.capacity()
   }
 
-  #[doc = clear_doc!("Vector", "[1, 2, 3]")]
+  #[doc = clear_doc!("VectorU8", "[1, 2, 3]")]
   #[inline]
   pub fn clear(&mut self) {
     self.0.clear();
   }
 
-  #[doc = expand_doc!("Vector")]
+  #[doc = expand_doc!("VectorU8")]
   #[inline]
   pub fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
   where
@@ -222,7 +251,7 @@ impl<T> Vector<T> {
     self.0.expand(et, value)
   }
 
-  #[doc = extend_from_cloneable_slice_doc!("Vector")]
+  #[doc = extend_from_cloneable_slice_doc!("VectorU8")]
   #[inline]
   pub fn extend_from_cloneable_slice(&mut self, other: &[T]) -> crate::Result<()>
   where
@@ -231,7 +260,7 @@ impl<T> Vector<T> {
     self.0.extend_from_cloneable_slice(other)
   }
 
-  #[doc = extend_from_copyable_slice_doc!("Vector")]
+  #[doc = extend_from_copyable_slice_doc!("VectorU8")]
   #[inline]
   pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> crate::Result<()>
   where
@@ -240,9 +269,9 @@ impl<T> Vector<T> {
     self.0.extend_from_copyable_slice(other)
   }
 
-  #[doc = extend_from_copyable_slice_doc!("Vector")]
+  #[doc = extend_from_copyable_slice_doc!("VectorU8")]
   #[inline]
-  pub fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<usize>
+  pub fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<L>
   where
     E: Lease<[T]>,
     I: IntoIterator<Item = E>,
@@ -252,70 +281,76 @@ impl<T> Vector<T> {
     self.0.extend_from_copyable_slices(others)
   }
 
-  #[doc = extend_from_iter_doc!("Vector", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[doc = extend_from_iter_doc!("VectorU8", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = T>) -> crate::Result<()> {
     self.0.extend_from_iter(iter)
   }
 
-  #[doc = insert_doc!("Vector")]
+  #[doc = insert_doc!("VectorU8")]
   #[inline]
-  pub fn insert(&mut self, idx: usize, elem: T) -> crate::Result<()> {
+  pub fn insert(&mut self, idx: L, elem: T) -> crate::Result<()> {
     self.0.insert(VectorError::OutOfBoundsInsertIdx.into(), idx, elem)
   }
 
   #[doc = len_doc!()]
   #[inline]
-  pub fn len(&self) -> usize {
+  pub fn len(&self) -> L {
     self.0.len()
   }
 
-  #[doc = pop_doc!("Vector", "[1, 2, 3]", "[1, 2]")]
+  #[doc = pop_doc!("VectorU8", "[1, 2, 3]", "[1, 2]")]
   #[inline]
   pub fn pop(&mut self) -> Option<T> {
     <[T] as LinearStorageSlice>::pop(&mut self.0)
   }
 
-  #[doc = push_doc!("Vector", "1", "&[1]")]
+  #[doc = push_doc!("VectorU8", "1", "&[1]")]
   #[inline]
   pub fn push(&mut self, elem: T) -> crate::Result<()> {
     self.0.push(elem)
   }
 
-  #[doc = remaining_doc!("Vector", "1")]
+  #[doc = remaining_capacity_doc!("VectorU8", "1")]
   #[inline]
-  pub fn remaining(&self) -> usize {
-    self.0.remaining()
+  pub fn remaining_capacity(&self) -> L {
+    self.0.remaining_capacity()
   }
 
-  #[doc = remove_doc!("Vector", "[1, 2, 3]", "[1, 3]")]
+  #[doc = remaining_capacity_max_doc!("VectorU8")]
   #[inline]
-  pub fn remove(&mut self, index: usize) -> Option<T> {
+  pub fn remaining_capacity_max(&self) -> L {
+    self.0.remaining_capacity_max()
+  }
+
+  #[doc = remove_doc!("VectorU8", "[1, 2, 3]", "[1, 3]")]
+  #[inline]
+  pub fn remove(&mut self, index: L) -> Option<T> {
     <[T] as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
-  #[doc = reserve_doc!("Vector::<u8>")]
+  #[doc = reserve_doc!("VectorU8::<u8>")]
   #[inline]
-  pub fn reserve(&mut self, additional: usize) -> crate::Result<()> {
+  pub fn reserve(&mut self, additional: L) -> crate::Result<()> {
     self.0.reserve(additional)
   }
 
-  #[doc = reserve_exact_doc!("Vector::<u8>")]
+  #[doc = reserve_exact_doc!("VectorU8::<u8>")]
   #[inline]
-  pub fn reserve_exact(&mut self, additional: usize) -> crate::Result<()> {
+  pub fn reserve_exact(&mut self, additional: L) -> crate::Result<()> {
     self.0.reserve_exact(additional)
   }
 
   #[doc = set_len_doc!()]
   #[inline]
-  pub unsafe fn set_len(&mut self, new_len: usize) {
+  pub unsafe fn set_len(&mut self, new_len: L) {
     // SAFETY: Up to the caller
     unsafe {
       self.0.set_len(new_len);
     }
   }
 
-  #[doc = split_at_spare_mut!("Vector")]
+  #[doc = split_at_spare_mut!("VectorU8")]
   #[inline]
   pub fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
     self.0.split_at_spare_mut()
@@ -323,75 +358,106 @@ impl<T> Vector<T> {
 
   /// See [`SuffixGuardVectorMut`].
   #[inline]
-  pub fn suffix_pusher(&mut self) -> SuffixGuardVectorMut<'_, T> {
+  pub fn suffix_pusher(&mut self) -> SuffixGuardVectorMut<'_, L, T> {
     SuffixGuardVectorMut::from(self)
   }
 
-  #[doc = truncate_doc!("Vector", "[1, 2, 3]", "[1]")]
+  #[doc = swap_remove_doc!("VectorU8")]
   #[inline]
-  pub fn truncate(&mut self, new_len: usize) {
+  pub fn swap_remove(&mut self, index: L) -> Option<T> {
+    <[T] as LinearStorageSlice>::swap_remove(&mut self.0, index)
+  }
+
+  #[doc = truncate_doc!("VectorU8", "[1, 2, 3]", "[1]")]
+  #[inline]
+  pub fn truncate(&mut self, new_len: L) {
     let _rslt = <[T] as LinearStorageSlice>::truncate(&mut self.0, new_len);
   }
 }
 
-impl<T> Lease<[T]> for Vector<T> {
+impl<L, T> Lease<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn lease(&self) -> &[T] {
     self
   }
 }
 
-impl<T> Lease<Vector<T>> for Vector<T> {
+impl<L, T> Lease<Vector<L, T>> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
-  fn lease(&self) -> &Vector<T> {
+  fn lease(&self) -> &Vector<L, T> {
     self
   }
 }
 
-impl<T> LeaseMut<[T]> for Vector<T> {
+impl<L, T> LeaseMut<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn lease_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<T> LeaseMut<Vector<T>> for Vector<T> {
+impl<L, T> LeaseMut<Vector<L, T>> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
-  fn lease_mut(&mut self) -> &mut Vector<T> {
+  fn lease_mut(&mut self) -> &mut Vector<L, T> {
     self
   }
 }
 
-impl<T> AsMut<[T]> for Vector<T> {
+impl<L, T> AsMut<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn as_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<T> AsRef<[T]> for Vector<T> {
+impl<L, T> AsRef<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn as_ref(&self) -> &[T] {
     self
   }
 }
 
-impl<T> Borrow<[T]> for Vector<T> {
+impl<L, T> Borrow<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn borrow(&self) -> &[T] {
     self
   }
 }
 
-impl<T> BorrowMut<[T]> for Vector<T> {
+impl<L, T> BorrowMut<[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn borrow_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<T> Clone for Vector<T>
+impl<L, T> Clone for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: Clone,
 {
   #[inline]
@@ -407,7 +473,7 @@ where
   #[inline]
   fn clone_from(&mut self, source: &Self) {
     self.truncate(source.len());
-    let (init, tail) = source.split_at(self.len());
+    let (init, tail) = source.split_at(self.len().usize());
     self.clone_from_slice(init);
     if self.extend_from_cloneable_slice(tail).is_err() {
       unlikely_unreachable();
@@ -415,8 +481,9 @@ where
   }
 }
 
-impl<T> Debug for Vector<T>
+impl<L, T> Debug for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: Debug,
 {
   #[inline]
@@ -425,14 +492,20 @@ where
   }
 }
 
-impl<T> Default for Vector<T> {
+impl<L, T> Default for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl<T> Deref for Vector<T> {
+impl<L, T> Deref for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   type Target = [T];
 
   #[inline]
@@ -441,35 +514,65 @@ impl<T> Deref for Vector<T> {
   }
 }
 
-impl<T> DerefMut for Vector<T> {
+impl<L, T> DerefMut for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.0.as_slice_mut()
   }
 }
 
-impl From<String> for Vector<u8> {
+impl<L, T> From<Vector<L, T>> for Vec<T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
-  fn from(from: String) -> Self {
-    Vector::from_vec(from.into())
+  fn from(from: Vector<L, T>) -> Self {
+    from.0.into_vec()
   }
 }
 
-impl<T> From<Vec<T>> for Vector<T> {
+impl<L> TryFrom<String> for Vector<L, u8>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
   #[inline]
-  fn from(from: Vec<T>) -> Self {
-    Vector::from_vec(from)
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    Vector::from_vec(value.into())
   }
 }
 
-impl<T> From<Vector<T>> for Vec<T> {
+impl<L> TryFrom<Vector<L, u8>> for String
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
   #[inline]
-  fn from(from: Vector<T>) -> Self {
-    from.into_vec()
+  fn try_from(value: Vector<L, u8>) -> Result<Self, Self::Error> {
+    Ok(String::from_utf8(Vec::<u8>::from(value))?)
   }
 }
 
-impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
+impl<L0, L1, T> From<ShortBoxSlice<L0, T>> for Vector<L1, T>
+where
+  L0: LinearStorageLen,
+  L1: LinearStorageLen,
+{
+  #[inline]
+  fn from(value: ShortBoxSlice<L0, T>) -> Self {
+    Vector::from_vec(Vec::<T>::from(value)).unwrap_or_default()
+  }
+}
+
+impl<L, T> FromIterator<T> for Wrapper<crate::Result<Vector<L, T>>>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn from_iter<I>(iter: I) -> Self
   where
@@ -479,10 +582,16 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   }
 }
 
-impl<T> Eq for Vector<T> where T: Eq {}
-
-impl<T> Hash for Vector<T>
+impl<L, T> Eq for Vector<L, T>
 where
+  L: LinearStorageLen,
+  T: Eq,
+{
+}
+
+impl<L, T> Hash for Vector<L, T>
+where
+  L: LinearStorageLen,
   T: Hash,
 {
   #[inline]
@@ -494,7 +603,10 @@ where
   }
 }
 
-impl<T> IntoIterator for Vector<T> {
+impl<L, T> IntoIterator for Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   type Item = T;
   type IntoIter = IntoIter<T>;
 
@@ -504,7 +616,10 @@ impl<T> IntoIterator for Vector<T> {
   }
 }
 
-impl<'any, T> IntoIterator for &'any Vector<T> {
+impl<'any, L, T> IntoIterator for &'any Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   type Item = &'any T;
   type IntoIter = Iter<'any, T>;
 
@@ -514,7 +629,10 @@ impl<'any, T> IntoIterator for &'any Vector<T> {
   }
 }
 
-impl<'any, T> IntoIterator for &'any mut Vector<T> {
+impl<'any, L, T> IntoIterator for &'any mut Vector<L, T>
+where
+  L: LinearStorageLen,
+{
   type Item = &'any mut T;
   type IntoIter = IterMut<'any, T>;
 
@@ -524,8 +642,9 @@ impl<'any, T> IntoIterator for &'any mut Vector<T> {
   }
 }
 
-impl<T> Ord for Vector<T>
+impl<L, T> Ord for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: Ord,
 {
   #[inline]
@@ -534,8 +653,9 @@ where
   }
 }
 
-impl<T> PartialEq for Vector<T>
+impl<L, T> PartialEq for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq,
 {
   #[inline]
@@ -544,8 +664,9 @@ where
   }
 }
 
-impl<T, U> PartialEq<[U]> for Vector<T>
+impl<L, T, U> PartialEq<[U]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -553,8 +674,10 @@ where
     **self == *other
   }
 }
-impl<T, U> PartialEq<&[U]> for Vector<T>
+
+impl<L, T, U> PartialEq<&[U]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -562,8 +685,10 @@ where
     **self == **other
   }
 }
-impl<T, U> PartialEq<&mut [U]> for Vector<T>
+
+impl<L, T, U> PartialEq<&mut [U]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -572,8 +697,9 @@ where
   }
 }
 
-impl<T, U, const N: usize> PartialEq<[U; N]> for Vector<T>
+impl<L, T, U, const N: usize> PartialEq<[U; N]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -581,8 +707,10 @@ where
     **self == *other
   }
 }
-impl<T, U, const N: usize> PartialEq<&[U; N]> for Vector<T>
+
+impl<L, T, U, const N: usize> PartialEq<&[U; N]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -590,8 +718,10 @@ where
     **self == **other
   }
 }
-impl<T, U, const N: usize> PartialEq<&mut [U; N]> for Vector<T>
+
+impl<L, T, U, const N: usize> PartialEq<&mut [U; N]> for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialEq<U>,
 {
   #[inline]
@@ -600,8 +730,9 @@ where
   }
 }
 
-impl<T> PartialOrd for Vector<T>
+impl<L, T> PartialOrd for Vector<L, T>
 where
+  L: LinearStorageLen,
   T: PartialOrd,
 {
   #[inline]
@@ -630,8 +761,21 @@ where
   }
 }
 
-impl<T> TryFrom<&[T]> for Vector<T>
+impl<L, T> TryFrom<Vec<T>> for Vector<L, T>
 where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
+    Self::from_vec(value)
+  }
+}
+
+impl<L, T> TryFrom<&[T]> for Vector<L, T>
+where
+  L: LinearStorageLen,
   T: Clone,
 {
   type Error = crate::Error;
@@ -642,7 +786,10 @@ where
   }
 }
 
-impl core::fmt::Write for Vector<u8> {
+impl<L> core::fmt::Write for Vector<L, u8>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
     self.extend_from_copyable_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
@@ -650,7 +797,10 @@ impl core::fmt::Write for Vector<u8> {
 }
 
 #[cfg(feature = "std")]
-impl std::io::Write for Vector<u8> {
+impl<L> std::io::Write for Vector<L, u8>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
     self
@@ -661,12 +811,12 @@ impl std::io::Write for Vector<u8> {
 
   #[inline]
   fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
-    let mut fun = || {
-      let len: usize = bufs.iter().map(|el| el.len()).sum();
-      self.reserve(len)?;
-      self.extend_from_copyable_slices(bufs)
-    };
-    fun().map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))
+    Ok(
+      self
+        .extend_from_copyable_slices(bufs)
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))?
+        .usize(),
+    )
   }
 
   #[inline]
@@ -683,58 +833,197 @@ impl std::io::Write for Vector<u8> {
   }
 }
 
-struct Inner<T>(Vec<T>);
+#[expect(clippy::repr_packed_without_abi, reason = "not intended for FFI")]
+#[repr(packed)]
+struct Inner<L, T>
+where
+  L: LinearStorageLen,
+{
+  ptr: NonNull<u8>,
+  cap: L,
+  len: L,
+  phantom: PhantomData<T>,
+}
 
-impl<T> LinearStorage<T> for Inner<T> {
-  type Len = usize;
+impl<L, T> Inner<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn with_capacity(capacity: L) -> crate::Result<Self> {
+    Inner::from_vec(Vec::with_capacity(capacity.usize()))
+  }
+
+  #[inline]
+  fn from_vec(mut vec: Vec<T>) -> crate::Result<Self> {
+    if L::from_usize(vec.capacity()).is_err() {
+      vec = vec.into_boxed_slice().into_vec();
+    }
+    let cap = L::from_usize(vec.capacity()).map_err(|_err| VectorError::CapacityOverflow)?;
+    let len = L::from_usize(vec.len()).map_err(|_err| VectorError::CapacityOverflow)?;
+    let (ptr, _, _) = vec.into_parts();
+    Ok(Self { ptr: ptr.cast(), cap, len, phantom: PhantomData })
+  }
+
+  #[inline]
+  const fn new() -> Self {
+    Self {
+      ptr: NonNull::<T>::dangling().cast::<u8>(),
+      cap: L::ZERO,
+      len: L::ZERO,
+      phantom: PhantomData,
+    }
+  }
+
+  #[inline]
+  fn into_vec(self) -> Vec<T> {
+    let this = ManuallyDrop::new(self);
+    // SAFETY: Inner parameters are always valid
+    unsafe { Vec::from_parts(this.ptr.cast(), this.len.usize(), this.cap.usize()) }
+  }
+
+  #[inline]
+  fn to_vec_mut<U>(
+    &mut self,
+    cb: impl FnOnce(&mut Vec<T>) -> crate::Result<U>,
+  ) -> crate::Result<U> {
+    struct Guard<'any, L: LinearStorageLen, T> {
+      is_ok: &'any mut bool,
+      target: &'any mut Inner<L, T>,
+      tmp_vec: Vec<T>,
+    }
+    impl<L, T> Drop for Guard<'_, L, T>
+    where
+      L: LinearStorageLen,
+    {
+      #[inline]
+      fn drop(&mut self) {
+        let tmp_vec_len = self.tmp_vec.len();
+        let tmp_vec_cap = self.tmp_vec.capacity();
+        if let (Ok(len_l), Ok(cap_l)) = (L::from_usize(tmp_vec_len), L::from_usize(tmp_vec_cap)) {
+          let (ptr, _, _) = mem::take(&mut self.tmp_vec).into_parts();
+          self.target.cap = cap_l;
+          self.target.len = len_l;
+          self.target.ptr = ptr.cast();
+          *self.is_ok = true;
+        }
+      }
+    }
+
+    let cap = self.cap;
+    let len = self.len;
+    let ptr = self.ptr;
+    self.cap = L::ZERO;
+    self.len = L::ZERO;
+    self.ptr = NonNull::<T>::dangling().cast::<u8>();
+    // SAFETY: Inner parameters are always valid
+    let tmp_vec = unsafe { Vec::from_parts(ptr.cast(), len.usize(), cap.usize()) };
+    let mut is_ok = false;
+    let rslt = {
+      let mut guard = Guard { is_ok: &mut is_ok, target: self, tmp_vec };
+      cb(&mut guard.tmp_vec)
+    };
+    if !is_ok {
+      return Err(VectorError::InvalidStdConversion.into());
+    }
+    rslt
+  }
+}
+
+impl<L, T> LinearStorage<T> for Inner<L, T>
+where
+  L: LinearStorageLen,
+{
+  type Len = L;
   type Slice = [T];
 
   #[inline]
   fn as_ptr(&self) -> *const T {
-    self.0.as_ptr()
+    self.ptr.as_ptr().cast()
   }
 
   #[inline]
   fn capacity(&self) -> Self::Len {
-    self.0.capacity()
+    self.cap
   }
 
   #[inline]
   fn len(&self) -> Self::Len {
-    self.0.len()
+    self.len
   }
 }
 
-impl<T> LinearStorageMut<T> for Inner<T> {
+impl<L, T> LinearStorageMut<T> for Inner<L, T>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn as_ptr_mut(&mut self) -> *mut T {
-    self.0.as_mut_ptr()
+    self.ptr.as_ptr().cast()
   }
 
   #[inline]
   fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
-    self.0.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    Ok(())
+    let additional_usize = additional.usize();
+    let len_usize = self.len().usize();
+    self.to_vec_mut(|vec| {
+      vec.try_reserve(additional_usize).map_err(|_err| VectorError::ReserveOverflow {
+        additional: additional_usize.try_into().unwrap_or(u16::MAX),
+        curr: len_usize.try_into().unwrap_or(u32::MAX),
+        max: L::UPPER_BOUND_USIZE.try_into().unwrap_or(u32::MAX),
+      })?;
+      Ok(())
+    })
   }
 
   #[inline]
   fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()> {
-    self.0.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    Ok(())
+    let additional_usize = additional.usize();
+    let len_usize = self.len().usize();
+    self.to_vec_mut(|vec| {
+      vec.try_reserve_exact(additional_usize).map_err(|_err| VectorError::ReserveOverflow {
+        additional: additional_usize.try_into().unwrap_or(u16::MAX),
+        curr: len_usize.try_into().unwrap_or(u32::MAX),
+        max: L::UPPER_BOUND_USIZE.try_into().unwrap_or(u32::MAX),
+      })?;
+      Ok(())
+    })
   }
 
   #[inline]
   unsafe fn set_len(&mut self, new_len: Self::Len) {
-    // SAFETY: Up to the caller
-    unsafe { self.0.set_len(new_len) }
+    self.len = new_len;
   }
 }
 
-impl<T> Default for Inner<T> {
+impl<L, T> Default for Inner<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
   fn default() -> Self {
-    Self(Vec::new())
+    Self::new()
   }
 }
+
+impl<L, T> Drop for Inner<L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn drop(&mut self) {
+    let mut this = Vec::new();
+    let _rslt = self.to_vec_mut(|el| {
+      this = mem::take(el);
+      Ok(())
+    });
+  }
+}
+
+// SAFETY: there is no immutable method internally operating mutable modifications
+unsafe impl<L, T: Send> Send for Inner<L, T> where L: LinearStorageLen {}
+// SAFETY: there is no immutable method internally operating mutable modifications
+unsafe impl<L, T: Sync> Sync for Inner<L, T> where L: LinearStorageLen {}
 
 #[cfg(kani)]
 mod kani {
@@ -781,8 +1070,9 @@ mod serde {
     de::{self, SeqAccess, Visitor},
   };
 
-  impl<'de, T> Deserialize<'de> for Vector<T>
+  impl<'de, L, T> Deserialize<'de> for Vector<L, T>
   where
+    L: LinearStorageLen,
     T: Deserialize<'de>,
   {
     #[inline]
@@ -790,13 +1080,14 @@ mod serde {
     where
       D: Deserializer<'de>,
     {
-      struct LocalVisitor<T>(PhantomData<T>);
+      struct LocalVisitor<L, T>(PhantomData<(L, T)>);
 
-      impl<'de, T> Visitor<'de> for LocalVisitor<T>
+      impl<'de, L, T> Visitor<'de> for LocalVisitor<L, T>
       where
+        L: LinearStorageLen,
         T: Deserialize<'de>,
       {
-        type Value = Vector<T>;
+        type Value = Vector<L, T>;
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -808,23 +1099,30 @@ mod serde {
         where
           A: SeqAccess<'de>,
         {
-          let mut this = Vector::<T>::new();
+          let mut this = Vector::<L, T>::new();
+          if let Some(hint) = seq.size_hint() {
+            let _rslt = this.reserve(L::from_usize(hint).unwrap_or_default());
+          }
           while let Some(elem) = seq.next_element()? {
             this.push(elem).map_err(|_err| {
-              de::Error::invalid_length(this.len(), &"vector need more data to be constructed")
+              de::Error::invalid_length(
+                this.len().usize(),
+                &"vector need more data to be constructed",
+              )
             })?;
           }
           Ok(this)
         }
       }
 
-      deserializer.deserialize_seq(LocalVisitor::<T>(PhantomData))
+      deserializer.deserialize_seq(LocalVisitor::<L, T>(PhantomData))
     }
   }
 
-  impl<T> Serialize for Vector<T>
+  impl<L, T> Serialize for Vector<L, T>
   where
     usize: LinearStorageLen,
+    L: LinearStorageLen,
     T: Serialize,
   {
     #[inline]

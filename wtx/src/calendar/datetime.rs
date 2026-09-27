@@ -13,6 +13,11 @@ use crate::{
 use core::fmt::{Debug, Display, Formatter};
 
 /// ISO-8601 representation with timezones.
+//
+// With a considerable and probably unworthy effort it is possible to save 2 bytes.
+//
+// | xxxxxxx | xxxxxxxxxxxxxxxx | x            | xxxxxxxxx       | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxx | xxxxxx | xxxxx |
+// | unused  | year             | is leap year | day of the year | nanosecond                     | second | minute | hour  |
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Datetime<TZ> {
   date: Date,

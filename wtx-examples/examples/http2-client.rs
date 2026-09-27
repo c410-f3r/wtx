@@ -4,7 +4,7 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   http::{HttpClient, HttpRecvParams, ReqBuilder},
   http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::from_utf8_basic,
@@ -24,7 +24,7 @@ async fn main() -> wtx::Result<()> {
   let (frame_reader, http2) = Http2::connect(hb, hrp, tcr.tls_stream.into_split()?).await?;
   let _jh = tokio::spawn(frame_reader);
   let res = http2
-    .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(uri.to_ref()).into_request())
+    .send_req_recv_res(&mut VectorUsize::new(), ReqBuilder::get(uri.to_ref()).into_request())
     .await?;
   println!("{}", from_utf8_basic(&res.msg_data.body)?);
   http2.send_go_away(Http2ErrorCode::NoError).await;

@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::{fs, process};
 use wtx::{
-  collections::Vector,
+  collections::VectorUsize,
   tls::{HandshakePath, MaxFragmentLength, NamedGroup, ProtocolVersion, SignatureScheme},
 };
 
@@ -9,27 +9,27 @@ const BOGO_NACK: i32 = 89;
 
 #[derive(Debug)]
 pub struct Options {
-  pub certs_pem: Vector<String>,
+  pub certs_pem: VectorUsize<String>,
   pub expect_curve_id: Option<NamedGroup>,
-  pub expect_handshake_kind: Option<Vector<HandshakePath>>,
+  pub expect_handshake_kind: Option<VectorUsize<HandshakePath>>,
   pub expect_selected_credential: Option<isize>,
   pub export_keying_material: usize,
   pub export_keying_material_context: String,
   pub export_keying_material_context_used: bool,
   pub export_keying_material_label: String,
   pub export_traffic_secrets: bool,
-  pub groups: Option<Vector<NamedGroup>>,
+  pub groups: Option<VectorUsize<NamedGroup>>,
   pub has_default_cert: bool,             // Not a cfg
   pub has_seen_new_x509_credential: bool, // Not a cfg
   pub host_name: String,
   pub is_client: bool,
-  pub keys_pem: Vector<String>,
+  pub keys_pem: VectorUsize<String>,
   pub max_fragment: Option<MaxFragmentLength>,
   pub offer_no_client_cas: bool,
   pub on_initial_expect_curve_id: Option<NamedGroup>,
   pub only_write_one_byte_after_handshake: bool,
   pub port: u16,
-  pub protocols: Vector<String>,
+  pub protocols: VectorUsize<String>,
   pub queue_data: bool,
   pub read_size: usize,
   pub reject_alpn: bool,
@@ -38,7 +38,7 @@ pub struct Options {
   pub send_key_update: bool,
   pub shim_id: u64,
   pub shut_down_after_handshake: bool,
-  pub signing_prefs: Vector<SignatureScheme>,
+  pub signing_prefs: VectorUsize<SignatureScheme>,
   pub trusted_cert_file: String,
   pub use_sni: bool,
   pub verify_peer: bool,
@@ -48,7 +48,7 @@ pub struct Options {
 impl Default for Options {
   fn default() -> Self {
     Self {
-      certs_pem: Vector::new(),
+      certs_pem: VectorUsize::new(),
       expect_curve_id: None,
       expect_handshake_kind: None,
       export_keying_material: 0,
@@ -62,13 +62,13 @@ impl Default for Options {
       has_seen_new_x509_credential: false,
       host_name: "example.com".into(),
       is_client: true,
-      keys_pem: Vector::new(),
+      keys_pem: VectorUsize::new(),
       max_fragment: None,
       offer_no_client_cas: false,
       on_initial_expect_curve_id: None,
       only_write_one_byte_after_handshake: false,
       port: 0,
-      protocols: Vector::new(),
+      protocols: VectorUsize::new(),
       queue_data: false,
       read_size: 512,
       reject_alpn: false,
@@ -77,7 +77,7 @@ impl Default for Options {
       send_key_update: false,
       shim_id: 0,
       shut_down_after_handshake: false,
-      signing_prefs: Vector::new(),
+      signing_prefs: VectorUsize::new(),
       trusted_cert_file: String::new(),
       use_sni: false,
       verify_peer: false,
@@ -188,14 +188,15 @@ fn check_implemented_arguments(
       let Ok(group) = NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()) else {
         return true;
       };
-      options.groups.get_or_insert(Vector::new()).push(group).unwrap();
+      options.groups.get_or_insert(VectorUsize::new()).push(group).unwrap();
     }
     "-expect-curve-id" => {
       options.expect_curve_id =
         Some(NamedGroup::try_from(args.next().unwrap().parse::<u16>().unwrap()).unwrap());
     }
     "-expect-no-hrr" => {
-      options.expect_handshake_kind = Some(Vector::from_iterator([HandshakePath::Full]).unwrap());
+      options.expect_handshake_kind =
+        Some(VectorUsize::from_iterator([HandshakePath::Full]).unwrap());
     }
     "-expect-selected-credential" => {
       options.expect_selected_credential = Some(args.next().unwrap().parse().unwrap());
@@ -363,8 +364,8 @@ fn pkc8_pem_from_pem_file(path: &str) -> String {
   fs::read_to_string(path).unwrap()
 }
 
-fn split_protocols(protos: &str) -> Vector<String> {
-  let mut ret = Vector::new();
+fn split_protocols(protos: &str) -> VectorUsize<String> {
+  let mut ret = VectorUsize::new();
   let mut idx = 0;
   while idx < protos.len() {
     let len: usize = protos.as_bytes().get(idx).copied().unwrap().into();

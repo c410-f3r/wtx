@@ -1,5 +1,5 @@
 use crate::{
-  collections::Vector,
+  collections::VectorUsize,
   misc::{Lease, LeaseMut},
 };
 
@@ -25,16 +25,16 @@ impl Lease<[u8]> for _SmtpDecodeWrapper<'_> {
 /// Struct used for encoding TLS elements.
 #[derive(Debug)]
 pub(crate) struct _SmtpEncodeWrapper<'any> {
-  buffer: &'any mut Vector<u8>,
+  buffer: &'any mut VectorUsize<u8>,
 }
 
 impl<'any> _SmtpEncodeWrapper<'any> {
-  pub(crate) const fn _from_buffer(buffer: &'any mut Vector<u8>) -> Self {
+  pub(crate) const fn _from_buffer(buffer: &'any mut VectorUsize<u8>) -> Self {
     Self { buffer }
   }
 
   #[inline]
-  pub(crate) const fn _buffer(&mut self) -> &mut Vector<u8> {
+  pub(crate) const fn _buffer(&mut self) -> &mut VectorUsize<u8> {
     self.buffer
   }
 }
