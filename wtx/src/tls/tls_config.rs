@@ -5,8 +5,8 @@ use crate::{
   },
   misc::{Lease, LeaseMut},
   tls::{
-    Alpn, CipherSuite, MaxFragmentLength, NamedGroup, PlaintextCtx, PublicKeys, ServerNameList,
-    TlsCtxSkInput, TlsCtxSkLoader, TrustedCtx, UnverifiedCtx,
+    Alpn, CipherSuite, MaxFragmentLength, PlaintextCtx, PublicKeys, ServerNameList, TlsCtxSkInput,
+    TlsCtxSkLoader, TrustedCtx, UnverifiedCtx,
     protocol::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
@@ -403,7 +403,7 @@ where
       server_name: None,
       signature_algorithms: SignatureAlgorithms::default(),
       signature_algorithms_cert: Some(SignatureAlgorithmsCert::default()),
-      supported_groups: SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::PRIORITY)),
+      supported_groups: SupportedGroups::default(),
       trust_anchors: ShortBoxSliceU8::default(),
       unique_signature_algorithms: false,
     }

@@ -67,6 +67,7 @@ pub fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
       TlsError::UnknownHandshakeTy(_) => ":UNEXPECTED_MESSAGE:",
       TlsError::UnknownRecordContentType(_) => ":BAD_DECRYPT:",
       TlsError::UnofferedExtension => ":UNEXPECTED_EXTENSION:",
+      TlsError::UsageOfDeprecatedPKCS1 => ":NO_COMMON_SIGNATURE_ALGORITHMS:",
       TlsError::WrongAlert => ":BAD_ALERT:",
       _ => ":FIXME:",
     },

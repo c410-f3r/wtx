@@ -87,13 +87,24 @@ fn manage_params<A, DRSR, TP>(
 ) -> Result<(), A::Error>
 where
   A: Api,
+  A::Error: From<crate::Error>,
   TP: LeaseMut<HttpParams>,
 {
   let tp = pkgs_aux.tp.lease_mut();
   let params = &mut *tp.ext_params_mut().0;
-  let HttpReqParams { host, method, mime, msg_buffer, user_agent_custom, user_agent_default } =
-    params;
+  let HttpReqParams {
+    content_length,
+    host,
+    method,
+    mime,
+    msg_buffer,
+    user_agent_custom,
+    user_agent_default,
+  } = params;
   let mut rb = ReqBuilder::new(*method, msg_buffer);
+  if *content_length && method.is_mutable() && bytes_len > 0 {
+    let _ = rb.content_length(bytes_len.try_into().map_err(crate::Error::from)?)?;
+  }
   if *host {
     let _ = rb.host::<()>(None)?;
   }
@@ -127,6 +138,7 @@ where
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, resp_params) = tp.ext_params_mut();
   let HttpReqParams {
+    content_length: _,
     msg_buffer,
     host: _,
     method: _,
@@ -152,6 +164,8 @@ where
   Ok(())
 }
 
+// HTTP body vector is used for temporary encoding while `bytes` or `bytes_buffer` are used for
+// sending.
 async fn send_bytes<A, DRSR, SW, TCX, TP>(
   bytes: Option<&[u8]>,
   client: &mut Http2<SW, TCX, true>,
@@ -168,6 +182,7 @@ where
     pkgs_aux;
   {
     let HttpReqParams {
+      content_length: _,
       method,
       msg_buffer,
       host: _,
@@ -175,12 +190,13 @@ where
       user_agent_custom: _,
       user_agent_default: _,
     } = tp.lease_mut().ext_params_mut().0;
-    let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
-    log_http_req::<_, TP>(local_bytes0, *log_data, *method, client, &msg_buffer.uri);
-    manage_params(local_bytes0.len(), pkgs_aux)?;
+    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
+    log_http_req::<_, TP>(local_bytes, *log_data, *method, client, &msg_buffer.uri);
+    manage_params(local_bytes.len(), pkgs_aux)?;
   }
   {
     let HttpReqParams {
+      content_length: _,
       method,
       msg_buffer,
       host: _,
@@ -188,8 +204,8 @@ where
       user_agent_custom: _,
       user_agent_default: _,
     } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
-    let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
-    let rb = ReqBuilder::new(*method, (local_bytes1, &msg_buffer.headers, msg_buffer.uri.to_ref()));
+    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
+    let rb = ReqBuilder::new(*method, (local_bytes, &msg_buffer.headers, msg_buffer.uri.to_ref()));
     let rslt = client.send_req(&mut msg_buffer.body, rb.into_request()).await?;
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(rslt)
@@ -218,6 +234,7 @@ where
   );
   manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
   let HttpReqParams {
+    content_length: _,
     method,
     msg_buffer,
     host: _,

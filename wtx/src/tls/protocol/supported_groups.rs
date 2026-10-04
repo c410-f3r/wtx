@@ -56,3 +56,10 @@ impl Encode<TlsCc> for SupportedGroups {
     Ok(())
   }
 }
+
+impl Default for SupportedGroups {
+  #[inline]
+  fn default() -> Self {
+    SupportedGroups::new(ArrayVectorCopy::from_array(NamedGroup::PRIORITY))
+  }
+}

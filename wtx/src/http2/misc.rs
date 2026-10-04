@@ -290,6 +290,13 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
+  let max_headers_len = *Usize::from(hp.max_headers_len());
+  if has_hf_overflow(max_headers_len, msg_buffer, nrb, rrb_body_start) {
+    return Err(crate::Error::Http2ErrorGoAway(
+      Http2ErrorCode::FrameSizeError,
+      Http2Error::VeryLargeHeadersLen,
+    ));
+  }
   msg_buffer.body.extend_from_copyable_slice(nrb.current())?;
 
   'continuation_frames: {
@@ -302,6 +309,12 @@ where
       let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
+      }
+      if has_hf_overflow(max_headers_len, msg_buffer, nrb, rrb_body_start) {
+        return Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::FrameSizeError,
+          Http2Error::VeryLargeHeadersLen,
+        ));
       }
       msg_buffer.body.extend_from_copyable_slice(nrb.current())?;
       if frame_fi.cf.has_eoh() {
@@ -449,4 +462,15 @@ where
   });
   stream_writer.write_all_vectored(&array).await?;
   Ok(())
+}
+
+#[inline]
+fn has_hf_overflow(
+  max_headers_len: usize,
+  msg_buffer: &MsgBufferString,
+  nrb: &BufStreamReader,
+  rrb_body_start: usize,
+) -> bool {
+  let diff = msg_buffer.body.len().wrapping_sub(rrb_body_start);
+  diff.saturating_add(nrb.current().len()) >= max_headers_len
 }

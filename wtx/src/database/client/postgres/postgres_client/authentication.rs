@@ -22,6 +22,8 @@ use crate::{
   tls::{TlsCtx, TlsServerEndPoint, TlsStream},
 };
 
+const MAX_SCRAM_ITERATIONS: u32 = 1_000_000;
+
 impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
   S: Stream,
@@ -240,6 +242,9 @@ where
 }
 
 fn salted_password(len: u32, salt: &[u8], str: &str) -> crate::Result<[u8; 32]> {
+  if len == 0 || len > MAX_SCRAM_ITERATIONS {
+    return Err(PostgresError::ScramIterationOverflow.into());
+  }
   let mut array: [u8; 32] = {
     let mut hmac = HmacSha256Global::from_key(str.as_bytes())?;
     hmac.update(salt);

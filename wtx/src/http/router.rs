@@ -121,7 +121,10 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
             return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
           }
           CheckSearchRowRslt::IncompleteMatch(_) => {}
-          CheckSearchRowRslt::Mismatch => cold_path(),
+          CheckSearchRowRslt::Mismatch => {
+            cold_path();
+            return Err(RouterError::FindMismatch.into());
+          }
         }
       } else {
         let Some(edge) = edges.iter().find(|el| el.first_byte == curr_ident_first) else {
@@ -184,9 +187,17 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
       RowTy::Param => {
         // For some reason `memchr` degrades the performance if `target-cpu=native`.
         let (param, rest) = if let Some(param_end_idx) = bytes_pos1(*curr_route, b'/') {
+          if param_end_idx == 0 {
+            cold_path();
+            return CheckSearchRowRslt::Mismatch;
+          }
           // SAFETY: the index has just been checked
           unsafe { curr_route.split_at_checked(param_end_idx).unwrap_unchecked() }
         } else {
+          if curr_route.is_empty() {
+            cold_path();
+            return CheckSearchRowRslt::Mismatch;
+          }
           (*curr_route, &[][..])
         };
         let begin_idx = route_len.wrapping_sub(curr_route.len() as u8);
@@ -266,8 +277,7 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
           Self::add_row((local_route, local_ty), common_prefix_len, is_single, &mut row_idx, rows)?;
           return Ok(row_idx);
         }
-        // Unreachable because all routes must start with '/'
-        CompareRowRslt::Unmatched => return Ok(row_idx),
+        CompareRowRslt::Unmatched => return Err(RouterError::AddErrInvalidStart.into()),
       }
     } else {
       let row_route = from_utf8_basic(local_route)?.try_into()?;

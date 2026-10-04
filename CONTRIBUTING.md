@@ -20,7 +20,7 @@ To accelerate and facilitate code review, PRs should contain a minimal descripti
 
 The use of `unsafe` is discourage but when necessary, consider implementing MIRI tests to verify memory safety guarantees. If the introduction of `unsafe` enhances performance, also consider providing `#[bench]` benchmarks.
 
-OPTIONAL: Share a funny or awesome image, music, video or short history.
+OPTIONAL: Share a funny/awesome image, music, video or history.
 
 ## Commit's Description
 

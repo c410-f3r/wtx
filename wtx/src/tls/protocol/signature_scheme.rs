@@ -11,6 +11,10 @@ use crate::{
 /// Signature Scheme
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SignatureScheme {
+  /// `RsaPkcs1Sha256`
+  RsaPkcs1Sha256 = 0x0401,
+  /// `RsaPkcs1Sha384`
+  RsaPkcs1Sha384 = 0x0501,
   /// `EcdsaSecp256r1Sha256`
   #[default]
   EcdsaSecp256r1Sha256 = 0x0403,
@@ -34,9 +38,11 @@ impl SignatureScheme {
     Self::EcdsaSecp256r1Sha256,
     Self::EcdsaSecp384r1Sha384,
     Self::RsaPssPssSha256,
-    Self::RsaPssPssSha384,
     Self::RsaPssRsaeSha256,
+    Self::RsaPssPssSha384,
     Self::RsaPssRsaeSha384,
+    Self::RsaPkcs1Sha256,
+    Self::RsaPkcs1Sha384,
   ];
 
   /// Used to verify existing certificates. For example, if a client wants to negotiate only with
@@ -50,7 +56,10 @@ impl SignatureScheme {
       Self::Ed25519 => KeyTy::Ed25519,
       Self::RsaPssPssSha256 => KeyTy::RsaPssSha256,
       Self::RsaPssPssSha384 => KeyTy::RsaPssSha384,
-      Self::RsaPssRsaeSha256 | Self::RsaPssRsaeSha384 => KeyTy::RsaPkcs1,
+      Self::RsaPkcs1Sha256
+      | Self::RsaPkcs1Sha384
+      | Self::RsaPssRsaeSha256
+      | Self::RsaPssRsaeSha384 => KeyTy::RsaPkcs1,
     }
   }
 
@@ -58,6 +67,8 @@ impl SignatureScheme {
   #[inline]
   pub(crate) const fn handshake_st(self) -> SignatureTy {
     match self {
+      Self::RsaPkcs1Sha256 => SignatureTy::RsaPkcs1Sha256,
+      Self::RsaPkcs1Sha384 => SignatureTy::RsaPkcs1Sha384,
       Self::EcdsaSecp256r1Sha256 => SignatureTy::EcdsaP256,
       Self::EcdsaSecp384r1Sha384 => SignatureTy::EcdsaP384,
       Self::Ed25519 => SignatureTy::Ed25519,
@@ -66,8 +77,14 @@ impl SignatureScheme {
     }
   }
 
+  /// Is this variant a legacy PKCS1?
+  #[inline]
+  pub(crate) const fn is_rsa_pkcs1(self) -> bool {
+    matches!(self, Self::RsaPkcs1Sha256 | Self::RsaPkcs1Sha384)
+  }
+
   pub(crate) const fn len() -> usize {
-    7
+    9
   }
 }
 
@@ -90,6 +107,8 @@ impl From<SignatureScheme> for u16 {
   #[inline]
   fn from(value: SignatureScheme) -> Self {
     match value {
+      SignatureScheme::RsaPkcs1Sha256 => 0x0401,
+      SignatureScheme::RsaPkcs1Sha384 => 0x0501,
       SignatureScheme::EcdsaSecp256r1Sha256 => 0x0403,
       SignatureScheme::EcdsaSecp384r1Sha384 => 0x0503,
       SignatureScheme::RsaPssRsaeSha256 => 0x0804,
@@ -107,6 +126,8 @@ impl TryFrom<u16> for SignatureScheme {
   #[inline]
   fn try_from(value: u16) -> crate::Result<Self> {
     Ok(match value {
+      0x0401 => SignatureScheme::RsaPkcs1Sha256,
+      0x0501 => SignatureScheme::RsaPkcs1Sha384,
       0x0403 => SignatureScheme::EcdsaSecp256r1Sha256,
       0x0503 => SignatureScheme::EcdsaSecp384r1Sha384,
       0x0804 => SignatureScheme::RsaPssRsaeSha256,

@@ -330,6 +330,7 @@ fn check_unimplemented_arguments(arg: &str) {
     | "-expect-no-session-id" // Resumption is not supported
     | "-expect-not-resumable-across-names"
     | "-expect-peer-cert-file"
+    | "-expect-peer-signature-algorithm"
     | "-expect-peer-verify-pref"
     | "-expect-session-miss" // Resumption is not supported
     | "-expect-ticket-supports-early-data"

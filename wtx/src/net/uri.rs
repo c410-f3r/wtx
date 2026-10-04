@@ -442,7 +442,7 @@ where
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if self.uri.lease().len() != usize::from(self.initial_len) {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::UriPathCanNotBeOverwritten);
     }
     let prev = self.uri.lease().len();
     self.uri.write_fmt(args)?;
@@ -463,7 +463,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::UriQueryCanNotBeOverwritten);
     }
     QueryWriter { string: &mut self.uri }.do_write::<_, true>(param, value)
   }
@@ -479,7 +479,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::UriQueryCanNotBeOverwritten);
     }
     QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, ["", ",", ""])
   }
@@ -496,7 +496,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::UriQueryCanNotBeOverwritten);
     }
     QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, [begin, sep, end])
   }

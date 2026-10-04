@@ -142,7 +142,7 @@ func TestNames(t *testing.T) {
 		"JDK11",
 
 		// Unsupported signatures
-		"ECDSA_P521", "RSA_PKCS1", "RSA_PSS_SHA512",
+		"ECDSA_P521", "*RSA_PKCS1_SHA256_LEGACY*", "RSA_PKCS1_SHA512", "RSA_PSS_SHA512",
 		// Unsupported key exchanges
 		"Kyber", "P-521",
 

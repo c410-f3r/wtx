@@ -1,5 +1,5 @@
 use crate::{
-  collections::VectorUsize,
+  collections::VectorU16,
   http::HttpError,
   misc::{Lease, LeaseMut, SensitiveBytes, TryArithmetic as _},
 };
@@ -35,7 +35,7 @@ impl Trailers {
 /// Internal operations are usually faster without sensitive content or trailers. If trailers
 /// are necessary, then they should be preferably placed at the end.
 pub struct Headers {
-  bytes: VectorUsize<u8>,
+  bytes: VectorU16<u8>,
   headers: u16,
   sensitive_headers: u16,
   trailers: Trailers,
@@ -45,7 +45,7 @@ impl Headers {
   /// Empty instance
   #[inline]
   pub const fn new() -> Self {
-    Self { bytes: VectorUsize::new(), headers: 0, sensitive_headers: 0, trailers: Trailers::None }
+    Self { bytes: VectorU16::new(), headers: 0, sensitive_headers: 0, trailers: Trailers::None }
   }
 
   /// Pre-allocates bytes according to the number of passed elements.
@@ -54,7 +54,7 @@ impl Headers {
   #[inline]
   pub fn with_capacity(cap: usize) -> crate::Result<Self> {
     Ok(Self {
-      bytes: VectorUsize::with_capacity(cap)?,
+      bytes: VectorU16::with_capacity(cap.try_into()?)?,
       headers: 0,
       sensitive_headers: 0,
       trailers: Trailers::None,
@@ -64,7 +64,7 @@ impl Headers {
   /// The amount of bytes used by all of the headers
   #[inline]
   pub fn bytes_len(&self) -> usize {
-    self.bytes.len()
+    self.bytes.len().into()
   }
 
   /// Clears the internal buffer "erasing" all previously inserted elements.
@@ -159,7 +159,7 @@ impl Headers {
     Self::manage_sensitive_content_deletion(&mut header, &mut self.sensitive_headers);
     self.manage_trailers_deletion(begin_idx);
     self.headers = self.headers.wrapping_sub(1);
-    self.bytes.truncate(begin_idx.into());
+    self.bytes.truncate(begin_idx);
     Some(())
   }
 
@@ -173,7 +173,7 @@ impl Headers {
   /// ```
   #[inline(always)]
   pub fn push_from_fmt(&mut self, header: Header<&str, Arguments<'_>>) -> crate::Result<()> {
-    let begin_idx: u16 = self.bytes.len().try_into()?;
+    let begin_idx = self.bytes.len();
     let hm = HeaderMetadata::from_header(&header.strip_value())?;
     let mut write_fun = || {
       let _ = self.bytes.extend_from_copyable_slices([&hm.0, header.name.as_bytes()])?;
@@ -192,7 +192,7 @@ impl Headers {
       crate::Result::Ok(())
     };
     if let Err(err) = write_fun() {
-      self.bytes.truncate(begin_idx.into());
+      self.bytes.truncate(begin_idx);
       return Err(err);
     }
     self.manage_sensitive_content_inclusion(header.is_sensitive);
@@ -215,7 +215,7 @@ impl Headers {
     V: IntoIterator<Item = &'kv str>,
     V::IntoIter: Clone,
   {
-    let begin_idx: u16 = self.bytes.len().try_into()?;
+    let begin_idx = self.bytes.len();
     let hm = HeaderMetadata::from_header(&header.strip_value())?;
     let iter = header.value.into_iter();
     let (additional, _) = Self::encoded_header_len(header.name, iter.clone())?;
@@ -230,7 +230,7 @@ impl Headers {
       crate::Result::Ok(())
     };
     if let Err(err) = write_fun() {
-      self.bytes.truncate(begin_idx.into());
+      self.bytes.truncate(begin_idx);
       return Err(err);
     }
     self.manage_sensitive_content_inclusion(header.is_sensitive);
@@ -263,7 +263,7 @@ impl Headers {
   /// Reserves capacity for at least `cap` more bytes to be inserted.
   #[inline(always)]
   pub fn reserve(&mut self, additional: usize) -> crate::Result<()> {
-    self.bytes.reserve(additional)?;
+    self.bytes.reserve(additional.try_into()?)?;
     Ok(())
   }
 
@@ -274,9 +274,9 @@ impl Headers {
   }
 
   #[inline]
-  fn adjust_after_write(&mut self, begin_idx: u16, before_idx: usize) -> Result<(), crate::Error> {
+  fn adjust_after_write(&mut self, begin_idx: u16, before_idx: u16) -> Result<(), crate::Error> {
     let after_idx = self.bytes.len();
-    let value_len: u16 = after_idx.wrapping_sub(before_idx).try_into()?;
+    let value_len = after_idx.wrapping_sub(before_idx);
     if let Some([_, b1, b2, ..]) = self.bytes.get_mut(usize::from(begin_idx)..) {
       let [b3, b4] = value_len.to_be_bytes();
       *b1 = b3;

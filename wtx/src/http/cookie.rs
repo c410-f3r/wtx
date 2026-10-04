@@ -1,16 +1,16 @@
+//! HTTP Cookie
+
 mod cookie_error;
-#[cfg(feature = "http-session")]
-pub(crate) mod cookie_generic;
-#[cfg(all(feature = "http2-server-framework", feature = "http-session"))]
-pub(crate) mod cookie_str;
+mod cookie_generic;
+mod cookie_str;
 mod same_site;
 
-#[cfg(feature = "http-session")]
 use crate::calendar::CalendarToken;
 pub use cookie_error::CookieError;
+pub use cookie_generic::{CookieGeneric, SetCookieGeneric};
+pub use cookie_str::CookieStr;
 pub use same_site::SameSite;
 
-#[cfg(feature = "http-session")]
 static FMT1: &[CalendarToken] = &[
   CalendarToken::AbbreviatedWeekdayName,
   CalendarToken::Comma,

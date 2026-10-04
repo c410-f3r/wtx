@@ -86,10 +86,9 @@ const HELLO_RETRY_REQUEST: [u8; 32] = [
 ];
 const IV_LEN: usize = 12;
 const MAX_ALPN_LEN: usize = 4;
-const MAX_CERTIFICATES: usize = 3;
-const MAX_CERTS: usize = 3;
+const MAX_CERTIFICATES: usize = 4;
 const MAX_CIPHER_KEY_LEN: usize = 32;
-const MAX_KEYS: usize = 3;
+const MAX_KEYS: usize = 4;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
 const MAX_KEY_UPDATES: usize = 11;
 const MAX_WARNING_ALERTS: usize = 5;

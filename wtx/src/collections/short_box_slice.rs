@@ -266,6 +266,18 @@ where
   }
 }
 
+impl<L, T, const N: usize> TryFrom<[T; N]> for ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: [T; N]) -> Result<Self, Self::Error> {
+    Self::try_from(Vec::from(value))
+  }
+}
+
 impl<L, T> TryFrom<Box<[T]>> for ShortBoxSlice<L, T>
 where
   L: LinearStorageLen,

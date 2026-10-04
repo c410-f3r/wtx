@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Datetime, Utc},
-  collections::{ArrayStringU8, Clear},
+  collections::{ArrayStringU8, ArrayVectorU8, Clear},
   http::{
     Header, Headers, KnownHeaderName,
     cookie::{FMT1, SameSite},
@@ -12,21 +12,50 @@ use core::{
   time::Duration,
 };
 
+type NameTy = ArrayStringU8<15>;
+
+/// A piece of persistent data send from Client to Server.
 #[derive(Debug)]
-pub(crate) struct CookieGeneric<T, V> {
+pub struct CookieGeneric<V> {
+  // TODO: Use DynVector
+  pub(crate) values: ArrayVectorU8<(NameTy, V), 3>,
+}
+
+impl<V> Display for CookieGeneric<V>
+where
+  V: Lease<str>,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    let mut iter = self.values.iter();
+    if let Some(elem) = iter.next() {
+      f.write_fmt(format_args!("{}={}", elem.0, elem.1.lease()))?;
+    }
+    for elem in iter {
+      f.write_fmt(format_args!("; {}={}", elem.0, elem.1.lease()))?;
+    }
+    Ok(())
+  }
+}
+
+/// A piece of persistent data send from Server to Client.
+#[derive(Debug)]
+pub struct SetCookieGeneric<T, V> {
   pub(crate) domain: T,
   pub(crate) expires: Option<Datetime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
-  pub(crate) name: ArrayStringU8<15>,
+  pub(crate) name: NameTy,
   pub(crate) path: T,
   pub(crate) same_site: Option<SameSite>,
   pub(crate) secure: bool,
   pub(crate) value: V,
 }
 
-impl<T, V> CookieGeneric<T, V> {
-  pub(crate) fn delete(&mut self, headers: &mut Headers) -> crate::Result<()>
+impl<T, V> SetCookieGeneric<T, V> {
+  /// Appends a cookie headers that removes itself
+  #[inline]
+  pub fn delete(&mut self, headers: &mut Headers) -> crate::Result<()>
   where
     T: Lease<str>,
     V: Clear,
@@ -45,12 +74,14 @@ impl<T, V> CookieGeneric<T, V> {
     rslt
   }
 
-  pub(crate) fn map_mut<'this, NT, NV>(
+  /// Maps all generic types
+  #[inline]
+  pub fn map_mut<'this, NT, NV>(
     &'this mut self,
     mut data: impl FnMut(&'this mut T) -> NT,
     value: impl FnOnce(&'this mut V) -> NV,
-  ) -> CookieGeneric<NT, NV> {
-    CookieGeneric {
+  ) -> SetCookieGeneric<NT, NV> {
+    SetCookieGeneric {
       domain: data(&mut self.domain),
       expires: self.expires,
       http_only: self.http_only,
@@ -64,7 +95,7 @@ impl<T, V> CookieGeneric<T, V> {
   }
 }
 
-impl<T, V> Display for CookieGeneric<T, V>
+impl<T, V> Display for SetCookieGeneric<T, V>
 where
   T: Lease<str>,
   V: Lease<str>,

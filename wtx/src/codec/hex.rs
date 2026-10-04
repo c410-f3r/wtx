@@ -51,6 +51,14 @@ pub struct HexDisplay<'bytes>(
   pub Option<HexEncMode>,
 );
 
+impl<'bytes> HexDisplay<'bytes> {
+  /// From bytes
+  #[inline]
+  pub const fn from_bytes(bytes: &'bytes [u8]) -> Self {
+    Self(bytes, None)
+  }
+}
+
 impl Display for HexDisplay<'_> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {

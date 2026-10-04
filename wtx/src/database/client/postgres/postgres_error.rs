@@ -1,3 +1,5 @@
+use crate::collections::ShortStrU8;
+
 /// PostgreSQL error
 #[derive(Clone, Copy, Debug)]
 pub enum PostgresError {
@@ -18,8 +20,10 @@ pub enum PostgresError {
   InvalidPostgresUint,
   /// Received bytes don't compose a valid record.
   InvalidPostgresRecord,
-  /// Unknown range type
-  InvalidRangeTy,
+  /// Unknown range bytes
+  InvalidRangeBytes,
+  /// Unknown range conversion
+  InvalidRangeConversion(ShortStrU8<'static>),
   /// The iterator that composed a `RecordValues` does not contain a corresponding length.
   InvalidRecordValuesIterator,
   /// It is required to connect using a TLS channel but the server didn't provide any. Probably
@@ -32,6 +36,8 @@ pub enum PostgresError {
   RequiredChannel,
   /// Server does not support encryption
   ServerDoesNotSupportEncryption,
+  /// Scram iteration number is too high
+  ScramIterationOverflow,
   /// The passed time structure contains a duration that is out of bounds
   TimeStructureOverflow,
   /// The passed time structure can not have a precision greater than microseconds
