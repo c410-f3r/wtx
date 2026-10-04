@@ -4,7 +4,7 @@ use crate::{
   futures::Sleep,
   http::{
     SessionManager, SessionStore,
-    cookie::{SameSite, cookie_generic::CookieGeneric},
+    cookie::{SameSite, SetCookieGeneric},
     session::SessionManagerInner,
   },
   rng::CryptoRng,
@@ -17,14 +17,14 @@ use core::{marker::PhantomData, time::Duration};
 /// Default and optional parameters for the construction of a [`SessionManager`].
 #[derive(Debug)]
 pub struct SessionManagerBuilder {
-  pub(crate) cookie_def: CookieGeneric<String, VectorUsize<u8>>,
+  pub(crate) cookie_def: SetCookieGeneric<String, VectorUsize<u8>>,
   pub(crate) inspection_interval: Duration,
 }
 
 impl SessionManagerBuilder {
   pub(crate) fn new() -> Self {
     Self {
-      cookie_def: CookieGeneric {
+      cookie_def: SetCookieGeneric {
         domain: String::new(),
         expires: None,
         http_only: true,

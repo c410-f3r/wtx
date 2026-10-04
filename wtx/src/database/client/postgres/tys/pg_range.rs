@@ -43,18 +43,18 @@ where
   fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     fn extract_elem_bytes<'bytes>(bytes: &mut &'bytes [u8]) -> crate::Result<&'bytes [u8]> {
       let [b0, b1, b2, b3, rest0 @ ..] = bytes else {
-        return Err(crate::Error::from(PostgresError::InvalidRangeTy));
+        return Err(crate::Error::from(PostgresError::InvalidRangeBytes));
       };
       let len = Usize::from(u32::from_be_bytes([*b0, *b1, *b2, *b3])).usize();
       let Some((elem_bytes, rest1)) = rest0.split_at_checked(len) else {
-        return Err(crate::Error::from(PostgresError::InvalidRangeTy));
+        return Err(crate::Error::from(PostgresError::InvalidRangeBytes));
       };
       *bytes = rest1;
       Ok(elem_bytes)
     }
 
     let [flags, rest @ ..] = dw.bytes() else {
-      return Err(crate::Error::from(PostgresError::InvalidRangeTy).into());
+      return Err(crate::Error::from(PostgresError::InvalidRangeBytes).into());
     };
     let mut bytes = rest;
     let mut end = Bound::Unbounded;
@@ -232,7 +232,7 @@ impl<T> TryFrom<PgRange<T>> for Range<T> {
     if let (Bound::Included(start), Bound::Excluded(end)) = (value.start, value.end) {
       Ok(start..end)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("Range".try_into()?).into())
     }
   }
 }
@@ -245,7 +245,7 @@ impl<T> TryFrom<PgRange<T>> for RangeFrom<T> {
     if let (Bound::Included(start), Bound::Unbounded) = (value.start, value.end) {
       Ok(start..)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("RangeFrom".try_into()?).into())
     }
   }
 }
@@ -258,7 +258,7 @@ impl<T> TryFrom<PgRange<T>> for RangeFull {
     if let (Bound::Unbounded, Bound::Unbounded) = (value.start, value.end) {
       Ok(..)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("RangeFull".try_into()?).into())
     }
   }
 }
@@ -271,7 +271,7 @@ impl<T> TryFrom<PgRange<T>> for RangeInclusive<T> {
     if let (Bound::Included(start), Bound::Included(end)) = (value.start, value.end) {
       Ok(start..=end)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("RangeInclusive".try_into()?).into())
     }
   }
 }
@@ -284,7 +284,7 @@ impl<T> TryFrom<PgRange<T>> for RangeTo<T> {
     if let (Bound::Unbounded, Bound::Excluded(end)) = (value.start, value.end) {
       Ok(..end)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("RangeTo".try_into()?).into())
     }
   }
 }
@@ -297,7 +297,7 @@ impl<T> TryFrom<PgRange<T>> for RangeToInclusive<T> {
     if let (Bound::Unbounded, Bound::Included(end)) = (value.start, value.end) {
       Ok(..=end)
     } else {
-      Err(PostgresError::InvalidRangeTy.into())
+      Err(PostgresError::InvalidRangeConversion("RangeToInclusive".try_into()?).into())
     }
   }
 }

@@ -534,30 +534,6 @@ where
   }
 }
 
-impl<L> TryFrom<String> for Vector<L, u8>
-where
-  L: LinearStorageLen,
-{
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(value: String) -> Result<Self, Self::Error> {
-    Vector::from_vec(value.into())
-  }
-}
-
-impl<L> TryFrom<Vector<L, u8>> for String
-where
-  L: LinearStorageLen,
-{
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(value: Vector<L, u8>) -> Result<Self, Self::Error> {
-    Ok(String::from_utf8(Vec::<u8>::from(value))?)
-  }
-}
-
 impl<L0, L1, T> From<ShortBoxSlice<L0, T>> for Vector<L1, T>
 where
   L0: LinearStorageLen,
@@ -761,6 +737,18 @@ where
   }
 }
 
+impl<L> TryFrom<String> for Vector<L, u8>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    Vector::from_vec(value.into())
+  }
+}
+
 impl<L, T> TryFrom<Vec<T>> for Vector<L, T>
 where
   L: LinearStorageLen,
@@ -770,6 +758,18 @@ where
   #[inline]
   fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
     Self::from_vec(value)
+  }
+}
+
+impl<L> TryFrom<Vector<L, u8>> for String
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: Vector<L, u8>) -> Result<Self, Self::Error> {
+    Ok(String::from_utf8(Vec::<u8>::from(value))?)
   }
 }
 

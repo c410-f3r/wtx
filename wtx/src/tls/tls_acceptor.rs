@@ -120,7 +120,7 @@ where
 {
   /// High level operation that automatically performs a full asynchronous handshake.
   ///
-  /// Low level operations must not be mixed with high level operations.
+  /// Low level operations must not be mixed with low level operations.
   #[inline]
   pub async fn accept(mut self) -> crate::Result<TlsAcceptOutput<RNG, S, TCX>> {
     if TCX::TY.is_plain_text() {
@@ -461,7 +461,7 @@ fn filter_signature_algorithms<TCX>(
       let Some(local_signature_scheme) = local_signature_schemes.get(usize::from(idx)) else {
         break;
       };
-      if local_signature_scheme.cert_kt() == cert_kt {
+      if !local_signature_scheme.is_rsa_pkcs1() && local_signature_scheme.cert_kt() == cert_kt {
         drop(rslt.push((*local_signature_scheme, key_tys_idx)));
         let _ = local_signature_schemes.swap_remove(idx);
         if cfg_ref.unique_signature_algorithms() {

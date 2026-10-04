@@ -198,6 +198,8 @@ pub enum TlsError {
   ServerHasNoCompatibleKeyShare,
   /// The capacity upper bound of `TlsReadBuffer` was extrapolated
   TlsReadBufferOverflow,
+  /// Usage of deprecated PKCS1
+  UsageOfDeprecatedPKCS1,
   /// Records like `ChangeCipherSpec` are not allowed as an inner type
   UnexpectedAfterHandshakeInnerRecord,
   /// Only an outer `ApplicationData` is allowed after the handshake

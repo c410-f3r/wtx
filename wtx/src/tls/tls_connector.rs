@@ -409,8 +409,24 @@ where
           )?;
         }
         HandshakeTy::CertificateRequest => {
-          let _cr = CertificateRequest::decode(&mut dw)?;
+          let cr = CertificateRequest::decode(&mut dw)?;
           post_handshake_dec_error(dw.bytes(), HandshakeTy::CertificateRequest)?;
+          let mut filtered = cr.signature_algorithms.signature_schemes;
+          filtered.clear();
+          let mut has_rsa_pkcs1 = false;
+          for elem in cr.signature_algorithms.signature_schemes {
+            if elem.is_rsa_pkcs1() {
+              has_rsa_pkcs1 = true;
+              continue;
+            }
+            filtered.push(elem)?;
+          }
+          if has_rsa_pkcs1 && filtered.is_empty() {
+            return Err(crate::Error::TlsErrorReply(
+              TlsError::UsageOfDeprecatedPKCS1,
+              AlertDescription::HandshakeFailure,
+            ));
+          }
           mrsri.client_cert_requested = true;
         }
         HandshakeTy::Certificate => {

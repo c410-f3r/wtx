@@ -4,8 +4,7 @@ use crate::{
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
     KnownHeaderName, MsgBufferString, Request, Response, SessionManager, SessionManagerInner,
-    SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
-    http2_server_framework::Middleware,
+    SessionState, SessionStore, StatusCode, cookie::CookieStr, http2_server_framework::Middleware,
   },
   misc::{Lease as _, LeaseMut, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
@@ -86,43 +85,24 @@ where
         el if el == <&str>::from(KnownHeaderName::Cookie) => {}
         _ => continue,
       }
-      let ss_des: SessionState<CS> = {
-        let idx = req.msg_data.body.len();
-        let cookie_des = CookieStr::parse(header.value, &mut req.msg_data.body)?;
-        if cookie_des.generic.name != self.session_manager.inner.0 {
-          req.msg_data.body.truncate(idx);
-          continue;
-        }
-        let mut session_guard = self.session_manager.inner.1.lock().await;
-        let SessionManagerInner { cookie_def, session_secret, phantom: _ } = &mut *session_guard;
-        {
-          let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-          let rslt = Aes128GcmGlobal::decrypt_base64_to_buffer(
-            name.as_bytes(),
-            &mut cookie_def.value,
-            value.as_bytes(),
-            &*session_secret.peek()?,
-          );
-          req.msg_data.body.truncate(idx);
-          let json_rslt = serde_json_deserialize_from_slice(rslt?.0);
-          cookie_def.value.clear();
-          json_rslt?
-        }
+      let Some(des) = ss_des(&mut req.msg_data.body, header.value, &self.session_manager).await?
+      else {
+        continue;
       };
       _trace!("A session has been found in headers");
-      let Some(ss_db) =
-        self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?
+      let Some(db) =
+        self.session_store.get_with_unit().await?.lease_mut().read(des.session_key).await?
       else {
         _trace!("Session found in headers does not exist in database");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       };
-      if ss_db.custom_state != ss_des.custom_state {
+      if db.custom_state != des.custom_state {
         _trace!("Connection session does not match database ssion");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));
       }
-      *data.lease_mut() = Some(ss_des);
+      *data.lease_mut() = Some(des);
     }
     if let Some(elem) = data.lease_mut() {
       if check_expiration(&elem.expires_at)? {
@@ -196,4 +176,36 @@ where
     )
     .await;
   Ok(())
+}
+
+#[inline]
+async fn ss_des<CS, E>(
+  buffer: &mut VectorUsize<u8>,
+  header_value: &str,
+  session_manager: &SessionManager<CS, E>,
+) -> crate::Result<Option<SessionState<CS>>>
+where
+  CS: DeserializeOwned + PartialEq,
+  E: From<crate::Error>,
+{
+  let idx = buffer.len();
+  let cookie_des = CookieStr::parse(buffer, header_value)?;
+  let Some(found) = cookie_des.0.values.iter().find(|el| el.0 == session_manager.inner.0) else {
+    drop(cookie_des);
+    buffer.truncate(idx);
+    return Ok(None);
+  };
+  let mut session_guard = session_manager.inner.1.lock().await;
+  let SessionManagerInner { cookie_def, session_secret, phantom: _ } = &mut *session_guard;
+  let rslt = Aes128GcmGlobal::decrypt_base64_to_buffer(
+    found.0.as_bytes(),
+    &mut cookie_def.value,
+    found.1.as_bytes(),
+    &*session_secret.peek()?,
+  );
+  drop(cookie_des);
+  buffer.truncate(idx);
+  let json_rslt = serde_json_deserialize_from_slice(rslt?.0);
+  cookie_def.value.clear();
+  json_rslt
 }

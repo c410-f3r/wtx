@@ -64,6 +64,24 @@ fn duplicated_route() {
 }
 
 #[test]
+fn empty_matching() {
+  fn build(routes: &[&str]) -> Router<usize> {
+    let mut matcher = Router::<usize>::new();
+    {
+      let mut builder = matcher.builder();
+      for (idx, route) in routes.iter().enumerate() {
+        let _ = builder.add(&(*route).try_into().unwrap(), idx).unwrap();
+      }
+    }
+    matcher
+  }
+
+  assert!(build(&["/{tenant}/admin"]).find("//admin").is_err());
+  assert!(build(&["/{slug}"]).find("/").is_err());
+  assert!(build(&["/a/{x}/b"]).find("/a//b").is_err());
+}
+
+#[test]
 fn empty_route() {
   let mut matcher = Router::default();
   let mut builder = matcher.builder();
@@ -195,6 +213,15 @@ fn nested_paths() {
   }
   let path = matcher.find("/a/b/c/d/e/f/g/h/i").unwrap();
   assert_eq!(*path.data(), 9);
+}
+
+#[test]
+fn no_leading_slash() {
+  let mut matcher = Router::<usize>::new();
+  let mut builder = matcher.builder();
+  let _ = builder.add(&"/a/b".try_into().unwrap(), 1).unwrap();
+  let _ = builder.add(&"/a/c".try_into().unwrap(), 2).unwrap();
+  assert!(builder.add(&"{x}".try_into().unwrap(), 3).is_err());
 }
 
 #[test]

@@ -9,7 +9,7 @@ mod ring;
 mod ruco;
 
 use crate::{
-  crypto::{HashTy, SigningOutput},
+  crypto::{HashTy, SigningOutput, dummy_crypto_call},
   misc::DefaultArray,
   rng::CryptoRng,
 };
@@ -61,6 +61,6 @@ where
 
   #[inline]
   fn validate(_: &[u8], _: &[u8], _: &SigningOutput<&[u8]>) -> crate::Result<()> {
-    Ok(())
+    dummy_crypto_call()
   }
 }

@@ -5,7 +5,7 @@ use crate::{
 use core::{
   fmt::{Debug, Formatter},
   ops::Deref,
-  str,
+  slice, str,
 };
 
 /// [`ShortStr`] with a capacity limited by `u8`.
@@ -51,10 +51,13 @@ where
 }
 
 impl<'any> ShortStrU8<'any> {
-  /// If necessary, `slice` is truncated to the maximum length capacity.
+  /// If necessary, `str` is truncated to the maximum length capacity.
   #[inline]
-  pub const fn new_truncated_u8(slice: &'any str) -> Self {
-    Self(ShortSlice::new_truncated_u8(slice.as_bytes()))
+  pub const fn new_truncated_u8(str: &'any str) -> Self {
+    let idx = str.floor_char_boundary(255);
+    // SAFETY: `idx` is always less than or equal to `slice.len()`.
+    let trimmed = unsafe { slice::from_raw_parts(str.as_ptr(), idx) };
+    Self(ShortSlice::new_truncated_u8(trimmed))
   }
 }
 
@@ -143,5 +146,18 @@ where
   #[inline]
   fn try_from(value: &'any str) -> Result<Self, Self::Error> {
     Self::new(value)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::collections::ShortStrU8;
+
+  #[test]
+  fn new_truncated_u8_respects_out_of_bounds() {
+    let string = "é".repeat(200);
+    let short_str = ShortStrU8::new_truncated_u8(&string);
+    let slice = short_str.into_short_slice().into_slice();
+    assert!(std::str::from_utf8(slice).is_ok());
   }
 }

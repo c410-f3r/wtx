@@ -133,7 +133,11 @@ impl<'uri> HeadersFrame<'uri> {
               if let Ok(KnownHeaderName::ContentLength) =
                 KnownHeaderName::try_from(name.str().as_bytes())
               {
-                content_length = Some(value.parse()?);
+                let local_content_length = value.parse()?;
+                if content_length.is_some_and(|el| el != local_content_length) {
+                  is_malformed = true;
+                }
+                content_length = Some(local_content_length);
               }
               rrb_headers.push_from_iter(Header::new(false, IS_TRAILER, name.str(), [value]))?;
             }

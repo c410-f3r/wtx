@@ -259,7 +259,9 @@ pub enum Error {
   /// Unsupported operation
   UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
-  UriCanNotBeOverwritten,
+  UriPathCanNotBeOverwritten,
+  /// Only appending is possible but overwritten is still viable through resetting.
+  UriQueryCanNotBeOverwritten,
   /// Wrapper serialization should be called only once.
   WrapperSerializationDoesNotExpectConcurrentAccess,
 
@@ -289,7 +291,7 @@ pub enum Error {
   CodecError(Box<crate::codec::CodecError>),
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
-  Cookie(crate::http::CookieError),
+  Cookie(crate::http::cookie::CookieError),
   #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
   CryptoError(crate::crypto::CryptoError),

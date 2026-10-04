@@ -4,7 +4,7 @@ use crate::{
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
     Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
-    SessionStore, cookie::cookie_generic::CookieGeneric,
+    SessionStore, cookie::SetCookieGeneric,
   },
   misc::{AsciiGraphic, Lease as _, LeaseMut},
   rng::CryptoRng,
@@ -136,7 +136,7 @@ impl<CS, E> Clone for SessionManager<CS, E> {
 
 /// Allows the management of state across requests within a connection.
 pub struct SessionManagerInner<CS, E> {
-  pub(crate) cookie_def: CookieGeneric<String, VectorUsize<u8>>,
+  pub(crate) cookie_def: SetCookieGeneric<String, VectorUsize<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
   pub(crate) session_secret: SecretArray<16>,
 }

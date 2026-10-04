@@ -1,7 +1,7 @@
 //! Generic HTTP elements
 
 #[cfg(feature = "http-cookie")]
-mod cookie;
+pub mod cookie;
 mod generic_header;
 mod generic_request;
 mod generic_response;
@@ -34,8 +34,6 @@ pub mod web_authn;
 #[cfg(feature = "web-socket-server-framework")]
 mod web_socket_server_framework;
 
-#[cfg(feature = "http-cookie")]
-pub use cookie::*;
 pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;

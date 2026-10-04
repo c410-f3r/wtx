@@ -2,7 +2,7 @@ use crate::{
   asn1::Asn1DecodeWrapperAux,
   codec::{Decode as _, DecodeWrapper, Pem},
   collections::{ArrayVectorCopy, ShortBoxSliceU16, VectorUsize},
-  tls::{MAX_CERTS, MAX_KEYS, TlsError},
+  tls::{MAX_CERTIFICATES, MAX_KEYS, TlsError},
   x509::{Certificate, KeyTy},
 };
 use core::mem;
@@ -19,7 +19,7 @@ use core::mem;
 #[derive(Debug, Default)]
 pub struct PublicKeys {
   data: ShortBoxSliceU16<u8>,
-  data_offsets: ArrayVectorCopy<u16, { MAX_CERTS * MAX_KEYS }>,
+  data_offsets: ArrayVectorCopy<u16, { MAX_CERTIFICATES * MAX_KEYS }>,
   public_keys_offsets: ArrayVectorCopy<(u8, KeyTy), MAX_KEYS>,
 }
 
@@ -95,7 +95,7 @@ impl PublicKeys {
     buffer: &mut VectorUsize<u8>,
     pem_bytes: &[u8],
   ) -> crate::Result<()> {
-    let pem = Pem::<_, MAX_CERTS>::decode(&mut DecodeWrapper::new(pem_bytes, &mut *buffer))?;
+    let pem = Pem::<_, MAX_CERTIFICATES>::decode(&mut DecodeWrapper::new(pem_bytes, &mut *buffer))?;
     let mut certs: u8 = 0;
     let mut curr_data_offset: u16 = self.data_offsets.last().copied().unwrap_or_default();
     let mut iter = pem.data.into_iter();

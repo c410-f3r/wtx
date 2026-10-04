@@ -535,6 +535,10 @@ where
     if is_control_frame {
       return Ok(Some(rfi.op_code));
     }
+    let accumulated_len = continuation_buffer.len().saturating_add(payload.len());
+    if accumulated_len > max_payload_len {
+      return Err(WebSocketError::VeryLargePayload.into());
+    }
     continuation_buffer.extend_from_copyable_slice(payload)?;
     if manage_op_code_of_continuation_frames(
       rfi.fin,

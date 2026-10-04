@@ -17,22 +17,22 @@ use core::{
   str,
 };
 
-/// [`Text`] with a capacity limited by `u8`.
-pub type TextU8 = Text<u8>;
-/// [`Text`] with a capacity limited by `u16`.
-pub type TextU16 = Text<u16>;
-/// [`Text`] with a capacity limited by `u32`.
-pub type TextU32 = Text<u32>;
-/// [`Text`] with a capacity limited by `usize`.
-pub type TextUsize = Text<usize>;
+/// [`Str`] with a capacity limited by `u8`.
+pub type StrU8 = Str<u8>;
+/// [`Str`] with a capacity limited by `u16`.
+pub type StrU16 = Str<u16>;
+/// [`Str`] with a capacity limited by `u32`.
+pub type StrU32 = Str<u32>;
+/// [`Str`] with a capacity limited by `usize`.
+pub type StrUsize = Str<usize>;
 
-/// A wrapper around the std's vector with some additional methods to manipulate copyable data.
+/// Same as [`alloc::string::String`] with the difference that lengths can be arbitrary integers.
 #[derive(Clone, Default)]
-pub struct Text<L>(Inner<L>)
+pub struct Str<L>(Inner<L>)
 where
   L: LinearStorageLen;
 
-impl<L> Text<L>
+impl<L> Str<L>
 where
   L: LinearStorageLen,
 {
@@ -43,17 +43,17 @@ where
   }
 }
 
-impl<L> Text<L>
+impl<L> Str<L>
 where
   L: LinearStorageLen,
 {
-  #[doc = from_iter_doc!("TextUsize", "\"123\".chars()", "\"123\"")]
+  #[doc = from_iter_doc!("StrUsize", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn from_iterator(iter: impl IntoIterator<Item = char>) -> crate::Result<Self> {
     Ok(Self(Inner::from_iterator(iter)?))
   }
 
-  #[doc = as_slice_doc!("TextUsize", "\"123\".chars()", "\"123\"")]
+  #[doc = as_slice_doc!("StrUsize", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn as_slice(&self) -> &str {
     self.0.as_slice()
@@ -65,7 +65,7 @@ where
     self.0.as_slice_mut()
   }
 
-  #[doc = as_str_doc!("TextUsize", "\"123\".chars()", "\"123\"")]
+  #[doc = as_str_doc!("StrUsize", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn as_str(&self) -> &str {
     self.0.as_slice()
@@ -77,19 +77,19 @@ where
     self.0.as_slice_mut()
   }
 
-  #[doc = capacity_doc!("TextUsize", "\"123\".chars()")]
+  #[doc = capacity_doc!("StrUsize", "\"123\".chars()")]
   #[inline]
   pub fn capacity(&self) -> L {
     self.0.capacity()
   }
 
-  #[doc = clear_doc!("TextUsize", "\"123\".chars()")]
+  #[doc = clear_doc!("StrUsize", "\"123\".chars()")]
   #[inline]
   pub fn clear(&mut self) {
     self.0.clear();
   }
 
-  #[doc = extend_from_iter_doc!("TextUsize", "\"123\".chars()", "\"123\"")]
+  #[doc = extend_from_iter_doc!("StrUsize", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = char>) -> crate::Result<()> {
     self.0.extend_from_iter(iter)
@@ -101,13 +101,13 @@ where
     self.0.len()
   }
 
-  #[doc = pop_doc!("TextUsize", "\"123\".chars()", "\"12\"")]
+  #[doc = pop_doc!("StrUsize", "\"123\".chars()", "\"12\"")]
   #[inline]
   pub fn pop(&mut self) -> Option<char> {
     <str as LinearStorageSlice>::pop(&mut self.0)
   }
 
-  #[doc = push_doc!("TextUsize", "'1'", "\"1\"")]
+  #[doc = push_doc!("StrUsize", "'1'", "\"1\"")]
   #[inline]
   pub fn push(&mut self, elem: char) -> crate::Result<()> {
     self.0.push(elem)
@@ -130,13 +130,13 @@ where
     self.0.extend_from_copyable_slices(others)
   }
 
-  #[doc = remaining_capacity_doc!("TextUsize", "'1'")]
+  #[doc = remaining_capacity_doc!("StrUsize", "'1'")]
   #[inline]
   pub fn remaining_capacity(&self) -> L {
     self.0.remaining_capacity()
   }
 
-  #[doc = remove_doc!("TextUsize", "\"123\".chars()", "\"13\"")]
+  #[doc = remove_doc!("StrUsize", "\"123\".chars()", "\"13\"")]
   #[inline]
   pub fn remove(&mut self, index: L) -> Option<char> {
     <str as LinearStorageSlice>::remove(&mut self.0, index)
@@ -149,14 +149,14 @@ where
     unsafe { self.0.set_len(new_len) }
   }
 
-  #[doc = truncate_doc!("TextUsize", "\"123\".chars()", "\"1\"")]
+  #[doc = truncate_doc!("StrUsize", "\"123\".chars()", "\"1\"")]
   #[inline]
   pub fn truncate(&mut self, new_len: L) {
     let _rslt = <str as LinearStorageSlice>::truncate(&mut self.0, new_len);
   }
 }
 
-impl<L> Borrow<str> for Text<L>
+impl<L> Borrow<str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -166,7 +166,7 @@ where
   }
 }
 
-impl<L> Debug for Text<L>
+impl<L> Debug for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -176,7 +176,7 @@ where
   }
 }
 
-impl<L> Display for Text<L>
+impl<L> Display for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -186,7 +186,7 @@ where
   }
 }
 
-impl<L> Deref for Text<L>
+impl<L> Deref for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -198,7 +198,7 @@ where
   }
 }
 
-impl<L> DerefMut for Text<L>
+impl<L> DerefMut for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -208,7 +208,7 @@ where
   }
 }
 
-impl<L> Lease<[u8]> for Text<L>
+impl<L> Lease<[u8]> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -218,7 +218,7 @@ where
   }
 }
 
-impl<L> Lease<str> for Text<L>
+impl<L> Lease<str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -228,7 +228,7 @@ where
   }
 }
 
-impl<L> LeaseMut<str> for Text<L>
+impl<L> LeaseMut<str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -238,9 +238,9 @@ where
   }
 }
 
-impl<L> Eq for Text<L> where L: LinearStorageLen {}
+impl<L> Eq for Str<L> where L: LinearStorageLen {}
 
-impl<L> Hash for Text<L>
+impl<L> Hash for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -253,7 +253,7 @@ where
   }
 }
 
-impl<L> PartialEq for Text<L>
+impl<L> PartialEq for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -263,7 +263,7 @@ where
   }
 }
 
-impl<L> PartialEq<String> for Text<L>
+impl<L> PartialEq<String> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -273,7 +273,7 @@ where
   }
 }
 
-impl<L> PartialEq<[u8]> for Text<L>
+impl<L> PartialEq<[u8]> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -282,7 +282,7 @@ where
     self.as_bytes() == other
   }
 }
-impl<L> PartialEq<&[u8]> for Text<L>
+impl<L> PartialEq<&[u8]> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -292,7 +292,7 @@ where
   }
 }
 
-impl<L> PartialEq<str> for Text<L>
+impl<L> PartialEq<str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -301,7 +301,7 @@ where
     self.as_str() == other
   }
 }
-impl<L> PartialEq<&str> for Text<L>
+impl<L> PartialEq<&str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -311,7 +311,7 @@ where
   }
 }
 
-impl<L> PartialOrd for Text<L>
+impl<L> PartialOrd for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -341,7 +341,7 @@ where
   }
 }
 
-impl<L> Ord for Text<L>
+impl<L> Ord for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -351,7 +351,7 @@ where
   }
 }
 
-impl<'args, L> TryFrom<Arguments<'args>> for Text<L>
+impl<'args, L> TryFrom<Arguments<'args>> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -365,7 +365,7 @@ where
   }
 }
 
-impl<L> TryFrom<&[u8]> for Text<L>
+impl<L> TryFrom<&[u8]> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -379,7 +379,7 @@ where
   }
 }
 
-impl<L> TryFrom<&str> for Text<L>
+impl<L> TryFrom<&str> for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -393,7 +393,7 @@ where
   }
 }
 
-impl<L> Write for Text<L>
+impl<L> Write for Str<L>
 where
   L: LinearStorageLen,
 {
@@ -479,7 +479,7 @@ unsafe impl<L> Sync for Inner<L> where L: LinearStorageLen {}
 #[cfg(feature = "serde")]
 mod serde {
   use crate::{
-    collections::{LinearStorageLen, Text},
+    collections::{LinearStorageLen, Str},
     misc::from_utf8_basic,
   };
   use core::{fmt::Formatter, marker::PhantomData};
@@ -488,7 +488,7 @@ mod serde {
     de::{self, Visitor},
   };
 
-  impl<'de, L> Deserialize<'de> for Text<L>
+  impl<'de, L> Deserialize<'de> for Str<L>
   where
     L: LinearStorageLen,
   {
@@ -497,13 +497,13 @@ mod serde {
     where
       D: Deserializer<'de>,
     {
-      struct TextVisitor<L>(PhantomData<L>);
+      struct StrVisitor<L>(PhantomData<L>);
 
-      impl<L> Visitor<'_> for TextVisitor<L>
+      impl<L> Visitor<'_> for StrVisitor<L>
       where
         L: LinearStorageLen,
       {
-        type Value = Text<L>;
+        type Value = Str<L>;
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
@@ -517,7 +517,7 @@ mod serde {
         {
           let rslt = from_utf8_basic(v);
           let str = rslt.map_err(|_err| E::invalid_value(de::Unexpected::Bytes(v), &self))?;
-          Text::try_from(str).map_err(|_err| E::invalid_length(str.len(), &self))
+          Str::try_from(str).map_err(|_err| E::invalid_length(str.len(), &self))
         }
 
         #[inline]
@@ -525,15 +525,15 @@ mod serde {
         where
           E: de::Error,
         {
-          Text::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
+          Str::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
         }
       }
 
-      deserializer.deserialize_str(TextVisitor(PhantomData))
+      deserializer.deserialize_str(StrVisitor(PhantomData))
     }
   }
 
-  impl<L> Serialize for Text<L>
+  impl<L> Serialize for Str<L>
   where
     L: LinearStorageLen,
   {

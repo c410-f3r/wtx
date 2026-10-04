@@ -19,7 +19,8 @@ impl HttpParams {
   pub fn from_uri(uri: String) -> Self {
     Self(
       HttpReqParams {
-        host: true,
+        content_length: false,
+        host: false,
         method: Method::Get,
         mime: None,
         msg_buffer: MsgBufferString {
@@ -75,19 +76,27 @@ impl TransportParams for HttpParams {
 #[derive(Debug)]
 #[doc = generic_trans_req_params_doc!("HTTP")]
 pub struct HttpReqParams {
+  /// If the `Content-Length` header should be included in mutable requests.
+  ///
+  /// Defaults to `false`
+  pub content_length: bool,
   /// If the host should be included in the headers.
   ///
-  /// Defaults to `true`.
+  /// Defaults to `false`.
   pub host: bool,
   /// See [`Method`].
   pub method: Method,
   /// See [`Mime`].
+  ///
+  /// Defaults to `None`
   pub mime: Option<Mime>,
   /// See [`MsgBufferString`].
   pub msg_buffer: MsgBufferString,
   /// Custom user agent that will be included in the headers
   ///
   /// If `user_agent_default` is `true`, then this field becomes a NO-OP.
+  ///
+  /// Defaults to `None`
   pub user_agent_custom: Option<&'static str>,
   /// System's user agent that will be included in the headers. For example, "wtx/0.0.1".
   ///
@@ -99,8 +108,17 @@ impl HttpReqParams {
   /// Sets the inner parameters with their default values.
   #[inline]
   pub fn reset(&mut self) {
-    let Self { host, method, mime, msg_buffer, user_agent_custom, user_agent_default } = self;
-    *host = true;
+    let Self {
+      content_length,
+      host,
+      method,
+      mime,
+      msg_buffer,
+      user_agent_custom,
+      user_agent_default,
+    } = self;
+    *content_length = false;
+    *host = false;
     *method = Method::Get;
     *mime = None;
     *user_agent_custom = None;

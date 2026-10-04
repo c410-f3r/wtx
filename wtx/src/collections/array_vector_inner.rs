@@ -50,7 +50,7 @@ where
       if diff > L::ZERO {
         // SAFETY: indices are within bounds
         unsafe {
-          let _rslt = drop_elements(&mut (), diff, idx, self.array.data.as_mut_ptr());
+          let _rslt = drop_elements(&mut (), diff, idx, self.array.data.as_mut_ptr().cast::<T>());
         }
       }
     }
@@ -350,6 +350,55 @@ mod serde {
       S: Serializer,
     {
       serializer.collect_seq(self)
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::sync::{Arc, AtomicUsize};
+  use core::sync::atomic::Ordering;
+  use wtx::collections::ArrayVector;
+
+  #[test]
+  fn into_iter_drop() {
+    struct Wrapper(Arc<AtomicUsize>);
+    impl Drop for Wrapper {
+      fn drop(&mut self) {
+        let _ = self.0.fetch_add(1, Ordering::SeqCst);
+      }
+    }
+
+    {
+      let counter = Arc::new(AtomicUsize::new(0));
+      let mut vec = ArrayVector::<usize, Wrapper, 8>::new();
+      for _ in 0..3 {
+        vec.push(Wrapper(counter.clone())).unwrap();
+      }
+      let mut iter = vec.into_iter();
+      drop(iter.next());
+      drop(iter);
+      assert_eq!(3, counter.load(Ordering::SeqCst));
+    }
+
+    {
+      let counter = Arc::new(AtomicUsize::new(0));
+      let mut vec = ArrayVector::<usize, Wrapper, 8>::new();
+      for _ in 0..3 {
+        vec.push(Wrapper(counter.clone())).unwrap();
+      }
+      drop(vec.into_iter());
+      assert_eq!(3, counter.load(Ordering::SeqCst));
+    }
+
+    {
+      let counter = Arc::new(AtomicUsize::new(0));
+      let mut vec = ArrayVector::<usize, Wrapper, 8>::new();
+      for _ in 0..3 {
+        vec.push(Wrapper(counter.clone())).unwrap();
+      }
+      drop(vec.into_inner());
+      assert_eq!(3, counter.load(Ordering::SeqCst));
     }
   }
 }
