@@ -41,9 +41,6 @@ pub enum VectorError {
   ExtendFromSliceOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSlicesOverflow,
-  /// When converting to the vector of the standard library, internal parameters were transformed
-  /// into overflowing values.
-  InvalidStdConversion,
   /// The index provided in the `insert` method is out of bounds.
   OutOfBoundsInsertIdx,
   #[doc = doc_single_elem_cap_overflow!()]
@@ -57,6 +54,9 @@ pub enum VectorError {
     /// Maximum
     max: u32,
   },
+  /// When converting to the vector of the standard library, internal parameters were transformed
+  /// into overflowing values.
+  StdConversionOverflow,
   /// A temporary `Vec` expanded the capacity beyond the current length type
   VecOverflow,
 }
@@ -75,7 +75,7 @@ impl From<VectorError> for u8 {
       VectorError::CapacityOverflow => 0,
       VectorError::ExtendFromSliceOverflow => 1,
       VectorError::ExtendFromSlicesOverflow => 2,
-      VectorError::InvalidStdConversion => 3,
+      VectorError::StdConversionOverflow => 3,
       VectorError::OutOfBoundsInsertIdx => 4,
       VectorError::PushOverflow => 5,
       VectorError::ReserveOverflow { additional: _, curr: _, max: _ } => 6,
@@ -169,7 +169,7 @@ where
 {
   #[doc = from_cloneable_elem_doc!("VectorU8")]
   #[inline]
-  pub fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
+  pub fn from_cloneable_elem(len: L, value: T) -> crate::Result<Self>
   where
     T: Clone,
   {
@@ -244,7 +244,7 @@ where
 
   #[doc = expand_doc!("VectorU8")]
   #[inline]
-  pub fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
+  pub fn expand(&mut self, et: ExpansionTy<L>, value: T) -> crate::Result<()>
   where
     T: Clone,
   {
@@ -534,14 +534,16 @@ where
   }
 }
 
-impl<L0, L1, T> From<ShortBoxSlice<L0, T>> for Vector<L1, T>
+impl<L0, L1, T> TryFrom<ShortBoxSlice<L0, T>> for Vector<L1, T>
 where
   L0: LinearStorageLen,
   L1: LinearStorageLen,
 {
+  type Error = crate::Error;
+
   #[inline]
-  fn from(value: ShortBoxSlice<L0, T>) -> Self {
-    Vector::from_vec(Vec::<T>::from(value)).unwrap_or_default()
+  fn try_from(value: ShortBoxSlice<L0, T>) -> Result<Self, Self::Error> {
+    Vector::from_vec(Vec::<T>::from(value))
   }
 }
 
@@ -924,7 +926,7 @@ where
       cb(&mut guard.tmp_vec)
     };
     if !is_ok {
-      return Err(VectorError::InvalidStdConversion.into());
+      return Err(VectorError::StdConversionOverflow.into());
     }
     rslt
   }
@@ -1012,9 +1014,8 @@ where
 {
   #[inline]
   fn drop(&mut self) {
-    let mut this = Vec::new();
     let _rslt = self.to_vec_mut(|el| {
-      this = mem::take(el);
+      drop(mem::take(el));
       Ok(())
     });
   }
@@ -1121,7 +1122,6 @@ mod serde {
 
   impl<L, T> Serialize for Vector<L, T>
   where
-    usize: LinearStorageLen,
     L: LinearStorageLen,
     T: Serialize,
   {

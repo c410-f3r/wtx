@@ -1,4 +1,4 @@
-use crate::calendar::{Hour, SigDuration, Sixty, Time, nanosecond::Nanosecond};
+use crate::calendar::{Hour, IDuration, Sixty, Time, nanosecond::Nanosecond};
 
 fn _8_48_05_234_445_009() -> Time {
   Time::from_hms_ns(Hour::N8, Sixty::N48, Sixty::N5, Nanosecond::from_num(234_445_009).unwrap())
@@ -95,42 +95,42 @@ fn overflowing_add_and_sub() {
 
   test!(
     instance(0, 0, 0, 0),
-    SigDuration::from_milliseconds(-990),
+    IDuration::from_milliseconds(-990),
     (instance(23, 59, 59, 10), -86_400)
   );
   test!(
     instance(0, 0, 0, 0),
-    SigDuration::from_milliseconds(-9990),
+    IDuration::from_milliseconds(-9990),
     (instance(23, 59, 50, 10), -86_400)
   );
   test!(
     instance(3, 4, 5, 678),
-    SigDuration::from_hours(-7).unwrap(),
+    IDuration::from_hours(-7).unwrap(),
     (instance(20, 4, 5, 678), -86_400)
   );
-  test!(instance(3, 4, 5, 678), SigDuration::from_hours(11).unwrap(), (instance(14, 4, 5, 678), 0));
+  test!(instance(3, 4, 5, 678), IDuration::from_hours(11).unwrap(), (instance(14, 4, 5, 678), 0));
   test!(
     instance(3, 4, 5, 678),
-    SigDuration::from_hours(23).unwrap(),
+    IDuration::from_hours(23).unwrap(),
     (instance(2, 4, 5, 678), 86_400)
   );
   test!(
     instance(3, 5, 59, 900),
-    SigDuration::from_days(12345).unwrap(),
+    IDuration::from_days(12345).unwrap(),
     (instance(3, 5, 59, 900), 1_066_608_000)
   );
-  test!(instance(3, 5, 59, 900), SigDuration::from_milliseconds(100), (instance(3, 6, 0, 0), 0));
+  test!(instance(3, 5, 59, 900), IDuration::from_milliseconds(100), (instance(3, 6, 0, 0), 0));
   test!(
     instance(3, 5, 59, 900),
-    SigDuration::from_seconds(-86399).unwrap(),
+    IDuration::from_seconds(-86399).unwrap(),
     (instance(3, 6, 0, 900), -86_400)
   );
   test!(
     instance(3, 5, 59, 900),
-    SigDuration::from_seconds(86399).unwrap(),
+    IDuration::from_seconds(86399).unwrap(),
     (instance(3, 5, 58, 900), 86_400)
   );
-  test!(instance(3, 5, 59, 900), SigDuration::ZERO, (instance(3, 5, 59, 900), 0));
+  test!(instance(3, 5, 59, 900), IDuration::ZERO, (instance(3, 5, 59, 900), 0));
 }
 
 #[test]

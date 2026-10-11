@@ -1,5 +1,5 @@
 use crate::{
-  collections::BlocksDeque,
+  collections::BlocksDequeUsize,
   database::client::rdbms::{
     statement::{Statement, StatementMut},
     statement_builder::StatementBuilder,
@@ -17,7 +17,7 @@ use hashbrown::HashMap;
 pub(crate) struct Statements<A, C, T> {
   max_stmts: usize,
   rs: FixedState,
-  stmts: BlocksDeque<(C, T), StatementsMisc<A>>,
+  stmts: BlocksDequeUsize<(C, T), StatementsMisc<A>>,
   stmts_indcs: HashMap<u64, usize>,
 }
 
@@ -29,7 +29,7 @@ impl<A, C, T> Statements<A, C, T> {
     Self {
       max_stmts: max_stmts.max(1),
       rs: random_state(rng),
-      stmts: BlocksDeque::new(),
+      stmts: BlocksDequeUsize::new(),
       stmts_indcs: HashMap::new(),
     }
   }

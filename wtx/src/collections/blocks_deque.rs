@@ -12,9 +12,9 @@ macro_rules! do_get {
     $block {
       data: if let Some(elem) = physical_begin {
         // SAFETY: `metadata` is always constructed with valid indices
-        let pointer = unsafe { data.$ptr().add(elem) };
+        let pointer = unsafe { data.$ptr().add(elem.usize()) };
         // SAFETY: same as above
-        unsafe { slice::$slice(pointer, len) }
+        unsafe { slice::$slice(pointer, len.usize()) }
       } else {
         $($ref)* []
       },
@@ -43,14 +43,23 @@ mod metadata;
 #[cfg(test)]
 mod tests;
 
-use crate::collections::{Deque, ExpansionTy, TryExtend};
+use crate::collections::{Deque, ExpansionTy, LinearStorageLen, TryExtend};
 pub use block::Block;
 use core::slice;
 
 /// [`Block`] composed by references.
-type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
+type BlockRef<'bq, D, L, M> = Block<&'bq [D], L, &'bq M>;
 /// [`Block`] composed by mutable references.
-type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
+type BlockMut<'bq, D, L, M> = Block<&'bq mut [D], L, &'bq mut M>;
+
+/// [`BlocksDeque`] with a capacity limited by `u8`.
+pub type BlocksDequeU8<D, M> = BlocksDeque<D, u8, M>;
+/// [`BlocksDeque`] with a capacity limited by `u16`.
+pub type BlocksDequeU16<D, M> = BlocksDeque<D, u16, M>;
+/// [`BlocksDeque`] with a capacity limited by `u32`.
+pub type BlocksDequeU32<D, M> = BlocksDeque<D, u32, M>;
+/// [`BlocksDeque`] with a capacity limited by `usize`.
+pub type BlocksDequeUsize<D, M> = BlocksDeque<D, usize, M>;
 
 /// Errors of [`BlocksDeque`].
 #[derive(Clone, Copy, Debug)]
@@ -69,26 +78,32 @@ pub enum BlocksDequeError {
 
 /// A circular buffer where elements are added in blocks that will never intersect boundaries.
 #[derive(Debug)]
-pub struct BlocksDeque<D, M> {
-  data: Deque<D>,
-  logical_begin: usize,
-  metadata: Deque<metadata::Metadata<M>>,
+pub struct BlocksDeque<D, L, M>
+where
+  L: LinearStorageLen,
+{
+  data: Deque<L, D>,
+  logical_begin: L,
+  metadata: Deque<L, metadata::Metadata<L, M>>,
 }
 
-impl<D, M> BlocksDeque<D, M> {
+impl<D, L, M> BlocksDeque<D, L, M>
+where
+  L: LinearStorageLen,
+{
   /// Creates a new empty instance.
   #[inline]
   pub const fn new() -> Self {
-    Self { data: Deque::new(), logical_begin: 0, metadata: Deque::new() }
+    Self { data: Deque::new(), logical_begin: L::ZERO, metadata: Deque::new() }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(blocks: usize, elements: usize) -> crate::Result<Self> {
+  pub fn with_capacity(blocks: L, elements: L) -> crate::Result<Self> {
     Ok(Self {
       data: Deque::with_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
-      logical_begin: 0,
+      logical_begin: L::ZERO,
       metadata: Deque::with_capacity(blocks)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
@@ -96,11 +111,11 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Constructs a new, empty instance with the exact specified capacity.
   #[inline]
-  pub fn with_exact_capacity(blocks: usize, elements: usize) -> crate::Result<Self> {
+  pub fn with_exact_capacity(blocks: L, elements: L) -> crate::Result<Self> {
     Ok(Self {
       data: Deque::with_exact_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
-      logical_begin: 0,
+      logical_begin: L::ZERO,
       metadata: Deque::with_exact_capacity(blocks)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
@@ -114,13 +129,13 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Returns the number of blocks the queue can hold without reallocating.
   #[inline]
-  pub fn blocks_capacity(&self) -> usize {
+  pub fn blocks_capacity(&self) -> L {
     self.metadata.capacity()
   }
 
   /// Returns the number of blocks.
   #[inline]
-  pub fn blocks_len(&self) -> usize {
+  pub fn blocks_len(&self) -> L {
     self.metadata.len()
   }
 
@@ -129,25 +144,25 @@ impl<D, M> BlocksDeque<D, M> {
   pub fn clear(&mut self) {
     let Self { data, logical_begin, metadata } = self;
     data.clear();
-    *logical_begin = 0;
+    *logical_begin = L::ZERO;
     metadata.clear();
   }
 
   /// Returns the number of elements the queue can hold without reallocating.
   #[inline]
-  pub fn elements_capacity(&self) -> usize {
+  pub fn elements_capacity(&self) -> L {
     self.data.capacity()
   }
 
   /// Returns the number of elements.
   #[inline]
-  pub fn elements_len(&self) -> usize {
+  pub fn elements_len(&self) -> L {
     self.data.len()
   }
 
   /// Appends elements to the back of the instance so that the current length is equal to `et`.
   #[inline]
-  pub fn expand_back(&mut self, et: ExpansionTy, misc: M, value: D) -> crate::Result<usize>
+  pub fn expand_back(&mut self, et: ExpansionTy<L>, misc: M, value: D) -> crate::Result<L>
   where
     D: Clone,
   {
@@ -164,7 +179,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Provides a reference to a block at the given index.
   #[inline]
-  pub fn get(&self, idx: usize) -> Option<BlockRef<'_, D, M>> {
+  pub fn get(&self, idx: L) -> Option<BlockRef<'_, D, L, M>> {
     let Self { data, logical_begin, metadata } = self;
     let local_metadata = metadata.get(idx)?;
     Some(get!(data, *logical_begin, local_metadata))
@@ -172,7 +187,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Mutable version of [`Self::get`].
   #[inline]
-  pub fn get_mut(&mut self, idx: usize) -> Option<BlockMut<'_, D, M>> {
+  pub fn get_mut(&mut self, idx: L) -> Option<BlockMut<'_, D, L, M>> {
     let Self { ref mut data, logical_begin, ref mut metadata } = *self;
     let local_metadata = metadata.get_mut(idx)?;
     Some(get_mut!(data, logical_begin, local_metadata))
@@ -180,14 +195,14 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Returns a front-to-back iterator.
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, M>> {
+  pub fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, L, M>> {
     let Self { data, logical_begin, metadata } = self;
     metadata.iter().map(move |elem| get!(data, *logical_begin, elem))
   }
 
   /// Mutable version of [`Self::iter`].
   #[inline]
-  pub fn iter_mut(&mut self) -> impl Iterator<Item = BlockMut<'_, D, M>> {
+  pub fn iter_mut(&mut self) -> impl Iterator<Item = BlockMut<'_, D, L, M>> {
     let Self { ref mut data, logical_begin, ref mut metadata } = *self;
     metadata.iter_mut().map(move |elem| get_mut!(data, logical_begin, elem))
   }
@@ -286,7 +301,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
-  pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> crate::Result<()> {
+  pub fn reserve_front(&mut self, blocks: L, elements: L) -> crate::Result<()> {
     let Self { data, metadata, logical_begin: _ } = self;
     let _ = metadata.reserve_front(blocks).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     let _ = data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
@@ -294,7 +309,10 @@ impl<D, M> BlocksDeque<D, M> {
   }
 }
 
-impl<D, M> Default for BlocksDeque<D, M> {
+impl<D, L, M> Default for BlocksDeque<D, L, M>
+where
+  L: LinearStorageLen,
+{
   #[inline]
   fn default() -> Self {
     Self::new()

@@ -1,7 +1,7 @@
 use crate::{
   codec::{Decode, Encode},
   collections::{
-    ArrayVector, ArrayVectorU8, LinearStorageLen, SingleTypeStorage, TryExtend, VectorUsize,
+    ArrayVector, ArrayVectorU8, LinearStorageLen, SingleTypeStorage, TryExtend, Vector,
   },
   database::{
     Typed,
@@ -113,14 +113,15 @@ where
   }
 }
 
-impl<'de, E, T> Decode<'de, Postgres<E>> for VectorUsize<T>
+impl<'de, E, L, T> Decode<'de, Postgres<E>> for Vector<L, T>
 where
   E: From<crate::Error>,
+  L: LinearStorageLen,
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
   fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
-    Ok(PgArray::<VectorUsize<T>>::decode(dw)?.0)
+    Ok(PgArray::<Vector<L, T>>::decode(dw)?.0)
   }
 }
 
@@ -158,9 +159,10 @@ where
   }
 }
 
-impl<E, T> Encode<Postgres<E>> for VectorUsize<T>
+impl<E, L, T> Encode<Postgres<E>> for Vector<L, T>
 where
   E: From<crate::Error>,
+  L: LinearStorageLen,
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
@@ -218,9 +220,10 @@ where
   }
 }
 
-impl<E, T> Typed<Postgres<E>> for VectorUsize<T>
+impl<E, L, T> Typed<Postgres<E>> for Vector<L, T>
 where
   E: From<crate::Error>,
+  L: LinearStorageLen,
   T: Typed<Postgres<E>>,
 {
   #[inline]

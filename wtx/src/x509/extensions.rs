@@ -31,7 +31,7 @@ use crate::{
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::VectorUsize,
+  collections::VectorU8,
   misc::Lease,
   x509::{Extension, X509Error},
 };
@@ -64,7 +64,7 @@ pub use transparency_information_syntax::TransparencyInformationSyntax;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Extensions<B> {
   /// Entries
-  pub entries: VectorUsize<Extension<B>>,
+  pub entries: VectorU8<Extension<B>>,
   /// Tag
   pub tag: u8,
 }

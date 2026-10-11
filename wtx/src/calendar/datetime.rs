@@ -4,8 +4,8 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, CeDays, Date, EPOCH_CE_DAYS, Hour, Nanosecond, SECONDS_PER_DAY,
-    SECONDS_PER_MINUTE, SigDuration, Sixty, Time, TimeZone, Utc,
+    CalendarError, CalendarToken, CeDays, Date, EPOCH_CE_DAYS, Hour, IDuration, Nanosecond,
+    SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
   },
   collections::{ArrayString, ArrayStringU8},
   misc::int_conv::{i16i64, i32i64, u8i64, u32i64},
@@ -126,12 +126,12 @@ where
 
   /// Computes `self + duration`, returning an error if an overflow occurred.
   #[inline]
-  pub const fn add(self, duration: SigDuration) -> Result<Self, CalendarError> {
+  pub const fn add(self, duration: IDuration) -> Result<Self, CalendarError> {
     if duration.is_zero() {
       return Ok(self);
     }
     let (time, remaining) = self.time.overflowing_add(duration);
-    let rhs = match SigDuration::from_seconds(remaining) {
+    let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
@@ -163,9 +163,9 @@ where
 
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
-  pub const fn sub(self, duration: SigDuration) -> Result<Self, CalendarError> {
+  pub const fn sub(self, duration: IDuration) -> Result<Self, CalendarError> {
     let (time, remaining) = self.time.overflowing_sub(duration);
-    let rhs = match SigDuration::from_seconds(remaining) {
+    let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
@@ -202,7 +202,7 @@ where
     if (TZ::IS_LOCAL || TZ::IS_UTC) && (NTZ::IS_LOCAL || NTZ::IS_UTC) {
       return Ok(Datetime::new(self.date, self.time, tz));
     }
-    let datetime = self.to_utc()?.add(SigDuration::from_minutes(i64::from(tz.minutes()))?)?;
+    let datetime = self.to_utc()?.add(IDuration::from_minutes(i64::from(tz.minutes()))?)?;
     Ok(Datetime::new(datetime.date, datetime.time, tz))
   }
 
@@ -212,7 +212,7 @@ where
     if TZ::IS_LOCAL || TZ::IS_UTC {
       Ok(Datetime::new(self.date, self.time, Utc))
     } else {
-      let datetime = self.sub(SigDuration::from_minutes(i64::from(self.tz.minutes()))?)?;
+      let datetime = self.sub(IDuration::from_minutes(i64::from(self.tz.minutes()))?)?;
       Ok(Datetime::new(datetime.date, datetime.time, Utc))
     }
   }

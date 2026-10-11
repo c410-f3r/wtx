@@ -20,7 +20,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collections::{Deque, VectorUsize},
+  collections::{Deque, DequeUsize, VectorUsize},
   misc::Lease,
 };
 use alloc::borrow::{Cow, ToOwned};
@@ -55,7 +55,7 @@ where
   asserted: usize,
   phantom: PhantomData<TP>,
   requests: VectorUsize<Cow<'static, T>>,
-  responses: Deque<Cow<'static, T>>,
+  responses: DequeUsize<Cow<'static, T>>,
 }
 
 impl<T, TP> Mock<T, TP>

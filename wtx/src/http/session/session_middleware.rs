@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Datetime, Instant, Utc},
-  collections::VectorUsize,
+  collections::{ShortBoxStrU8, VectorUsize},
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
     KnownHeaderName, MsgBufferString, Request, Response, SessionManager, SessionManagerInner,
@@ -9,7 +9,6 @@ use crate::{
   misc::{Lease as _, LeaseMut, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
 };
-use alloc::string::String;
 use core::ops::ControlFlow;
 use serde::de::DeserializeOwned;
 
@@ -19,7 +18,7 @@ pub struct SessionMiddleware<CS, E, RM>
 where
   RM: ResourceManager,
 {
-  allowed_paths: VectorUsize<String>,
+  allowed_paths: VectorUsize<ShortBoxStrU8>,
   session_manager: SessionManager<CS, E>,
   session_store: SimplePool<RM>,
 }
@@ -31,7 +30,7 @@ where
   /// New instance
   #[inline]
   pub const fn new(
-    allowed_paths: VectorUsize<String>,
+    allowed_paths: VectorUsize<ShortBoxStrU8>,
     session_manager: SessionManager<CS, E>,
     session_store: SimplePool<RM>,
   ) -> Self {
@@ -118,7 +117,7 @@ where
       _trace!("Session found in headers has been successfully validated");
     } else {
       let path = req.msg_data.uri.path();
-      if self.allowed_paths.iter().all(|el| el != path) {
+      if self.allowed_paths.iter().all(|el| el.as_str() != path) {
         _trace!("Session was not found in headers and path is forbidden");
         delete_session_cookie(data, req, &self.session_manager, &self.session_store).await?;
         return Ok(ControlFlow::Break(StatusCode::Forbidden));

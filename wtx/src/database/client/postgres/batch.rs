@@ -153,6 +153,7 @@ where
     RV: RecordValues<Postgres<E>>,
     SC: StmtCmd,
   {
+    _debug!("Executing `{:?}`", sc.cmd());
     let PostgresClient { cb, cs: _, phantom: _, stream: _ } = self.client;
     let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, stmts, records_params: _, values_params: _ } = common;

@@ -11,7 +11,7 @@ where
 {
   if req_method != user_method {
     return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
-      expected: user_method,
+      expected: Some(user_method),
     })));
   }
   let header = req_headers
@@ -35,7 +35,9 @@ where
   E: From<crate::Error>,
 {
   if expected != received {
-    return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod { expected })));
+    return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
+      expected: Some(expected),
+    })));
   }
   Ok(())
 }

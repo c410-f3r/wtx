@@ -36,7 +36,7 @@ impl TlsCtxSk for SkCtx {
     RNG: CryptoRng,
   {
     let kt = sc.cert_kt();
-    for value in self.0.iter() {
+    for value in &self.0 {
       if value.1 == kt {
         return sc.handshake_st().sign_key_from_pkcs8(&value.0)?.sign(msg, rng);
       }

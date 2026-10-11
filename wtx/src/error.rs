@@ -93,6 +93,9 @@ pub enum Error {
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
+  #[cfg(feature = "rust_decimal")]
+  #[doc = associated_element_doc!()]
+  RustDecimal(Box<rust_decimal::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),

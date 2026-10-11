@@ -1,5 +1,5 @@
 use crate::{
-  collections::{Deque, backward_deque_idx},
+  collections::{Deque, DequeUsize, backward_deque_idx},
   misc::unlikely_unreachable,
   sync::{AtomicUsize, SyncMutex, sync_mutex::SyncMutexGuard},
 };
@@ -238,7 +238,7 @@ impl Waiter {
 #[derive(Debug)]
 struct Waiters {
   added: usize,
-  deque: Deque<Waiter>,
+  deque: DequeUsize<Waiter>,
   last_added: usize,
   waiting_count: usize,
 }

@@ -153,7 +153,7 @@ where
 
   #[doc = expand_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
-  pub fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()> {
+  pub fn expand(&mut self, et: ExpansionTy<u8>, value: T) -> crate::Result<()> {
     self.0.expand(et, value)
   }
 

@@ -3,9 +3,7 @@ use crate::{
   collections::VectorUsize,
   futures::Sleep,
   http::{
-    SessionManager, SessionStore,
-    cookie::{SameSite, SetCookieGeneric},
-    session::SessionManagerInner,
+    SameSite, SessionManager, SessionStore, cookie::SetCookieGeneric, session::SessionManagerInner,
   },
   rng::CryptoRng,
   secret::SecretArray,

@@ -25,6 +25,7 @@ mod protocol;
 mod request;
 mod response;
 mod router;
+mod same_site;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
@@ -53,6 +54,7 @@ pub use protocol::Protocol;
 pub use request::Request;
 pub use response::Response;
 pub use router::{Router, RouterBuilder, RouterError, RouterMatch, RouterMatchParam};
+pub use same_site::SameSite;
 #[cfg(feature = "http-session")]
 pub use session::*;
 pub use status_code::StatusCode;

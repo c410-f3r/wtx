@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayString, ArrayVector, LinearStorageLen, VectorUsize},
+  collections::{ArrayString, ArrayVector, LinearStorageLen, Vector},
   http::{MsgBufferString, Request, StatusCode},
 };
 use alloc::string::String;
@@ -82,9 +82,10 @@ where
   }
 }
 
-impl<E> ResFinalizer<E> for VectorUsize<u8>
+impl<E, L> ResFinalizer<E> for Vector<L, u8>
 where
   E: From<crate::Error>,
+  L: LinearStorageLen,
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {

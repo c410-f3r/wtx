@@ -1,16 +1,32 @@
 use crate::{
-  calendar::{Datetime, Utc},
+  calendar::{CalendarToken, Datetime, Utc},
   collections::{ArrayStringU8, ArrayVectorU8, Clear},
-  http::{
-    Header, Headers, KnownHeaderName,
-    cookie::{FMT1, SameSite},
-  },
+  http::{Header, Headers, KnownHeaderName, SameSite},
   misc::Lease,
 };
 use core::{
   fmt::{Display, Formatter},
   time::Duration,
 };
+
+static FMT1: &[CalendarToken] = &[
+  CalendarToken::AbbreviatedWeekdayName,
+  CalendarToken::Comma,
+  CalendarToken::Space,
+  CalendarToken::TwoDigitDay,
+  CalendarToken::Space,
+  CalendarToken::AbbreviatedMonthName,
+  CalendarToken::Space,
+  CalendarToken::FourDigitYear,
+  CalendarToken::Space,
+  CalendarToken::TwoDigitHour,
+  CalendarToken::Colon,
+  CalendarToken::TwoDigitMinute,
+  CalendarToken::Colon,
+  CalendarToken::TwoDigitSecond,
+  CalendarToken::Space,
+  CalendarToken::Gmt,
+];
 
 type NameTy = ArrayStringU8<15>;
 

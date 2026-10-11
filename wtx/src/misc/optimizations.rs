@@ -8,7 +8,12 @@ pub fn bytes_pos_seq(bytes: &[u8], elem: &[u8]) -> Option<usize> {
   #[cfg(feature = "memchr")]
   return memchr::memmem::find(bytes, elem);
   #[cfg(not(feature = "memchr"))]
-  return bytes.windows(elem.len()).position(|w| w == elem);
+  {
+    if elem.is_empty() {
+      return Some(0);
+    }
+    bytes.windows(elem.len()).position(|w| w == elem)
+  }
 }
 
 /// Internally uses `memchr` if the feature is active.

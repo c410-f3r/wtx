@@ -36,9 +36,13 @@ impl TryFrom<(HpackHeaderName, &str)> for HpackHeaderBasic {
     Ok(match from.0 {
       HpackHeaderName::Authority => HpackHeaderBasic::Authority,
       HpackHeaderName::Field => HpackHeaderBasic::Field,
-      HpackHeaderName::Method => HpackHeaderBasic::Method(from.1.try_into()?),
+      HpackHeaderName::Method => {
+        HpackHeaderBasic::Method(Method::from_canonical_bytes(from.1.as_bytes())?)
+      }
       HpackHeaderName::Path => HpackHeaderBasic::Path,
-      HpackHeaderName::Protocol => HpackHeaderBasic::Protocol(from.1.try_into()?),
+      HpackHeaderName::Protocol => {
+        HpackHeaderBasic::Protocol(Protocol::from_canonical_bytes(from.1.as_bytes())?)
+      }
       HpackHeaderName::Scheme => HpackHeaderBasic::Scheme,
       HpackHeaderName::StatusCode => HpackHeaderBasic::StatusCode(from.1.try_into()?),
     })
@@ -72,5 +76,19 @@ impl HpackHeaderName {
 
   pub(crate) const fn is_field(self) -> bool {
     matches!(self, HpackHeaderName::Field)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::http2::hpack_headers::HpackHeaders;
+
+  #[test]
+  fn len_surplus() {
+    let mut h = HpackHeaders::<u32>::new(100);
+    h.push_front(false, 0, "abcdefghij", ["0123456789"], |_| {}).unwrap();
+    assert_eq!(h.headers_len(), 1);
+    h.push_front(false, 0, "abcdefghij", ["0123456789"], |_| {}).unwrap();
+    assert_eq!(h.headers_len(), 1);
   }
 }

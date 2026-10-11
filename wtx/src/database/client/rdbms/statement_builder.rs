@@ -1,5 +1,5 @@
 use crate::{
-  collections::{BlocksDeque, ExpansionTy},
+  collections::{BlocksDequeUsize, ExpansionTy},
   database::{DatabaseError, client::rdbms::statements_misc::StatementsMisc},
 };
 use hashbrown::HashMap;
@@ -7,7 +7,7 @@ use hashbrown::HashMap;
 #[derive(Debug)]
 pub(crate) struct StatementBuilder<'stmts, A, C, T> {
   indcs: &'stmts mut HashMap<u64, usize>,
-  stmts: &'stmts mut BlocksDeque<(C, T), StatementsMisc<A>>,
+  stmts: &'stmts mut BlocksDequeUsize<(C, T), StatementsMisc<A>>,
   stmts_idx: usize,
 }
 
@@ -17,7 +17,7 @@ where
 {
   pub(crate) fn new(
     indcs: &'stmts mut HashMap<u64, usize>,
-    stmts: &'stmts mut BlocksDeque<(C, T), StatementsMisc<A>>,
+    stmts: &'stmts mut BlocksDequeUsize<(C, T), StatementsMisc<A>>,
   ) -> Self {
     let stmts_idx = stmts.blocks_len();
     Self { indcs, stmts, stmts_idx }

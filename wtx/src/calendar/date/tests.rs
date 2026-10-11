@@ -1,5 +1,5 @@
 use crate::calendar::{
-  CeDays, DAYS_PER_QUADCENTURY, Date, Day, DayOfYear, Month, SigDuration, Weekday, Year,
+  CeDays, DAYS_PER_QUADCENTURY, Date, Day, DayOfYear, IDuration, Month, Weekday, Year,
 };
 
 fn _0401_03_02() -> Date {
@@ -37,19 +37,15 @@ fn add_and_sub() {
     };
   }
 
-  test!(instance(2014, 1, 1), SigDuration::ZERO, instance(2014, 1, 1));
-  test!(instance(2014, 1, 1), SigDuration::from_seconds(86399).unwrap(), instance(2014, 1, 1));
-  test!(instance(2014, 1, 1), SigDuration::from_seconds(-86399).unwrap(), instance(2014, 1, 1));
-  test!(instance(2014, 1, 1), SigDuration::from_days(1).unwrap(), instance(2014, 1, 2));
-  test!(instance(2014, 1, 1), SigDuration::from_days(-1).unwrap(), instance(2013, 12, 31));
-  test!(instance(2014, 1, 1), SigDuration::from_days(364).unwrap(), instance(2014, 12, 31));
-  test!(instance(2014, 1, 1), SigDuration::from_days(365 * 4 + 1).unwrap(), instance(2018, 1, 1));
-  test!(
-    instance(2014, 1, 1),
-    SigDuration::from_days(365 * 400 + 97).unwrap(),
-    instance(2414, 1, 1)
-  );
-  test!(instance(-7, 1, 1), SigDuration::from_days(365 * 12 + 3).unwrap(), instance(5, 1, 1));
+  test!(instance(2014, 1, 1), IDuration::ZERO, instance(2014, 1, 1));
+  test!(instance(2014, 1, 1), IDuration::from_seconds(86399).unwrap(), instance(2014, 1, 1));
+  test!(instance(2014, 1, 1), IDuration::from_seconds(-86399).unwrap(), instance(2014, 1, 1));
+  test!(instance(2014, 1, 1), IDuration::from_days(1).unwrap(), instance(2014, 1, 2));
+  test!(instance(2014, 1, 1), IDuration::from_days(-1).unwrap(), instance(2013, 12, 31));
+  test!(instance(2014, 1, 1), IDuration::from_days(364).unwrap(), instance(2014, 12, 31));
+  test!(instance(2014, 1, 1), IDuration::from_days(365 * 4 + 1).unwrap(), instance(2018, 1, 1));
+  test!(instance(2014, 1, 1), IDuration::from_days(365 * 400 + 97).unwrap(), instance(2414, 1, 1));
+  test!(instance(-7, 1, 1), IDuration::from_days(365 * 12 + 3).unwrap(), instance(5, 1, 1));
 }
 
 #[test]

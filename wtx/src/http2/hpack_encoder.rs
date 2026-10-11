@@ -20,6 +20,7 @@ use crate::{
 };
 use core::{
   hash::{BuildHasher as _, Hasher as _},
+  hint::cold_path,
   iter,
 };
 use foldhash::fast::FixedState;
@@ -81,8 +82,14 @@ impl HpackEncoder {
     buffer.reserve(bytes_len_hint / 2)?;
     self.manage_size_update(buffer)?;
     for (hhb, value) in pseudo_headers_iter {
-      let idx = self.encode_idx(("", value, false), hhb, Self::shi_pseudo((hhb, value)))?;
-      Self::manage_encode(buffer, ("", value), idx)?;
+      let name = if matches!(hhb, HpackHeaderBasic::Protocol(_)) {
+        cold_path();
+        ":protocol"
+      } else {
+        ""
+      };
+      let idx = self.encode_idx((name, value, false), hhb, Self::shi_pseudo((hhb, value)))?;
+      Self::manage_encode(buffer, (name, value), idx)?;
     }
     for Header { is_sensitive, name, value, is_trailer: _ } in user_headers_iter {
       let idx = self.encode_idx(
@@ -342,7 +349,7 @@ impl HpackEncoder {
   const fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
     let lhs = hhb.len(name, value);
     let rhs = (self.dyn_headers.max_bytes() / 4).wrapping_mul(3);
-    lhs >= rhs
+    lhs >= Usize::from_u32(rhs).into_usize()
   }
 
   const fn idx_to_encode_idx(&self, idx: u32) -> u32 {
@@ -383,16 +390,16 @@ impl HpackEncoder {
   fn manage_size_update(&mut self, buffer: &mut VectorUsize<u8>) -> crate::Result<()> {
     match self.max_dyn_sub_bytes.take() {
       Some((lower, None)) => {
-        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata| {
+        self.dyn_headers.set_max_bytes(lower, |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
         let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
       }
       Some((lower, Some(upper))) => {
-        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata| {
+        self.dyn_headers.set_max_bytes(lower, |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
-        self.dyn_headers.set_max_bytes(*Usize::from(upper), |metadata| {
+        self.dyn_headers.set_max_bytes(upper, |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
         let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
@@ -586,7 +593,7 @@ impl HpackEncoder {
     if !HAS_STATIC_NAME {
       let after = self.dyn_headers.headers_len();
       let diff = before.wrapping_sub(after.wrapping_sub(1));
-      let name_idx_has_been_removed = diff > *Usize::from(name_idx);
+      let name_idx_has_been_removed = diff > name_idx;
       if name_idx_has_been_removed {
         return Ok(EncodeIdx::SavedNameSavedValue);
       }
@@ -637,11 +644,13 @@ struct StaticHeader {
 
 #[cfg(test)]
 mod tests {
+  use alloc::string;
+
   use crate::{
     collections::VectorUsize,
-    http::{Method, StatusCode},
+    http::{Method, Protocol, StatusCode},
     http2::{
-      hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
+      hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
       hpack_static_headers::HpackStaticResponseHeaders,
     },
     rng::{SeedableRng, Xorshift64},
@@ -691,5 +700,34 @@ mod tests {
       )
       .unwrap();
     assert_eq!(&buffer, &[66, 134, 191, 131, 62, 13, 248, 63][..])
+  }
+
+  #[test]
+  fn pseudo_headers_without_static_indices_are_decoded() {
+    use crate::http2::hpack_static_headers::HpackStaticRequestHeaders;
+    let hsreqh = HpackStaticRequestHeaders {
+      authority: "example.com",
+      method: Some(Method::Connect),
+      path: "",
+      protocol: Some(Protocol::WebSocket),
+      scheme: "https",
+    };
+    let mut enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
+    let mut buf = VectorUsize::new();
+    enc.encode(&mut buf, 0, hsreqh.iter(), []).unwrap();
+    let mut dec = HpackDecoder::new();
+    let mut found = None;
+    dec
+      .decode(&buf, |(hhb, name, value)| {
+        if matches!(hhb, HpackHeaderBasic::Protocol(_)) || name.str() == ":protocol" {
+          found = Some((hhb, string::String::from(value)));
+        }
+        Ok(())
+      })
+      .unwrap();
+    assert_eq!(
+      found,
+      Some((HpackHeaderBasic::Protocol(Protocol::WebSocket), string::String::from("WEBSOCKET"))),
+    );
   }
 }

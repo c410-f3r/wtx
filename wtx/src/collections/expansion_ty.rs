@@ -1,14 +1,19 @@
+use crate::collections::LinearStorageLen;
+
 /// Used in operations that expand collections.
 #[derive(Clone, Copy, Debug)]
-pub enum ExpansionTy {
+pub enum ExpansionTy<L> {
   /// Buffer should be modified with more elements
-  Additional(usize),
+  Additional(L),
   /// Buffer should be modified using the exact specified length.
-  Len(usize),
+  Len(L),
 }
 
-impl ExpansionTy {
-  pub(crate) fn params(self, len: usize) -> Option<(usize, usize)> {
+impl<L> ExpansionTy<L>
+where
+  L: LinearStorageLen,
+{
+  pub(crate) fn params(self, len: L) -> Option<(L, L)> {
     Some(match self {
       Self::Additional(elem) => (elem, len.checked_add(elem)?),
       Self::Len(elem) => (elem.checked_sub(len)?, elem),
