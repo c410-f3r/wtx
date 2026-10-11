@@ -6,7 +6,7 @@ use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
   calendar::{Datetime, Instant, Utc},
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::VectorUsize,
+  collections::{LinearStorageLen, Vector, VectorError, VectorU8, VectorUsize},
   x509::{
     Certificate, Crl, CvCertificate, CvCrl, CvEndEntity, CvEvaluationDepth, CvIntermediate,
     CvPolicy, CvPolicyMode, CvTrustAnchor, ServerName, X509CvError, X509Error,
@@ -19,7 +19,7 @@ fn main() {
   let limbo: Limbo = serde_json::from_reader(BufReader::new(file)).unwrap();
 
   let mut bytes_certs = VectorUsize::new();
-  let mut crls = VectorUsize::new();
+  let mut crls = VectorU8::new();
   let mut pems = VectorUsize::new();
   let mut trusted_certs = VectorUsize::new();
   let mut untrusted_intermediates = VectorUsize::new();
@@ -249,7 +249,10 @@ impl<'any> TestcaseResult<'any> {
   }
 }
 
-fn clear_and_recycle<T, U>(mut vector: VectorUsize<T>) -> VectorUsize<U> {
+fn clear_and_recycle<L, T, U>(mut vector: Vector<L, T>) -> Vector<L, U>
+where
+  L: LinearStorageLen,
+{
   vector.clear();
   assert_eq!(size_of::<T>(), size_of::<U>());
   assert_eq!(align_of::<T>(), align_of::<U>());
@@ -257,12 +260,12 @@ fn clear_and_recycle<T, U>(mut vector: VectorUsize<T>) -> VectorUsize<U> {
   let ptr = vector.as_mut_ptr().cast();
   mem::forget(vector);
   // SAFETY: storage comes from the non-dropped vector
-  VectorUsize::from_vec(unsafe { Vec::from_raw_parts(ptr, 0, cap) }).unwrap()
+  Vector::from_vec(unsafe { Vec::from_raw_parts(ptr, 0, cap.usize()) }).unwrap()
 }
 
 fn evaluate_test_case<'bytes>(
   bytes_certs: &'bytes mut VectorUsize<u8>,
-  crls: &mut VectorUsize<CvCrl<&'bytes [u8]>>,
+  crls: &mut VectorU8<CvCrl<&'bytes [u8]>>,
   pems: &mut VectorUsize<Pem<Range<usize>, 1>>,
   testcase: &Testcase,
   trusted_certs: &mut VectorUsize<CvTrustAnchor<&'bytes [u8]>>,
@@ -397,6 +400,7 @@ where
   match rslt {
     Ok(elem) => Some(elem),
     Err(wtx::Error::Asn1Error(Asn1Error::LargeData))
+    | Err(wtx::Error::VectorError(VectorError::StdConversionOverflow))
     | Err(wtx::Error::X509Error(X509Error::InvalidCertificateVersion))
     | Err(wtx::Error::X509Error(X509Error::InvalidExtendedKeyUsage))
     | Err(wtx::Error::X509Error(X509Error::InvalidExtensionKeyUsage))

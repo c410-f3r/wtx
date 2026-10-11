@@ -26,7 +26,7 @@ impl HpackStaticRequestHeaders<'_> {
     let Self { authority, method, path, protocol, scheme } = *self;
     let enums = [
       method.map(|el| (HpackHeaderBasic::Method(el), el.strings().custom[0])),
-      protocol.map(|el| (HpackHeaderBasic::Protocol(el), "")),
+      protocol.map(|el| (HpackHeaderBasic::Protocol(el), el.strings().custom[0])),
     ]
     .into_iter()
     .flatten();

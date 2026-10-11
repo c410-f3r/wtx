@@ -1,6 +1,6 @@
 use crate::{
   collections::VectorUsize,
-  http::{_HeaderNameBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
+  http::{_HeaderNameBuffer, HeaderName, KnownHeaderName, Method, Protocol, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode,
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
@@ -45,7 +45,7 @@ impl HpackDecoder {
     mut cb: impl FnMut((HpackHeaderBasic, HeaderName<&str>, &str)) -> crate::Result<()>,
   ) -> crate::Result<()> {
     if let Some(elem) = self.max_bytes.1.take() {
-      self.dyn_headers.set_max_bytes(*Usize::from(elem), |_| {});
+      self.dyn_headers.set_max_bytes(elem, |_| {});
       self.max_bytes.0 = elem;
     }
     let mut did_update = false;
@@ -226,7 +226,7 @@ impl HpackDecoder {
     dyn_headers: &HpackHeaders<HpackHeaderBasic>,
     idx: u32,
   ) -> Option<(HpackHeaderBasic, HeaderName<&str>, &str)> {
-    let dyn_idx = *Usize::from(idx.wrapping_sub(DYN_IDX_OFFSET));
+    let dyn_idx = idx.wrapping_sub(DYN_IDX_OFFSET);
     let header = dyn_headers.get_by_idx(dyn_idx)?;
     Some((*header.misc, HeaderName::new(header.name), header.value))
   }
@@ -327,7 +327,7 @@ impl HpackDecoder {
             Http2Error::OutOfBoundsIndex,
           ));
         }
-        self.dyn_headers.set_max_bytes(*Usize::from(local_max_bytes), |_| {});
+        self.dyn_headers.set_max_bytes(local_max_bytes, |_| {});
       }
     }
     Ok(())
@@ -337,9 +337,13 @@ impl HpackDecoder {
     Ok(match hhb {
       HpackHeaderBasic::Authority => HpackHeaderBasic::Authority,
       HpackHeaderBasic::Field => HpackHeaderBasic::Field,
-      HpackHeaderBasic::Method(_) => HpackHeaderBasic::Method(value.try_into()?),
+      HpackHeaderBasic::Method(_) => {
+        HpackHeaderBasic::Method(Method::from_canonical_bytes(value.as_bytes())?)
+      }
       HpackHeaderBasic::Path => HpackHeaderBasic::Path,
-      HpackHeaderBasic::Protocol(_) => HpackHeaderBasic::Protocol(value.try_into()?),
+      HpackHeaderBasic::Protocol(_) => {
+        HpackHeaderBasic::Protocol(Protocol::from_canonical_bytes(value.as_bytes())?)
+      }
       HpackHeaderBasic::Scheme => HpackHeaderBasic::Scheme,
       HpackHeaderBasic::StatusCode(_) => HpackHeaderBasic::StatusCode(value.try_into()?),
     })

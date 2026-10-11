@@ -32,8 +32,10 @@ pub enum HttpError {
   /// HTTP version does not match the expected method.
   UnexpectedHttpMethod {
     /// Expected method
-    expected: Method,
+    expected: Option<Method>,
   },
+  /// Unexpected protocol
+  UnexpectedProtocol,
   /// Unknown header name.
   UnknownHeaderNameFromBytes {
     /// Received length

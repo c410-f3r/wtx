@@ -10,12 +10,12 @@ use crate::{
 ///
 /// Differently from [`core::time::Duration`], this structure allows negative values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SigDuration {
+pub struct IDuration {
   seconds: i64,
   nanoseconds: i32,
 }
 
-impl SigDuration {
+impl IDuration {
   /// Instance with the minimum allowed value.
   pub const MIN: Self =
     if let Ok(el) = Self::new(i64::MIN + 1, -999_999_999) { el } else { panic!() };
@@ -70,7 +70,7 @@ impl SigDuration {
 
   /// Creates a new instance from the specified number of whole seconds.
   #[inline]
-  pub const fn from_seconds(seconds: i64) -> Result<SigDuration, CalendarError> {
+  pub const fn from_seconds(seconds: i64) -> Result<IDuration, CalendarError> {
     if seconds == i64::MIN {
       return Err(CalendarError::ArithmeticOverflow);
     }
@@ -78,13 +78,13 @@ impl SigDuration {
   }
 
   /// Creates a new instance from the specified number of whole seconds and additional
-  /// nanosecond.
+  /// nanoseconds.
   ///
-  ///  If the number of nanosecond is greater than 1 billion (the number of nanosecond in a
+  ///  If the number of nanosecond is greater than 1 billion (the number of nanoseconds in a
   /// second), then it will carry over into the seconds provided.
   #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
-  pub const fn new(mut seconds: i64, mut nanosecond: i32) -> Result<SigDuration, CalendarError> {
+  pub const fn new(mut seconds: i64, mut nanosecond: i32) -> Result<IDuration, CalendarError> {
     match seconds.checked_add(i32i64(nanosecond) / u32i64(NANOSECONDS_PER_SECOND)) {
       Some(elem) => {
         seconds = elem;
@@ -153,7 +153,7 @@ impl SigDuration {
   }
 }
 
-impl TryFrom<core::time::Duration> for SigDuration {
+impl TryFrom<core::time::Duration> for IDuration {
   type Error = crate::Error;
 
   #[inline]
@@ -162,11 +162,11 @@ impl TryFrom<core::time::Duration> for SigDuration {
   }
 }
 
-impl TryFrom<SigDuration> for core::time::Duration {
+impl TryFrom<IDuration> for core::time::Duration {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: SigDuration) -> crate::Result<Self> {
+  fn try_from(from: IDuration) -> crate::Result<Self> {
     Ok(Self::new(from.seconds.try_into()?, from.nanoseconds.try_into()?))
   }
 }

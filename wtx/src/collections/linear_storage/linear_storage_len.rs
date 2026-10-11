@@ -73,6 +73,26 @@ pub trait LinearStorageLen:
   /// Tries to create a new instance from a `usize` primitive.
   fn from_usize(num: usize) -> crate::Result<Self>;
 
+  /// Checked integer addition.
+  #[must_use]
+  fn checked_add(self, rhs: Self) -> Option<Self>;
+
+  /// Checked integer remainder.
+  #[must_use]
+  fn checked_rem(self, rhs: Self) -> Option<Self>;
+
+  /// Checked integer subtraction.
+  #[must_use]
+  fn checked_sub(self, rhs: Self) -> Option<Self>;
+
+  /// Saturating integer addition.
+  #[must_use]
+  fn saturating_add(self, rhs: Self) -> Self;
+
+  /// Saturating integer subtraction.
+  #[must_use]
+  fn saturating_sub(self, rhs: Self) -> Self;
+
   /// Returns the memory representation of this integer as a byte array in little-endian byte order.
   fn to_le_bytes(self) -> Self::Array;
 
@@ -105,6 +125,31 @@ impl LinearStorageLen for u8 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
+  fn checked_rem(self, rhs: Self) -> Option<Self> {
+    self.checked_rem(rhs)
+  }
+
+  #[inline]
+  fn checked_sub(self, rhs: Self) -> Option<Self> {
+    self.checked_sub(rhs)
+  }
+
+  #[inline]
+  fn saturating_add(self, rhs: Self) -> Self {
+    self.saturating_add(rhs)
+  }
+
+  #[inline]
+  fn saturating_sub(self, rhs: Self) -> Self {
+    self.saturating_sub(rhs)
   }
 
   #[inline]
@@ -145,6 +190,31 @@ impl LinearStorageLen for u16 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
+  fn checked_rem(self, rhs: Self) -> Option<Self> {
+    self.checked_rem(rhs)
+  }
+
+  #[inline]
+  fn checked_sub(self, rhs: Self) -> Option<Self> {
+    self.checked_sub(rhs)
+  }
+
+  #[inline]
+  fn saturating_add(self, rhs: Self) -> Self {
+    self.saturating_add(rhs)
+  }
+
+  #[inline]
+  fn saturating_sub(self, rhs: Self) -> Self {
+    self.saturating_sub(rhs)
   }
 
   #[inline]
@@ -193,6 +263,31 @@ impl LinearStorageLen for u32 {
   }
 
   #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
+  fn checked_rem(self, rhs: Self) -> Option<Self> {
+    self.checked_rem(rhs)
+  }
+
+  #[inline]
+  fn checked_sub(self, rhs: Self) -> Option<Self> {
+    self.checked_sub(rhs)
+  }
+
+  #[inline]
+  fn saturating_add(self, rhs: Self) -> Self {
+    self.saturating_add(rhs)
+  }
+
+  #[inline]
+  fn saturating_sub(self, rhs: Self) -> Self {
+    self.saturating_sub(rhs)
+  }
+
+  #[inline]
   fn usize(self) -> usize {
     *Usize::from(self)
   }
@@ -226,6 +321,31 @@ impl LinearStorageLen for u64 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
+  fn checked_rem(self, rhs: Self) -> Option<Self> {
+    self.checked_rem(rhs)
+  }
+
+  #[inline]
+  fn checked_sub(self, rhs: Self) -> Option<Self> {
+    self.checked_sub(rhs)
+  }
+
+  #[inline]
+  fn saturating_add(self, rhs: Self) -> Self {
+    self.saturating_add(rhs)
+  }
+
+  #[inline]
+  fn saturating_sub(self, rhs: Self) -> Self {
+    self.saturating_sub(rhs)
   }
 
   #[inline]
@@ -271,6 +391,31 @@ impl LinearStorageLen for usize {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
+  fn checked_rem(self, rhs: Self) -> Option<Self> {
+    self.checked_rem(rhs)
+  }
+
+  #[inline]
+  fn checked_sub(self, rhs: Self) -> Option<Self> {
+    self.checked_sub(rhs)
+  }
+
+  #[inline]
+  fn saturating_add(self, rhs: Self) -> Self {
+    self.saturating_add(rhs)
+  }
+
+  #[inline]
+  fn saturating_sub(self, rhs: Self) -> Self {
+    self.saturating_sub(rhs)
   }
 
   #[inline]

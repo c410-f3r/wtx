@@ -136,7 +136,7 @@ where
 {
   #[doc = from_cloneable_elem_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
-  pub fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
+  pub fn from_cloneable_elem(len: L, value: T) -> crate::Result<Self>
   where
     T: Clone,
   {
@@ -205,7 +205,7 @@ where
 
   #[doc = expand_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
-  pub fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
+  pub fn expand(&mut self, et: ExpansionTy<L>, value: T) -> crate::Result<()>
   where
     T: Clone,
   {

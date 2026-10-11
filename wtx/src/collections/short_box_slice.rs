@@ -218,6 +218,32 @@ where
   }
 }
 
+impl<'any, L, T> IntoIterator for &'any ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  type Item = &'any T;
+  type IntoIter = slice::Iter<'any, T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.iter()
+  }
+}
+
+impl<'any, L, T> IntoIterator for &'any mut ShortBoxSlice<L, T>
+where
+  L: LinearStorageLen,
+{
+  type Item = &'any mut T;
+  type IntoIter = slice::IterMut<'any, T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.iter_mut()
+  }
+}
+
 impl<L, T> PartialEq for ShortBoxSlice<L, T>
 where
   L: LinearStorageLen,

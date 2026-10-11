@@ -73,7 +73,7 @@ impl PublicKeys {
     let mut certs: u8 = 0;
     let mut curr_data_offset: u16 = self.data_offsets.last().copied().unwrap_or_default();
     let mut iter = public_key.into_iter();
-    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).into();
+    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).try_into()?;
 
     let Some(first_cert_bytes) = iter.next() else {
       return Err(TlsError::NoLeafCertInChain.into());
@@ -99,7 +99,7 @@ impl PublicKeys {
     let mut certs: u8 = 0;
     let mut curr_data_offset: u16 = self.data_offsets.last().copied().unwrap_or_default();
     let mut iter = pem.data.into_iter();
-    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).into();
+    let mut local_data: VectorUsize<u8> = mem::take(&mut self.data).try_into()?;
 
     let Some(first) = iter.next() else {
       return Err(TlsError::NoLeafCertInChain.into());

@@ -6,19 +6,19 @@
 // T = Tail (Exclusive)
 
 use crate::collections::{
-  Block, BlocksDeque, ExpansionTy::Additional, VectorUsize, blocks_deque::BlockRef,
+  Block, BlocksDequeUsize, ExpansionTy::Additional, VectorUsize, blocks_deque::BlockRef,
 };
 
 #[test]
 fn expand_back() {
-  let mut bq = BlocksDeque::with_exact_capacity(2, 8).unwrap();
+  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 8).unwrap();
   let _ = bq.expand_back(Additional(4), (), 1).unwrap();
   assert_eq!(bq.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
 }
 
 #[test]
 fn get_empty_considers_zeroed_capacity() {
-  let mut bq = BlocksDeque::<i32, ()>::new();
+  let mut bq = BlocksDequeUsize::<i32, ()>::new();
   bq.push_back_from_copyable_data([], ()).unwrap();
   assert_eq!(bq.get(0), Some(Block { data: &[][..], misc: &(), range: 0..0 }));
 }
@@ -43,7 +43,7 @@ fn get_empty_considers_zeroed_capacity() {
 // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
 #[test]
 fn pop_back() {
-  let mut bq = BlocksDeque::with_exact_capacity(4, 8).unwrap();
+  let mut bq = BlocksDequeUsize::with_exact_capacity(4, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
   bq.push_front_from_copyable_data([&[1][..]], ()).unwrap();
@@ -108,7 +108,7 @@ fn pop_back() {
 // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
 #[test]
 fn pop_front() {
-  let mut bq = BlocksDeque::with_exact_capacity(2, 8).unwrap();
+  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
   bq.push_front_from_copyable_data([&[1, 2, 3][..]], ()).unwrap();
@@ -126,7 +126,7 @@ fn pop_front() {
 
 #[test]
 fn pop_front_to_buffer_updates_logical_begin() {
-  let mut bq = BlocksDeque::with_exact_capacity(2, 4).unwrap();
+  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 4).unwrap();
   bq.push_back_from_copyable_data([&[1, 2][..]], ()).unwrap();
   bq.push_back_from_copyable_data([&[3, 4][..]], ()).unwrap();
   assert_eq!(bq.get(0).unwrap().data, &[1, 2]);
@@ -141,7 +141,7 @@ fn pop_front_to_buffer_updates_logical_begin() {
 // [H * * *]: Push front - (LF=0, LO=0, RF=0, RO=4) - (H=0, T=4)
 #[test]
 fn push_reserve_and_push() {
-  let mut bq = BlocksDeque::new();
+  let mut bq = BlocksDequeUsize::new();
   bq.reserve_front(1, 4).unwrap();
   bq.push_front_from_copyable_data([&[0, 1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 1, 4, &[0, 1, 2, 3], &[]);
@@ -157,7 +157,7 @@ fn push_reserve_and_push() {
 
 #[test]
 fn reserve_does_not_corrupt_wrapped_data() {
-  let mut bq = BlocksDeque::with_exact_capacity(2, 4).expect("failed to create deque");
+  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 4).expect("failed to create deque");
   bq.push_back_from_copyable_data([&[10, 20][..]], ()).unwrap();
   bq.push_front_from_copyable_data([&[30][..]], ()).unwrap();
   assert_eq!(bq.get(0).unwrap().data, &[30]);
@@ -200,8 +200,8 @@ fn wrap_pop_front() {
 // [. . H * * * * * ]: Push front - (LF=2, LO=0, RF=0, RO=6)
 // [. . H * . . . . ]: Pop back - (LF=2, LO=0, RF=4, RO=0)
 // [. . . H * * * * ]: Push front - (LF=3, LO=0, RF=0, RO=5)
-fn wrap_initial() -> BlocksDeque<i32, ()> {
-  let mut bq = BlocksDeque::with_exact_capacity(6, 8).unwrap();
+fn wrap_initial() -> BlocksDequeUsize<i32, ()> {
+  let mut bq = BlocksDequeUsize::with_exact_capacity(6, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
   for _ in 0..6 {
     bq.push_front_from_copyable_data([&[0][..]], ()).unwrap();
@@ -227,7 +227,7 @@ fn wrap_initial() -> BlocksDeque<i32, ()> {
 
 #[track_caller]
 fn check_state(
-  bq: &BlocksDeque<i32, ()>,
+  bq: &BlocksDequeUsize<i32, ()>,
   blocks_len: usize,
   elements_len: usize,
   front: &[i32],

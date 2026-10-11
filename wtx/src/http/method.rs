@@ -1,3 +1,5 @@
+use crate::http::HttpError;
+
 create_enum! {
   /// HTTP method
   #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -14,7 +16,7 @@ create_enum! {
     /// Options
     Options = (4, "OPTIONS" | "options"),
     /// Patch
-    Patch = (5, "PATCH" | "path"),
+    Patch = (5, "PATCH" | "patch"),
     /// Post
     Post = (6, "POST" | "post"),
     /// Put
@@ -39,6 +41,23 @@ impl Method {
   ];
   /// The number of variants
   pub const VARIANTS: u8 = 9;
+
+  /// A specialized `TryFrom` for the HTTP/2 wire protocol
+  #[inline]
+  pub fn from_canonical_bytes(bytes: &[u8]) -> crate::Result<Self> {
+    Ok(match bytes {
+      b"CONNECT" => Self::Connect,
+      b"DELETE" => Self::Delete,
+      b"GET" => Self::Get,
+      b"HEAD" => Self::Head,
+      b"OPTIONS" => Self::Options,
+      b"PATCH" => Self::Patch,
+      b"POST" => Self::Post,
+      b"PUT" => Self::Put,
+      b"TRACE" => Self::Trace,
+      _ => return Err(HttpError::UnexpectedHttpMethod { expected: None }.into()),
+    })
+  }
 
   /// If the method is intended to modify something. For example, `POST`.
   #[inline]

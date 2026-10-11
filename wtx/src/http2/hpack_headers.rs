@@ -1,37 +1,40 @@
-use crate::collections::{Block, BlocksDeque};
+use crate::{
+  collections::{Block, BlocksDequeU32},
+  misc::Usize,
+};
 use core::str;
 
 #[derive(Debug, Default)]
 pub(crate) struct HpackHeaders<M> {
-  bd: BlocksDeque<u8, Metadata<M>>,
-  max_bytes: usize,
+  bd: BlocksDequeU32<u8, Metadata<M>>,
+  max_bytes: u32,
 }
 
 impl<M> HpackHeaders<M>
 where
   M: Copy,
 {
-  pub(crate) const fn new(max_bytes: usize) -> Self {
-    Self { bd: BlocksDeque::new(), max_bytes }
+  pub(crate) const fn new(max_bytes: u32) -> Self {
+    Self { bd: BlocksDequeU32::new(), max_bytes }
   }
 
-  pub(crate) fn bytes_len(&self) -> usize {
-    self.bd.elements_len()
+  pub(crate) fn bytes_len(&self) -> u32 {
+    self.bd.elements_len().wrapping_add(self.bd.blocks_len().wrapping_mul(32))
   }
 
   pub(crate) fn clear(&mut self) {
     self.bd.clear();
   }
 
-  pub(crate) fn headers_len(&self) -> usize {
+  pub(crate) fn headers_len(&self) -> u32 {
     self.bd.blocks_len()
   }
 
-  pub(crate) fn get_by_idx(&self, idx: usize) -> Option<AbstractHeader<'_, M>> {
+  pub(crate) fn get_by_idx(&self, idx: u32) -> Option<AbstractHeader<'_, M>> {
     self.bd.get(idx).as_ref().map(Self::map)
   }
 
-  pub(crate) const fn max_bytes(&self) -> usize {
+  pub(crate) const fn max_bytes(&self) -> u32 {
     self.max_bytes
   }
 
@@ -48,9 +51,10 @@ where
     I::IntoIter: Clone + ExactSizeIterator,
   {
     let iter = values.into_iter();
-    let mut total_len = name.len();
+    let name_len: u32 = name.len().try_into()?;
+    let mut total_len = name_len.wrapping_add(32);
     for elem in iter.clone() {
-      total_len = total_len.wrapping_add(elem.len());
+      total_len = total_len.wrapping_add(elem.len().try_into()?);
     }
     if total_len > self.max_bytes {
       self.clear();
@@ -59,27 +63,27 @@ where
     self.remove_until_max_bytes(total_len, cb);
     self.bd.push_front_from_copyable_data(
       [name].into_iter().chain(iter).map(str::as_bytes),
-      Metadata { is_sensitive, misc, name_len: name.len() },
+      Metadata { is_sensitive, misc, name_len },
     )?;
     Ok(())
   }
 
-  pub(crate) fn set_max_bytes(&mut self, max_bytes: usize, cb: impl FnMut(M)) {
+  pub(crate) fn set_max_bytes(&mut self, max_bytes: u32, cb: impl FnMut(M)) {
     self.max_bytes = max_bytes;
     self.remove_until_max_bytes(0, cb);
   }
 
-  fn map<'this>(block: &Block<&'this [u8], &'this Metadata<M>>) -> AbstractHeader<'this, M> {
+  fn map<'this>(block: &Block<&'this [u8], u32, &'this Metadata<M>>) -> AbstractHeader<'this, M> {
     AbstractHeader {
       is_sensitive: block.misc.is_sensitive,
       misc: &block.misc.misc,
       name: {
-        let str = block.data.get(..block.misc.name_len).unwrap_or_default();
+        let str = block.data.get(..*Usize::from(block.misc.name_len)).unwrap_or_default();
         // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
       value: {
-        let str = block.data.get(block.misc.name_len..).unwrap_or_default();
+        let str = block.data.get(*Usize::from(block.misc.name_len)..).unwrap_or_default();
         // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
@@ -90,7 +94,7 @@ where
     self.bd.pop_back()
   }
 
-  fn remove_until_max_bytes(&mut self, additional: usize, mut cb: impl FnMut(M)) {
+  fn remove_until_max_bytes(&mut self, additional: u32, mut cb: impl FnMut(M)) {
     while self.bytes_len().wrapping_add(additional) > self.max_bytes {
       if let Some(elem) = self.pop_back() {
         cb(elem.misc);
@@ -110,6 +114,6 @@ pub(crate) struct AbstractHeader<'ah, M> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Metadata<M> {
   is_sensitive: bool,
-  name_len: usize,
   misc: M,
+  name_len: u32,
 }

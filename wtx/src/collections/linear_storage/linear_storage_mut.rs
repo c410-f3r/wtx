@@ -31,7 +31,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
 
   /// Creates a new instance filled with `len` clones of `value`.
   #[inline]
-  fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
+  fn from_cloneable_elem(len: Self::Len, value: T) -> crate::Result<Self>
   where
     T: Clone,
     Self: Default,
@@ -96,19 +96,17 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
 
   /// Expands the collection by filling new slots with clones of `value`.
   #[inline]
-  fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
+  fn expand(&mut self, et: ExpansionTy<Self::Len>, value: T) -> crate::Result<()>
   where
     T: Clone,
   {
     let len = self.len();
-    let Some((additional_usize, new_len_usize)) = et.params(len.usize()) else {
+    let Some((additional, new_len)) = et.params(len) else {
       return Ok(());
     };
-    let additional = Self::Len::from_usize(additional_usize)?;
-    let new_len = Self::Len::from_usize(new_len_usize)?;
     self.reserve(additional)?;
     let (_, unfilled) = self.split_at_spare_mut();
-    if let Some(elem) = unfilled.get_mut(..additional_usize) {
+    if let Some(elem) = unfilled.get_mut(..additional.usize()) {
       elem.fill_with(|| MaybeUninit::new(value.clone()));
       // SAFETY: elements have been initialized
       unsafe {

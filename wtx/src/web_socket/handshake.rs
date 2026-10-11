@@ -76,7 +76,8 @@ where
           if !req.method().trim_ascii().eq_ignore_ascii_case(b"get") {
             build_and_send_res400(&mut tls_stream).await?;
             return Err(
-              crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Method::Get }).into(),
+              crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Some(Method::Get) })
+                .into(),
             );
           }
           let mut key_buffer = [0; 30];

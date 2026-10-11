@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 mod serde;
 
-use crate::collections::VectorUsize;
+use crate::collections::{LinearStorageLen, Vector};
 use core::str;
 #[cfg(feature = "serde")]
 pub use serde::*;
@@ -160,8 +160,11 @@ impl<'bytes, const IS_PERCENT: bool> UrlDecode<'bytes, IS_PERCENT> {
   /// If the inner bytes have a special character, decodes everything into `vector` returning
   /// `true`. Otherwise, returns `false` leaving `vector` untouched.
   #[inline]
-  pub fn decode(self, vector: &mut VectorUsize<u8>) -> crate::Result<bool> {
-    vector.reserve(self.bytes.len())?;
+  pub fn decode<L>(self, vector: &mut Vector<L, u8>) -> crate::Result<bool>
+  where
+    L: LinearStorageLen,
+  {
+    vector.reserve(L::from_usize(self.bytes.len())?)?;
     let mut bytes = self.bytes;
     let mut idx: usize = 0;
     let decoded_byte = 'unmodified: {

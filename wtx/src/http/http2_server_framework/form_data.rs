@@ -206,6 +206,21 @@ mod tests {
   }
 
   #[test]
+  fn empty_delimiter_termination() {
+    const PAYLOAD: &[u8] =
+      b"--foo\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n--foo--";
+
+    let iter = FormDataIter::new(PAYLOAD, "").unwrap();
+    let mut len = 0usize;
+    for _item in iter {
+      len = len.wrapping_add(1);
+      if len > 1000 {
+        panic!();
+      }
+    }
+  }
+
+  #[test]
   fn example() {
     const PAYLOAD: &[u8] = b"
       ------WebKitFormBoundary7MA4YWxkTrZu0gW\r\n\

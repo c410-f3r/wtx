@@ -42,11 +42,14 @@ pub use array_vector_copy::ArrayVectorCopy;
 pub use array_vector_inner::ArrayIntoIter;
 pub use array_wrapper::ArrayWrapper;
 pub use auto_clear::AutoClear;
-pub use blocks_deque::{Block, BlocksDeque, BlocksDequeError};
+pub use blocks_deque::{
+  Block, BlocksDeque, BlocksDequeError, BlocksDequeU8, BlocksDequeU16, BlocksDequeU32,
+  BlocksDequeUsize,
+};
 pub use capacity_upper_bound::CapacityUpperBound;
 pub use clear::Clear;
 pub use csr::{Csr, CsrError, CsrLineBuilder, CsrRow, CsrRowIter, CsrU8, CsrU16, CsrU32, CsrUsize};
-pub use deque::{Deque, DequeueError};
+pub use deque::{Deque, DequeU8, DequeU16, DequeU32, DequeUsize, DequeueError};
 pub use expansion_ty::ExpansionTy;
 pub use fixed_string::{FixedString, FixedStringError};
 #[cfg(feature = "hashbrown")]

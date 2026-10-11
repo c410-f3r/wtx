@@ -1,4 +1,4 @@
-use crate::calendar::CalendarError;
+use crate::calendar::{CalendarError, Datetime, Utc};
 use core::time::Duration;
 
 type LocalTy = cfg_select! {
@@ -30,9 +30,9 @@ impl Instant {
   /// Returns a new `Datetime` instance with the current date and time in UTC based on the
   /// UNIX epoch.
   #[inline]
-  pub fn now_datetime() -> crate::Result<crate::calendar::Datetime<crate::calendar::Utc>> {
+  pub fn now_datetime() -> crate::Result<Datetime<Utc>> {
     let timestamp = Instant::now_timestamp()?;
-    Ok(crate::calendar::Datetime::from_timestamp_secs_and_ns(
+    Ok(Datetime::from_timestamp_secs_and_ns(
       timestamp.as_secs().cast_signed(),
       timestamp.subsec_nanos().try_into()?,
     )?)

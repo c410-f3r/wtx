@@ -140,6 +140,14 @@ impl From<quick_xml::events::attributes::AttrError> for crate::Error {
   }
 }
 
+#[cfg(feature = "rust_decimal")]
+impl From<rust_decimal::Error> for crate::Error {
+  #[inline]
+  fn from(from: rust_decimal::Error) -> Self {
+    Self::RustDecimal(from.into())
+  }
+}
+
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for crate::Error {
   #[inline]

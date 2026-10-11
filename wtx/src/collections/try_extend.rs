@@ -93,7 +93,7 @@ where
 {
   #[inline]
   fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
-    self.expand(ExpansionTy::Additional(len), elem)?;
+    self.expand(ExpansionTy::Additional(L::from_usize(len)?), elem)?;
     Ok(())
   }
 }
@@ -141,7 +141,7 @@ where
 {
   #[inline]
   fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
-    self.expand(ExpansionTy::Additional(len), elem)?;
+    self.expand(ExpansionTy::Additional(len.try_into()?), elem)?;
     Ok(())
   }
 }
@@ -364,7 +364,7 @@ where
 {
   #[inline]
   fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
-    self.expand(ExpansionTy::Additional(len), elem)?;
+    self.expand(ExpansionTy::Additional(L::from_usize(len)?), elem)?;
     Ok(())
   }
 }

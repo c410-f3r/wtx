@@ -1,7 +1,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::VectorUsize,
+  collections::VectorU8,
   misc::Lease,
   x509::Attribute,
 };
@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct SubjectDirectoryAttributes<B>(
   /// A sequence of attributes.
-  pub VectorUsize<Attribute<B, 2>>,
+  pub VectorU8<Attribute<B, 2>>,
 );
 
 impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for SubjectDirectoryAttributes<B>

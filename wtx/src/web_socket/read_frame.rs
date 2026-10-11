@@ -104,6 +104,9 @@ pub(crate) fn manage_op_code_of_continuation_frames(
         cb(payload, iuc)?;
       }
       if fin {
+        if first_op_code.is_text() && iuc.is_some() {
+          return Err(crate::Error::InvalidUTF8);
+        }
         return Ok(true);
       }
     }

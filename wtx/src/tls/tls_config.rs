@@ -281,7 +281,8 @@ impl<TCX> TlsConfig<TCX> {
     trust_anchors: impl IntoIterator<Item = &'bytes [u8]>,
   ) -> crate::Result<()> {
     let mut buffer = VectorUsize::new();
-    let mut local_trust_anchors: VectorUsize<_> = mem::take(&mut self.inner.trust_anchors).into();
+    let mut local_trust_anchors: VectorUsize<_> =
+      mem::take(&mut self.inner.trust_anchors).try_into()?;
     local_trust_anchors.clear();
     for trust_anchor in trust_anchors {
       buffer.clear();
