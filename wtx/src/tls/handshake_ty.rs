@@ -30,7 +30,6 @@ pub enum HandshakeTy {
 impl HandshakeTy {
   /// Returns `true` if this instance [`HandshakeTy::Finished`].
   #[inline]
-  #[must_use]
   pub const fn is_finished(&self) -> bool {
     matches!(self, Self::Finished)
   }

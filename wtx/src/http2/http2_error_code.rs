@@ -41,7 +41,6 @@ pub enum Http2ErrorCode {
 
 impl Http2ErrorCode {
   /// Returns `true` if the instance is everything but [`Http2ErrorCode::NoError`].
-  #[must_use]
   #[inline]
   pub const fn is_fatal(&self) -> bool {
     !matches!(self, Self::NoError)

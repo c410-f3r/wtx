@@ -8,7 +8,7 @@ use core::{
   fmt::{Debug, Formatter},
   hash::{Hash, Hasher},
   ops::Deref,
-  str,
+  str::{self, FromStr},
 };
 
 /// [`ShortBoxStr`] with a capacity limited by `u8`.
@@ -145,6 +145,18 @@ where
   #[inline]
   fn from(value: ShortBoxStr<L>) -> Self {
     Vec::from(value.0)
+  }
+}
+
+impl<L> FromStr for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  type Err = crate::Error;
+
+  #[inline]
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    value.try_into()
   }
 }
 

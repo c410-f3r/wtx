@@ -7,6 +7,7 @@ use crate::{
 use core::{
   fmt::{Debug, Formatter},
   ops::Range,
+  str::FromStr,
 };
 
 /// Position of an error in a query.
@@ -203,6 +204,15 @@ impl Debug for DbError {
       .field("table", &self.table())
       .field("where", &self.r#where())
       .finish()
+  }
+}
+
+impl FromStr for DbError {
+  type Err = crate::Error;
+
+  #[inline]
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    s.try_into()
   }
 }
 

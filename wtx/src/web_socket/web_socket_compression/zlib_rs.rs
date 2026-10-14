@@ -169,8 +169,9 @@ impl Decompression for NegotiatedZlibRs {
     flush: DecompressionFlush,
     input: &[u8],
     output: &mut VectorUsize<u8>,
+    upper_bound: usize,
   ) -> crate::Result<usize> {
-    <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output)
+    <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output, upper_bound)
   }
 
   #[inline]
@@ -289,8 +290,9 @@ impl Decompression for NegotiatedZlibRsDecompression {
     flush: DecompressionFlush,
     input: &[u8],
     output: &mut VectorUsize<u8>,
+    upper_bound: usize,
   ) -> crate::Result<usize> {
-    <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output)
+    <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output, upper_bound)
   }
 
   #[inline]

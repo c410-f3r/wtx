@@ -69,7 +69,7 @@ where
 
   /// Owned version of [`Self::tcp_params`].
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_tcp_params(mut self, value: TcpParams) -> Self {
     self.tcp_params = value;
     self

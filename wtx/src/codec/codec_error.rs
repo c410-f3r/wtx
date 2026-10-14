@@ -7,6 +7,8 @@ pub enum CodecError {
   CsvInvalidQuotes,
   /// CSV line is too large to parse
   CsvLineOverflow,
+  /// Decompression overflow
+  DecompressionOverflow,
   /// Invalid PEM block
   InvalidPemBlock,
   /// Invalid PEM label

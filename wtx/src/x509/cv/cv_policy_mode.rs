@@ -13,14 +13,12 @@ pub enum CvPolicyMode {
 impl CvPolicyMode {
   /// Returns `true` if the cv policy mode is [`Self::Lenient`].
   #[inline]
-  #[must_use]
   pub const fn is_lenient(&self) -> bool {
     matches!(self, Self::Lenient)
   }
 
   /// Returns `true` if the chain validation policy mode is [`Self::Strict`].
   #[inline]
-  #[must_use]
   pub const fn is_strict(&self) -> bool {
     matches!(self, Self::Strict)
   }

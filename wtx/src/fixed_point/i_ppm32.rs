@@ -146,7 +146,7 @@ impl IPpm32 {
 
   /// Computes `self - rhs`, saturating at the numeric bounds instead of overflowing.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn saturating_sub(self, other: Self) -> Self {
     Self(self.0.saturating_sub(other.0))
   }

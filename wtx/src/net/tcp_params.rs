@@ -44,7 +44,7 @@ impl TcpParams {
   ///
   /// NO-OP if used in a client.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_listen(mut self, value: i32) -> Self {
     self.listen = value;
     self
@@ -52,7 +52,7 @@ impl TcpParams {
 
   /// Sets the `SO_RCVBUF` socket option.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_recv_buffer_size(mut self, value: Option<u32>) -> Self {
     self.recv_buffer_size = value;
     self
@@ -60,7 +60,7 @@ impl TcpParams {
 
   /// Sets the `SO_REUSEADDR` socket option.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_reuse_address(mut self, value: Option<bool>) -> Self {
     self.reuse_address = value;
     self
@@ -68,7 +68,7 @@ impl TcpParams {
 
   /// Sets the `SO_REUSEPORT` socket option.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_reuse_port(mut self, value: Option<bool>) -> Self {
     self.reuse_port = value;
     self
@@ -76,7 +76,7 @@ impl TcpParams {
 
   /// Sets the `SO_SNDBUF` socket option.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_send_buffer_size(mut self, value: Option<u32>) -> Self {
     self.send_buffer_size = value;
     self
@@ -84,7 +84,7 @@ impl TcpParams {
 
   /// Sets the `TCP_NODELAY` socket option.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_tcp_nodelay(mut self, value: bool) -> Self {
     self.tcp_nodelay = value;
     self

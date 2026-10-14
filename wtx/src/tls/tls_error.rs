@@ -36,6 +36,8 @@ pub enum TlsError {
   EmptyNegotiatedAlpnServer,
   /// Empty New Session Ticket
   EmptyNewSessionTicket,
+  /// Empty inner plaintext of a protected record
+  EmptyPlaintext,
   /// Empty set of certificates
   EmptySetOfCertificates,
   /// Trailing Data In Handshake

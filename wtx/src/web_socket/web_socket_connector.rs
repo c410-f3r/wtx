@@ -41,7 +41,7 @@ impl<C, H, R> WebSocketConnector<C, H, R> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R> {
     self.no_masking = elem;
     self

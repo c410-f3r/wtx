@@ -6,13 +6,13 @@ use crate::{
     SEQUENCE_TAG, SequenceDecodeCb, SequenceEncodeIter,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collections::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   x509::X509Error,
 };
 
 /// This extension indicates one or more purposes for which the certified public key may be used,
 /// in addition to or in place of the basic purposes indicated in the key usage extension.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[expect(clippy::struct_excessive_bools, reason = "false-positive")]
 pub struct ExtendedKeyUsage {
   any: bool,
@@ -22,7 +22,7 @@ pub struct ExtendedKeyUsage {
   email_protection: bool,
   time_stamping: bool,
   ocsp_signing: bool,
-  others: ArrayVectorU8<Oid, 1>,
+  others: ArrayVectorCopy<Oid, 1>,
 }
 
 impl ExtendedKeyUsage {
@@ -47,7 +47,7 @@ impl ExtendedKeyUsage {
     email_protection: false,
     time_stamping: false,
     ocsp_signing: false,
-    others: ArrayVectorU8::new(),
+    others: ArrayVectorCopy::new(),
   };
   /// An instance with the server OID.
   pub const SERVER: Self = {
@@ -142,13 +142,13 @@ impl ExtendedKeyUsage {
 
   /// Custom Oids
   #[inline]
-  pub const fn others(&self) -> &ArrayVectorU8<Oid, 1> {
+  pub const fn others(&self) -> &ArrayVectorCopy<Oid, 1> {
     &self.others
   }
 
   /// Mutable version of [`Self::others`].
   #[inline]
-  pub const fn others_mut(&mut self) -> &mut ArrayVectorU8<Oid, 1> {
+  pub const fn others_mut(&mut self) -> &mut ArrayVectorCopy<Oid, 1> {
     &mut self.others
   }
 
@@ -179,7 +179,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for ExtendedKeyUsa
       email_protection: false,
       time_stamping: false,
       ocsp_signing: false,
-      others: ArrayVectorU8::new(),
+      others: ArrayVectorCopy::new(),
     };
     let mut has_at_least_one = false;
     let _bytes = SequenceDecodeCb::new(|oid: Oid| {

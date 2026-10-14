@@ -112,6 +112,7 @@ where
     let secret = elem.cipher_key();
     let record = reader_buffer.current_mut();
     if elem.cipher_suite().aes_decrypt(&header, record, nonce, secret).is_err() {
+      cold_path();
       return Err(crate::Error::TlsErrorReply(
         TlsError::UnencryptedRecord,
         AlertDescription::BadRecordMac,
@@ -119,9 +120,18 @@ where
     }
     elem.increment_counter();
     let Some((plaintext, [maybe_ty, ..])) = record.split_last_chunk_mut::<17>() else {
+      cold_path();
       return Err(TlsError::InvalidAesData.into());
     };
+    if plaintext.is_empty() {
+      cold_path();
+      return Err(crate::Error::TlsErrorReply(
+        TlsError::EmptyPlaintext,
+        AlertDescription::DecodeError,
+      ));
+    }
     if plaintext.len() > max_fragment_length.into() {
+      cold_path();
       return Err(crate::Error::TlsErrorReply(
         TlsError::ReceivedRecordIsTooLarge,
         AlertDescription::RecordOverflow,
@@ -129,6 +139,7 @@ where
     }
     trails = 17;
     if *maybe_ty == 0 {
+      cold_path();
       let mut inner_ty = 0;
       if let Some(idx) = plaintext.iter().rposition(|el| *el != 0) {
         inner_ty = plaintext.get(idx).copied().unwrap_or_default();
@@ -344,6 +355,10 @@ where
       cold_path();
       return Err(TlsError::UnexpectedAfterHandshakeOuterRecord.into());
     };
+    if rri.plaintext_len == 0 {
+      cold_path();
+      continue;
+    }
     let plaintext = reader_buffer.current().get(..rri.plaintext_len).unwrap_or_default();
     match rri.inner_ty {
       RecordContentTy::Alert => {

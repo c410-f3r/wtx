@@ -114,7 +114,7 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
 }
 
 pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_RECV: bool>(
-  error_code: Http2ErrorCode,
+  error_code_opt: Option<Http2ErrorCode>,
   inner: &Http2Inner<SW, TCX, IS_CLIENT>,
 ) where
   SW: StreamWriter,
@@ -159,6 +159,14 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
     }
   }
 
+  let Some(error_code) = error_code_opt else {
+    // Entered when the remote peer gracefully closed the connection, as such, there is
+    // nothing to send so we just abruptly close to shutdown everything.
+    inner.wd.lock().await.close_abruptly();
+    wake_tasks(&mut *inner.hd.lock().await);
+    return;
+  };
+
   if error_code.is_fatal() {
     if IS_RECV {
       inner.wd.lock().await.close_abruptly();
@@ -191,14 +199,14 @@ pub(crate) async fn process_higher_operation_err<SW, TCX, const IS_CLIENT: bool>
 {
   match err {
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
-      manage_termination::<_, _, _, false>(*http2_error_code, inner).await;
+      manage_termination::<_, _, _, false>(Some(*http2_error_code), inner).await;
     }
     crate::Error::Http2FlowControlError(_, stream_id) => {
       let _ = send_reset_stream(Http2ErrorCode::FlowControlError, inner, stream_id.into()).await;
     }
     _ => {
       // Triggers a very specific path where `manage_termination` does not reply a `GOAWAY`.
-      manage_termination::<_, _, _, false>(Http2ErrorCode::ProtocolError, inner).await;
+      manage_termination::<_, _, _, false>(Some(Http2ErrorCode::ProtocolError), inner).await;
     }
   }
 }

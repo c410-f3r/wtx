@@ -341,6 +341,7 @@ where
     self.0.reserve_exact(additional)
   }
 
+  #[expect(clippy::missing_safety_doc, reason = "false-positive")]
   #[doc = set_len_doc!()]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {

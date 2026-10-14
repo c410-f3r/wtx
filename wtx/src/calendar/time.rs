@@ -137,7 +137,7 @@ impl Time {
   /// Adds the given `duration` to the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the addition.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn overflowing_add(self, duration: IDuration) -> (Self, i64) {
     if duration.is_zero() {
       return (self, 0);
@@ -210,7 +210,7 @@ impl Time {
 
   /// Returns a new instance with the number of nanoseconds truncated to milliseconds.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_ms(self) -> Self {
     let mut new = self;
     new.nanosecond = new.nanosecond.to_ms().to_ns();
@@ -219,7 +219,7 @@ impl Time {
 
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_sec(self) -> Self {
     let mut new = self;
     new.nanosecond = Nanosecond::ZERO;
@@ -228,7 +228,7 @@ impl Time {
 
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
     new.nanosecond = new.nanosecond.to_us().to_ns();
