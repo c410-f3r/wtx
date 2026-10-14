@@ -25,6 +25,7 @@ pub trait Decompression {
     flush: DecompressionFlush,
     input: &[u8],
     output: &mut VectorUsize<u8>,
+    upper_bound: usize,
   ) -> crate::Result<usize>;
 
   /// Prepare the instance for a new stream.
@@ -40,6 +41,7 @@ impl Decompression for () {
     _: DecompressionFlush,
     _: &[u8],
     _: &mut VectorUsize<u8>,
+    _: usize,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -60,8 +62,9 @@ where
     flush: DecompressionFlush,
     input: &[u8],
     output: &mut VectorUsize<u8>,
+    upper_bound: usize,
   ) -> crate::Result<usize> {
-    if let Some(elem) = self { elem.decompress(flush, input, output) } else { Ok(0) }
+    if let Some(elem) = self { elem.decompress(flush, input, output, upper_bound) } else { Ok(0) }
   }
 
   #[inline]
@@ -75,7 +78,7 @@ where
 #[cfg(feature = "zlib-rs")]
 mod zlib_rs {
   use crate::{
-    codec::{Decompression, DecompressionFlush},
+    codec::{CodecError, Decompression, DecompressionFlush},
     collections::VectorUsize,
   };
   use zlib_rs::{Inflate, InflateFlush, Status};
@@ -87,8 +90,15 @@ mod zlib_rs {
       flush: DecompressionFlush,
       input: &[u8],
       output: &mut VectorUsize<u8>,
+      upper_bound: usize,
     ) -> crate::Result<usize> {
-      output.reserve(input.len().max(64))?;
+      {
+        let additional = input.len().max(64);
+        if output.len().saturating_add(additional) > upper_bound {
+          return Err(CodecError::DecompressionOverflow.into());
+        }
+        output.reserve(additional)?;
+      }
       let mut curr_input = input;
       let mut total_read: u64 = 0;
       loop {
@@ -119,7 +129,13 @@ mod zlib_rs {
           }
           Status::BufError | Status::Ok => {}
         }
-        output.reserve((output.capacity() / 2).max(64))?;
+        {
+          let additional = (output.capacity() / 2).max(64);
+          if output.len().saturating_add(additional) > upper_bound {
+            return Err(CodecError::DecompressionOverflow.into());
+          }
+          output.reserve(additional)?;
+        }
       }
     }
 

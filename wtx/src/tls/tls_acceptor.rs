@@ -262,7 +262,6 @@ where
     let finished = Handshake::new(HandshakeTy::Finished, Finished::new(verify_data.as_slice()));
     finished.encode(&mut TlsEncodeWrapper::from_buffer(reader_buffer))?;
     self.transcript_hash.update(reader_buffer.get(curr_idx..).unwrap_or_default());
-
     Ok(indices)
   }
 

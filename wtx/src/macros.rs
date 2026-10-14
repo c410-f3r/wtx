@@ -262,6 +262,12 @@ macro_rules! _max_frames_mismatches {
   };
 }
 
+macro_rules! must_use_itself_doc {
+  () => {
+    "this returns the result of the operation, without modifying the original"
+  };
+}
+
 macro_rules! _simd {
   (
     4 => { $($_4:tt)* },

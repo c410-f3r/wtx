@@ -36,7 +36,6 @@ pub enum ExecutorTy {
 impl ExecutorTy {
   /// Returns `true` if the instance is [`ExecutorTy::Std`].
   #[inline]
-  #[must_use]
   pub const fn is_std(&self) -> bool {
     matches!(self, Self::Std)
   }

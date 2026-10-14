@@ -14,7 +14,7 @@ use core::{
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
   hash::{Hash, Hasher},
   ops::{Deref, DerefMut},
-  str,
+  str::{self, FromStr},
 };
 
 /// [`Str`] with a capacity limited by `u8`.
@@ -142,6 +142,7 @@ where
     <str as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
+  #[expect(clippy::missing_safety_doc, reason = "false-positive")]
   #[doc = set_len_doc!()]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {
@@ -208,6 +209,33 @@ where
   }
 }
 
+impl<L> Eq for Str<L> where L: LinearStorageLen {}
+
+impl<L> FromStr for Str<L>
+where
+  L: LinearStorageLen,
+{
+  type Err = crate::Error;
+
+  #[inline]
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    value.try_into()
+  }
+}
+
+impl<L> Hash for Str<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    Hash::hash(&**self, state);
+  }
+}
+
 impl<L> Lease<[u8]> for Str<L>
 where
   L: LinearStorageLen,
@@ -235,21 +263,6 @@ where
   #[inline]
   fn lease_mut(&mut self) -> &mut str {
     self
-  }
-}
-
-impl<L> Eq for Str<L> where L: LinearStorageLen {}
-
-impl<L> Hash for Str<L>
-where
-  L: LinearStorageLen,
-{
-  #[inline]
-  fn hash<H>(&self, state: &mut H)
-  where
-    H: Hasher,
-  {
-    Hash::hash(&**self, state);
   }
 }
 

@@ -278,6 +278,7 @@ where
     <[T] as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
+  #[expect(clippy::missing_safety_doc, reason = "false-positive")]
   #[doc = set_len_doc!()]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {

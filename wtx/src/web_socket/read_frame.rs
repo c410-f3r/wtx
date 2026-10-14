@@ -84,7 +84,10 @@ where
       }
       Ok(true)
     }
-    OpCode::Pong => Ok(true),
+    OpCode::Pong => {
+      let _control_payload = ArrayVectorCopy::<_, MAX_CONTROL_PAYLOAD_LEN>::try_from(&*payload)?;
+      Ok(true)
+    }
     OpCode::Continuation | OpCode::Binary | OpCode::Text => Ok(false),
   }
 }
@@ -221,7 +224,8 @@ where
         cold_path();
         closed_conn_cb(stream);
       }
-      let rslt = manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+      return manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+        max_payload_len,
         nc,
         nc_rsv1,
         network_buffer,
@@ -234,7 +238,6 @@ where
         user_buffer,
       )
       .await;
-      return rslt;
     }
     let buffer = if !D::IS_NOOP && first_rfi.should_decompress {
       reader_buffer.clear();
@@ -282,7 +285,7 @@ where
       rng,
       stream,
       stream_bridge,
-      &mut |_, _, _, _| Ok(()),
+      &mut |_, _, _, _, _| Ok(()),
       &mut manage_text_of_recurrent_continuation_frames,
       &mut stream_reader_cb,
       &mut stream_writer_cb,
@@ -329,6 +332,7 @@ fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
 
 /// Only used when a single finished frame is received
 fn copy_from_compressed_nb_to_rb1<D, const IS_CLIENT: bool>(
+  max_payload_len: usize,
   nc: &mut D,
   network_buffer: &mut BufStreamReader,
   no_masking: bool,
@@ -339,8 +343,18 @@ where
   D: WebSocketDecompression,
 {
   unmask_nb::<IS_CLIENT>(rfi.mask, network_buffer.current_mut(), no_masking)?;
-  let _ = nc.decompress(DecompressionFlush::NoFlush, network_buffer.current(), reader_buffer)?;
-  let _ = nc.decompress(DecompressionFlush::SyncFlush, &DECOMPRESSION_SUFFIX, reader_buffer)?;
+  let _ = nc.decompress(
+    DecompressionFlush::NoFlush,
+    network_buffer.current(),
+    reader_buffer,
+    max_payload_len,
+  )?;
+  let _ = nc.decompress(
+    DecompressionFlush::SyncFlush,
+    &DECOMPRESSION_SUFFIX,
+    reader_buffer,
+    max_payload_len,
+  )?;
   if !D::IS_NOOP && nc.no_context_takeover() {
     nc.reset();
   }
@@ -351,6 +365,7 @@ where
 /// final decompression.
 fn copy_from_compressed_rb1_to_rb2<D>(
   first_op_code: OpCode,
+  max_payload_len: usize,
   nc: &mut D,
   reader_buffer_first: &mut VectorUsize<u8>,
   reader_buffer_second: &mut VectorUsize<u8>,
@@ -359,8 +374,12 @@ where
   D: WebSocketDecompression,
 {
   reader_buffer_first.extend_from_copyable_slice(&DECOMPRESSION_SUFFIX)?;
-  let payload_len =
-    nc.decompress(DecompressionFlush::SyncFlush, reader_buffer_first, reader_buffer_second)?;
+  let payload_len = nc.decompress(
+    DecompressionFlush::SyncFlush,
+    reader_buffer_first,
+    reader_buffer_second,
+    max_payload_len,
+  )?;
   reader_buffer_second.truncate(payload_len);
   if !D::IS_NOOP && nc.no_context_takeover() {
     nc.reset();
@@ -404,6 +423,7 @@ async fn manage_first_finished_frame<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
+  max_payload_len: usize,
   nc: &mut D,
   nc_rsv1: u8,
   network_buffer: &'nb mut BufStreamReader,
@@ -424,6 +444,7 @@ where
 {
   let payload = if !D::IS_NOOP && rfi.should_decompress {
     copy_from_compressed_nb_to_rb1::<D, IS_CLIENT>(
+      max_payload_len,
       nc,
       network_buffer,
       no_masking,
@@ -499,6 +520,7 @@ async fn read_continuation_frames<
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
   reader_buffer_first_cb: &mut impl FnMut(
     OpCode,
+    usize,
     &mut D,
     &mut VectorUsize<u8>,
     &mut VectorUsize<u8>,
@@ -553,6 +575,7 @@ where
     )? {
       reader_buffer_first_cb(
         is_in_continuation_frame.op_code,
+        max_payload_len,
         nc,
         continuation_buffer,
         final_buffer,

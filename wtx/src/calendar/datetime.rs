@@ -219,7 +219,7 @@ where
 
   /// Returns a new instance with the number of nanoseconds truncated to milliseconds.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_ms(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_ms();
@@ -228,7 +228,7 @@ where
 
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_sec(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_sec();
@@ -237,7 +237,7 @@ where
 
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_us();

@@ -173,7 +173,7 @@ impl CorsMiddleware {
 
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age>
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn max_age(mut self, elem: u32) -> Self {
     self.max_age = Some(elem);
     self

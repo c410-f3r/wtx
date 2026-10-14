@@ -57,7 +57,7 @@ impl AsciiSet {
 
   /// Adds a character into the set.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub fn insert(self, byte: u8) -> Self {
     let mut mask = self.mask;
     let byte_usize = usize::from(byte);
@@ -70,7 +70,7 @@ impl AsciiSet {
 
   /// Removes a character from the set.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub fn remove(self, byte: u8) -> Self {
     let mut mask = self.mask;
     let byte_usize = usize::from(byte);

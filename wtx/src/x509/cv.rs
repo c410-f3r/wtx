@@ -14,7 +14,8 @@ pub(crate) mod cv_trust_anchor;
 
 use crate::{
   asn1::OID_X509_COMMON_NAME,
-  misc::Lease,
+  misc::{Lease, bytes_pos1, from_utf8_basic},
+  net::Uri,
   x509::{
     AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, SignatureTy,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
@@ -411,6 +412,7 @@ const fn is_same_gn_type<B0, B1>(lhs: &GeneralName<B0>, rhs: &GeneralName<B1>) -
       | (GeneralName::IpAddress(_), GeneralName::IpAddress(_))
       | (GeneralName::OtherName(_), GeneralName::OtherName(_))
       | (GeneralName::Rfc822Name(_), GeneralName::Rfc822Name(_))
+      | (GeneralName::UniformResourceIdentifier(_), GeneralName::UniformResourceIdentifier(_))
   )
 }
 
@@ -476,6 +478,9 @@ where
     (GeneralName::IpAddress(lhs), GeneralName::IpAddress(rhs)) => {
       matches_ip_address(lhs.lease(), rhs.lease())
     }
+    (GeneralName::UniformResourceIdentifier(lhs), GeneralName::UniformResourceIdentifier(rhs)) => {
+      matches_uri(lhs.lease(), rhs.lease()).unwrap_or(false)
+    }
     (GeneralName::OtherName(lhs), GeneralName::OtherName(rhs)) => lhs.lease() == rhs.lease(),
     _ => false,
   }
@@ -483,7 +488,7 @@ where
 
 // `domain` always comes from an ICA and ICAs can't have wildcards.
 #[inline]
-fn matches_name_domain<const IS_EXCLUDED: bool>(other: &[u8], domain: &[u8]) -> bool {
+fn matches_name_domain<const IS_EXCLUDED: bool>(lhs: &[u8], rhs: &[u8]) -> bool {
   #[inline]
   fn matched(slice0: &[u8], slice1: &[u8], slice2: &[u8]) -> bool {
     if let [b'.'] | [.., 0..=45 | 47..=255] = slice0 { false } else { slice1 == slice2 }
@@ -495,46 +500,88 @@ fn matches_name_domain<const IS_EXCLUDED: bool>(other: &[u8], domain: &[u8]) -> 
     other.split_at_checked(idx)
   }
 
-  if let [b'*', b'.', ..] = domain {
+  if let [b'*', b'.', ..] = rhs {
     false
-  } else if let [b'*', b'.', rest @ ..] = other {
-    if let Some((other_begin, other_domain)) = slices(rest, domain)
-      && matched(other_begin, other_domain, domain)
+  } else if let [b'*', b'.', rest @ ..] = lhs {
+    if let Some((other_begin, other_domain)) = slices(rest, rhs)
+      && matched(other_begin, other_domain, rhs)
     {
       return true;
     }
     if IS_EXCLUDED
-      && let Some((domain_begin, domain_domain)) = slices(domain, rest)
+      && let Some((domain_begin, domain_domain)) = slices(rhs, rest)
       && matched(domain_begin, domain_domain, rest)
     {
       return true;
     }
     false
   } else {
-    let Some((other_begin, other_domain)) = slices(other, domain) else {
+    let Some((other_begin, other_domain)) = slices(lhs, rhs) else {
       return false;
     };
-    if let [b'.'] | [.., 0..=45 | 47..=255] = other_begin { false } else { other_domain == domain }
+    if let [b'.'] | [.., 0..=45 | 47..=255] = other_begin { false } else { other_domain == rhs }
   }
 }
 
 #[inline]
-fn matches_rfc822(other: &[u8], domain: &[u8]) -> bool {
-  let slices = other.len().checked_sub(domain.len()).and_then(|idx| other.split_at_checked(idx));
-  let Some((other_rest, other_domain)) = slices else {
-    return false;
-  };
-  match other_rest {
-    [] => domain.ends_with(other_domain),
-    [non_at @ .., b'@'] => {
-      if non_at.is_empty() || non_at.contains(&b'@') {
-        false
-      } else {
-        domain.ends_with(other_domain)
+fn matches_rfc822(lhs: &[u8], rhs: &[u8]) -> bool {
+  let lhs_at_idx_opt = bytes_pos1(lhs, b'@');
+  let rhs_at_idx_opt = bytes_pos1(rhs, b'@');
+  match rhs_at_idx_opt {
+    None => match lhs_at_idx_opt {
+      Some(rhs_at_idx) => {
+        let Some((_local, name_host)) = lhs.split_at_checked(rhs_at_idx.wrapping_add(1)) else {
+          return false;
+        };
+        matches_rfc822_host(rhs, name_host)
       }
-    }
-    _ => false,
+      None => matches_rfc822_host(rhs, lhs),
+    },
+    Some(rhs_at_idx) => match lhs_at_idx_opt {
+      Some(lhs_at_idx) => {
+        let (Some(lhs_before), Some(lhs_after), Some(rhs_before), Some(rhs_after)) = (
+          lhs.get(..lhs_at_idx),
+          lhs.get(lhs_at_idx.wrapping_add(1)..),
+          rhs.get(..rhs_at_idx),
+          rhs.get(rhs_at_idx.wrapping_add(1)..),
+        ) else {
+          return false;
+        };
+        rhs_before == lhs_before && rhs_after == lhs_after
+      }
+      None => false,
+    },
   }
+}
+
+#[inline]
+fn matches_rfc822_host(constraint: &[u8], host: &[u8]) -> bool {
+  #[inline]
+  fn cmp_host(lhs: &[u8], host: &[u8]) -> bool {
+    if lhs == host {
+      return true;
+    }
+    let (begin, end) = if let Some(idx) = host.len().checked_sub(lhs.len())
+      && let Some(tuple) = host.split_at_checked(idx)
+    {
+      tuple
+    } else {
+      return false;
+    };
+    lhs == end && begin.last() == Some(&b'.')
+  }
+
+  match constraint {
+    [] => false,
+    [b'.', rest @ ..] => cmp_host(rest, host),
+    _ => cmp_host(constraint, host),
+  }
+}
+
+#[inline]
+fn matches_uri(lhs: &[u8], rhs: &[u8]) -> crate::Result<bool> {
+  let lhs_uri = Uri::new(from_utf8_basic(lhs)?);
+  Ok(matches_rfc822(lhs_uri.host().as_bytes(), rhs))
 }
 
 #[inline]
@@ -796,4 +843,49 @@ where
 
   let _ = verified_path.intermediates_mut().pop();
   None
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::x509::{GeneralName, cv::matches_name_constraint};
+
+  #[test]
+  fn matches_name_constraint_excluded() {
+    let cases: &[(&str, &str)] = &[
+      ("example.com", "user@example.com"),
+      ("example.com", "user@sub.example.com"),
+      (".example.com", "user@sub.example.com"),
+    ];
+    for (constraint, name) in cases {
+      assert!(matches_name_constraint::<&[u8], &[u8], true>(
+        &GeneralName::Rfc822Name(constraint.as_bytes()),
+        &GeneralName::Rfc822Name(name.as_bytes()),
+      ));
+    }
+  }
+
+  #[test]
+  fn matches_name_constraint_not_excluded() {
+    let cases: &[(&str, &str, bool)] = &[
+      ("example.com", "user@example.com", true),
+      ("example.com", "user@sub.example.com", true),
+      ("example.com", "user@notexample.com", false),
+      ("example.com", "user@example.com.evil.com", false),
+      ("user@example.com", "user@example.com", true),
+      ("user@example.com", "other@example.com", false),
+      ("user@example.com", "user@sub.example.com", false),
+      (".example.com", "user@example.com", true),
+      (".example.com", "user@sub.example.com", true),
+      (".example.com", "user@notexample.com", false),
+    ];
+    for (constraint, name, expected) in cases {
+      assert_eq!(
+        matches_name_constraint::<&[u8], &[u8], false>(
+          &GeneralName::Rfc822Name(constraint.as_bytes()),
+          &GeneralName::Rfc822Name(name.as_bytes()),
+        ),
+        *expected
+      );
+    }
+  }
 }

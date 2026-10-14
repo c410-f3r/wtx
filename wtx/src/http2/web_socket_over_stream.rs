@@ -1,6 +1,7 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
+  MAX_PAYLOAD_LEN,
   collections::{ArrayVectorU16, SingleTypeStorage, VectorUsize},
   futures::JoinArrayVector,
   http::{Headers, StatusCode},
@@ -117,7 +118,10 @@ fn extend_buffer(
   no_masking: bool,
   mut slice: &[u8],
 ) -> crate::Result<(ReadFrameInfo, usize)> {
-  let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, usize::MAX, 0, no_masking)?;
+  let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, MAX_PAYLOAD_LEN, 0, no_masking)?;
+  if slice.len() != rfi.payload_len {
+    return Err(crate::Error::UnexpectedBufferState);
+  }
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;
   Ok((rfi, before))

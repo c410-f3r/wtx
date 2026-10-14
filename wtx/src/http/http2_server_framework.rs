@@ -188,7 +188,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
 
   /// See [`HttpRecvParams`].
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_http_recv_params(mut self, value: HttpRecvParams) -> Self {
     self.hrc = value;
     self
@@ -217,7 +217,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   ///
   /// Only works when calling [`Self::run_in_threads`]. If [`None`], defaults to the number of threads.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_local_runtimes(mut self, value: Option<NonZeroUsize>) -> Self {
     self.local_runtimes = value;
     self
@@ -225,7 +225,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
 
   /// See [`TcpParams`].
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn set_tcp_params(mut self, value: TcpParams) -> Self {
     self.tcp_params = value;
     self

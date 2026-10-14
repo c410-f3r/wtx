@@ -135,7 +135,7 @@ impl IDuration {
   /// Computes `-self`.
   #[expect(clippy::arithmetic_side_effects, reason = "constructors don't allow `i64::MAX` seconds")]
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn neg(self) -> Self {
     Self { seconds: -self.seconds, nanoseconds: -self.nanoseconds }
   }

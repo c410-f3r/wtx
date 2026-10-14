@@ -135,6 +135,7 @@ where
       return false;
     }
     Ok(None) => {
+      manage_termination::<_, _, _, true>(None, inner).await;
       finish(None, inner, nrb).await;
       return false;
     }
@@ -173,7 +174,7 @@ where
     }
     FrameInitTy::GoAway => {
       let gaf = GoAwayFrame::read(nrb.current(), fi)?;
-      manage_termination::<_, _, _, true>(gaf.error_code(), inner).await;
+      manage_termination::<_, _, _, true>(Some(gaf.error_code()), inner).await;
     }
     FrameInitTy::Headers => {
       let mut hd_guard = inner.hd.lock().await;

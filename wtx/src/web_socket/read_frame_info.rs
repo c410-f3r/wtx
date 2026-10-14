@@ -148,7 +148,7 @@ impl ReadFrameInfo {
     if op_code.is_control() && !fin {
       return Err(WebSocketError::UnexpectedFragmentedControlFrame.into());
     }
-    if op_code == OpCode::Ping && payload_len > MAX_CONTROL_PAYLOAD_LEN {
+    if op_code.is_control() && payload_len > MAX_CONTROL_PAYLOAD_LEN {
       return Err(WebSocketError::VeryLargeControlFrame.into());
     }
     if payload_len >= max_payload_len {

@@ -100,7 +100,7 @@ impl SessionManagerBuilder {
 
   /// Defines the host to which the cookie will be sent.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub fn domain(mut self, elem: String) -> Self {
     self.cookie_def.domain = elem;
     self
@@ -111,7 +111,7 @@ impl SessionManagerBuilder {
   /// If [`Self::max_age`] is set, then this parameter is ignored when setting the cookie in the
   /// header.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn expires(mut self, elem: Option<Datetime<Utc>>) -> Self {
     self.cookie_def.expires = elem;
     self
@@ -119,7 +119,7 @@ impl SessionManagerBuilder {
 
   /// Forbids `JavaScript` from accessing the cookie.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn http_only(mut self, elem: bool) -> Self {
     self.cookie_def.http_only = elem;
     self
@@ -128,7 +128,7 @@ impl SessionManagerBuilder {
   /// The amount of time the future returned by the building methods will wait before
   /// deleting expired sessions.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn inspection_interval(mut self, elem: Duration) -> Self {
     self.inspection_interval = elem;
     self
@@ -136,7 +136,7 @@ impl SessionManagerBuilder {
 
   /// Indicates the number of seconds until the cookie expires.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn max_age(mut self, elem: Option<Duration>) -> Self {
     self.cookie_def.max_age = elem;
     self
@@ -152,7 +152,7 @@ impl SessionManagerBuilder {
   /// Indicates the path that must exist in the requested URL for the browser to send the Cookie
   /// header.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub fn path(mut self, elem: String) -> Self {
     self.cookie_def.path = elem;
     self
@@ -160,7 +160,7 @@ impl SessionManagerBuilder {
 
   /// Controls whether or not a cookie is sent with cross-site requests.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn same_site(mut self, elem: Option<SameSite>) -> Self {
     self.cookie_def.same_site = elem;
     self
@@ -169,7 +169,7 @@ impl SessionManagerBuilder {
   /// Indicates that the cookie is sent to the server only when a request is made with the `https`
   /// scheme.
   #[inline]
-  #[must_use]
+  #[must_use = must_use_itself_doc!()]
   pub const fn secure(mut self, elem: bool) -> Self {
     self.cookie_def.secure = elem;
     self

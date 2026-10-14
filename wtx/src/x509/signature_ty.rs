@@ -12,7 +12,7 @@ use crate::{
   misc::Lease,
   x509::{AlgorithmIdentifier, Certificate},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, str::FromStr};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -137,6 +137,15 @@ impl From<SignatureTy> for &'static str {
       SignatureTy::RsaPssSha256 => "RsaPssSha256",
       SignatureTy::RsaPssSha384 => "RsaPssSha384",
     }
+  }
+}
+
+impl FromStr for SignatureTy {
+  type Err = crate::Error;
+
+  #[inline]
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    value.try_into()
   }
 }
 

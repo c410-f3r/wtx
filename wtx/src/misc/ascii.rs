@@ -1,4 +1,7 @@
-use core::fmt::{Display, Formatter, Write as _};
+use core::{
+  fmt::{Display, Formatter, Write as _},
+  str::FromStr,
+};
 
 /// For example, `A` or `b`.
 pub type AsciiAlphabetic = Ascii<0>;
@@ -290,6 +293,15 @@ impl<const AT: u8> From<Ascii<AT>> for u8 {
   #[inline]
   fn from(value: Ascii<AT>) -> Self {
     value.0
+  }
+}
+
+impl<const AT: u8> FromStr for Ascii<AT> {
+  type Err = crate::Error;
+
+  #[inline]
+  fn from_str(value: &str) -> Result<Self, Self::Err> {
+    value.as_bytes().try_into()
   }
 }
 
