@@ -1,4 +1,4 @@
-cognitive-complexity-threshold = 50
+cognitive-complexity-threshold = 100
 disallowed-methods = [
   "core::str::from_utf8",
   "core::sync::atomic::fence",

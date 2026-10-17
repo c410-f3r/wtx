@@ -55,7 +55,7 @@ sha3 = { default-features = false, optional = true, version = "0.12" }
 signature = { default-features = false, optional = true, version = "3.0" }
 spki = { default-features = false, optional = true, version = "0.8" }
 x25519-dalek = { default-features = false, optional = true, version = "3.0" }
-zip = { default-features = false, optional = true, version = "8.0" }
+zip = { default-features = false, optional = true, version = "9.0" }
 
 [dev-dependencies]
 wtx = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }

@@ -67,7 +67,7 @@ impl TryFrom<u32> for Http2ErrorCode {
       11 => Http2ErrorCode::EnhanceYourCalm,
       12 => Http2ErrorCode::InadequateSecurity,
       13 => Http2ErrorCode::Http11Requires,
-      _ => return Err(crate::Error::Http2Error(Http2Error::InvalidErrorCode)),
+      _ => return Err(crate::Error::Http2(Http2Error::InvalidErrorCode)),
     })
   }
 }
