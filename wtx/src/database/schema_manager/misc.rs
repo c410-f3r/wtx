@@ -15,9 +15,8 @@ use crate::{
       migration::{DbMigration, UserMigration},
     },
   },
-  misc::Lease,
+  misc::{Lease, sip_hash},
 };
-use core::hash::{Hash as _, Hasher as _};
 #[cfg(feature = "std")]
 use {
   crate::{
@@ -201,16 +200,7 @@ where
 }
 
 pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, uid: Uid) -> u64 {
-  #[expect(
-    deprecated,
-    reason = "IFAICT, this use-case doesn't require a different hashing algorithm"
-  )]
-  let mut hasher = core::hash::SipHasher::new();
-  name.hash(&mut hasher);
-  sql_up.hash(&mut hasher);
-  sql_down.hash(&mut hasher);
-  uid.hash(&mut hasher);
-  hasher.finish()
+  sip_hash((name, sql_up, sql_down, uid))
 }
 
 pub(crate) fn is_migration_divergent<DBS, S>(

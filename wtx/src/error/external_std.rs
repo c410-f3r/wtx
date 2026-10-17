@@ -8,7 +8,7 @@ use crate::{Error, RecvError, SendError};
 impl From<core::net::AddrParseError> for Error {
   #[inline]
   fn from(from: core::net::AddrParseError) -> Self {
-    Self::AddrParseError(from)
+    Self::AddrParse(from)
   }
 }
 
@@ -22,14 +22,14 @@ impl From<core::fmt::Error> for Error {
 impl From<alloc::string::FromUtf8Error> for Error {
   #[inline]
   fn from(from: alloc::string::FromUtf8Error) -> Self {
-    Self::FromUtf8Error(from.into())
+    Self::FromUtf8(from.into())
   }
 }
 
 impl From<GetDisjointMutError> for Error {
   #[inline]
   fn from(from: GetDisjointMutError) -> Self {
-    Self::GetDisjointMutError(from)
+    Self::GetDisjointMut(from)
   }
 }
 
@@ -37,42 +37,49 @@ impl From<GetDisjointMutError> for Error {
 impl From<std::io::Error> for Error {
   #[inline]
   fn from(from: std::io::Error) -> Self {
-    Self::IoError(from)
+    Self::Io(from)
+  }
+}
+
+impl From<core::num::ParseFloatError> for Error {
+  #[inline]
+  fn from(from: core::num::ParseFloatError) -> Self {
+    Self::ParseFloat(from)
   }
 }
 
 impl From<core::num::ParseIntError> for Error {
   #[inline]
   fn from(from: core::num::ParseIntError) -> Self {
-    Self::ParseIntError(from)
+    Self::ParseInt(from)
   }
 }
 
 impl From<RecvError> for Error {
   #[inline]
   fn from(from: RecvError) -> Self {
-    Self::RecvError(from)
+    Self::Recv(from)
   }
 }
 
 impl From<SendError<()>> for Error {
   #[inline]
   fn from(from: SendError<()>) -> Self {
-    Self::SendError(from)
+    Self::Send(from)
   }
 }
 
 impl From<core::num::TryFromIntError> for Error {
   #[inline]
   fn from(from: core::num::TryFromIntError) -> Self {
-    Self::TryFromIntError(from)
+    Self::TryFromInt(from)
   }
 }
 
 impl From<TryFromSliceError> for Error {
   #[inline]
   fn from(from: TryFromSliceError) -> Self {
-    Self::TryFromSliceError(from)
+    Self::TryFromSlice(from)
   }
 }
 

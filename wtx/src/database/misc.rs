@@ -1,18 +1,20 @@
-use crate::database::{
-  Database, FromRecords, FromRecordsParams, Record as _, records::Records as _,
+use crate::{
+  codec::Decode,
+  database::{Database, FromRecords, FromRecordsParams, Record as _, records::Records as _},
 };
 use core::ops::ControlFlow;
 
 /// Seeks all rows that have an ID equal to `parent_record_id`.
 #[inline]
-pub fn seek_related_entities<'exec, D, T>(
+pub fn seek_related_entities<'exec, D, P, T>(
   curr_params: &mut FromRecordsParams<D::Record<'exec>>,
-  (parent_record_id, parent_record_id_field_idx): (T::IdTy, usize),
+  (parent_record_id, parent_record_id_field_idx): (P, usize),
   records: &D::Records<'exec>,
   mut entity_cb: impl FnMut(T) -> Result<(), D::Error>,
 ) -> Result<(), D::Error>
 where
   D: Database,
+  P: Decode<'exec, D> + PartialEq,
   T: FromRecords<'exec, D>,
 {
   let initial_field_idx = curr_params.curr_field_idx;
@@ -82,18 +84,19 @@ where
   Ok(())
 }
 
-fn seek<'exec, D, T>(
+fn seek<'exec, D, P, T>(
   curr_params: &mut FromRecordsParams<D::Record<'exec>>,
-  (parent_record_id, parent_record_id_field_idx): (&T::IdTy, usize),
+  (parent_record_id, parent_record_id_field_idx): (&P, usize),
   (initial_field_idx, next_field_idx): (usize, &mut usize),
   records: &D::Records<'exec>,
   entity_cb: &mut impl FnMut(T) -> Result<(), D::Error>,
 ) -> Result<ControlFlow<()>, D::Error>
 where
   D: Database,
+  P: Decode<'exec, D> + PartialEq,
   T: FromRecords<'exec, D>,
 {
-  let local_id: T::IdTy = curr_params.curr_record.decode(parent_record_id_field_idx)?;
+  let local_id: P = curr_params.curr_record.decode(parent_record_id_field_idx)?;
   if local_id != *parent_record_id {
     return Ok(ControlFlow::Break(()));
   }
