@@ -87,9 +87,12 @@ where
   where
     R: Lease<D::Records<'exec>>,
   {
-    let mut state = FromRecordsParams::init::<D>(records.lease()).map(|el| (el, records));
+    let mut state = FromRecordsParams::init::<D>(records.lease()).map(|el| (el, records, false));
     iter::from_fn(move || {
-      let (params, local_records) = state.as_mut()?;
+      let (params, local_records, err_yielded) = state.as_mut()?;
+      if *err_yielded {
+        return None;
+      }
       let local_records_ref = local_records.lease();
       let record = local_records_ref.get(params.consumed_records)?;
       params.curr_field_idx = 0;
@@ -98,6 +101,9 @@ where
       let prev_consumed_records = params.consumed_records;
       let rslt = Self::from_records(params, local_records_ref);
       if prev_consumed_records == params.consumed_records {
+        if rslt.is_err() {
+          *err_yielded = true;
+        }
         return rslt.is_err().then_some(rslt);
       }
       Some(rslt)

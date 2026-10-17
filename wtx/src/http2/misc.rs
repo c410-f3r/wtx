@@ -201,7 +201,7 @@ pub(crate) async fn process_higher_operation_err<SW, TCX, const IS_CLIENT: bool>
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
       manage_termination::<_, _, _, false>(Some(*http2_error_code), inner).await;
     }
-    crate::Error::Http2FlowControlError(_, stream_id) => {
+    crate::Error::Http2FlowControl(_, stream_id) => {
       let _ = send_reset_stream(Http2ErrorCode::FlowControlError, inner, stream_id.into()).await;
     }
     _ => {

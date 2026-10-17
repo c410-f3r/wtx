@@ -6,7 +6,7 @@ impl From<aead::Error> for crate::Error {
   #[inline]
   #[track_caller]
   fn from(from: aead::Error) -> Self {
-    Self::AeadError(from)
+    Self::Aead(from)
   }
 }
 
@@ -32,7 +32,7 @@ impl From<crypto_common::InvalidLength> for crate::Error {
 impl From<elliptic_curve::Error> for crate::Error {
   #[inline]
   fn from(from: elliptic_curve::Error) -> Self {
-    Self::EllipticCurveError(from)
+    Self::EllipticCurve(from)
   }
 }
 
@@ -72,7 +72,7 @@ impl From<embassy_net::udp::SendError> for crate::Error {
 impl From<getrandom::Error> for crate::Error {
   #[inline]
   fn from(from: getrandom::Error) -> Self {
-    Self::GetRandomError(from)
+    Self::GetRandom(from)
   }
 }
 
@@ -80,7 +80,7 @@ impl From<getrandom::Error> for crate::Error {
 impl From<graviola::Error> for crate::Error {
   #[inline]
   fn from(from: graviola::Error) -> Self {
-    Self::GraviolaError(from)
+    Self::Graviola(from)
   }
 }
 
@@ -96,7 +96,7 @@ impl From<httparse::Error> for crate::Error {
 impl From<digest::MacError> for crate::Error {
   #[inline]
   fn from(from: digest::MacError) -> Self {
-    Self::MacError(from)
+    Self::Mac(from)
   }
 }
 
@@ -104,7 +104,7 @@ impl From<digest::MacError> for crate::Error {
 impl From<pkcs1::Error> for crate::Error {
   #[inline]
   fn from(from: pkcs1::Error) -> Self {
-    Self::Pkcs1Error(from.into())
+    Self::Pkcs1(from.into())
   }
 }
 
@@ -112,7 +112,7 @@ impl From<pkcs1::Error> for crate::Error {
 impl From<pkcs8::Error> for crate::Error {
   #[inline]
   fn from(from: pkcs8::Error) -> Self {
-    Self::Pkcs8Error(from.into())
+    Self::Pkcs8(from.into())
   }
 }
 
@@ -176,7 +176,7 @@ impl From<signature::Error> for crate::Error {
 impl From<spki::Error> for crate::Error {
   #[inline]
   fn from(from: spki::Error) -> Self {
-    Self::SpkiError(from.into())
+    Self::Spki(from.into())
   }
 }
 
@@ -184,7 +184,7 @@ impl From<spki::Error> for crate::Error {
 impl From<tokio::task::JoinError> for crate::Error {
   #[inline]
   fn from(from: tokio::task::JoinError) -> Self {
-    Self::TokioJoinError(from.into())
+    Self::TokioJoin(from.into())
   }
 }
 
@@ -192,7 +192,7 @@ impl From<tokio::task::JoinError> for crate::Error {
 impl From<tracing_subscriber::util::TryInitError> for crate::Error {
   #[inline]
   fn from(from: tracing_subscriber::util::TryInitError) -> Self {
-    Self::TryInitError(from.into())
+    Self::TryInit(from.into())
   }
 }
 
@@ -200,7 +200,7 @@ impl From<tracing_subscriber::util::TryInitError> for crate::Error {
 impl<T> From<std::sync::TryLockError<T>> for crate::Error {
   #[inline]
   fn from(from: std::sync::TryLockError<T>) -> Self {
-    Self::TryLockError(match from {
+    Self::TryLock(match from {
       std::sync::TryLockError::Poisoned(_) => {
         std::sync::TryLockError::Poisoned(std::sync::PoisonError::new(()))
       }
@@ -213,7 +213,7 @@ impl<T> From<std::sync::TryLockError<T>> for crate::Error {
 impl From<uuid::Error> for crate::Error {
   #[inline]
   fn from(value: uuid::Error) -> Self {
-    Self::UuidError(value.into())
+    Self::Uuid(value.into())
   }
 }
 
@@ -229,7 +229,7 @@ impl From<zip::result::ZipError> for crate::Error {
 impl From<zlib_rs::DeflateError> for crate::Error {
   #[inline]
   fn from(value: zlib_rs::DeflateError) -> Self {
-    Self::ZlibRsDeflateError(value)
+    Self::ZlibRsDeflate(value)
   }
 }
 
@@ -237,7 +237,7 @@ impl From<zlib_rs::DeflateError> for crate::Error {
 impl From<zlib_rs::InflateError> for crate::Error {
   #[inline]
   fn from(value: zlib_rs::InflateError) -> Self {
-    Self::ZlibRsInflateError(value)
+    Self::ZlibRsInflate(value)
   }
 }
 

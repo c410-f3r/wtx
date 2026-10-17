@@ -4,7 +4,7 @@ use wtx::tls::{AlertDescription, TlsError};
 pub fn handle_err(_opts: &Options, rslt: wtx::Result<()>) {
   let reason = match &rslt {
     Ok(_) => return,
-    Err(wtx::Error::TlsError(err)) => match err {
+    Err(wtx::Error::Tls(err)) => match err {
       TlsError::AbortedHandshake(alert)
         if alert.description() == AlertDescription::HandshakeFailure =>
       {

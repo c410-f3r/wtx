@@ -32,7 +32,10 @@ mod wrapper;
 
 use crate::collections::ShortStrU8;
 pub use ascii::*;
-use core::any::type_name;
+use core::{
+  any::type_name,
+  hash::{Hash, Hasher as _},
+};
 pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
@@ -277,6 +280,15 @@ where
     sq.serialize_element(&elem.map_err(S::Error::custom)?)?;
   }
   sq.end()
+}
+
+/// Hashes a sequence of elements using the SIP algorithm.
+#[expect(deprecated, reason = "up to the caller")]
+#[inline]
+pub fn sip_hash(hash: impl Hash) -> u64 {
+  let mut hasher = core::hash::SipHasher::new();
+  hash.hash(&mut hasher);
+  hasher.finish()
 }
 
 /// A tracing register with optioned parameters.

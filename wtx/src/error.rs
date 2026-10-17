@@ -41,7 +41,7 @@ pub enum Error {
   //
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  AeadError(aead::Error),
+  Aead(aead::Error),
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
@@ -50,7 +50,7 @@ pub enum Error {
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  EllipticCurveError(elliptic_curve::Error),
+  EllipticCurve(elliptic_curve::Error),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNetTcp(embassy_net::tcp::Error),
@@ -65,22 +65,22 @@ pub enum Error {
   EmbassyNetUdpSend(embassy_net::udp::SendError),
   #[cfg(feature = "getrandom")]
   #[doc = associated_element_doc!()]
-  GetRandomError(getrandom::Error),
+  GetRandom(getrandom::Error),
   #[cfg(feature = "crypto-graviola")]
   #[doc = associated_element_doc!()]
-  GraviolaError(graviola::Error),
+  Graviola(graviola::Error),
   #[cfg(feature = "httparse")]
   #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  MacError(digest::MacError),
+  Mac(digest::MacError),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  Pkcs1Error(Box<pkcs1::Error>),
+  Pkcs1(Box<pkcs1::Error>),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  Pkcs8Error(Box<pkcs8::Error>),
+  Pkcs8(Box<pkcs8::Error>),
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
@@ -92,7 +92,7 @@ pub enum Error {
   QuickXmlAttr(Box<quick_xml::events::attributes::AttrError>),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  RsaError(Box<rsa::Error>),
+  Rsa(Box<rsa::Error>),
   #[cfg(feature = "rust_decimal")]
   #[doc = associated_element_doc!()]
   RustDecimal(Box<rust_decimal::Error>),
@@ -110,54 +110,56 @@ pub enum Error {
   Signature(Box<signature::Error>),
   #[cfg(feature = "crypto-ruco")]
   #[doc = associated_element_doc!()]
-  SpkiError(Box<spki::Error>),
+  Spki(Box<spki::Error>),
   #[cfg(feature = "tokio")]
   #[doc = associated_element_doc!()]
-  TokioJoinError(Box<tokio::task::JoinError>),
+  TokioJoin(Box<tokio::task::JoinError>),
   #[cfg(feature = "tracing-subscriber")]
   #[doc = associated_element_doc!()]
-  TryInitError(Box<tracing_subscriber::util::TryInitError>),
+  TryInit(Box<tracing_subscriber::util::TryInitError>),
   #[cfg(feature = "std")]
   #[doc = associated_element_doc!()]
-  TryLockError(std::sync::TryLockError<()>),
+  TryLock(std::sync::TryLockError<()>),
   #[cfg(feature = "uuid")]
   #[doc = associated_element_doc!()]
-  UuidError(Box<uuid::Error>),
+  Uuid(Box<uuid::Error>),
   #[cfg(feature = "zip")]
   #[doc = associated_element_doc!()]
   Zip(Box<zip::result::ZipError>),
   #[cfg(feature = "zlib-rs")]
   #[doc = associated_element_doc!()]
-  ZlibRsDeflateError(zlib_rs::DeflateError),
+  ZlibRsDeflate(zlib_rs::DeflateError),
   #[cfg(feature = "zlib-rs")]
   #[doc = associated_element_doc!()]
-  ZlibRsInflateError(zlib_rs::InflateError),
+  ZlibRsInflate(zlib_rs::InflateError),
 
   // External - Std
   //
   #[doc = associated_element_doc!()]
-  AddrParseError(core::net::AddrParseError),
+  AddrParse(core::net::AddrParseError),
   #[doc = associated_element_doc!()]
   Fmt(core::fmt::Error),
   #[doc = associated_element_doc!()]
-  FromUtf8Error(Box<alloc::string::FromUtf8Error>),
+  FromUtf8(Box<alloc::string::FromUtf8Error>),
   #[doc = associated_element_doc!()]
-  GetDisjointMutError(GetDisjointMutError),
+  GetDisjointMut(GetDisjointMutError),
   #[cfg(feature = "std")]
   #[doc = associated_element_doc!()]
-  IoError(std::io::Error),
+  Io(std::io::Error),
   #[doc = associated_element_doc!()]
-  ParseIntError(core::num::ParseIntError),
+  ParseFloat(core::num::ParseFloatError),
   #[doc = associated_element_doc!()]
-  RecvError(RecvError),
+  ParseInt(core::num::ParseIntError),
   #[doc = associated_element_doc!()]
-  SendError(SendError<()>),
+  Recv(RecvError),
   #[doc = associated_element_doc!()]
-  TryFromIntError(core::num::TryFromIntError),
+  Send(SendError<()>),
   #[doc = associated_element_doc!()]
-  TryFromSliceError(TryFromSliceError),
+  TryFromInt(core::num::TryFromIntError),
   #[doc = associated_element_doc!()]
-  Utf8Error(Box<core::str::Utf8Error>),
+  TryFromSlice(TryFromSliceError),
+  #[doc = associated_element_doc!()]
+  Utf8(Box<core::str::Utf8Error>),
   /// The specified environment variable was not present in the current
   /// process's environment.
   #[cfg(feature = "std")]
@@ -171,7 +173,7 @@ pub enum Error {
   // Generic
   //
   /// Allocation error
-  AllocError(Box<Layout>),
+  Alloc(Box<Layout>),
   /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
   ClosedHttpConnection,
   /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
@@ -271,97 +273,97 @@ pub enum Error {
   // Internal
   //
   #[doc = associated_element_doc!()]
-  ArithmeticError(ArithmeticError),
+  Arithmetic(ArithmeticError),
   #[doc = associated_element_doc!()]
-  ArrayStringError(ArrayStringError),
+  ArrayString(ArrayStringError),
   #[doc = associated_element_doc!()]
-  ArrayVectorError(ArrayVectorError),
+  ArrayVector(ArrayVectorError),
   #[doc = associated_element_doc!()]
-  AsciiError(AsciiError),
+  Ascii(AsciiError),
   #[cfg(feature = "asn1")]
   #[doc = associated_element_doc!()]
-  Asn1Error(Asn1Error),
+  Asn1(Asn1Error),
   #[doc = associated_element_doc!()]
-  Base64Error(Base64Error),
+  Base64(Base64Error),
   #[doc = associated_element_doc!()]
-  BlocksQueueError(BlocksDequeError),
+  BlocksQueue(BlocksDequeError),
   #[doc = associated_element_doc!()]
-  CalendarError(CalendarError),
+  Calendar(CalendarError),
   #[cfg(feature = "client-api-framework")]
   #[doc = associated_element_doc!()]
-  ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  ClientApiFramework(crate::client_api_framework::ClientApiFrameworkError),
   #[doc = associated_element_doc!()]
-  CodecError(Box<crate::codec::CodecError>),
+  Codec(Box<crate::codec::CodecError>),
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
   Cookie(crate::http::cookie::CookieError),
   #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
-  CryptoError(crate::crypto::CryptoError),
+  Crypto(crate::crypto::CryptoError),
   #[doc = associated_element_doc!()]
-  CsrError(crate::collections::CsrError),
+  Csr(crate::collections::CsrError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
-  DatabaseError(crate::database::DatabaseError),
+  Database(crate::database::DatabaseError),
   #[doc = associated_element_doc!()]
-  ExecutorError(crate::executor::ExecutorError),
+  Executor(crate::executor::ExecutorError),
   #[doc = associated_element_doc!()]
-  FixedStringError(FixedStringError),
+  FixedString(FixedStringError),
   #[doc = associated_element_doc!()]
-  FromRadix10Error(FromRadix10Error),
+  FromRadix10(FromRadix10Error),
   #[doc = associated_element_doc!()]
-  HexError(HexError),
+  Hex(HexError),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
-  HttpError(crate::http::HttpError),
+  Http(crate::http::HttpError),
   /// Fatal HTTP/2 error
   #[cfg(feature = "http2")]
-  Http2Error(crate::http2::Http2Error),
+  Http2(crate::http2::Http2Error),
   /// Maybe Fatal HTTP/2 error
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, crate::http2::Http2Error),
   /// Non-fatal HTTP/2 stream error
   #[cfg(feature = "http2")]
-  Http2FlowControlError(crate::http2::Http2Error, u32),
+  Http2FlowControl(crate::http2::Http2Error, u32),
   #[doc = associated_element_doc!()]
-  NetError(crate::net::NetError),
+  Net(crate::net::NetError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
-  PostgresDbError(Box<crate::database::client::postgres::DbError>),
+  PostgresDb(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
-  PostgresError(crate::database::client::postgres::PostgresError),
+  Postgres(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
-  QueueError(DequeueError),
+  Queue(DequeueError),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
-  RouterError(crate::http::RouterError),
+  Router(crate::http::RouterError),
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
-  SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
+  SchemaManager(crate::database::schema_manager::SchemaManagerError),
   #[cfg(feature = "http2-server-framework")]
   #[doc = associated_element_doc!()]
-  ServerFrameworkError(crate::http::http2_server_framework::Http2ServerFrameworkError),
+  ServerFramework(crate::http::http2_server_framework::Http2ServerFrameworkError),
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
-  SessionError(crate::http::SessionError),
+  Session(crate::http::SessionError),
   #[cfg(feature = "tls")]
   #[doc = associated_element_doc!()]
-  TlsError(crate::tls::TlsError),
+  Tls(crate::tls::TlsError),
   #[cfg(feature = "tls")]
   #[doc = associated_element_doc!()]
   TlsErrorReply(crate::tls::TlsError, crate::tls::AlertDescription),
   #[doc = associated_element_doc!()]
-  VectorError(VectorError),
+  Vector(VectorError),
   #[cfg(feature = "web-socket")]
   #[doc = associated_element_doc!()]
-  WebSocketError(crate::web_socket::WebSocketError),
+  WebSocket(crate::web_socket::WebSocketError),
   #[cfg(feature = "x509")]
   #[doc = associated_element_doc!()]
-  X509CvError(crate::x509::X509CvError),
+  X509Cv(crate::x509::X509CvError),
   #[cfg(feature = "x509")]
   #[doc = associated_element_doc!()]
-  X509Error(crate::x509::X509Error),
+  X509(crate::x509::X509Error),
 }
 
 impl Display for Error {

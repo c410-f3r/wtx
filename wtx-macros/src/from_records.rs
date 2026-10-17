@@ -111,6 +111,8 @@ pub(crate) fn from_records(
         use wtx::database::Record as _;
 
         let is_in_one_relationship = _curr_params.is_in_one_relationship;
+        _curr_params.is_in_one_relationship = false;
+        let prev_consumed_records = _curr_params.consumed_records;
 
         #(
           let #decodes_before_id = _curr_params.curr_record.#decodes_before_id_method(_curr_params.curr_field_idx)?;
@@ -142,21 +144,25 @@ pub(crate) fn from_records(
           let #ones_opts = {
             _curr_params.is_in_one_relationship = true;
             let prev_curr_field_idx = _curr_params.curr_field_idx;
-            let rslt = <#ones_opts_tys as wtx::database::FromRecords::<#database>>::from_records(_curr_params, _records);
-            _curr_params.is_in_one_relationship = false;
-            if rslt.is_err() {
+            let local_id_idx = <#ones_opts_tys as wtx::database::FromRecords::<#database>>::ID_IDX.unwrap_or(0);
+            let probe_idx = prev_curr_field_idx.wrapping_add(local_id_idx);
+            let is_present = _curr_params.curr_record.value(probe_idx).is_some();
+            if !is_present {
               let curr_field_idx = prev_curr_field_idx.wrapping_add(
                 <#ones_opts_tys as wtx::database::FromRecords::<#database>>::FIELDS_NUM.into()
               );
               _curr_params.curr_field_idx = curr_field_idx;
               None
             } else {
+              let rslt = <#ones_opts_tys as wtx::database::FromRecords::<#database>>::from_records(
+                _curr_params, _records
+              );
+              _curr_params.is_in_one_relationship = false;
               rslt?
             }
           };
         )*
 
-        let prev_consumed_records = _curr_params.consumed_records;
         #(
           let mut #manys: #manys_tys = Default::default();
           #[allow(clippy::needless_question_mark, reason = "sometimes the error type is the same")]

@@ -44,9 +44,9 @@ pub trait Database: crate::codec::CodecController {
   const TY: DatabaseTy;
 
   /// See [Record].
-  type Record<'exec>: Record<'exec, Database = Self>;
+  type Record<'client>: Record<'client, Database = Self>;
   /// See [Records].
-  type Records<'exec>: Records<'exec, Database = Self>;
+  type Records<'client>: Records<'client, Database = Self>;
   /// All database types
   type Ty;
 }
@@ -54,8 +54,8 @@ pub trait Database: crate::codec::CodecController {
 impl Database for () {
   const TY: DatabaseTy = DatabaseTy::Unit;
 
-  type Record<'exec> = ();
-  type Records<'exec> = ();
+  type Record<'client> = ();
+  type Records<'client> = ();
   type Ty = ();
 }
 

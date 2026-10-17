@@ -85,7 +85,7 @@ where
     <u16 as Decode<TlsCc>>::decode(&mut TlsDecodeWrapper::from_bytes(&[b1, b2]))?;
   if IS_CH {
     if b1 != 3 {
-      return Err(crate::Error::TlsError(TlsError::UnknownProtocolVersion));
+      return Err(crate::Error::Tls(TlsError::UnknownProtocolVersion));
     }
   } else {
     let protocol_version = ProtocolVersion::try_from(prot_version_num)?;
