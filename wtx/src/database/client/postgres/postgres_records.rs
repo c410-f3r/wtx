@@ -15,12 +15,21 @@ pub struct PostgresRecords<'exec, E> {
 
 impl<'exec, E> PostgresRecords<'exec, E> {
   pub(crate) const fn new(
+    affected_rows: u64,
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],
     stmt: PostgresStatement<'exec>,
     values_params: &'exec [(bool, Range<usize>)],
   ) -> Self {
-    Self { common: PostgresCommonRecords::new(records, records_params, stmt, values_params) }
+    Self {
+      common: PostgresCommonRecords::new(
+        affected_rows,
+        records,
+        records_params,
+        stmt,
+        values_params,
+      ),
+    }
   }
 }
 
@@ -29,6 +38,11 @@ where
   E: From<crate::Error>,
 {
   type Database = Postgres<E>;
+
+  #[inline]
+  fn affected_rows(&self) -> u64 {
+    self.common.affected_rows()
+  }
 
   #[inline]
   fn get(&self, record_idx: usize) -> Option<PostgresRecord<'exec, E>> {
@@ -56,6 +70,24 @@ impl<'exec, E> Lease<PostgresRecords<'exec, E>> for PostgresRecords<'exec, E> {
 impl<E> Default for PostgresRecords<'_, E> {
   #[inline]
   fn default() -> Self {
-    Self::new(&[], &[], PostgresStatement::default(), &[])
+    Self::new(0, &[], &[], PostgresStatement::default(), &[])
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn affected_rows_support_the_full_protocol_range() {
+    let affected_rows = u64::from(u32::MAX);
+    let records = PostgresRecords::<crate::Error>::new(
+      affected_rows,
+      &[],
+      &[],
+      PostgresStatement::default(),
+      &[],
+    );
+    assert_eq!(records.affected_rows(), affected_rows);
   }
 }

@@ -126,7 +126,11 @@ where
   /// ```
   #[inline(always)]
   pub fn with_capacity(capacity: L) -> crate::Result<Self> {
-    Ok(Self(Inner::with_capacity(capacity)?))
+    let vec = Vec::with_capacity(capacity.usize());
+    if vec.capacity() > L::UPPER_BOUND_USIZE {
+      return Err(VectorError::CapacityOverflow.into());
+    }
+    Ok(Self(Inner::from_vec(vec)?))
   }
 
   /// Constructs a new, empty instance with the exact specified capacity.
@@ -206,13 +210,13 @@ where
     self.0.allocated()
   }
 
-  #[doc = as_ptr_doc!("VectorUsize", "[1, 2, 3]")]
+  #[doc = as_ptr_doc!("VectorUsize")]
   #[inline]
   pub fn as_ptr(&self) -> *const T {
     self.0.as_ptr()
   }
 
-  #[doc = as_ptr_mut_doc!()]
+  #[doc = as_ptr_mut_doc!("VectorU8")]
   #[inline]
   pub fn as_ptr_mut(&mut self) -> *mut T {
     self.0.as_ptr_mut()
@@ -224,7 +228,7 @@ where
     self.0.as_slice()
   }
 
-  #[doc = as_slice_mut_doc!()]
+  #[doc = as_slice_mut_doc!("VectorU8", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut [T] {
     self.0.as_slice_mut()
@@ -293,7 +297,7 @@ where
     self.0.insert(VectorError::OutOfBoundsInsertIdx.into(), idx, elem)
   }
 
-  #[doc = len_doc!()]
+  #[doc = len_doc!("VectorU8", "[1, 2, 3]")]
   #[inline]
   pub fn len(&self) -> L {
     self.0.len()
@@ -341,8 +345,14 @@ where
     self.0.reserve_exact(additional)
   }
 
+  #[doc = retain_unstable_doc!("VectorU8")]
+  #[inline]
+  pub fn retain_unstable(&mut self, cb: impl FnMut(&T) -> bool) {
+    <[T] as LinearStorageSlice>::retain_unstable(&mut self.0, cb);
+  }
+
   #[expect(clippy::missing_safety_doc, reason = "false-positive")]
-  #[doc = set_len_doc!()]
+  #[doc = set_len_doc!("VectorU8", "[1, 2, 3]", "&[1]")]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {
     // SAFETY: Up to the caller
@@ -853,11 +863,6 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn with_capacity(capacity: L) -> crate::Result<Self> {
-    Inner::from_vec(Vec::with_capacity(capacity.usize()))
-  }
-
-  #[inline]
   fn from_vec(mut vec: Vec<T>) -> crate::Result<Self> {
     if L::from_usize(vec.capacity()).is_err() {
       vec = vec.into_boxed_slice().into_vec();
@@ -890,12 +895,27 @@ where
     &mut self,
     cb: impl FnOnce(&mut Vec<T>) -> crate::Result<U>,
   ) -> crate::Result<U> {
-    struct Guard<'any, L: LinearStorageLen, T> {
+    struct VecGuard<'any, L: LinearStorageLen, T> {
       is_ok: &'any mut bool,
       target: &'any mut Inner<L, T>,
       tmp_vec: Vec<T>,
     }
-    impl<L, T> Drop for Guard<'_, L, T>
+
+    impl<'any, L: LinearStorageLen, T> VecGuard<'any, L, T> {
+      fn new(is_ok: &'any mut bool, target: &'any mut Inner<L, T>) -> Self {
+        let cap = target.cap;
+        let len = target.len;
+        let ptr = target.ptr;
+        target.cap = L::ZERO;
+        target.len = L::ZERO;
+        target.ptr = NonNull::<T>::dangling().cast::<u8>();
+        // SAFETY: Inner parameters are always valid
+        let tmp_vec = unsafe { Vec::from_parts(ptr.cast(), len.usize(), cap.usize()) };
+        Self { is_ok, target, tmp_vec }
+      }
+    }
+
+    impl<L, T> Drop for VecGuard<'_, L, T>
     where
       L: LinearStorageLen,
     {
@@ -903,7 +923,10 @@ where
       fn drop(&mut self) {
         let tmp_vec_len = self.tmp_vec.len();
         let tmp_vec_cap = self.tmp_vec.capacity();
-        if let (Ok(len_l), Ok(cap_l)) = (L::from_usize(tmp_vec_len), L::from_usize(tmp_vec_cap)) {
+        if let (Ok(len_l), Ok(cap_l)) = (L::from_usize(tmp_vec_len), L::from_usize(tmp_vec_cap))
+          && len_l <= L::UPPER_BOUND
+          && cap_l <= L::UPPER_BOUND
+        {
           let (ptr, _, _) = mem::take(&mut self.tmp_vec).into_parts();
           self.target.cap = cap_l;
           self.target.len = len_l;
@@ -913,17 +936,9 @@ where
       }
     }
 
-    let cap = self.cap;
-    let len = self.len;
-    let ptr = self.ptr;
-    self.cap = L::ZERO;
-    self.len = L::ZERO;
-    self.ptr = NonNull::<T>::dangling().cast::<u8>();
-    // SAFETY: Inner parameters are always valid
-    let tmp_vec = unsafe { Vec::from_parts(ptr.cast(), len.usize(), cap.usize()) };
     let mut is_ok = false;
     let rslt = {
-      let mut guard = Guard { is_ok: &mut is_ok, target: self, tmp_vec };
+      let mut guard = VecGuard::new(&mut is_ok, self);
       cb(&mut guard.tmp_vec)
     };
     if !is_ok {

@@ -188,11 +188,15 @@ where
     let (_, stmt_cmd_id_array, stmt_mut) = tuple;
     Self::write_send_await_stmt_bind(cs, read_buffer, rv, &stmt_cmd_id_array, stream).await?;
     let begin_data = read_buffer.current_end_idx().wrapping_add(7);
+    let mut affected_rows = 0u64;
     *read_buffer.forbid_clear_mut() = true;
     loop {
       let msg = Self::fetch_msg(cs, read_buffer, stream).await?;
       match msg.ty {
-        MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
+        MessageTy::CommandComplete(rows_len) => {
+          affected_rows = u64::from(rows_len);
+        }
+        MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(values_len) => {
           data_row(
             begin_data,
@@ -217,6 +221,7 @@ where
     }
     *read_buffer.forbid_clear_mut() = false;
     Ok(PostgresRecords::new(
+      affected_rows,
       read_buffer.filled().get(begin_data..read_buffer.current_end_idx()).unwrap_or_default(),
       records_params,
       stmt_mut.into_stmt(),

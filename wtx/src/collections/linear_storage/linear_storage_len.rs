@@ -35,14 +35,14 @@ macro_rules! usize_cap {
   };
 }
 
-use crate::misc::{LeaseMut, TryArithmetic, Usize, int_conv::u8usize};
+use crate::misc::{ArithmeticError, LeaseMut, TryArithmetic, Usize, int_conv::u8usize};
 use core::fmt::Display;
 
 /// Determines how many elements can be stored in a linear collection.
 pub trait LinearStorageLen:
   Copy
-  + Display
   + Default
+  + Display
   + Eq
   + From<u8>
   + Ord
@@ -51,16 +51,16 @@ pub trait LinearStorageLen:
   + Sized
   + TryArithmetic<Self, Output = Self>
 {
-  /// The size of this length in bits.
+  /// The number of bits needed to represent the maximum allowed length.
   const BITS: u8;
-  /// The size of this length in bytes.
-  const BYTES: u8 = Self::BITS / 8;
+  /// The size in bytes used to store this length.
+  const BYTES: u8;
+  /// Instance that represents the number one.
+  const ONE: Self;
   /// The maximum number of allowed elements.
   const UPPER_BOUND: Self;
   /// The maximum number of allowed elements as `usize`.
   const UPPER_BOUND_USIZE: usize;
-  /// Instance that represents the number one.
-  const ONE: Self;
   /// Instance that represents the number zero.
   const ZERO: Self;
 
@@ -108,333 +108,258 @@ pub trait LinearStorageLen:
   fn wrapping_sub(self, rhs: Self) -> Self;
 }
 
-impl LinearStorageLen for u8 {
-  const BITS: u8 = 8;
-  const UPPER_BOUND: Self = u8_cap!();
-  const UPPER_BOUND_USIZE: usize = u8_cap!();
-  const ONE: Self = 1;
-  const ZERO: Self = 0;
+macro_rules! impl_linear_storage_len {
+  (
+    $ty:ty,
+    $bits:expr,
+    $upper_bound:expr,
+    $array:ty,
+    $to_usize:expr $(,)?
+  ) => {
+    impl LinearStorageLen for $ty {
+      const BITS: u8 = $bits;
+      const BYTES: u8 = $bits / 8;
+      const ONE: Self = 1;
+      const UPPER_BOUND: Self = $upper_bound;
+      const UPPER_BOUND_USIZE: usize = $upper_bound;
+      const ZERO: Self = 0;
 
-  type Array = [u8; 1];
+      type Array = $array;
 
-  #[inline]
-  fn from_le_bytes(array: Self::Array) -> Self {
-    u8::from_le_bytes(array)
-  }
+      #[inline]
+      fn from_le_bytes(array: Self::Array) -> Self {
+        <$ty>::from_le_bytes(array)
+      }
 
-  #[inline]
-  fn from_usize(num: usize) -> crate::Result<Self> {
-    Ok(num.try_into()?)
-  }
+      #[inline]
+      fn from_usize(num: usize) -> crate::Result<Self> {
+        Ok(num.try_into()?)
+      }
 
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
+      #[inline]
+      fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.checked_add(rhs)
+      }
 
-  #[inline]
-  fn checked_rem(self, rhs: Self) -> Option<Self> {
-    self.checked_rem(rhs)
-  }
+      #[inline]
+      fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.checked_rem(rhs)
+      }
 
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
+      #[inline]
+      fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.checked_sub(rhs)
+      }
 
-  #[inline]
-  fn saturating_add(self, rhs: Self) -> Self {
-    self.saturating_add(rhs)
-  }
+      #[inline]
+      fn saturating_add(self, rhs: Self) -> Self {
+        self.saturating_add(rhs)
+      }
 
-  #[inline]
-  fn saturating_sub(self, rhs: Self) -> Self {
-    self.saturating_sub(rhs)
-  }
+      #[inline]
+      fn saturating_sub(self, rhs: Self) -> Self {
+        self.saturating_sub(rhs)
+      }
 
-  #[inline]
-  fn to_le_bytes(self) -> Self::Array {
-    self.to_le_bytes()
-  }
+      #[inline]
+      fn to_le_bytes(self) -> Self::Array {
+        self.to_le_bytes()
+      }
 
-  #[inline]
-  fn usize(self) -> usize {
-    self.into()
-  }
+      #[inline]
+      fn usize(self) -> usize {
+        ($to_usize)(self)
+      }
 
-  #[inline]
-  fn wrapping_add(self, rhs: Self) -> Self {
-    self.wrapping_add(rhs)
-  }
+      #[inline]
+      fn wrapping_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+      }
 
-  #[inline]
-  fn wrapping_sub(self, rhs: Self) -> Self {
-    self.wrapping_sub(rhs)
-  }
+      #[inline]
+      fn wrapping_sub(self, rhs: Self) -> Self {
+        self.wrapping_sub(rhs)
+      }
+    }
+  };
 }
 
-impl LinearStorageLen for u16 {
-  const BITS: u8 = 16;
-  const UPPER_BOUND: Self = u16_cap!();
-  const UPPER_BOUND_USIZE: usize = u16_cap!();
-  const ONE: Self = 1;
-  const ZERO: Self = 0;
-
-  type Array = [u8; 2];
-
-  #[inline]
-  fn from_le_bytes(array: Self::Array) -> Self {
-    u16::from_le_bytes(array)
-  }
-
-  #[inline]
-  fn from_usize(num: usize) -> crate::Result<Self> {
-    Ok(num.try_into()?)
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_rem(self, rhs: Self) -> Option<Self> {
-    self.checked_rem(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
-
-  #[inline]
-  fn saturating_add(self, rhs: Self) -> Self {
-    self.saturating_add(rhs)
-  }
-
-  #[inline]
-  fn saturating_sub(self, rhs: Self) -> Self {
-    self.saturating_sub(rhs)
-  }
-
-  #[inline]
-  fn to_le_bytes(self) -> Self::Array {
-    self.to_le_bytes()
-  }
-
-  #[inline]
-  fn usize(self) -> usize {
-    self.into()
-  }
-
-  #[inline]
-  fn wrapping_add(self, rhs: Self) -> Self {
-    self.wrapping_add(rhs)
-  }
-
-  #[inline]
-  fn wrapping_sub(self, rhs: Self) -> Self {
-    self.wrapping_sub(rhs)
-  }
-}
-
-impl LinearStorageLen for u32 {
-  const BITS: u8 = 32;
-  const UPPER_BOUND: Self = u32_cap!();
-  const UPPER_BOUND_USIZE: usize = u32_cap!();
-  const ONE: Self = 1;
-  const ZERO: Self = 0;
-
-  type Array = [u8; 4];
-
-  #[inline]
-  fn from_le_bytes(array: Self::Array) -> Self {
-    u32::from_le_bytes(array)
-  }
-
-  #[inline]
-  fn from_usize(num: usize) -> crate::Result<Self> {
-    Ok(num.try_into()?)
-  }
-
-  #[inline]
-  fn to_le_bytes(self) -> Self::Array {
-    self.to_le_bytes()
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_rem(self, rhs: Self) -> Option<Self> {
-    self.checked_rem(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
-
-  #[inline]
-  fn saturating_add(self, rhs: Self) -> Self {
-    self.saturating_add(rhs)
-  }
-
-  #[inline]
-  fn saturating_sub(self, rhs: Self) -> Self {
-    self.saturating_sub(rhs)
-  }
-
-  #[inline]
-  fn usize(self) -> usize {
-    *Usize::from(self)
-  }
-
-  #[inline]
-  fn wrapping_add(self, rhs: Self) -> Self {
-    self.wrapping_add(rhs)
-  }
-
-  #[inline]
-  fn wrapping_sub(self, rhs: Self) -> Self {
-    self.wrapping_sub(rhs)
-  }
-}
-
+impl_linear_storage_len!(u8, 8, u8_cap!(), [u8; 1], |n: u8| n.into());
+impl_linear_storage_len!(u16, 16, u16_cap!(), [u8; 2], |n: u16| n.into());
+impl_linear_storage_len!(u32, 32, u32_cap!(), [u8; 4], |n: u32| *Usize::from(n));
 #[cfg(target_pointer_width = "64")]
-impl LinearStorageLen for u64 {
-  const BITS: u8 = 64;
-  const UPPER_BOUND: Self = u64_cap!();
-  const UPPER_BOUND_USIZE: usize = u64_cap!();
-  const ONE: Self = 1;
-  const ZERO: Self = 0;
+impl_linear_storage_len!(u64, 64, u64_cap!(), [u8; 8], |n: u64| *Usize::from(n));
+impl_linear_storage_len!(
+  usize,
+  if cfg!(target_pointer_width = "64") { 64 } else { 32 },
+  usize_cap!(),
+  [u8; u8usize(usize::BYTES)],
+  |n: usize| n
+);
 
-  type Array = [u8; 8];
+macro_rules! impl_linear_storage_len_wrapper {
+  (
+    $name:ident,
+    $inner:ty,
+    $bits:expr,
+    $bytes:expr,
+    $upper_bound:expr,
+    $array:ty $(,)?
+  ) => {
+    /// Unsigned integer used to calculate lengths of collections.
+    ///
+    /// All arithmetic operations can surpass their associated upper bounds so it is up to the caller
+    /// to avoid overflows.
+    #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct $name($inner);
 
-  #[inline]
-  fn from_le_bytes(array: Self::Array) -> Self {
-    u64::from_le_bytes(array)
-  }
+    impl $name {
+      /// The maximum allowed length for collections using this type.
+      pub const MAX: Self = Self($upper_bound);
 
-  #[inline]
-  fn from_usize(num: usize) -> crate::Result<Self> {
-    Ok(num.try_into()?)
-  }
+      /// Creates a new instance from the backing primitive.
+      #[inline]
+      pub const fn new(value: $inner) -> Self {
+        Self(value)
+      }
 
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
+      /// Returns the underlying primitive value.
+      #[inline]
+      pub const fn get(self) -> $inner {
+        self.0
+      }
+    }
 
-  #[inline]
-  fn checked_rem(self, rhs: Self) -> Option<Self> {
-    self.checked_rem(rhs)
-  }
+    impl Display for $name {
+      #[inline]
+      fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(&self.0, f)
+      }
+    }
 
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
+    impl From<u8> for $name {
+      #[inline]
+      fn from(from: u8) -> Self {
+        Self::new(<$inner>::from(from))
+      }
+    }
 
-  #[inline]
-  fn saturating_add(self, rhs: Self) -> Self {
-    self.saturating_add(rhs)
-  }
+    impl From<$name> for $inner {
+      #[inline]
+      fn from(from: $name) -> Self {
+        from.0
+      }
+    }
 
-  #[inline]
-  fn saturating_sub(self, rhs: Self) -> Self {
-    self.saturating_sub(rhs)
-  }
+    impl TryArithmetic<$name> for $name {
+      type Output = $name;
 
-  #[inline]
-  fn to_le_bytes(self) -> Self::Array {
-    self.to_le_bytes()
-  }
+      #[inline]
+      fn try_add(&self, rhs: $name) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_add(rhs.0).ok_or(ArithmeticError::AddOverflow)?))
+      }
 
-  #[inline]
-  fn usize(self) -> usize {
-    *Usize::from(self)
-  }
+      #[inline]
+      fn try_div(&self, rhs: $name) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_div(rhs.0).ok_or(ArithmeticError::DivOverflow)?))
+      }
 
-  #[inline]
-  fn wrapping_add(self, rhs: Self) -> Self {
-    self.wrapping_add(rhs)
-  }
+      #[inline]
+      fn try_mul(&self, rhs: $name) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_mul(rhs.0).ok_or(ArithmeticError::MulOverflow)?))
+      }
 
-  #[inline]
-  fn wrapping_sub(self, rhs: Self) -> Self {
-    self.wrapping_sub(rhs)
-  }
+      #[inline]
+      fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_pow(exp.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?))
+      }
+
+      #[inline]
+      fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_pow(exp).ok_or(ArithmeticError::PowU32Overflow)?))
+      }
+
+      #[inline]
+      fn try_rem(&self, rhs: $name) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_rem(rhs.0).ok_or(ArithmeticError::RemOverflow)?))
+      }
+
+      #[inline]
+      fn try_sub(&self, rhs: $name) -> crate::Result<Self::Output> {
+        Ok(Self(self.0.checked_sub(rhs.0).ok_or(ArithmeticError::SubOverflow)?))
+      }
+    }
+
+    impl LinearStorageLen for $name {
+      const BITS: u8 = $bits;
+      const BYTES: u8 = $bytes;
+      const ONE: Self = Self(1);
+      const UPPER_BOUND: Self = Self($upper_bound);
+      const UPPER_BOUND_USIZE: usize = $upper_bound;
+      const ZERO: Self = Self(0);
+
+      type Array = $array;
+
+      #[inline]
+      fn from_le_bytes(array: Self::Array) -> Self {
+        Self(<$inner>::from_le_bytes(array))
+      }
+
+      #[inline]
+      fn from_usize(num: usize) -> crate::Result<Self> {
+        Ok(Self(<$inner>::try_from(num)?))
+      }
+
+      #[inline]
+      fn checked_add(self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_add(rhs.0)?))
+      }
+
+      #[inline]
+      fn checked_rem(self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_rem(rhs.0)?))
+      }
+
+      #[inline]
+      fn checked_sub(self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_sub(rhs.0)?))
+      }
+
+      #[inline]
+      fn saturating_add(self, rhs: Self) -> Self {
+        Self(self.0.saturating_add(rhs.0))
+      }
+
+      #[inline]
+      fn saturating_sub(self, rhs: Self) -> Self {
+        Self(self.0.saturating_sub(rhs.0))
+      }
+
+      #[inline]
+      fn to_le_bytes(self) -> Self::Array {
+        self.0.to_le_bytes()
+      }
+
+      #[inline]
+      fn usize(self) -> usize {
+        *Usize::from(self.0)
+      }
+
+      #[inline]
+      fn wrapping_add(self, rhs: Self) -> Self {
+        Self(self.0.wrapping_add(rhs.0))
+      }
+
+      #[inline]
+      fn wrapping_sub(self, rhs: Self) -> Self {
+        Self(self.0.wrapping_sub(rhs.0))
+      }
+    }
+  };
 }
 
-impl LinearStorageLen for usize {
-  #[expect(
-    clippy::as_conversions,
-    clippy::cast_possible_truncation,
-    reason = "lack of const support"
-  )]
-  const BITS: u8 = usize::BITS as u8;
-  const UPPER_BOUND: Self = usize_cap!();
-  const UPPER_BOUND_USIZE: usize = usize_cap!();
-  const ONE: Self = 1;
-  const ZERO: Self = 0;
-
-  type Array = [u8; u8usize(usize::BYTES)];
-
-  #[inline]
-  fn from_le_bytes(array: Self::Array) -> Self {
-    usize::from_le_bytes(array)
-  }
-
-  #[inline]
-  fn from_usize(num: usize) -> crate::Result<Self> {
-    Ok(num)
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_rem(self, rhs: Self) -> Option<Self> {
-    self.checked_rem(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
-
-  #[inline]
-  fn saturating_add(self, rhs: Self) -> Self {
-    self.saturating_add(rhs)
-  }
-
-  #[inline]
-  fn saturating_sub(self, rhs: Self) -> Self {
-    self.saturating_sub(rhs)
-  }
-
-  #[inline]
-  fn to_le_bytes(self) -> Self::Array {
-    self.to_le_bytes()
-  }
-
-  #[inline]
-  fn usize(self) -> usize {
-    self
-  }
-
-  #[inline]
-  fn wrapping_add(self, rhs: Self) -> Self {
-    self.wrapping_add(rhs)
-  }
-
-  #[inline]
-  fn wrapping_sub(self, rhs: Self) -> Self {
-    self.wrapping_sub(rhs)
-  }
-}
+impl_linear_storage_len_wrapper!(U7Len, u8, 7, 1, 127, [u8; 1]);
+impl_linear_storage_len_wrapper!(U15Len, u16, 15, 2, 32_767, [u8; 2]);
+impl_linear_storage_len_wrapper!(U31Len, u32, 31, 4, 2_147_483_647, [u8; 4]);
+#[cfg(target_pointer_width = "64")]
+impl_linear_storage_len_wrapper!(U63Len, u64, 63, 8, 9_223_372_036_854_775_807, [u8; 8]);

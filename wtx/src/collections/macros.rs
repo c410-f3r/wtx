@@ -15,30 +15,39 @@ macro_rules! allocated {
 }
 
 macro_rules! as_ptr_doc {
-  ($struct:literal, $new:literal) => {
+  ($struct:literal) => {
     concat!(
       "Returns a raw pointer to the slice’s buffer.\n",
       "\n",
       "```rust\n",
-      "let mut instance = wtx::collections::",
+      "let instance = wtx::collections::",
       $struct,
-      "::from_iterator(",
-      $new,
-      ").unwrap();\n",
+      "::from_iterator([1, 2, 3]).unwrap();\n",
       "let ptr = instance.as_ptr();\n",
-      "for idx in 0..instance.len() {\n",
-      "  let lhs = instance.get(idx).unwrap();\n",
-      "  let rhs = unsafe { &*ptr.add(idx) };\n",
-      "  assert_eq!(lhs, rhs);\n",
-      "}\n",
+      "// SAFETY: `ptr` points to the first element of the initialized data.\n",
+      "let elem = unsafe { &*ptr };\n",
+      "assert_eq!(elem, &1);\n",
+      "assert_eq!(instance.as_slice(), &[1, 2, 3]);\n",
       "```"
     )
   };
 }
 
 macro_rules! as_ptr_mut_doc {
-  () => {
-    "Returns a raw mutable pointer to the slice's buffer."
+  ($struct:literal) => {
+    concat!(
+      "Returns a raw mutable pointer to the slice's buffer.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator([1, 2, 3]).unwrap();\n",
+      "let ptr = instance.as_ptr_mut();\n",
+      "// SAFETY: `ptr` points to the first element of the initialized data.\n",
+      "unsafe { *ptr = 4; }\n",
+      "assert_eq!(instance.as_slice(), &[4, 2, 3]);\n",
+      "```"
+    )
   };
 }
 
@@ -62,8 +71,18 @@ macro_rules! as_str_doc {
 }
 
 macro_rules! as_str_mut_doc {
-  () => {
-    concat!("Extracts a mutable slice containing the entire instance.\n",)
+  ($struct:literal) => {
+    concat!(
+      "Extracts a mutable string slice containing the entire instance.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator(\"abc\".chars()).unwrap();\n",
+      "instance.as_str_mut().make_ascii_uppercase();\n",
+      "assert_eq!(instance.as_str(), \"ABC\");\n",
+      "```"
+    )
   };
 }
 
@@ -87,8 +106,21 @@ macro_rules! as_slice_doc {
 }
 
 macro_rules! as_slice_mut_doc {
-  () => {
-    concat!("Extracts a mutable slice containing the entire instance.\n",)
+  ($struct:literal, $new:literal, $slice:literal) => {
+    concat!(
+      "Extracts a mutable slice containing the entire instance.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator(",
+      $new,
+      ").unwrap();\n",
+      "assert_eq!(&*instance.as_slice_mut(), ",
+      $slice,
+      ");\n",
+      "```"
+    )
   };
 }
 
@@ -282,8 +314,19 @@ macro_rules! insert_doc {
 }
 
 macro_rules! len_doc {
-  () => {
-    "Returns the number of elements in the storage, also referred to as its ‘length’."
+  ($struct:literal, $new:literal) => {
+    concat!(
+      "Returns the number of elements in the storage, also referred to as its ‘length’.\n",
+      "\n",
+      "```rust\n",
+      "let instance = wtx::collections::",
+      $struct,
+      "::from_iterator(",
+      $new,
+      ").unwrap();\n",
+      "assert_eq!(instance.len(), 3);\n",
+      "```"
+    )
   };
 }
 
@@ -350,7 +393,14 @@ macro_rules! remaining_capacity_doc {
 macro_rules! remaining_capacity_max_doc {
   ($struct:literal) => {
     concat!(
-      "Returns the total number of elements that can be added before reaching the absolute maximum capacity supported by the length type."
+      "Returns the total number of elements that can be added before reaching the absolute maximum capacity supported by the length type.\n",
+      "\n",
+      "```rust\n",
+      "let instance = wtx::collections::",
+      $struct,
+      "::from_iterator([1, 2, 3]).unwrap();\n",
+      "assert_eq!(instance.remaining_capacity_max(), u8::MAX - 3);\n",
+      "```"
     )
   };
 }
@@ -402,13 +452,43 @@ macro_rules! reserve_exact_doc {
   };
 }
 
+macro_rules! retain_unstable_doc {
+  ($struct:literal) => {
+    concat!(
+      "A method similar to `retain` except it does not preserve the order of the retained elements.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator([1, 2, 3, 4]).unwrap();\n",
+      "instance.retain_unstable(|elem| elem % 2 == 0);\n",
+      "instance.as_slice_mut().sort_unstable();\n",
+      "assert_eq!(instance.as_slice(), &[2, 4]);\n",
+      "```"
+    )
+  };
+}
+
 macro_rules! set_len_doc {
-  () => {
+  ($struct:literal, $new:literal, $slice:literal) => {
     concat!(
       "Forces the length of the instance to `new_len`.\n\n",
       "# Safety\n\n",
       "- `new_len` must be less than or equal to the current capacity.\n",
-      "- Elements up to `new_len` must be initialized.",
+      "- Elements up to `new_len` must be initialized.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collections::",
+      $struct,
+      "::from_iterator(",
+      $new,
+      ").unwrap();\n",
+      "// SAFETY: `new_len` is within the capacity and the elements are initialized.\n",
+      "unsafe { instance.set_len(1); }\n",
+      "assert_eq!(instance.as_slice(), ",
+      $slice,
+      ");\n",
+      "```"
     )
   };
 }

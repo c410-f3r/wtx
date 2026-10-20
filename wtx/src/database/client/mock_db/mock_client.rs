@@ -40,7 +40,10 @@ impl DbClient for MockClient {
   where
     B: TryExtend<[MockRecords<'this>; 1]>,
   {
-    buffer.try_extend([MockRecords { records: &self.records }])?;
+    buffer.try_extend([MockRecords {
+      affected_rows: self.records.len().into(),
+      records: &self.records,
+    }])?;
     Ok(())
   }
 
@@ -55,7 +58,7 @@ impl DbClient for MockClient {
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    Ok(MockRecords { records: &self.records })
+    Ok(MockRecords { affected_rows: self.records.len().into(), records: &self.records })
   }
 
   #[inline]
