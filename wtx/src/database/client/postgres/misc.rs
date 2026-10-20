@@ -7,7 +7,7 @@ use crate::{
       msg_field::MsgField, postgres_column_info::PostgresColumnInfo,
     },
   },
-  misc::Either,
+  misc::{Either, Usize},
   net::BufStreamReader,
 };
 use core::ops::Range;
@@ -75,6 +75,7 @@ where
     rows_idx = local_rows_idx;
     values_idx = local_values_idx;
     buffer.try_extend([PostgresRecords::new(
+      Usize::from(stmt.rows_len).into_u64(),
       read_buffer.filled().get(begin_data..read_buffer.current_end_idx()).unwrap_or_default(),
       local_recp,
       stmt,

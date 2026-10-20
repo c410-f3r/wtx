@@ -38,6 +38,11 @@ pub(crate) trait LinearStorageSlice: Lease<Self> {
   where
     LSM: LinearStorageMut<Self::Data, Slice = Self>;
 
+  /// A method similar to `retain` except it does not preserve the order of the retained elements.
+  fn retain_unstable<LSM>(lsm: &mut LSM, cb: impl FnMut(&Self::Data) -> bool)
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>;
+
   /// Removes and returns the logical unit at the given index.
   fn remove<LSM>(lsm: &mut LSM, idx: LSM::Len) -> Option<Self::Unit>
   where
@@ -128,6 +133,13 @@ impl LinearStorageSlice for str {
       lsm.set_len(new_len);
     }
     Some(ret)
+  }
+
+  #[inline]
+  fn retain_unstable<LSM>(_: &mut LSM, _: impl FnMut(&Self::Data) -> bool)
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>,
+  {
   }
 
   #[inline]
@@ -236,6 +248,24 @@ impl<T> LinearStorageSlice for [T] {
       };
     }
     Some(ret)
+  }
+
+  #[inline]
+  fn retain_unstable<LSM>(lsm: &mut LSM, mut cb: impl FnMut(&Self::Data) -> bool)
+  where
+    LSM: LinearStorageMut<Self::Data, Slice = Self>,
+  {
+    let mut idx = LSM::Len::ZERO;
+    while idx < lsm.len() {
+      let Some(elem) = lsm.as_slice_mut().get_mut(idx.usize()) else {
+        break;
+      };
+      if cb(elem) {
+        idx = idx.wrapping_add(LSM::Len::ONE);
+      } else {
+        let _removed = Self::swap_remove(lsm, idx);
+      }
+    }
   }
 
   #[inline]
