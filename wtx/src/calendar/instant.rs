@@ -44,7 +44,7 @@ impl Instant {
     cfg_select! {
       feature = "std" => Self::new().duration_since(Self { _inner: std::time::UNIX_EPOCH }),
       feature = "embassy-time" => Ok(embassy_timestamp(embassy_time::Instant::now().as_secs())),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -53,7 +53,7 @@ impl Instant {
   pub(crate) fn since_boot_secs() -> crate::Result<u64> {
     cfg_select! {
       feature = "embassy-time" => Ok(embassy_time::Instant::now().as_secs()),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -72,7 +72,7 @@ impl Instant {
           .ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
       }
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -91,7 +91,7 @@ impl Instant {
           .ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
       }
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -113,7 +113,7 @@ impl Instant {
           .ok_or(CalendarError::ArithmeticOverflow)?
           .as_micros(),
       )),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 
@@ -130,7 +130,7 @@ impl Instant {
     cfg_select! {
       feature = "std" => self.duration_since(Self { _inner: std::time::UNIX_EPOCH }),
       feature = "embassy-time" => Ok(embassy_timestamp(self._inner.as_secs())),
-      _ => Err(crate::Error::CalendarError(CalendarError::InstantNeedsBackend)),
+      _ => Err(crate::Error::Calendar(CalendarError::InstantNeedsBackend)),
     }
   }
 }

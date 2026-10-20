@@ -167,13 +167,13 @@ where
     Ok(Self(ArrayVectorInner::from_iterator(iter)?))
   }
 
-  #[doc = as_ptr_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
+  #[doc = as_ptr_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
   pub fn as_ptr(&self) -> *const T {
     self.0.as_ptr()
   }
 
-  #[doc = as_ptr_mut_doc!()]
+  #[doc = as_ptr_mut_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
   pub fn as_ptr_mut(&mut self) -> *mut T {
     self.0.as_ptr_mut()
@@ -185,7 +185,7 @@ where
     self.0.as_slice()
   }
 
-  #[doc = as_slice_mut_doc!()]
+  #[doc = as_slice_mut_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut [T] {
     self.0.as_slice_mut()
@@ -248,7 +248,7 @@ where
     self.0.extend_from_iter(iter)
   }
 
-  #[doc = len_doc!()]
+  #[doc = len_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
   #[inline]
   pub fn len(&self) -> L {
     self.0.len()
@@ -278,8 +278,14 @@ where
     <[T] as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
+  #[doc = retain_unstable_doc!("ArrayVectorUsize::<_, 16>")]
+  #[inline]
+  pub fn retain_unstable(&mut self, cb: impl FnMut(&T) -> bool) {
+    <[T] as LinearStorageSlice>::retain_unstable(&mut self.0, cb);
+  }
+
   #[expect(clippy::missing_safety_doc, reason = "false-positive")]
-  #[doc = set_len_doc!()]
+  #[doc = set_len_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1]")]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {
     // SAFETY: Up to the caller

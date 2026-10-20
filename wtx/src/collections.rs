@@ -16,6 +16,7 @@ mod capacity_upper_bound;
 mod clear;
 mod csr;
 mod deque;
+mod dyn_vector;
 mod expansion_ty;
 mod fixed_string;
 mod linear_storage;
@@ -54,7 +55,9 @@ pub use expansion_ty::ExpansionTy;
 pub use fixed_string::{FixedString, FixedStringError};
 #[cfg(feature = "hashbrown")]
 pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
-pub use linear_storage::linear_storage_len::LinearStorageLen;
+#[cfg(target_pointer_width = "64")]
+pub use linear_storage::linear_storage_len::U63Len;
+pub use linear_storage::linear_storage_len::{LinearStorageLen, U7Len, U15Len, U31Len};
 pub use maybe_uninit_slice::MaybeUninitSlice;
 pub use misc::{backward_deque_idx, concat_slices};
 pub use short_box_slice::{ShortBoxSlice, ShortBoxSliceU8, ShortBoxSliceU16};

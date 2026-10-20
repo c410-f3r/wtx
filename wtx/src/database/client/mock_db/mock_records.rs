@@ -10,6 +10,7 @@ use crate::{
 /// Mock records
 #[derive(Debug, Default, PartialEq)]
 pub struct MockRecords<'client> {
+  pub(crate) affected_rows: u64,
   pub(crate) records: &'client [VectorU8<(ShortBoxStrU8, ShortBoxSliceU8<u8>)>],
 }
 
@@ -22,6 +23,11 @@ impl<'client> Lease<MockRecords<'client>> for MockRecords<'client> {
 
 impl<'client> Records<'client> for MockRecords<'client> {
   type Database = MockDb;
+
+  #[inline]
+  fn affected_rows(&self) -> u64 {
+    self.affected_rows
+  }
 
   #[inline]
   fn get(&self, record_idx: usize) -> Option<MockRecord<'client>> {

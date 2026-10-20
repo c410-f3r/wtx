@@ -154,7 +154,7 @@ where
     self.0.as_slice()
   }
 
-  #[doc = as_slice_mut_doc!()]
+  #[doc = as_slice_mut_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut str {
     self.0.as_slice_mut()
@@ -166,7 +166,7 @@ where
     self.0.as_slice()
   }
 
-  #[doc = as_slice_mut_doc!()]
+  #[doc = as_slice_mut_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
   #[inline]
   pub fn as_str_mut(&mut self) -> &mut str {
     self.0.as_slice_mut()
@@ -190,7 +190,7 @@ where
     self.0.extend_from_iter(iter)
   }
 
-  #[doc = len_doc!()]
+  #[doc = len_doc!("ArrayStringUsize::<16>", "\"123\".chars()")]
   #[inline]
   pub fn len(&self) -> L {
     self.0.len()
@@ -238,7 +238,7 @@ where
   }
 
   #[expect(clippy::missing_safety_doc, reason = "false-positive")]
-  #[doc = set_len_doc!()]
+  #[doc = set_len_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"1\"")]
   #[inline]
   pub const unsafe fn set_len(&mut self, new_len: L) {
     self.0.len = new_len;

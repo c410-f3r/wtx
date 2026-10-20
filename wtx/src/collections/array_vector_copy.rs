@@ -103,67 +103,67 @@ impl<T, const N: usize> ArrayVectorCopy<T, N>
 where
   T: Copy,
 {
-  #[doc = from_copyable_slice_doc!("ArrayVectorUsize::<_, 16>")]
+  #[doc = from_copyable_slice_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn from_copyable_slice(slice: &[T]) -> crate::Result<Self> {
     Ok(Self(ArrayVectorInner::from_copyable_slice(slice)?))
   }
 
-  #[doc = from_iter_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[doc = from_iter_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
     Ok(Self(ArrayVectorInner::from_iterator(iter)?))
   }
 
-  #[doc = as_ptr_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
+  #[doc = as_ptr_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn as_ptr(&self) -> *const T {
     self.0.as_ptr()
   }
 
-  #[doc = as_ptr_mut_doc!()]
+  #[doc = as_ptr_mut_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn as_ptr_mut(&mut self) -> *mut T {
     self.0.as_ptr_mut()
   }
 
-  #[doc = as_slice_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[doc = as_slice_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn as_slice(&self) -> &[T] {
     self.0.as_slice()
   }
 
-  #[doc = as_slice_mut_doc!()]
+  #[doc = as_slice_mut_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut [T] {
     self.0.as_slice_mut()
   }
 
-  #[doc = capacity_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
+  #[doc = capacity_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]")]
   #[inline]
   pub fn capacity(&self) -> u8 {
     self.0.capacity()
   }
 
-  #[doc = clear_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
+  #[doc = clear_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]")]
   #[inline]
   pub fn clear(&mut self) {
     self.0.clear();
   }
 
-  #[doc = expand_doc!("ArrayVectorUsize::<_, 16>")]
+  #[doc = expand_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn expand(&mut self, et: ExpansionTy<u8>, value: T) -> crate::Result<()> {
     self.0.expand(et, value)
   }
 
-  #[doc = extend_from_copyable_slice_doc!("ArrayVectorUsize::<_, 16>")]
+  #[doc = extend_from_copyable_slice_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> crate::Result<()> {
     self.0.extend_from_copyable_slice(other)
   }
 
-  #[doc = extend_from_copyable_slice_doc!("ArrayVectorUsize::<_, 16>")]
+  #[doc = extend_from_copyable_slice_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<u8>
   where
@@ -174,57 +174,63 @@ where
     self.0.extend_from_copyable_slices(others)
   }
 
-  #[doc = extend_from_iter_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[doc = extend_from_iter_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
   #[inline]
   pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = T>) -> crate::Result<()> {
     self.0.extend_from_iter(iter)
   }
 
-  #[doc = len_doc!()]
+  #[doc = len_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]")]
   #[inline]
   pub fn len(&self) -> u8 {
     self.0.len()
   }
 
-  #[doc = pop_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "[1, 2]")]
+  #[doc = pop_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "[1, 2]")]
   #[inline]
   pub fn pop(&mut self) -> Option<T> {
     <[T] as LinearStorageSlice>::pop(&mut self.0)
   }
 
-  #[doc = push_doc!("ArrayVectorUsize::<_, 16>", "1", "&[1]")]
+  #[doc = push_doc!("ArrayVectorCopy::<_, 16>", "1", "&[1]")]
   #[inline]
   pub fn push(&mut self, elem: T) -> crate::Result<()> {
     self.0.push(elem)
   }
 
-  #[doc = remaining_capacity_doc!("ArrayVectorUsize::<_, 16>", "1")]
+  #[doc = remaining_capacity_doc!("ArrayVectorCopy::<_, 16>", "1")]
   #[inline]
   pub fn remaining_capacity(&self) -> u8 {
     self.0.remaining_capacity()
   }
 
-  #[doc = remove_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "[1, 3]")]
+  #[doc = remove_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "[1, 3]")]
   #[inline]
   pub fn remove(&mut self, index: u8) -> Option<T> {
     <[T] as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
+  #[doc = retain_unstable_doc!("ArrayVectorCopy::<_, 16>")]
+  #[inline]
+  pub fn retain_unstable(&mut self, cb: impl FnMut(&T) -> bool) {
+    <[T] as LinearStorageSlice>::retain_unstable(&mut self.0, cb);
+  }
+
   #[expect(clippy::missing_safety_doc, reason = "false-positive")]
-  #[doc = set_len_doc!()]
+  #[doc = set_len_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "&[1]")]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: u8) {
     // SAFETY: Up to the caller
     unsafe { self.0.set_len(new_len) }
   }
 
-  #[doc = swap_remove_doc!("ArrayVectorUsize::<_, 16>")]
+  #[doc = swap_remove_doc!("ArrayVectorCopy::<_, 16>")]
   #[inline]
   pub fn swap_remove(&mut self, index: u8) -> Option<T> {
     <[T] as LinearStorageSlice>::swap_remove(&mut self.0, index)
   }
 
-  #[doc = truncate_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "[1]")]
+  #[doc = truncate_doc!("ArrayVectorCopy::<_, 16>", "[1, 2, 3]", "[1]")]
   #[inline]
   pub fn truncate(&mut self, new_len: u8) {
     let _rslt = <[T] as LinearStorageSlice>::truncate(&mut self.0, new_len);

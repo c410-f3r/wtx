@@ -10,6 +10,7 @@ use core::{marker::PhantomData, ops::Range};
 /// Records used by several database implementations
 #[derive(Debug)]
 pub(crate) struct CommonRecords<'exec, A, C, D, T> {
+  pub(crate) affected_rows: u64,
   pub(crate) phantom: PhantomData<D>,
   pub(crate) records: &'exec [u8],
   /// Each element represents a ***whole*** record. The first element is the number of affected
@@ -24,12 +25,13 @@ pub(crate) struct CommonRecords<'exec, A, C, D, T> {
 
 impl<'exec, A, C, D, T> CommonRecords<'exec, A, C, D, T> {
   pub(crate) const fn new(
+    affected_rows: u64,
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],
     stmt: Statement<'exec, A, C, T>,
     values_params: &'exec [(bool, Range<usize>)],
   ) -> Self {
-    Self { records, phantom: PhantomData, records_params, stmt, values_params }
+    Self { affected_rows, records, phantom: PhantomData, records_params, stmt, values_params }
   }
 }
 
@@ -42,6 +44,11 @@ where
   D::Record<'exec>: From<CommonRecord<'exec, A, C, D, T>>,
 {
   type Database = D;
+
+  #[inline]
+  fn affected_rows(&self) -> u64 {
+    self.affected_rows
+  }
 
   #[inline]
   fn get(&self, record_idx: usize) -> Option<<Self::Database as Database>::Record<'exec>> {
@@ -89,6 +96,7 @@ where
   #[inline]
   fn default() -> Self {
     Self {
+      affected_rows: 0,
       records: &[],
       phantom: PhantomData,
       records_params: &[],
