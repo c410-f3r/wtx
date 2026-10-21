@@ -1817,7 +1817,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.52.1"
+version = "0.53.0"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -1909,7 +1909,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.12.1"
+version = "0.13.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1918,7 +1918,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.8.3"
+version = "0.9.0"
 dependencies = [
  "clap",
  "tokio",
