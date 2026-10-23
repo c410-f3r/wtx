@@ -2,4 +2,7 @@
 
 set -euxo pipefail
 
-cargo fuzz run --features libfuzzer-sys/link_libfuzzer --fuzz-dir wtx-fuzz datetime -- -max_total_time=120
+MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --features http2,postgres,web-socket -p wtx
+
+pushd wtx-macros-tests
+cargo run

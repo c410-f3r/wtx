@@ -13,15 +13,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - script: fuzz.sh
+            install-crate: cargo-fuzz
           - script: internal-tests0.sh
           - script: internal-tests1.sh
           - script: internal-tests2.sh
           - script: internal-tests3.sh
           - script: internal-tests4.sh
-            install-crate: mdbook
           - script: internal-tests5.sh
-            install-crate: cargo-fuzz
-          - script: internal-tests6.sh
+          - script: mdbook.sh
+            install-crate: mdbook
     steps:
       - uses: actions/checkout@v7
       - if: matrix.install-crate
