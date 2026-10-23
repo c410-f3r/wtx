@@ -19,6 +19,17 @@ pub enum Base64Alphabet {
   UrlNoPad,
 }
 
+impl Base64Alphabet {
+  /// If this variant requires pad
+  #[inline]
+  pub const fn is_padded(self) -> bool {
+    match self {
+      Base64Alphabet::Standard | Base64Alphabet::Url => true,
+      Base64Alphabet::StandardNoPad | Base64Alphabet::UrlNoPad => false,
+    }
+  }
+}
+
 /// Base64 Error
 #[derive(Clone, Copy, Debug)]
 pub enum Base64Error {
