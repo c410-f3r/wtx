@@ -1,11 +1,46 @@
 [[bin]]
-name = "datetime"
-path = "datetime.rs"
-required-features = ["libfuzzer-sys/link_libfuzzer"]
+name = "base64"
+path = "base64.rs"
+
+[[bin]]
+name = "calendar"
+path = "calendar.rs"
+
+[[bin]]
+name = "csv"
+path = "csv.rs"
+
+[[bin]]
+name = "hex"
+path = "hex.rs"
+
+[[bin]]
+name = "http"
+path = "http.rs"
+
+[[bin]]
+name = "pem"
+path = "pem.rs"
+
+[[bin]]
+name = "tls"
+path = "tls.rs"
+
+[[bin]]
+name = "url_encoding"
+path = "url_encoding.rs"
+
+[[bin]]
+name = "web_socket"
+path = "web_socket.rs"
+
+[[bin]]
+name = "x509"
+path = "x509.rs"
 
 [dependencies]
-libfuzzer-sys = { default-features = false, version = "0.4" }
-wtx = { default-features = false, features = ["arbitrary", "web-socket"], path = "../wtx" }
+libfuzzer-sys = { version = "0.4" }
+wtx = { default-features = false, features = ["arbitrary", "asn1", "crypto-ring", "http-cookie", "std", "web-socket", "x509"], path = "../wtx" }
 
 [package]
 edition = "2024"
