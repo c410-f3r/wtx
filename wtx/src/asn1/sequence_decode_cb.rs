@@ -32,7 +32,11 @@ where
     }
     dw.bytes = value;
     while !dw.bytes.is_empty() {
+      let before = dw.bytes.len();
       (self.0)(E::decode(dw)?)?;
+      if dw.bytes.len() == before {
+        return Err(Asn1Error::NoDecodingProgress.into());
+      }
     }
     dw.bytes = rest;
     Ok(value)

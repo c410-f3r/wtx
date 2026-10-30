@@ -33,4 +33,6 @@ pub enum Asn1Error {
   InvalidUtcTime,
   /// ASN.1 data can not be greater than `u16::MAX`
   LargeData,
+  /// A sequence element was decoded without consuming any of the remaining bytes
+  NoDecodingProgress,
 }

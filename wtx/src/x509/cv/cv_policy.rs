@@ -35,7 +35,7 @@ impl<B> CvPolicy<B> {
       extended_key_usage: ExtendedKeyUsage::EMPTY,
       key_usage: KeyUsage::new((0, 0)),
       mode: CvPolicyMode::Strict,
-      validation_time: validation_time.trunc_to_sec(),
+      validation_time: validation_time.trunc_to_secs(),
     }
   }
 
@@ -114,7 +114,7 @@ impl<B> CvPolicy<B> {
   /// Overwrites the validation time.
   #[inline]
   pub const fn set_validation_time(&mut self, value: Datetime<Utc>) {
-    self.validation_time = value.trunc_to_sec();
+    self.validation_time = value.trunc_to_secs();
   }
 
   /// No certificate can have an expiration time lesser than this value.

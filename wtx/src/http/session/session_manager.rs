@@ -1,5 +1,5 @@
 use crate::{
-  calendar::Instant,
+  calendar::Datetime,
   collections::{ArrayString, ArrayStringU8, VectorUsize},
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
@@ -85,10 +85,8 @@ where
         elem
       }
       (Some(_) | None, Some(max_age)) => {
-        let expires_at = Instant::now_datetime()?
-          .add(max_age.try_into()?)
-          .map_err(crate::Error::from)?
-          .trunc_to_us();
+        let expires_at =
+          Datetime::now()?.add(max_age.try_into()?).map_err(crate::Error::from)?.trunc_to_us();
         let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
         store.create(&elem).await?;
         elem

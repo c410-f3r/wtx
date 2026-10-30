@@ -16,7 +16,7 @@ use core::{
 };
 
 /// Matcher Error
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub enum RouterError {
   /// Route already exists
   AddErrDuplicate,
@@ -40,7 +40,7 @@ pub enum RouterError {
   /// short to accommodate the maximum depth length.
   FindErrEmpty,
   /// Route does not exist
-  FindMismatch,
+  FindMismatch(ShortBoxStrU8),
   /// Input string or parameter length exceeds internal limits
   FindErrOverflow,
 }
@@ -97,12 +97,14 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
         return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
       }
       CheckSearchRowRslt::IncompleteMatch(local_edges) => edges = local_edges,
-      CheckSearchRowRslt::Mismatch => return Err(RouterError::FindMismatch.into()),
+      CheckSearchRowRslt::Mismatch => {
+        return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
+      }
     }
 
     loop {
       let [statics @ .., last] = edges.as_slice() else {
-        return Err(RouterError::FindMismatch.into());
+        return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
       };
       let curr_ident_first = curr_route.first().copied();
       let last_edge_has_param = last.first_byte.is_none();
@@ -123,19 +125,21 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
           CheckSearchRowRslt::IncompleteMatch(_) => {}
           CheckSearchRowRslt::Mismatch => {
             cold_path();
-            return Err(RouterError::FindMismatch.into());
+            return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
           }
         }
       } else {
         let Some(edge) = edges.iter().find(|el| el.first_byte == curr_ident_first) else {
-          return Err(RouterError::FindMismatch.into());
+          return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
         };
         match Self::check_edge(*edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
           CheckSearchRowRslt::CompleteMatch(value) => {
             return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
           }
           CheckSearchRowRslt::IncompleteMatch(_) => {}
-          CheckSearchRowRslt::Mismatch => return Err(RouterError::FindMismatch.into()),
+          CheckSearchRowRslt::Mismatch => {
+            return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
+          }
         }
       }
     }

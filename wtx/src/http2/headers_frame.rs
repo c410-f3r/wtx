@@ -92,9 +92,13 @@ impl<'uri> HeadersFrame<'uri> {
     let mut path_len = 0;
     let mut scheme = ArrayStringU8::<12>::new();
     let mut static_path = None;
-    let mut uri_buffer = rrb_uri.reset();
+    let mut uri_buffer_opt = if IS_TRAILER { None } else { Some(rrb_uri.reset()) };
 
     hpack_dec.decode(data_bytes, |(hhb, name, value)| {
+      if IS_TRAILER && !matches!(hhb, HpackHeaderBasic::Field) {
+        is_malformed = true;
+        return Ok(());
+      }
       match hhb {
         HpackHeaderBasic::Authority => {
           push_uri(
@@ -172,7 +176,11 @@ impl<'uri> HeadersFrame<'uri> {
               match local_value {
                 "/" => static_path = Some("/"),
                 "/index.html" => static_path = Some("/index.html"),
-                _ => uri_buffer.push_str(local_value),
+                _ => {
+                  if let Some(elem) = &mut uri_buffer_opt {
+                    elem.push_str(local_value);
+                  }
+                }
               }
             },
           );
@@ -243,6 +251,9 @@ impl<'uri> HeadersFrame<'uri> {
         } else if scheme.is_empty() || path_len == 0 {
           return Err(protocol_err(Http2Error::InvalidServerHeader));
         }
+        let Some(uri_buffer) = &mut uri_buffer_opt else {
+          return Err(protocol_err(Http2Error::InvalidHeaderFrame));
+        };
         let mut prefix = ArrayStringU8::<79>::new();
         let _rslt0 = prefix.push_str(&scheme);
         let _rslt1 = prefix.push_str("://");

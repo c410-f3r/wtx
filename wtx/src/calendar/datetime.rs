@@ -4,8 +4,8 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, CeDays, Date, EPOCH_CE_DAYS, Hour, IDuration, Nanosecond,
-    SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
+    CalendarError, CalendarToken, CeDays, Date, EPOCH_CE_DAYS, Hour, IDuration, Instant,
+    Nanosecond, SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
   },
   collections::{ArrayString, ArrayStringU8},
   misc::int_conv::{i16i64, i32i64, u8i64, u32i64},
@@ -80,6 +80,18 @@ impl Datetime<Utc> {
       Err(err) => return Err(err),
     };
     Ok(Self::new(date, Time::from_hms_ns(local_hour, local_minute, local_second, nanosecond), Utc))
+  }
+
+  /// Shortcut for [`Datetime::now`].
+  #[inline]
+  pub fn now() -> crate::Result<Self> {
+    Instant::now_datetime()
+  }
+
+  /// A [`Self::now`] version where the number of seconds are erased.
+  #[inline]
+  pub fn now_trunc_to_secs() -> crate::Result<Self> {
+    Ok(Datetime::now()?.trunc_to_secs())
   }
 
   // FIXME(STABLE): Use `timestamp_secs_and_ns` with constant traits
@@ -229,7 +241,7 @@ where
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
   #[must_use = must_use_itself_doc!()]
-  pub const fn trunc_to_sec(self) -> Self {
+  pub const fn trunc_to_secs(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_sec();
     new

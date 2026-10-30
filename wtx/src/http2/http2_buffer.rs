@@ -58,6 +58,19 @@ impl Http2Buffer {
     scrps.clear();
     sorps.clear();
   }
+
+  pub(crate) fn drain_and_wake(&mut self) {
+    while let Some(waker) = self.initial_server_streams_local.pop_front() {
+      waker.wake();
+    }
+    for (_, value) in self.scrps.drain() {
+      value.waker.wake();
+    }
+    for (_, value) in self.sorps.drain() {
+      value.waker.wake();
+    }
+    self.initial_server_streams_remote.clear();
+  }
 }
 
 impl Default for Http2Buffer {

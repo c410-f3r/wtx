@@ -197,10 +197,7 @@ where
   /// Clears the queue, removing all values.
   #[inline]
   pub fn clear(&mut self) {
-    let Self { data, head, tail } = self;
-    data.clear();
-    *head = L::ZERO;
-    *tail = L::ZERO;
+    self.truncate_back(L::ZERO);
   }
 
   /// Appends elements to the back of the instance so that the current length is equal to `et`.
