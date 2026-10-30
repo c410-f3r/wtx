@@ -14,7 +14,7 @@ use crate::{
     },
   },
   misc::{Either, Usize},
-  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
+  net::{BufStreamReader, Stream, StreamWriter as _},
   sync::AtomicU64,
   tls::{TlsCtx, TlsStream},
 };
@@ -30,7 +30,6 @@ where
   pub(crate) async fn simple_query_execute<'exec, B>(
     buffer: &mut B,
     cmd: &str,
-    cs: &mut ConnectionState,
     read_buffer: &'exec mut BufStreamReader,
     records_params: &'exec mut VectorUsize<(Range<usize>, Range<usize>)>,
     stmts: &'exec mut PostgresStatements,
@@ -52,7 +51,7 @@ where
     let mut values_params_offset = 0;
     *read_buffer.forbid_clear_mut() = true;
     loop {
-      let msg = Self::fetch_msg(cs, read_buffer, stream).await?;
+      let msg = Self::fetch_msg(read_buffer, stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(rows_len) => {
           if !B::IS_UNIT {
@@ -95,12 +94,17 @@ where
                 fun
               })
               .await?;
-            let _ = builder.expand(columns_len.into(), dummy_stmt_value())?;
+            let data = builder.expand(columns_len.into(), dummy_stmt_value())?;
+            row_description(columns_len, &mut rd, |idx, pci| {
+              if let Some(element) = data.get_mut(usize::from(idx)) {
+                element.0 = pci;
+              }
+              Ok(())
+            })?;
             stmt_idx = Some(builder.build(
               stmt_cmd_id,
               StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
             )?);
-            row_description(columns_len, &mut rd, |_, _| Ok(()))?;
           }
         }
         _ => {

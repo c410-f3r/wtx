@@ -7,9 +7,12 @@ use crate::{
     },
   },
   misc::Usize,
-  net::{BufStreamReader, ConnectionState, Stream},
+  net::{BufStreamReader, Stream},
   tls::{TlsCtx, TlsStream},
 };
+use core::hint::cold_path;
+
+const MAX_IGNORABLE_MESSAGES_AFTER_ERR: u8 = 5;
 
 impl<E, S, TCX> PostgresClient<E, S, TCX>
 where
@@ -17,12 +20,23 @@ where
   TCX: TlsCtx,
 {
   pub(crate) async fn fetch_msg<'nb>(
-    cs: &mut ConnectionState,
     read_buffer: &'nb mut BufStreamReader,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> crate::Result<Message<'nb>> {
     let tag = Self::fetch_representative_msg(read_buffer, stream).await?;
-    Ok(Message { tag, ty: MessageTy::try_from((cs, tag, read_buffer.current()))? })
+    if tag == b'E' {
+      cold_path();
+      'err: {
+        for _ in 0..MAX_IGNORABLE_MESSAGES_AFTER_ERR {
+          let local_tag = Self::fetch_single_msg(read_buffer, stream).await?;
+          if local_tag == b'Z' {
+            break 'err;
+          }
+        }
+        return Err(DatabaseError::MaxIgnorableMessages.into());
+      }
+    }
+    Ok(Message { tag, ty: MessageTy::try_from((tag, read_buffer.current()))? })
   }
 
   async fn fetch_representative_msg(

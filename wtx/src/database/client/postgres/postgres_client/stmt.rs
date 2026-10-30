@@ -16,7 +16,7 @@ use crate::{
     },
   },
   misc::unlikely_elem,
-  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
+  net::{BufStreamReader, Stream, StreamWriter as _},
   tls::{TlsCtx, TlsStream},
 };
 
@@ -27,14 +27,13 @@ where
   TCX: TlsCtx,
 {
   pub(crate) async fn await_stmt_bind(
-    cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(), E>
   where
     S: Stream,
   {
-    let msg = Self::fetch_msg(cs, read_buffer, stream).await?;
+    let msg = Self::fetch_msg(read_buffer, stream).await?;
     let MessageTy::BindComplete = msg.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
     };
@@ -43,7 +42,6 @@ where
 
   #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
   pub(crate) async fn await_stmt_prepare<'stmts, const HAS_SYNC: bool>(
-    cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     stmt_cmd_id: u64,
     stmt_cmd_id_array: NumStr64,
@@ -53,7 +51,7 @@ where
   where
     S: Stream,
   {
-    let msg0 = Self::fetch_msg(cs, read_buffer, stream).await?;
+    let msg0 = Self::fetch_msg(read_buffer, stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into()));
     };
@@ -75,7 +73,7 @@ where
 
     let pd_begin = read_buffer.current_end_idx().wrapping_add(7);
     let types_len = {
-      let msg1 = Self::fetch_msg(cs, read_buffer, stream).await?;
+      let msg1 = Self::fetch_msg(read_buffer, stream).await?;
       let MessageTy::ParameterDescription(types_len) = msg1.ty else {
         return Err(E::from(
           PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into(),
@@ -85,7 +83,7 @@ where
     };
     let pd_end = read_buffer.current_end_idx();
 
-    let msg2 = Self::fetch_msg(cs, read_buffer, stream).await?;
+    let msg2 = Self::fetch_msg(read_buffer, stream).await?;
     let (columns_len, pd_data) = match msg2.ty {
       MessageTy::NoData => (0, builder.expand(types_len.into(), dummy_stmt_value())?),
       MessageTy::RowDescription(columns_len, mut rd) => {
@@ -108,7 +106,7 @@ where
     parameter_description(bytes, pd_data).ok_or(crate::Error::ProgrammingError)?;
 
     if HAS_SYNC {
-      let msg3 = Self::fetch_msg(cs, read_buffer, stream).await?;
+      let msg3 = Self::fetch_msg(read_buffer, stream).await?;
       let MessageTy::ReadyForQuery = msg3.ty else {
         return Err(E::from(
           PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into(),
@@ -125,7 +123,6 @@ where
   }
 
   pub(crate) async fn write_send_await_stmt_bind<RV>(
-    cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     rv: RV,
     stmt_cmd_id_array: &NumStr64,
@@ -139,11 +136,10 @@ where
       Self::write_stmt_bind::<_, true>(rv, stmt_cmd_id_array, sw.inner_mut())?;
       stream.write_all(sw.curr()).await?;
     }
-    Self::await_stmt_bind(cs, read_buffer, stream).await
+    Self::await_stmt_bind(read_buffer, stream).await
   }
 
   pub(crate) async fn write_send_await_stmt_prepare<'stmts, RV, SC>(
-    cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     rv: &RV,
     sc: SC,
@@ -167,15 +163,9 @@ where
       Self::write_stmt_prepare::<_, true>(sw.inner_mut(), rv, stmt_cmd, &stmt_cmd_id_array)?;
       stream.write_all(sw.curr()).await?;
     }
-    let stmt_mut = Self::await_stmt_prepare::<true>(
-      cs,
-      read_buffer,
-      stmt_cmd_id,
-      stmt_cmd_id_array,
-      stmts,
-      stream,
-    )
-    .await?;
+    let stmt_mut =
+      Self::await_stmt_prepare::<true>(read_buffer, stmt_cmd_id, stmt_cmd_id_array, stmts, stream)
+        .await?;
     Ok((stmt_cmd_id, stmt_cmd_id_array, stmt_mut))
   }
 

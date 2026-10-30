@@ -17,7 +17,7 @@ use crate::{
     },
   },
   misc::{bytes_split1, from_utf8_basic},
-  net::{BufStreamReader, ConnectionState, Stream, StreamWriter as _},
+  net::{BufStreamReader, Stream, StreamWriter as _},
   rng::CryptoRng,
   tls::{TlsCtx, TlsServerEndPoint, TlsStream},
 };
@@ -49,7 +49,7 @@ where
   {
     let ClientBuffer { common, conn_params: _ } = &mut self.cb;
     let CommonClientBuffer { read_buffer, records_params: _, stmts: _, values_params: _ } = common;
-    let msg0 = Self::fetch_msg(&mut self.cs, read_buffer, &mut self.stream).await?;
+    let msg0 = Self::fetch_msg(read_buffer, &mut self.stream).await?;
     match msg0.ty {
       MessageTy::Authentication(Authentication::Ok) => {
         return Ok(());
@@ -97,7 +97,6 @@ where
         };
         Self::sasl_authenticate(
           config,
-          &mut self.cs,
           (method_bytes, method_header),
           read_buffer,
           rng,
@@ -110,7 +109,7 @@ where
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into());
       }
     }
-    let msg1 = Self::fetch_msg(&mut self.cs, read_buffer, &mut self.stream).await?;
+    let msg1 = Self::fetch_msg(read_buffer, &mut self.stream).await?;
     if let MessageTy::Authentication(Authentication::Ok) = msg1.ty {
       Ok(())
     } else {
@@ -124,7 +123,7 @@ where
       let ClientBuffer { common, conn_params } = &mut self.cb;
       let CommonClientBuffer { read_buffer, records_params: _, stmts: _, values_params: _ } =
         common;
-      let msg = Self::fetch_msg(&mut self.cs, read_buffer, &mut self.stream).await?;
+      let msg = Self::fetch_msg(read_buffer, &mut self.stream).await?;
       match msg.ty {
         MessageTy::BackendKeyData => {}
         MessageTy::ParameterStatus(name_slice, value_slice) => {
@@ -144,7 +143,6 @@ where
   // it is fine to use an empty slice.
   async fn sasl_authenticate<RNG>(
     config: &Config<'_>,
-    cs: &mut ConnectionState,
     (method_bytes, method_header): (&[u8], &[u8]),
     read_buffer: &mut BufStreamReader,
     rng: &mut RNG,
@@ -161,7 +159,7 @@ where
       stream.write_all(sw.curr()).await?;
     }
     let (mut auth_data, response_nonce, salted_password) = {
-      let msg = Self::fetch_msg(cs, &mut *read_buffer, stream).await?;
+      let msg = Self::fetch_msg(&mut *read_buffer, stream).await?;
       let MessageTy::Authentication(Authentication::SaslContinue {
         iterations,
         nonce,
@@ -199,7 +197,7 @@ where
       stream.write_all(sw.curr()).await?;
     }
     {
-      let msg = Self::fetch_msg(cs, &mut *read_buffer, stream).await?;
+      let msg = Self::fetch_msg(&mut *read_buffer, stream).await?;
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };

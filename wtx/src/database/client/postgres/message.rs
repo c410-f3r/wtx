@@ -6,7 +6,6 @@ use crate::{
     client::postgres::{DbError, PostgresError, authentication::Authentication},
   },
   misc::{bytes_rsplit1, bytes_split1, from_utf8_basic},
-  net::ConnectionState,
 };
 use core::any::type_name;
 
@@ -61,13 +60,11 @@ pub(crate) enum MessageTy<'bytes> {
   RowDescription(u16, &'bytes [u8]),
 }
 
-impl<'bytes> TryFrom<(&mut ConnectionState, u8, &'bytes [u8])> for MessageTy<'bytes> {
+impl<'bytes> TryFrom<(u8, &'bytes [u8])> for MessageTy<'bytes> {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(
-    (cs, tag, payload): (&mut ConnectionState, u8, &'bytes [u8]),
-  ) -> Result<Self, Self::Error> {
+  fn try_from((tag, payload): (u8, &'bytes [u8])) -> Result<Self, Self::Error> {
     let rslt = match (tag, payload) {
       (b'1', _) => Self::ParseComplete,
       (b'2', _) => Self::BindComplete,
@@ -88,7 +85,6 @@ impl<'bytes> TryFrom<(&mut ConnectionState, u8, &'bytes [u8])> for MessageTy<'by
       }
       (b'D', [b0, b1, ..]) => Self::DataRow(u16::from_be_bytes([*b0, *b1])),
       (b'E', data) => {
-        *cs = ConnectionState::ClosedAbruptly;
         return Err(DbError::try_from(from_utf8_basic(data)?)?.into());
       }
       (b'G', _) => Self::CopyInResponse,
