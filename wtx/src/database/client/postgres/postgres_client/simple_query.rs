@@ -95,12 +95,17 @@ where
                 fun
               })
               .await?;
-            let _ = builder.expand(columns_len.into(), dummy_stmt_value())?;
+            let data = builder.expand(columns_len.into(), dummy_stmt_value())?;
+            row_description(columns_len, &mut rd, |idx, pci| {
+              if let Some(element) = data.get_mut(usize::from(idx)) {
+                element.0 = pci;
+              }
+              Ok(())
+            })?;
             stmt_idx = Some(builder.build(
               stmt_cmd_id,
               StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
             )?);
-            row_description(columns_len, &mut rd, |_, _| Ok(()))?;
           }
         }
         _ => {

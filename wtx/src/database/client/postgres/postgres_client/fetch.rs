@@ -22,7 +22,25 @@ where
     stream: &mut TlsStream<S, TCX, true>,
   ) -> crate::Result<Message<'nb>> {
     let tag = Self::fetch_representative_msg(read_buffer, stream).await?;
-    Ok(Message { tag, ty: MessageTy::try_from((cs, tag, read_buffer.current()))? })
+    if tag == b'E' {
+      let error = {
+        let current = read_buffer.current();
+        match MessageTy::try_from((&mut *cs, tag, current)) {
+          Err(error) => error,
+          Ok(_) => crate::Error::from(DatabaseError::AbruptDisconnect),
+        }
+      };
+      loop {
+        let next = Self::fetch_single_msg(read_buffer, stream).await?;
+        if next == b'Z' {
+          break;
+        }
+      }
+      *cs = ConnectionState::Open;
+      return Err(error);
+    }
+    let ty = MessageTy::try_from((cs, tag, read_buffer.current()))?;
+    Ok(Message { tag, ty })
   }
 
   async fn fetch_representative_msg(
