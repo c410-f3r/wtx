@@ -107,10 +107,19 @@ pub fn bytes_split_once_seq<'bytes>(
 /// Internally uses `simdutf8` if the feature is active.
 #[inline]
 pub fn from_utf8_basic(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
-  #[cfg(feature = "simdutf8")]
-  return simdutf8::basic::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
-  #[cfg(not(feature = "simdutf8"))]
-  return core::str::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
+  #[cold]
+  #[inline(never)]
+  fn slow(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
+    #[cfg(feature = "simdutf8")]
+    return simdutf8::basic::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
+    #[cfg(not(feature = "simdutf8"))]
+    return core::str::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
+  }
+  if bytes.len() < 32 && bytes.is_ascii() {
+    // SAFETY: ASCII bytes are always valid UTF-8
+    return Ok(unsafe { core::str::from_utf8_unchecked(bytes) });
+  }
+  slow(bytes)
 }
 
 /// Internally uses `simdutf8` if the feature is active.

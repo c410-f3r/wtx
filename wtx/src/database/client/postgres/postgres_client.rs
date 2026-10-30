@@ -18,7 +18,7 @@ use crate::{
       rdbms::{clear_query_buffers, common_client_buffer::CommonClientBuffer},
     },
   },
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, Usize},
   net::{ConnectionState, Stream, StreamWriter as _, Uri},
   rng::CryptoRng,
   tls::{TlsConfig, TlsConnector, TlsCtx, TlsServerEndPoint, TlsStream},
@@ -192,7 +192,10 @@ where
     loop {
       let msg = Self::fetch_msg(cs, read_buffer, stream).await?;
       match msg.ty {
-        MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
+        MessageTy::CommandComplete(rows_len) => {
+          *stmt_mut.rows_len = *Usize::from(rows_len);
+        }
+        MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(values_len) => {
           data_row(
             begin_data,

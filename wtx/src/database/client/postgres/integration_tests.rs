@@ -366,6 +366,36 @@ fn records_after_prepare() {
 }
 
 #[test]
+fn rows_affected() {
+  StdRuntime::new().block_on(async {
+    let mut executor = executor().await;
+    executor.execute_stmt_none("DROP TABLE IF EXISTS rows_affected_test", ()).await.unwrap();
+    executor.execute_stmt_none("CREATE TABLE rows_affected_test(id INT)", ()).await.unwrap();
+    let inserted = executor
+      .execute_stmt_many("INSERT INTO rows_affected_test VALUES (1), (2), (3)", (), |_| Ok(()))
+      .await
+      .unwrap();
+    assert_eq!(inserted.rows_affected(), 3);
+    let updated = executor
+      .execute_stmt_many("UPDATE rows_affected_test SET id = id WHERE id <= 2", (), |_| Ok(()))
+      .await
+      .unwrap();
+    assert_eq!(updated.rows_affected(), 2);
+    let deleted = executor
+      .execute_stmt_many("DELETE FROM rows_affected_test WHERE id = 1", (), |_| Ok(()))
+      .await
+      .unwrap();
+    assert_eq!(deleted.rows_affected(), 1);
+    let selected = executor
+      .execute_stmt_many("SELECT id FROM rows_affected_test", (), |_| Ok(()))
+      .await
+      .unwrap();
+    assert_eq!(selected.rows_affected(), 2);
+    assert_eq!(selected.len(), 2);
+  });
+}
+
+#[test]
 fn reuses_cached_statement() {
   crate::database::client::integration_tests::reuses_cached_statement(executor(), "$1");
 }
