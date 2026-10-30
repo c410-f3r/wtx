@@ -27,6 +27,7 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.12.1" }
+zip = { default-features = false, optional = true, version = "9.0" }
 zlib-rs = { default-features = false, optional = true, version = "0.6" }
 
 # Rust Crypto and its extravagant set of associated dependencies
@@ -55,7 +56,6 @@ sha3 = { default-features = false, optional = true, version = "0.12" }
 signature = { default-features = false, optional = true, version = "3.0" }
 spki = { default-features = false, optional = true, version = "0.8" }
 x25519-dalek = { default-features = false, optional = true, version = "3.0" }
-zip = { default-features = false, optional = true, version = "9.0" }
 
 [dev-dependencies]
 wtx = { default-features = false, features = ["crypto-ring", "macros", "std"], path = "." }

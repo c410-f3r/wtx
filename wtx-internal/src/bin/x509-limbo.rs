@@ -4,7 +4,7 @@ use core::{fmt::Debug, mem, ops::Range, slice};
 use std::{borrow::Cow, fs::File, io::BufReader};
 use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
-  calendar::{Datetime, Instant, Utc},
+  calendar::{Datetime, Utc},
   codec::{Decode as _, DecodeWrapper, Pem},
   collections::{LinearStorageLen, Vector, VectorError, VectorU8, VectorUsize},
   x509::{
@@ -358,7 +358,7 @@ fn evaluate_test_case<'bytes>(
     return;
   };
 
-  let mut cvp = CvPolicy::new(Instant::now_datetime().unwrap());
+  let mut cvp = CvPolicy::new(Datetime::now().unwrap());
   mem::swap(cvp.crls_mut(), crls);
   fill_cvp(&mut cvp, ExtendedKeyUsage::default(), testcase);
 
@@ -538,7 +538,5 @@ fn fill_cvp(cvp: &mut CvPolicy<&[u8]>, mut eku: ExtendedKeyUsage, testcase: &Tes
 
   *cvp.key_usage_mut() = ku;
   *cvp.extended_key_usage_mut() = eku;
-  cvp.set_validation_time(
-    testcase.validation_time.unwrap_or_else(|| Instant::now_datetime().unwrap()),
-  );
+  cvp.set_validation_time(testcase.validation_time.unwrap_or_else(|| Datetime::now().unwrap()));
 }

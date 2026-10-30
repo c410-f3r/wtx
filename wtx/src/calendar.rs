@@ -125,7 +125,7 @@ mod tests {
   #[cfg(all(feature = "embassy-time", feature = "_hack", feature = "_integration-tests"))]
   #[wtx::test]
   async fn fetch_and_set_epoch_offset_works_as_expected() {
-    use crate::calendar::{EPOCH_OFFSET, Instant, fetch_and_set_epoch_offset};
+    use crate::calendar::{Datetime, EPOCH_OFFSET, fetch_and_set_epoch_offset};
     use std::net::{ToSocketAddrs, UdpSocket};
 
     assert_eq!(EPOCH_OFFSET.get(), 0);
@@ -133,6 +133,6 @@ mod tests {
     let addr = "pool.ntp.org:123".to_socket_addrs().unwrap().into_iter().next().unwrap();
     let _ = fetch_and_set_epoch_offset(addr, &mut udp_socket).await.unwrap();
     assert!(EPOCH_OFFSET.get() > 1000000);
-    assert!(Instant::now_datetime().unwrap().timestamp_secs_and_ns().0 > 1784244618);
+    assert!(Datetime::now().unwrap().timestamp_secs_and_ns().0 > 1784244618);
   }
 }

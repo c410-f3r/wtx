@@ -106,6 +106,17 @@ where
     mem::swap(hb, self.inner.hd.lock().await.parts_mut().hb);
   }
 
+  #[cfg(feature = "http2-client-pool")]
+  pub(crate) fn close_abruptly(&self, hb: &mut Http2Buffer) {
+    self
+      .inner
+      .is_conn_open
+      .connection_state
+      .store(ConnectionState::ClosedAbruptly.into(), core::sync::atomic::Ordering::Relaxed);
+    self.inner.is_conn_open.reader_waker.wake();
+    hb.drain_and_wake();
+  }
+
   async fn manage_initial_params<SR, const HAS_PREFACE: bool>(
     mut hb: Http2Buffer,
     hrp: HttpRecvParams,

@@ -1,5 +1,5 @@
 use crate::{
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, waiter::Waiter, waiters::Waiters},
   pool::ResourceManager,
   sync::{Arc, AsyncMutex, AsyncMutexGuard, SyncMutex},
 };
@@ -8,8 +8,9 @@ use core::{
   fmt::{Debug, Formatter},
   future::poll_fn,
   iter,
+  mem::ManuallyDrop,
   ops::{Deref, DerefMut},
-  task::{Poll, Waker},
+  task::Poll,
 };
 
 /// Pool with a fixed number of elements.
@@ -37,7 +38,7 @@ where
       resources: Arc::new(PoolResources { locks, rm }),
       state: Arc::new(SyncMutex::new(PoolState {
         available: (0..len).collect(),
-        wakers: Vec::with_capacity(len),
+        waiters: Waiters::new(),
       })),
     }
   }
@@ -61,16 +62,16 @@ where
   where
     'this: 'guard,
   {
+    let mut waiter = SimplePoolWaiter { idx_opt: None, state: &self.state };
     let idx = poll_fn(|cx| {
-      if let Some(mut elem) = self.state.try_lock() {
-        if let Some(idx) = elem.available.pop() {
-          Poll::Ready(idx)
-        } else {
-          elem.wakers.push(cx.waker().clone());
-          Poll::Pending
-        }
+      let mut state_guard = self.state.lock();
+      let PoolState { available, waiters } = &mut *state_guard;
+      if let Some(idx) = available.pop() {
+        let _removed = waiters.remove(&mut waiter.idx_opt);
+        drop(state_guard);
+        Poll::Ready(idx)
       } else {
-        cx.waker().wake_by_ref();
+        let _ = waiters.register(&mut waiter.idx_opt, cx.waker());
         Poll::Pending
       }
     })
@@ -78,6 +79,8 @@ where
     let mut drop_guard = SimplePoolGetDropGuard { state: &self.state, idx: Some(idx) };
     // SAFETY: `idx` is guaranteed to be within bounds as defined in the constructor
     let lock = unsafe { self.resources.locks.get(idx).unwrap_unchecked() };
+    // Indices are exclusively owned and guards are always released before their indices are
+    // returned, as such, this lock is never contended.
     let mut lock_guard = lock.lock().await;
     match lock_guard.0.as_mut() {
       None => {
@@ -90,7 +93,11 @@ where
       }
     }
     let _ = drop_guard.idx.take();
-    Ok(SimplePoolGetElem { state: Arc::clone(&self.state), idx, resource: lock_guard })
+    Ok(SimplePoolGetElem {
+      idx,
+      resource: ManuallyDrop::new(lock_guard),
+      state: Arc::clone(&self.state),
+    })
   }
 }
 
@@ -132,7 +139,7 @@ where
 #[derive(Debug)]
 pub struct SimplePoolGetElem<R> {
   idx: usize,
-  resource: R,
+  resource: ManuallyDrop<R>,
   state: Arc<SyncMutex<PoolState>>,
 }
 
@@ -155,6 +162,12 @@ impl<R> DerefMut for SimplePoolGetElem<R> {
 impl<R> Drop for SimplePoolGetElem<R> {
   #[inline]
   fn drop(&mut self) {
+    // `resource` must be dropped first.
+    //
+    // SAFETY: `resource` is only dropped once here.
+    unsafe {
+      ManuallyDrop::drop(&mut self.resource);
+    }
     push_available(self.idx, &self.state);
   }
 }
@@ -211,7 +224,7 @@ impl<R> DerefMut for SimplePoolResource<R> {
 #[derive(Debug)]
 struct PoolState {
   available: Vec<usize>,
-  wakers: Vec<Waker>,
+  waiters: Waiters,
 }
 
 #[derive(Debug)]
@@ -223,12 +236,38 @@ where
   rm: RM,
 }
 
+struct SimplePoolWaiter<'any> {
+  idx_opt: Option<usize>,
+  state: &'any SyncMutex<PoolState>,
+}
+
+impl Drop for SimplePoolWaiter<'_> {
+  #[inline]
+  fn drop(&mut self) {
+    if self.idx_opt.is_none() {
+      return;
+    }
+    let waker_opt = {
+      let mut state_guard = self.state.lock();
+      let PoolState { available, waiters } = &mut *state_guard;
+      let removed = waiters.remove(&mut self.idx_opt);
+      if matches!(removed, Some(Waiter::Woken)) { waiters.wake(available.len()) } else { None }
+    };
+    if let Some(waker) = waker_opt {
+      // Someone else awaked this instance while it is being dropped, which means that the wake-up
+      // must be transferred to another element.
+      waker.wake();
+    }
+  }
+}
+
 struct SimplePoolGetDropGuard<'any> {
   state: &'any SyncMutex<PoolState>,
   idx: Option<usize>,
 }
 
 impl Drop for SimplePoolGetDropGuard<'_> {
+  #[inline]
   fn drop(&mut self) {
     if let Some(idx) = self.idx {
       push_available(idx, self.state);
@@ -236,10 +275,17 @@ impl Drop for SimplePoolGetDropGuard<'_> {
   }
 }
 
+#[inline(always)]
 fn push_available(idx: usize, state: &SyncMutex<PoolState>) {
-  let mut state_guard = state.lock();
-  state_guard.available.push(idx);
-  if let Some(waker) = state_guard.wakers.pop() {
+  let waker_opt = {
+    let mut state_guard = state.lock();
+    let PoolState { available, waiters } = &mut *state_guard;
+    available.push(idx);
+    // Each available index can be claimed by a woken element, as such, there is no need to awake
+    // more elements than the number of available indices.
+    waiters.wake(available.len())
+  };
+  if let Some(waker) = waker_opt {
     waker.wake();
   }
 }

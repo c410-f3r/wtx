@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{Datetime, Instant, Utc},
+  calendar::{Datetime, Utc},
   collections::{ShortBoxStrU8, VectorUsize},
   crypto::{Aead as _, Aes128GcmGlobal},
   http::{
@@ -141,7 +141,7 @@ where
 #[inline]
 fn check_expiration(expires_at: &Option<Datetime<Utc>>) -> crate::Result<bool> {
   if let Some(elem) = expires_at
-    && *elem < Instant::now_datetime()?.trunc_to_us()
+    && *elem < Datetime::now()?.trunc_to_us()
   {
     Ok(true)
   } else {

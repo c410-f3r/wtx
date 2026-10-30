@@ -28,6 +28,8 @@ mod try_arithmetic;
 mod tuple_impls;
 mod usize;
 mod utf8_errors;
+pub(crate) mod waiter;
+pub(crate) mod waiters;
 mod wrapper;
 
 use crate::collections::ShortStrU8;

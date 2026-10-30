@@ -6,7 +6,7 @@ use std::{
   io::BufReader,
 };
 use wtx::{
-  calendar::{Date, Datetime, IDuration, Instant, Time, Utc, parse_bytes_into_tokens},
+  calendar::{Date, Datetime, IDuration, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, VectorUsize},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
@@ -179,7 +179,7 @@ impl<'any> CertificateMetadata<'any> {
       return true;
     };
     let days = IDuration::from_days(398).unwrap();
-    Instant::now_datetime().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
+    Datetime::now().unwrap() < distrust_for_tls_after_date.add(days).unwrap()
   }
 
   fn trust_bits(&self) -> ArrayVectorCopy<TrustBits, 4> {

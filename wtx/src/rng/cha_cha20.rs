@@ -25,7 +25,7 @@ const WORDS_PER_BLOCK: usize = 16;
 /// <https://datatracker.ietf.org/doc/html/rfc7539>.
 ///
 /// This structure is `Copy` to allow usage with `AtomicCell` in concurrent scenarios.
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct ChaCha20 {
   block: ParBlock,
   idx: u16,

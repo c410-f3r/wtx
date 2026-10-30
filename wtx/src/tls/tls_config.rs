@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{Datetime, Instant, Utc},
+  calendar::{Datetime, Utc},
   collections::{
     ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, VectorUsize,
   },
@@ -111,7 +111,7 @@ impl<TCX> TlsConfig<TCX> {
   /// Fetches the current timestamp to verify certificates.
   #[inline]
   pub fn new(ctx: TCX) -> crate::Result<Self> {
-    Ok(Self::from_validation_time(ctx, Instant::now_datetime()?))
+    Ok(Self::from_validation_time(ctx, Datetime::now()?))
   }
 
   /// Adjusts the validation time of [`CvPolicy`] that regulates certificate expiration.
