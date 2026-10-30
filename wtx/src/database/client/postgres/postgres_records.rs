@@ -1,7 +1,7 @@
 use crate::{
   database::{
     Records,
-    client::postgres::{Postgres, PostgresCommonRecords, PostgresRecord, PostgresStatement},
+    client::postgres::{Postgres, PostgresCommonRecords, PostgresRecord, PostgresStatement, Ty},
   },
   misc::Lease,
 };
@@ -30,6 +30,13 @@ impl<'exec, E> PostgresRecords<'exec, E> {
         values_params,
       ),
     }
+  }
+
+  /// Cached column names and types, including when no records were returned.
+  #[inline]
+  pub fn columns(&self) -> Option<impl ExactSizeIterator<Item = (&str, Ty)>> {
+    (!self.common.stmt.aux.is_empty())
+      .then(|| self.common.stmt.columns().iter().map(|(column, _)| (column.lease(), column.ty)))
   }
 }
 

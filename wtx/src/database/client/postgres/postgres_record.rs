@@ -4,7 +4,7 @@ use crate::{
   database::{
     Record, ValueIdent,
     client::{
-      postgres::{Postgres, PostgresCommonRecord, PostgresError, PostgresStatement},
+      postgres::{Postgres, PostgresCommonRecord, PostgresError, PostgresStatement, Ty},
       rdbms::value,
     },
   },
@@ -70,6 +70,12 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     }
 
     Ok(Self::new(record, stmt, values_params.get(values_bytes_offsets_start..).unwrap_or_default()))
+  }
+
+  /// Column names and types of this record.
+  #[inline]
+  pub fn columns(&self) -> impl Iterator<Item = (&str, Ty)> {
+    self.common.stmt.columns().iter().map(|(column, _)| (column.lease(), column.ty))
   }
 }
 

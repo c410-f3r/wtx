@@ -46,7 +46,7 @@ where
     cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     stmt_cmd_id: u64,
-    stmt_cmd_id_array: U64String,
+    mut stmt_cmd_id_array: U64String,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<PostgresStatementMut<'stmts>, E>
@@ -87,7 +87,10 @@ where
 
     let msg2 = Self::fetch_msg(cs, read_buffer, stream).await?;
     let (columns_len, pd_data) = match msg2.ty {
-      MessageTy::NoData => (0, builder.expand(types_len.into(), dummy_stmt_value())?),
+      MessageTy::NoData => {
+        stmt_cmd_id_array.clear();
+        (0, builder.expand(types_len.into(), dummy_stmt_value())?)
+      }
       MessageTy::RowDescription(columns_len, mut rd) => {
         let data = builder.expand(types_len.max(columns_len).into(), dummy_stmt_value())?;
         row_description(columns_len, &mut rd, |idx, pci| {
