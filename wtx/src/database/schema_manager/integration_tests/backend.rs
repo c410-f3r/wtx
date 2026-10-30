@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{IDuration, Instant},
+  calendar::{Datetime, IDuration},
   collections::VectorUsize,
   database::{
     Database, Identifier,
@@ -27,5 +27,5 @@ pub(crate) async fn _backend_has_migration_with_utc_time<DB, E>(
   c._executor_mut().migrations(buffer_cmd, &mg, buffer_db_migrations).await.unwrap();
   let created_on = *buffer_db_migrations[0].created_on();
   let range = created_on..=created_on.add(IDuration::from_seconds(5).unwrap()).unwrap();
-  assert!(range.contains(&Instant::now_datetime().unwrap()));
+  assert!(range.contains(&Datetime::now().unwrap()));
 }

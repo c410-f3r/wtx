@@ -3,8 +3,8 @@ use crate::{
   futures::Sleep,
   http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, U31},
   http2::{
-    Http2Data, Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scorp,
-    Sovrp, Windows,
+    Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scorp, Sovrp,
+    Windows,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
@@ -131,7 +131,7 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
     let mut lock = inner.wd.lock().await;
     do_send_go_away(error_code, last_stream_id, &mut *lock).await;
     lock.close_abruptly();
-    wake_tasks(&mut *inner.hd.lock().await);
+    inner.hd.lock().await.parts_mut().hb.drain_and_wake();
   }
 
   async fn do_send_go_away<SW, TCX, const IS_CLIENT: bool>(
@@ -146,31 +146,18 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
     let _rslt = stream_writer.write_all(&gaf.bytes()).await;
   }
 
-  fn wake_tasks<const IS_CLIENT: bool>(hd: &mut Http2Data<IS_CLIENT>) {
-    let hdpm = hd.parts_mut();
-    while let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
-      elem.wake();
-    }
-    for (_, value) in hdpm.hb.scrps.drain() {
-      value.waker.wake();
-    }
-    for (_, value) in hdpm.hb.sorps.drain() {
-      value.waker.wake();
-    }
-  }
-
   let Some(error_code) = error_code_opt else {
     // Entered when the remote peer gracefully closed the connection, as such, there is
     // nothing to send so we just abruptly close to shutdown everything.
     inner.wd.lock().await.close_abruptly();
-    wake_tasks(&mut *inner.hd.lock().await);
+    inner.hd.lock().await.parts_mut().hb.drain_and_wake();
     return;
   };
 
   if error_code.is_fatal() {
     if IS_RECV {
       inner.wd.lock().await.close_abruptly();
-      wake_tasks(&mut *inner.hd.lock().await);
+      inner.hd.lock().await.parts_mut().hb.drain_and_wake();
     } else {
       let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
       close(error_code, inner, last_stream_id).await;
@@ -180,7 +167,7 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
   inner.is_conn_open.connection_state.store(ConnectionState::Draining.into(), Ordering::Relaxed);
   let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
   do_send_go_away(error_code, last_stream_id, &mut *inner.wd.lock().await).await;
-  wake_tasks(&mut *inner.hd.lock().await);
+  inner.hd.lock().await.parts_mut().hb.drain_and_wake();
   let Ok(sleep) = Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS)) else {
     close(Http2ErrorCode::ProtocolError, inner, last_stream_id).await;
     return;

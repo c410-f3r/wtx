@@ -29,7 +29,7 @@ where
 {
   /// Throws an error if the length is greater than the chosen capacity.
   #[inline]
-  pub fn new(data: Box<str>) -> crate::Result<Self> {
+  pub fn from_box(data: Box<str>) -> crate::Result<Self> {
     Ok(Self(ShortBoxSlice::new(data.into_boxed_bytes())?))
   }
 
@@ -227,7 +227,7 @@ where
 
   #[inline]
   fn try_from(value: Box<str>) -> Result<Self, Self::Error> {
-    Self::new(value)
+    Self::from_box(value)
   }
 }
 
@@ -239,7 +239,7 @@ where
 
   #[inline]
   fn try_from(value: String) -> Result<Self, Self::Error> {
-    Self::new(value.into())
+    Self::from_box(value.into())
   }
 }
 
