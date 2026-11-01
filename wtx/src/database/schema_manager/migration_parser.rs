@@ -9,7 +9,7 @@ use crate::{
       toml_parser::{Expr, toml},
     },
   },
-  misc::{AsciiGeneric, str_rsplit_once_str, str_split1},
+  misc::{AsciiGraphic, str_rsplit_once_str, str_split1},
 };
 use alloc::string::String;
 use std::io::{BufRead as _, BufReader, Read};
@@ -47,7 +47,7 @@ where
   iterations(&mut overall_buffer, &mut br, |_| false)?;
 
   if let Some(rslt) = overall_buffer.split("-- wtx dbs").nth(1) {
-    for db_str in str_split1(rslt, AsciiGeneric::COMMA) {
+    for db_str in str_split1(rslt, AsciiGraphic::COMMA) {
       if let Ok(db) = db_str.trim().try_into() {
         let is_not_already_inserted = !parsed_migration.cfg.dbs.contains(&db);
         if is_not_already_inserted {

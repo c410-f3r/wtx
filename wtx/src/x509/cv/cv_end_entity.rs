@@ -3,8 +3,8 @@ use crate::{
   collections::ArrayVectorU8,
   misc::{Lease, bytes_split_once1},
   x509::{
-    CvCertificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor, GeneralName, ServerName,
-    VerifiedPath, X509CvError, extensions::SubjectAlternativeName,
+    CvCertificate, CvCrl, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor, GeneralName,
+    ServerName, VerifiedPath, X509CvError, extensions::SubjectAlternativeName,
   },
 };
 
@@ -16,14 +16,15 @@ impl<'any> CvEndEntity<&'any [u8]> {
   /// It is worth noting that this method is not cheap and the number of intermediates is a
   /// considerable factor.
   #[inline]
-  pub fn validate_chain<B>(
+  pub fn validate_chain<B, C>(
     &'any self,
     intermediates: &'any [CvIntermediate<&'any [u8]>],
-    cv_policy: &'any CvPolicy<B>,
+    cv_policy: &'any CvPolicy<C>,
     trust_anchors: &'any [CvTrustAnchor<B>],
   ) -> crate::Result<VerifiedPath<'any, B>>
   where
     B: Lease<[u8]>,
+    C: Lease<[CvCrl<B>]>,
   {
     let mut verified_path = VerifiedPath::new(
       self,
@@ -31,7 +32,7 @@ impl<'any> CvEndEntity<&'any [u8]> {
       trust_anchors.first().ok_or(X509CvError::HasNotTrustAnchor)?,
     );
     let mut last_err = None;
-    let found = crate::x509::cv::validate_chain::<B, true>(
+    let found = crate::x509::cv::validate_chain::<B, C, true>(
       self,
       cv_policy,
       0,

@@ -1,7 +1,7 @@
 use crate::{
   codec::{
-    AsciiSet, UrlEncode, i8_string, i16_string, i32_string, i64_string, u8_string, u16_string,
-    u32_string, u64_string,
+    AsciiSet, UrlEncode,
+    num_str::{nstr8, nstr16, nstr32, nstr64},
   },
   collections::VectorUsize,
 };
@@ -87,25 +87,25 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
 
   #[inline]
   fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(i8_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr8(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_i16(self, v: i16) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(i16_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr16(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_i32(self, v: i32) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(i32_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr32(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(i64_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr64(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
@@ -234,25 +234,25 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
 
   #[inline]
   fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(u8_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr8(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(u16_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr16(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(u32_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr32(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
   #[inline]
   fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
-    self.buffer.extend_from_copyable_slice(u64_string(v).as_bytes())?;
+    self.buffer.extend_from_copyable_slice(nstr64(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 

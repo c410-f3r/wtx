@@ -17,7 +17,7 @@ use crate::{
   misc::{Lease, bytes_pos1, from_utf8_basic},
   net::Uri,
   x509::{
-    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, SignatureTy,
+    AttributeTypeAndValue, CvCrl, CvIntermediate, FlaggedExtension, GeneralName, Name, SignatureTy,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -31,9 +31,9 @@ use crate::{
 };
 
 #[inline]
-pub(crate) fn validate_chain<'any, B, const IS_EE: bool>(
+pub(crate) fn validate_chain<'any, B, C, const IS_EE: bool>(
   cert: &'any CvCertificate<&'any [u8], IS_EE>,
-  cv_policy: &CvPolicy<B>,
+  cv_policy: &CvPolicy<C>,
   depth: u8,
   intermediates: &'any [CvIntermediate<&'any [u8]>],
   last_err: &mut Option<X509CvError>,
@@ -42,6 +42,7 @@ pub(crate) fn validate_chain<'any, B, const IS_EE: bool>(
 ) -> bool
 where
   B: Lease<[u8]>,
+  C: Lease<[CvCrl<B>]>,
 {
   // A `validate_ee_dyn` function is impossible at the current time.
   if IS_EE {
@@ -290,21 +291,22 @@ where
 }
 
 #[inline]
-fn check_revocation<B, const IS_EE: bool>(
+fn check_revocation<B, C, const IS_EE: bool>(
   cert: &CvCertificate<&[u8], IS_EE>,
-  cv_policy: &CvPolicy<B>,
+  cv_policy: &CvPolicy<C>,
   depth: u8,
   issuer_ku: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
 ) -> bool
 where
   B: Lease<[u8]>,
+  C: Lease<[CvCrl<B>]>,
 {
   if cv_policy.evaluation_depth() == CvEvaluationDepth::EndEntity && depth > 0 {
     return true;
   }
 
-  for crl in cv_policy.crls() {
+  for crl in cv_policy.crls().lease() {
     if cert.issuer.lease() != crl.issuer.lease() {
       continue;
     }
@@ -671,18 +673,15 @@ fn validate_eku<const IS_EE: bool>(
 }
 
 #[inline]
-fn validate_ica_dyn<B>(
+fn validate_ica_dyn<C>(
   aki_opt: &Option<AuthorityKeyIdentifier>,
-  cv_policy: &CvPolicy<B>,
+  cv_policy: &CvPolicy<C>,
   has_unknown_critical_extension: bool,
   is_self_signed: bool,
   last_err: &mut Option<X509CvError>,
   ski_opt: &Option<FlaggedExtension<SubjectKeyIdentifier>>,
   validity: &Validity,
-) -> bool
-where
-  B: Lease<[u8]>,
-{
+) -> bool {
   if has_unknown_critical_extension {
     *last_err = Some(X509CvError::CertsMustNotHaveCriticalUnknownExtensions);
     return false;
@@ -762,9 +761,9 @@ where
 }
 
 #[inline]
-fn validate_intermediate<'any, B, const IS_EE: bool>(
+fn validate_intermediate<'any, B, C, const IS_EE: bool>(
   cert: &'any CvCertificate<&'any [u8], IS_EE>,
-  cv_policy: &CvPolicy<B>,
+  cv_policy: &CvPolicy<C>,
   depth: u8,
   intermediate: &'any CvIntermediate<&'any [u8]>,
   last_err: &mut Option<X509CvError>,
@@ -774,6 +773,7 @@ fn validate_intermediate<'any, B, const IS_EE: bool>(
 ) -> Option<bool>
 where
   B: Lease<[u8]>,
+  C: Lease<[CvCrl<B>]>,
 {
   if cert.issuer.lease() != intermediate.subject.bytes().lease() {
     return None;
@@ -829,7 +829,7 @@ where
 
   let next_depth = if intermediate.is_self_signed { depth } else { depth.wrapping_add(1) };
 
-  if validate_chain::<_, false>(
+  if validate_chain::<B, C, false>(
     intermediate,
     cv_policy,
     next_depth,

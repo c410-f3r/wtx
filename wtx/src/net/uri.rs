@@ -1,7 +1,7 @@
 use crate::{
   codec::FromRadix10 as _,
   collections::{ArrayStringU16, Clear, SingleTypeStorage, Truncate, TryExtend},
-  misc::{AsciiGeneric, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
+  misc::{AsciiGraphic, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
 };
 use alloc::{boxed::Box, string::String};
 use core::{
@@ -113,7 +113,7 @@ where
   #[inline]
   pub fn host(&self) -> &str {
     let authority = self.authority();
-    if let Some(elem) = str_split_once1(authority, AsciiGeneric::AT) { elem.1 } else { authority }
+    if let Some(elem) = str_split_once1(authority, AsciiGraphic::AT) { elem.1 } else { authority }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -125,7 +125,7 @@ where
   #[inline]
   pub fn hostname(&self) -> &str {
     let host = self.host();
-    str_split_once1(host, AsciiGeneric::COLON).map_or(host, |el| el.0)
+    str_split_once1(host, AsciiGraphic::COLON).map_or(host, |el| el.0)
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -177,7 +177,7 @@ where
   /// ```
   #[inline]
   pub fn password(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), AsciiGeneric::COLON) { elem.1 } else { "" }
+    if let Some(elem) = str_split_once1(self.userinfo(), AsciiGraphic::COLON) { elem.1 } else { "" }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.3>
@@ -239,8 +239,8 @@ where
   #[inline]
   pub fn query_params(&self) -> impl Iterator<Item = (&str, &str)> {
     let str = self.query().get(1..).unwrap_or_default();
-    str_split1(str, AsciiGeneric::AMPERSAND)
-      .filter_map(|el| str_split_once1(el, AsciiGeneric::EQUAL))
+    str_split1(str, AsciiGraphic::AMPERSAND)
+      .filter_map(|el| str_split_once1(el, AsciiGraphic::EQUAL))
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-4.2>
@@ -318,7 +318,7 @@ where
   /// ```
   #[inline]
   pub fn user(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), AsciiGeneric::COLON) { elem.0 } else { "" }
+    if let Some(elem) = str_split_once1(self.userinfo(), AsciiGraphic::COLON) { elem.0 } else { "" }
   }
 
   /// ```rust
@@ -327,7 +327,7 @@ where
   /// ```
   #[inline]
   pub fn userinfo(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.authority(), AsciiGeneric::AT) { elem.0 } else { "" }
+    if let Some(elem) = str_split_once1(self.authority(), AsciiGraphic::AT) { elem.0 } else { "" }
   }
 
   fn process(&mut self) {

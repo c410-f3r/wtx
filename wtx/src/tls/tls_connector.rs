@@ -609,9 +609,11 @@ where
     if TCX::TY.is_unverified() {
       return Ok(());
     }
+    let mut cv_policy = config.cv_policy().map(|el| el);
+    *cv_policy.extended_key_usage_mut().server_auth_mut() = true;
     drop(cv_end_entity.validate_chain(
       cv_intermediates.as_slice(),
-      config.cv_policy(),
+      &cv_policy,
       config.trust_anchors(),
     )?);
     Ok(())

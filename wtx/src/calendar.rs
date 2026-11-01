@@ -31,7 +31,7 @@ mod tracing_tree_timer;
 mod weekday;
 mod year;
 
-use crate::codec::{U64String, u64_string};
+use crate::codec::num_str::{NumStr64, nstr64};
 pub use calendar_error::CalendarError;
 pub use ce_days::CeDays;
 pub use date::Date;
@@ -115,9 +115,9 @@ where
 #[inline]
 pub fn timestamp_str(
   cb: impl FnOnce(core::time::Duration) -> u128,
-) -> crate::Result<(u64, U64String)> {
+) -> crate::Result<(u64, NumStr64)> {
   let number = Instant::now_timestamp().map(cb)?.try_into()?;
-  Ok((number, u64_string(number)))
+  Ok((number, nstr64(number)))
 }
 
 #[cfg(test)]

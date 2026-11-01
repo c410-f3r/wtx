@@ -12,7 +12,7 @@ use crate::{
 
 /// This extension indicates one or more purposes for which the certified public key may be used,
 /// in addition to or in place of the basic purposes indicated in the key usage extension.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[expect(clippy::struct_excessive_bools, reason = "false-positive")]
 pub struct ExtendedKeyUsage {
   any: bool,
@@ -40,7 +40,7 @@ impl ExtendedKeyUsage {
   };
   /// An instance without OIDs
   pub const EMPTY: Self = Self {
-    any: true,
+    any: false,
     server_auth: false,
     client_auth: false,
     code_signing: false,
@@ -238,5 +238,12 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for ExtendedKeyUsage {
     .chain(self.others.iter());
     SequenceEncodeIter(iter).encode(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG)?;
     Ok(())
+  }
+}
+
+impl Default for ExtendedKeyUsage {
+  #[inline]
+  fn default() -> Self {
+    Self::EMPTY
   }
 }

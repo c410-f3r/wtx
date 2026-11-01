@@ -7,7 +7,7 @@ use crate::{
     },
     misc::nanosecond_string,
   },
-  codec::i16_string,
+  codec::num_str::nstr16,
   collections::{ArrayString, ArrayStringU8},
 };
 
@@ -101,7 +101,7 @@ where
           string.push_str(self.time.second().num_str())?;
         }
         CalendarToken::TwoDigitYear => {
-          string.push_str(&i16_string(self.date.year().num().rem_euclid(100)))?;
+          string.push_str(&nstr16(self.date.year().num().rem_euclid(100)))?;
         }
         CalendarToken::TwoSpaceDay => {
           push_two_spaces_day(self.date, &mut string)?;

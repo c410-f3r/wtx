@@ -1,7 +1,7 @@
 use crate::{
   calendar::{Datetime, Utc},
   collections::{
-    ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, VectorUsize,
+    ArrayVectorCopy, ShortBoxSliceU8, ShortBoxSliceU16, SingleTypeStorage, VectorU8, VectorUsize,
   },
   misc::{Lease, LeaseMut},
   tls::{
@@ -12,7 +12,7 @@ use crate::{
       signature_algorithms_cert::SignatureAlgorithmsCert, supported_groups::SupportedGroups,
     },
   },
-  x509::{Certificate, CvPolicy, CvTrustAnchor},
+  x509::{Certificate, CvCrl, CvPolicy, CvTrustAnchor},
 };
 use core::{fmt::Debug, mem};
 
@@ -160,13 +160,13 @@ impl<TCX> TlsConfig<TCX> {
 
   /// See [`CvPolicy`].
   #[inline]
-  pub const fn cv_policy(&self) -> &CvPolicy<ShortBoxSliceU16<u8>> {
+  pub const fn cv_policy(&self) -> &CvPolicy<VectorU8<CvCrl<ShortBoxSliceU16<u8>>>> {
     &self.inner.cv_policy
   }
 
   /// Mutable version of [`Self::cv_policy`].
   #[inline]
-  pub const fn cv_policy_mut(&mut self) -> &mut CvPolicy<ShortBoxSliceU16<u8>> {
+  pub const fn cv_policy_mut(&mut self) -> &mut CvPolicy<VectorU8<CvCrl<ShortBoxSliceU16<u8>>>> {
     &mut self.inner.cv_policy
   }
 
@@ -375,7 +375,7 @@ pub(crate) struct TlsConfigInner<B, TCX> {
   pub(crate) alpn: Option<Alpn>,
   pub(crate) cipher_suites: ArrayVectorCopy<CipherSuite, { CipherSuite::PRIORITY.len() }>,
   pub(crate) ctx: TCX,
-  pub(crate) cv_policy: CvPolicy<B>,
+  pub(crate) cv_policy: CvPolicy<VectorU8<CvCrl<B>>>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) max_fragment_length_send: Option<MaxFragmentLength>,
   pub(crate) public_keys: PublicKeys,
@@ -387,16 +387,13 @@ pub(crate) struct TlsConfigInner<B, TCX> {
   pub(crate) unique_signature_algorithms: bool,
 }
 
-impl<B, TCX> TlsConfigInner<B, TCX>
-where
-  B: Default,
-{
+impl<B, TCX> TlsConfigInner<B, TCX> {
   #[inline]
   fn new(ctx: TCX, validation_time: Datetime<Utc>) -> Self {
     Self {
       alpn: None,
       cipher_suites: ArrayVectorCopy::from_array(CipherSuite::PRIORITY),
-      cv_policy: CvPolicy::new(validation_time),
+      cv_policy: CvPolicy::new(VectorU8::default(), validation_time),
       ctx,
       max_fragment_length: None,
       max_fragment_length_send: None,

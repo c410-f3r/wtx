@@ -1,8 +1,7 @@
 use crate::{
   calendar::{Datetime, Utc},
-  collections::VectorU8,
   x509::{
-    CvCrl, CvPolicyMode,
+    CvPolicyMode,
     cv::{cv_crl_expiration::CvCrlExpiration, cv_evaluation_depth::CvEvaluationDepth},
     extensions::{ExtendedKeyUsage, KeyUsage},
   },
@@ -11,10 +10,10 @@ use crate::{
 /// Chain Validation - Policy
 ///
 /// Groups all configurable rule parameters.
-#[derive(Clone, Debug, PartialEq)]
-pub struct CvPolicy<B> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CvPolicy<C> {
   cep: CvCrlExpiration,
-  crls: VectorU8<CvCrl<B>>,
+  crls: C,
   evaluation_depth: CvEvaluationDepth,
   extended_key_usage: ExtendedKeyUsage,
   key_usage: KeyUsage,
@@ -22,32 +21,30 @@ pub struct CvPolicy<B> {
   validation_time: Datetime<Utc>,
 }
 
-impl<B> CvPolicy<B> {
+impl<C> CvPolicy<C> {
   /// New instance with optioned parameters.
-  //
-  // FIXME(STABLE): Use `::default()`
   #[inline]
-  pub const fn new(validation_time: Datetime<Utc>) -> Self {
+  pub fn new(crls: C, validation_time: Datetime<Utc>) -> Self {
     Self {
       cep: CvCrlExpiration::Enforce,
-      crls: VectorU8::new(),
+      crls,
       evaluation_depth: CvEvaluationDepth::Chain(8),
-      extended_key_usage: ExtendedKeyUsage::EMPTY,
-      key_usage: KeyUsage::new((0, 0)),
+      extended_key_usage: ExtendedKeyUsage::default(),
+      key_usage: KeyUsage::default(),
       mode: CvPolicyMode::Strict,
       validation_time: validation_time.trunc_to_secs(),
     }
   }
 
-  /// See [`CvCrl`].
+  /// See [`CvCrl`](crate::x509::CvCrl).
   #[inline]
-  pub fn crls(&self) -> &[CvCrl<B>] {
+  pub const fn crls(&self) -> &C {
     &self.crls
   }
 
   /// Mutable version of [`Self::crls`].
   #[inline]
-  pub const fn crls_mut(&mut self) -> &mut VectorU8<CvCrl<B>> {
+  pub const fn crls_mut(&mut self) -> &mut C {
     &mut self.crls
   }
 
@@ -85,6 +82,20 @@ impl<B> CvPolicy<B> {
   #[inline]
   pub const fn expiration_policy_mut(&mut self) -> &mut CvCrlExpiration {
     &mut self.cep
+  }
+
+  /// Maps all generic types
+  #[inline]
+  pub fn map<'this, NC>(&'this self, mut crls: impl FnMut(&'this C) -> NC) -> CvPolicy<NC> {
+    CvPolicy {
+      cep: self.cep,
+      crls: crls(&self.crls),
+      evaluation_depth: self.evaluation_depth,
+      extended_key_usage: self.extended_key_usage,
+      key_usage: self.key_usage,
+      mode: self.mode,
+      validation_time: self.validation_time,
+    }
   }
 
   /// See [`KeyUsage`].

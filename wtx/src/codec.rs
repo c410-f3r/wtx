@@ -21,7 +21,7 @@ mod from_radix_10;
 mod generic_codec;
 mod hex;
 mod misc;
-mod num_array;
+pub mod num_str;
 mod pem;
 pub mod protocol;
 mod url_encoding;
@@ -46,7 +46,6 @@ pub use misc::{
   decode_base64_into_buffer, decode_hex_into_buffer, encode_base64_into_buffer,
   encode_hex_into_buffer,
 };
-pub use num_array::*;
 pub use pem::Pem;
 pub use url_encoding::*;
 

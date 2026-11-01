@@ -7,7 +7,7 @@ use crate::{
     StatusCode,
     http2_server_framework::{Http2ServerFrameworkError, Middleware},
   },
-  misc::{AsciiGeneric, Intersperse, str_split1},
+  misc::{AsciiGraphic, Intersperse, str_split1},
 };
 use core::{ops::ControlFlow, str};
 
@@ -378,7 +378,7 @@ impl CorsMiddleware {
       body.extend_from_copyable_slice(acrh.value.as_bytes())?;
       return Ok(());
     }
-    let mut iter = str_split1(acrh.value, AsciiGeneric::COMMA).map(str::trim);
+    let mut iter = str_split1(acrh.value, AsciiGraphic::COMMA).map(str::trim);
     if let Some(elem) = iter.next() {
       self.push_preflight_headers(body, (&[], elem))?;
     }

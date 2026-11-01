@@ -1,7 +1,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
   codec::{
-    Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, u32_string,
+    Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, num_str::nstr32,
   },
   collections::{ArrayString, ArrayStringU8, ArrayVectorCopy},
   misc::bytes_split_once1,
@@ -52,7 +52,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Oid {
       (2u32, first_combined.wrapping_sub(80))
     };
     let mut buffer = ArrayStringU8::<31>::new();
-    let _ = buffer.push_strs([&u32_string(c1), ".", &u32_string(c2)])?;
+    let _ = buffer.push_strs([&nstr32(c1), ".", &nstr32(c2)])?;
     decode_base128(&mut buffer, remaining)?;
     Ok(Self(buffer))
   }
@@ -144,7 +144,7 @@ fn decode_base128(buffer: &mut ArrayString<u8, 31>, value: &[u8]) -> crate::Resu
   while !remaining.is_empty() {
     let (component, rest) = decode_base128_one(remaining)?;
     remaining = rest;
-    let _ = buffer.push_strs([".", &u32_string(component)])?;
+    let _ = buffer.push_strs([".", &nstr32(component)])?;
   }
   Ok(())
 }
