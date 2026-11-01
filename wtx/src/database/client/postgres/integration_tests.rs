@@ -308,6 +308,18 @@ fn custom_enum() {
 }
 
 #[test]
+fn error_message_does_not_drop_the_connection() {
+  StdRuntime::new().block_on(async {
+    let mut executor = executor().await;
+    assert!(executor.execute_stmt_none("SELECT * FROM __oops", ()).await.is_err());
+    assert_eq!(
+      executor.execute_stmt_single("SELECT 1", ()).await.unwrap().decode::<_, i32>(0).unwrap(),
+      1
+    );
+  })
+}
+
+#[test]
 fn execute() {
   crate::database::client::integration_tests::execute(executor());
 }

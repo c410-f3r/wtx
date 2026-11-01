@@ -36,7 +36,7 @@ where
   TCX: TlsCtx,
 {
   pub(crate) fn new(client: &'exec mut PostgresClient<E, S, TCX>) -> Self {
-    let PostgresClient { cb, cs: _, phantom: _, stream: _ } = client;
+    let PostgresClient { cb, phantom: _, stream: _ } = client;
     let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, records_params, values_params, stmts: _ } = common;
     clear_query_buffers(records_params, values_params);
@@ -56,7 +56,7 @@ where
   where
     B: TryExtend<[<Postgres<E> as Database>::Records<'this>; 1]>,
   {
-    let PostgresClient { cb: client_buffer, cs, phantom: _, stream } = self.client;
+    let PostgresClient { cb: client_buffer, phantom: _, stream } = self.client;
     let ClientBuffer { common, conn_params: _ } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     {
@@ -71,7 +71,7 @@ where
     let mut values_params_offset = 0;
     'stmts: loop {
       let Some((stmt_cmd_id, is_already_known)) = stmt_cmd_ids_iter.next() else {
-        let msg = PostgresClient::<E, S, TCX>::fetch_msg(cs, read_buffer, stream).await?;
+        let msg = PostgresClient::<E, S, TCX>::fetch_msg(read_buffer, stream).await?;
         if let MessageTy::ReadyForQuery = msg.ty {
           break 'stmts;
         }
@@ -83,7 +83,6 @@ where
           .ok_or_else(|| E::from(crate::Error::ProgrammingError))?
       } else {
         PostgresClient::<E, S, TCX>::await_stmt_prepare::<false>(
-          cs,
           read_buffer,
           stmt_cmd_id,
           nstr64(stmt_cmd_id),
@@ -92,10 +91,10 @@ where
         )
         .await?
       };
-      PostgresClient::<E, S, TCX>::await_stmt_bind(cs, read_buffer, stream).await?;
+      PostgresClient::<E, S, TCX>::await_stmt_bind(read_buffer, stream).await?;
 
       'rows: loop {
-        let msg = PostgresClient::<E, S, TCX>::fetch_msg(cs, read_buffer, stream).await?;
+        let msg = PostgresClient::<E, S, TCX>::fetch_msg(read_buffer, stream).await?;
         match msg.ty {
           MessageTy::CommandComplete(rows_len) => {
             if !B::IS_UNIT {
@@ -154,7 +153,7 @@ where
     SC: StmtCmd,
   {
     _debug!("Executing `{:?}`", sc.cmd());
-    let PostgresClient { cb, cs: _, phantom: _, stream: _ } = self.client;
+    let PostgresClient { cb, phantom: _, stream: _ } = self.client;
     let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, stmts, records_params: _, values_params: _ } = common;
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());

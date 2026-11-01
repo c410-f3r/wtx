@@ -107,8 +107,12 @@ pub fn bytes_split_once_seq<'bytes>(
 }
 
 /// Internally uses `simdutf8` if the feature is active.
-#[inline]
+#[inline(always)]
 pub fn from_utf8_basic(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
+  if bytes.len() <= 32 && bytes.is_ascii() {
+    // SAFETY: ASCII bytes are always valid UTF-8
+    return Ok(unsafe { core::str::from_utf8_unchecked(bytes) });
+  }
   #[cfg(feature = "simdutf8")]
   return simdutf8::basic::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
   #[cfg(not(feature = "simdutf8"))]
@@ -223,4 +227,50 @@ pub fn str_rsplit_once_str<'any>(str: &'any str, elem: &str) -> Option<(&'any st
   }
   #[cfg(not(feature = "memchr"))]
   return str.rsplit_once(elem);
+}
+
+#[cfg(all(feature = "_bench", test))]
+mod bench {
+  use crate::misc::from_utf8_basic;
+  use core::hint::black_box;
+
+  #[bench]
+  fn from_utf8_basic_ascii_long(b: &mut test::Bencher) {
+    let bytes = alloc::vec![b'a'; 256];
+    b.iter(|| run(&bytes));
+  }
+
+  #[bench]
+  fn from_utf8_basic_ascii_short(b: &mut test::Bencher) {
+    let bytes = b"short ASCII string";
+    b.iter(|| run(bytes));
+  }
+
+  #[bench]
+  fn from_utf8_basic_invalid_long(b: &mut test::Bencher) {
+    let bytes = [0xFF; 256];
+    b.iter(|| run(&bytes));
+  }
+
+  #[bench]
+  fn from_utf8_basic_invalid_short(b: &mut test::Bencher) {
+    let bytes = [0xFF; 16];
+    b.iter(|| run(&bytes));
+  }
+
+  #[bench]
+  fn from_utf8_basic_non_ascii_long(b: &mut test::Bencher) {
+    let bytes = "é".repeat(256).into_bytes();
+    b.iter(|| run(&bytes));
+  }
+
+  #[bench]
+  fn from_utf8_basic_non_ascii_short(b: &mut test::Bencher) {
+    let bytes = "café".as_bytes();
+    b.iter(|| run(bytes));
+  }
+
+  fn run(bytes: &[u8]) {
+    let _rslt = black_box(from_utf8_basic(black_box(bytes)));
+  }
 }

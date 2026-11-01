@@ -9,6 +9,8 @@ pub enum DatabaseError {
   ExpectedAtMostOneRecord,
   /// The method `expand` of `StatementBuilder` must be called only once.
   InconsistentStatementBuilder,
+  /// The maximum amount of ignorable messages has been reached.
+  MaxIgnorableMessages,
   /// A "null" field received from the database was decoded as a non-nullable type or value.
   MissingFieldDataInDecoding(ShortStrU8<'static>, Option<u8>),
   /// Expected one record but got none.

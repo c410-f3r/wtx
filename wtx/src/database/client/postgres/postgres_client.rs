@@ -28,7 +28,6 @@ use core::marker::PhantomData;
 /// Executor
 #[derive(Debug)]
 pub struct PostgresClient<E, S, TCX> {
-  pub(crate) cs: ConnectionState,
   pub(crate) cb: ClientBuffer,
   pub(crate) phantom: PhantomData<fn() -> E>,
   pub(crate) stream: TlsStream<S, TCX, true>,
@@ -110,7 +109,7 @@ where
   where
     RNG: CryptoRng,
   {
-    let mut this = Self { cb, cs: ConnectionState::Open, phantom: PhantomData, stream };
+    let mut this = Self { cb, phantom: PhantomData, stream };
     this.send_initial_conn_msg(config).await?;
     this.manage_authentication(config, rng, tls_server_end_point).await?;
     this.read_after_authentication_data().await?;
@@ -135,7 +134,7 @@ where
 
   #[inline]
   fn connection_state(&self) -> ConnectionState {
-    self.cs
+    ConnectionState::Open
   }
 
   #[inline]
@@ -155,7 +154,6 @@ where
     Self::simple_query_execute(
       buffer,
       cmd,
-      &mut self.cs,
       read_buffer,
       records_params,
       stmts,
@@ -179,19 +177,18 @@ where
     SC: StmtCmd,
   {
     _debug!("Executing `{:?}`", sc.cmd());
-    let Self { cb: client_buffer, cs, phantom: _, stream } = self;
+    let Self { cb: client_buffer, phantom: _, stream } = self;
     let ClientBuffer { common, conn_params: _ } = client_buffer;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
-    let tuple =
-      Self::write_send_await_stmt_prepare(cs, read_buffer, &rv, sc, stmts, stream).await?;
+    let tuple = Self::write_send_await_stmt_prepare(read_buffer, &rv, sc, stmts, stream).await?;
     let (_, stmt_cmd_id_array, stmt_mut) = tuple;
-    Self::write_send_await_stmt_bind(cs, read_buffer, rv, &stmt_cmd_id_array, stream).await?;
+    Self::write_send_await_stmt_bind(read_buffer, rv, &stmt_cmd_id_array, stream).await?;
     let begin_data = read_buffer.current_end_idx().wrapping_add(7);
     let mut affected_rows = 0u64;
     *read_buffer.forbid_clear_mut() = true;
     loop {
-      let msg = Self::fetch_msg(cs, read_buffer, stream).await?;
+      let msg = Self::fetch_msg(read_buffer, stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(rows_len) => {
           affected_rows = u64::from(rows_len);
@@ -237,11 +234,11 @@ where
 
   #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
-    let Self { cb, cs, phantom: _, stream } = self;
+    let Self { cb, phantom: _, stream } = self;
     let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, records_params, stmts, values_params } = common;
     clear_query_buffers(records_params, values_params);
-    Ok(Self::write_send_await_stmt_prepare(cs, read_buffer, &(), cmd, stmts, stream).await?.0)
+    Ok(Self::write_send_await_stmt_prepare(read_buffer, &(), cmd, stmts, stream).await?.0)
   }
 }
 
