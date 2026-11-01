@@ -7,7 +7,7 @@ use wtx::{
   asn1::parse_der_from_pem_range,
   calendar::Datetime,
   codec::{Decode as _, DecodeWrapper, Pem},
-  collections::VectorUsize,
+  collections::{VectorU8, VectorUsize},
   x509::{Certificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor},
 };
 
@@ -107,7 +107,7 @@ fn validate_chain<'any>(
   intermediate: &CvIntermediate<&'any [u8]>,
   trust_anchor: &CvTrustAnchor<&'any [u8]>,
 ) -> wtx::Result<()> {
-  let cvp = CvPolicy::new(Datetime::from_timestamp_secs(1779000000)?);
+  let cvp = CvPolicy::new(VectorU8::new(), Datetime::from_timestamp_secs(1779000000)?);
   let verified_path = end_entity.validate_chain(
     slice::from_ref(intermediate),
     &cvp,

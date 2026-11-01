@@ -1,6 +1,8 @@
 #![allow(clippy::disallowed_methods, reason = "used as fallbacks")]
 
-use crate::misc::{AsciiGeneric, BasicUtf8Error, ExtUtf8Error, Lease, PartialChar, StdUtf8Error};
+use crate::misc::{
+  Ascii, AsciiParams, BasicUtf8Error, ExtUtf8Error, Lease, PartialChar, StdUtf8Error,
+};
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
@@ -148,7 +150,10 @@ pub fn from_utf8_std(bytes: &[u8]) -> Result<&str, StdUtf8Error> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_pos1(str: &str, elem: AsciiGeneric) -> Option<usize> {
+pub fn str_pos1<T>(str: &str, elem: Ascii<T>) -> Option<usize>
+where
+  T: AsciiParams,
+{
   #[cfg(feature = "memchr")]
   return memchr::memchr(elem.into(), str.as_bytes());
   #[cfg(not(feature = "memchr"))]
@@ -157,14 +162,20 @@ pub fn str_pos1(str: &str, elem: AsciiGeneric) -> Option<usize> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_rsplit_once1(str: &str, elem: AsciiGeneric) -> Option<(&str, &str)> {
+pub fn str_rsplit_once1<T>(str: &str, elem: Ascii<T>) -> Option<(&str, &str)>
+where
+  T: AsciiParams,
+{
   let idx = bytes_rpos1(str.as_bytes(), elem.into())?;
   Some((str.get(..idx)?, str.get(idx.wrapping_add(1)..)?))
 }
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_split1(str: &str, elem: AsciiGeneric) -> impl Iterator<Item = &str> {
+pub fn str_split1<T>(str: &str, elem: Ascii<T>) -> impl Iterator<Item = &str>
+where
+  T: AsciiParams,
+{
   #[cfg(feature = "memchr")]
   return memchr::memchr_iter(elem.into(), str.as_bytes()).chain(core::iter::once(str.len())).scan(
     0,
@@ -182,7 +193,10 @@ pub fn str_split1(str: &str, elem: AsciiGeneric) -> impl Iterator<Item = &str> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_split_once1(str: &str, elem: AsciiGeneric) -> Option<(&str, &str)> {
+pub fn str_split_once1<T>(str: &str, elem: Ascii<T>) -> Option<(&str, &str)>
+where
+  T: AsciiParams,
+{
   let idx = str_pos1(str, elem)?;
   Some((str.get(..idx)?, str.get(idx.wrapping_add(1)..)?))
 }

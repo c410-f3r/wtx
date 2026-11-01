@@ -6,7 +6,7 @@ use crate::{
       push::{push_four_digits_year, push_two_spaces_day},
     },
   },
-  codec::i16_string,
+  codec::num_str::nstr16,
   collections::{ArrayString, ArrayStringU8},
 };
 
@@ -70,7 +70,7 @@ impl Date {
           string.push_str(self.month().num_str())?;
         }
         CalendarToken::TwoDigitYear => {
-          string.push_str(&i16_string(self.year().num().rem_euclid(100)))?;
+          string.push_str(&nstr16(self.year().num().rem_euclid(100)))?;
         }
         CalendarToken::TwoSpaceDay => {
           push_two_spaces_day(*self, &mut string)?;

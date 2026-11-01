@@ -1,5 +1,5 @@
 use crate::{
-  codec::{U64String, u64_string},
+  codec::num_str::{NumStr64, nstr64},
   collections::{TryExtend, VectorUsize},
   database::{
     StmtCmd as _,
@@ -85,11 +85,11 @@ where
         MessageTy::RowDescription(columns_len, mut rd) => {
           if !B::IS_UNIT {
             static ID: AtomicU64 = AtomicU64::new(1);
-            let timestamp_nanos_str = u64_string(ID.fetch_add(1, Ordering::Relaxed));
+            let timestamp_nanos_str = nstr64(ID.fetch_add(1, Ordering::Relaxed));
             let stmt_cmd_id = timestamp_nanos_str.as_str().hash(stmts.hasher_mut());
             let mut builder = stmts
               .builder((), {
-                async fn fun(_: &mut (), _: StatementsMisc<U64String>) -> crate::Result<()> {
+                async fn fun(_: &mut (), _: StatementsMisc<NumStr64>) -> crate::Result<()> {
                   Ok(())
                 }
                 fun

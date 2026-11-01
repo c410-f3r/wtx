@@ -2,7 +2,7 @@ use crate::{
   codec::FromRadix10 as _,
   collections::ShortBoxStrU16,
   database::client::postgres::{PostgresError, SqlState},
-  misc::{AsciiGeneric, Usize, into_rslt, str_split1, usize_range_from_u32_range},
+  misc::{AsciiControl, Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
 use core::{
   fmt::{Debug, Formatter},
@@ -252,7 +252,7 @@ impl TryFrom<&str> for DbError {
         }
         return Err(crate::Error::UnexpectedString { length: rest.len() });
       }
-      let Some(data) = str_split1(rest, AsciiGeneric::NULL).next() else {
+      let Some(data) = str_split1(rest, AsciiControl::NULL).next() else {
         return Err(PostgresError::InsufficientDbErrorBytes.into());
       };
       let begin = idx;

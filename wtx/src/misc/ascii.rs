@@ -1,30 +1,30 @@
+use crate::misc::const_ok;
 use core::{
   fmt::{Display, Formatter, Write as _},
+  marker::PhantomData,
   str::FromStr,
 };
 
 /// For example, `A` or `b`.
-pub type AsciiAlphabetic = Ascii<0>;
+pub type AsciiAlphabetic = Ascii<AsciiAlphabeticParams>;
 /// For example, `A`, `b`, or `1`.
-pub type AsciiAlphaNumeric = Ascii<1>;
+pub type AsciiAlphaNumeric = Ascii<AsciiAlphaNumericParams>;
 /// For example, `\n` or `\t`.
-pub type AsciiControl = Ascii<2>;
+pub type AsciiControl = Ascii<AsciiControlParams>;
 /// For example, `0` or `9`.
-pub type AsciiDigit = Ascii<3>;
-/// Arbitrary ASCII.
-pub type AsciiGeneric = Ascii<4>;
+pub type AsciiDigit = Ascii<AsciiDigitParams>;
 /// For example, `;`, `1` or `!`.
-pub type AsciiGraphic = Ascii<5>;
+pub type AsciiGraphic = Ascii<AsciiGraphicParams>;
 /// For example, `0`, `9`, `A`, or `f`.
-pub type AsciiHexDigit = Ascii<6>;
+pub type AsciiHexDigit = Ascii<AsciiHexDigitParams>;
 /// For example, `a` or `z`.
-pub type AsciiLowercase = Ascii<7>;
+pub type AsciiLowercase = Ascii<AsciiLowercaseParams>;
 /// For example, `!` or `;`.
-pub type AsciiPunctuation = Ascii<8>;
+pub type AsciiPunctuation = Ascii<AsciiPunctuationParams>;
 /// For example, `A` or `Z`.
-pub type AsciiUppercase = Ascii<9>;
+pub type AsciiUppercase = Ascii<AsciiUppercaseParams>;
 /// For example, ` ` or `\n`.
-pub type AsciiWhitespace = Ascii<10>;
+pub type AsciiWhitespace = Ascii<AsciiWhitespaceParams>;
 
 /// ASCII error
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -33,8 +33,6 @@ pub enum AsciiError {
   NotAlphabetic,
   /// Not an ASCII alphanumeric character.
   NotAlphaNumeric,
-  /// Not valid ASCII.
-  NotAscii,
   /// Not an ASCII control character.
   NotControl,
   /// Not an ASCII digit.
@@ -60,120 +58,373 @@ pub enum AsciiError {
 /// ASCII type
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AsciiTy {
-  /// Alphabetic
+  /// For example, `A` or `b`.
   Alphabetic,
-  /// `AlphaNumeric`
+  /// For example, `A`, `b`, or `1`.
   AlphaNumeric,
-  /// Control
+  /// For example, `\n` or `\t`.
   Control,
-  /// Digit
+  /// For example, `0` or `9`.
   Digit,
-  /// Generic
-  Generic,
-  /// Graphic
+  /// For example, `;`, `1` or `!`.
   Graphic,
-  /// `HexDigit`
+  /// For example, `0`, `9`, `A`, or `f`.
   HexDigit,
-  /// Lowercase
+  /// For example, `a` or `z`.
   Lowercase,
-  /// Punctuation
+  /// For example, `!` or `;`.
   Punctuation,
-  /// Uppercase
+  /// For example, `A` or `Z`.
   Uppercase,
-  /// Whitespace
+  /// For example, ` ` or `\n`.
   Whitespace,
 }
 
 /// A byte that is guaranteed to match a specific ASCII category.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Eq, Hash, Ord, PartialOrd)]
 #[repr(transparent)]
-pub struct Ascii<const AT: u8>(u8);
+pub struct Ascii<T>(u8, PhantomData<fn() -> T>);
 
-impl<const AT: u8> Ascii<AT> {
+impl<T> Ascii<T>
+where
+  T: AsciiParams,
+{
+  /// Null character
+  pub const NULL: Self = const_ok(Self::new(0)).unwrap();
+  /// Start of heading
+  pub const START_OF_HEADING: Self = const_ok(Self::new(1)).unwrap();
+  /// Start of text
+  pub const START_OF_TEXT: Self = const_ok(Self::new(2)).unwrap();
+  /// End of text
+  pub const END_OF_TEXT: Self = const_ok(Self::new(3)).unwrap();
+  /// End of transmission
+  pub const END_OF_TRANSMISSION: Self = const_ok(Self::new(4)).unwrap();
+  /// Enquiry
+  pub const ENQUIRY: Self = const_ok(Self::new(5)).unwrap();
+  /// Acknowledge
+  pub const ACKNOWLEDGE: Self = const_ok(Self::new(6)).unwrap();
+  /// Bell
+  pub const BELL: Self = const_ok(Self::new(7)).unwrap();
+  /// Backspace
+  pub const BACKSPACE: Self = const_ok(Self::new(8)).unwrap();
+  /// Horizontal tab
+  pub const TAB: Self = const_ok(Self::new(b'\t')).unwrap();
+  /// Line feed
+  pub const LINE_FEED: Self = const_ok(Self::new(b'\n')).unwrap();
+  /// Vertical tab
+  pub const VERTICAL_TAB: Self = const_ok(Self::new(11)).unwrap();
+  /// Form feed
+  pub const FORM_FEED: Self = const_ok(Self::new(12)).unwrap();
+  /// Carriage return
+  pub const CARRIAGE_RETURN: Self = const_ok(Self::new(b'\r')).unwrap();
+  /// Shift out
+  pub const SHIFT_OUT: Self = const_ok(Self::new(14)).unwrap();
+  /// Shift in
+  pub const SHIFT_IN: Self = const_ok(Self::new(15)).unwrap();
+  /// Data link escape
+  pub const DATA_LINK_ESCAPE: Self = const_ok(Self::new(16)).unwrap();
+  /// Device control 1
+  pub const DEVICE_CONTROL_1: Self = const_ok(Self::new(17)).unwrap();
+  /// Device control 2
+  pub const DEVICE_CONTROL_2: Self = const_ok(Self::new(18)).unwrap();
+  /// Device control 3
+  pub const DEVICE_CONTROL_3: Self = const_ok(Self::new(19)).unwrap();
+  /// Device control 4
+  pub const DEVICE_CONTROL_4: Self = const_ok(Self::new(20)).unwrap();
+  /// Negative acknowledge
+  pub const NEGATIVE_ACKNOWLEDGE: Self = const_ok(Self::new(21)).unwrap();
+  /// Synchronous idle
+  pub const SYNCHRONOUS_IDLE: Self = const_ok(Self::new(22)).unwrap();
+  /// End of transmission block
+  pub const END_OF_TRANSMISSION_BLOCK: Self = const_ok(Self::new(23)).unwrap();
+  /// Cancel
+  pub const CANCEL: Self = const_ok(Self::new(24)).unwrap();
+  /// End of medium
+  pub const END_OF_MEDIUM: Self = const_ok(Self::new(25)).unwrap();
+  /// Substitute
+  pub const SUBSTITUTE: Self = const_ok(Self::new(26)).unwrap();
+  /// Escape
+  pub const ESCAPE: Self = const_ok(Self::new(27)).unwrap();
+  /// File separator
+  pub const FILE_SEPARATOR: Self = const_ok(Self::new(28)).unwrap();
+  /// Group separator
+  pub const GROUP_SEPARATOR: Self = const_ok(Self::new(29)).unwrap();
+  /// Record separator
+  pub const RECORD_SEPARATOR: Self = const_ok(Self::new(30)).unwrap();
+  /// Unit separator
+  pub const UNIT_SEPARATOR: Self = const_ok(Self::new(31)).unwrap();
+  /// Space
+  pub const SPACE: Self = const_ok(Self::new(b' ')).unwrap();
+  /// Exclamation mark
+  pub const EXCLAMATION_MARK: Self = const_ok(Self::new(b'!')).unwrap();
+  /// Double quote
+  pub const DOUBLE_QUOTE: Self = const_ok(Self::new(b'"')).unwrap();
+  /// Hash
+  pub const HASH: Self = const_ok(Self::new(b'#')).unwrap();
+  /// Dollar sign
+  pub const DOLLAR: Self = const_ok(Self::new(b'$')).unwrap();
+  /// Percent sign
+  pub const PERCENT: Self = const_ok(Self::new(b'%')).unwrap();
+  /// Ampersand
+  pub const AMPERSAND: Self = const_ok(Self::new(b'&')).unwrap();
+  /// Single quote
+  pub const SINGLE_QUOTE: Self = const_ok(Self::new(b'\'')).unwrap();
+  /// Left parenthesis
+  pub const LEFT_PARENTHESIS: Self = const_ok(Self::new(b'(')).unwrap();
+  /// Right parenthesis
+  pub const RIGHT_PARENTHESIS: Self = const_ok(Self::new(b')')).unwrap();
+  /// Asterisk
+  pub const ASTERISK: Self = const_ok(Self::new(b'*')).unwrap();
+  /// Plus sign
+  pub const PLUS: Self = const_ok(Self::new(b'+')).unwrap();
+  /// Comma
+  pub const COMMA: Self = const_ok(Self::new(b',')).unwrap();
+  /// Minus sign
+  pub const MINUS: Self = const_ok(Self::new(b'-')).unwrap();
+  /// Period
+  pub const DOT: Self = const_ok(Self::new(b'.')).unwrap();
+  /// Forward slash
+  pub const SLASH: Self = const_ok(Self::new(b'/')).unwrap();
+  /// Digit 0
+  pub const ZERO: Self = const_ok(Self::new(b'0')).unwrap();
+  /// Digit 1
+  pub const ONE: Self = const_ok(Self::new(b'1')).unwrap();
+  /// Digit 2
+  pub const TWO: Self = const_ok(Self::new(b'2')).unwrap();
+  /// Digit 3
+  pub const THREE: Self = const_ok(Self::new(b'3')).unwrap();
+  /// Digit 4
+  pub const FOUR: Self = const_ok(Self::new(b'4')).unwrap();
+  /// Digit 5
+  pub const FIVE: Self = const_ok(Self::new(b'5')).unwrap();
+  /// Digit 6
+  pub const SIX: Self = const_ok(Self::new(b'6')).unwrap();
+  /// Digit 7
+  pub const SEVEN: Self = const_ok(Self::new(b'7')).unwrap();
+  /// Digit 8
+  pub const EIGHT: Self = const_ok(Self::new(b'8')).unwrap();
+  /// Digit 9
+  pub const NINE: Self = const_ok(Self::new(b'9')).unwrap();
+  /// Colon
+  pub const COLON: Self = const_ok(Self::new(b':')).unwrap();
+  /// Semicolon
+  pub const SEMICOLON: Self = const_ok(Self::new(b';')).unwrap();
+  /// Less than
+  pub const LESS_THAN: Self = const_ok(Self::new(b'<')).unwrap();
+  /// Equals sign
+  pub const EQUAL: Self = const_ok(Self::new(b'=')).unwrap();
+  /// Greater than
+  pub const GREATER_THAN: Self = const_ok(Self::new(b'>')).unwrap();
+  /// Question mark
+  pub const QUESTION_MARK: Self = const_ok(Self::new(b'?')).unwrap();
+  /// At symbol
+  pub const AT: Self = const_ok(Self::new(b'@')).unwrap();
+  /// Uppercase A
+  pub const A_UPPER: Self = const_ok(Self::new(b'A')).unwrap();
+  /// Uppercase B
+  pub const B_UPPER: Self = const_ok(Self::new(b'B')).unwrap();
+  /// Uppercase C
+  pub const C_UPPER: Self = const_ok(Self::new(b'C')).unwrap();
+  /// Uppercase D
+  pub const D_UPPER: Self = const_ok(Self::new(b'D')).unwrap();
+  /// Uppercase E
+  pub const E_UPPER: Self = const_ok(Self::new(b'E')).unwrap();
+  /// Uppercase F
+  pub const F_UPPER: Self = const_ok(Self::new(b'F')).unwrap();
+  /// Uppercase G
+  pub const G_UPPER: Self = const_ok(Self::new(b'G')).unwrap();
+  /// Uppercase H
+  pub const H_UPPER: Self = const_ok(Self::new(b'H')).unwrap();
+  /// Uppercase I
+  pub const I_UPPER: Self = const_ok(Self::new(b'I')).unwrap();
+  /// Uppercase J
+  pub const J_UPPER: Self = const_ok(Self::new(b'J')).unwrap();
+  /// Uppercase K
+  pub const K_UPPER: Self = const_ok(Self::new(b'K')).unwrap();
+  /// Uppercase L
+  pub const L_UPPER: Self = const_ok(Self::new(b'L')).unwrap();
+  /// Uppercase M
+  pub const M_UPPER: Self = const_ok(Self::new(b'M')).unwrap();
+  /// Uppercase N
+  pub const N_UPPER: Self = const_ok(Self::new(b'N')).unwrap();
+  /// Uppercase O
+  pub const O_UPPER: Self = const_ok(Self::new(b'O')).unwrap();
+  /// Uppercase P
+  pub const P_UPPER: Self = const_ok(Self::new(b'P')).unwrap();
+  /// Uppercase Q
+  pub const Q_UPPER: Self = const_ok(Self::new(b'Q')).unwrap();
+  /// Uppercase R
+  pub const R_UPPER: Self = const_ok(Self::new(b'R')).unwrap();
+  /// Uppercase S
+  pub const S_UPPER: Self = const_ok(Self::new(b'S')).unwrap();
+  /// Uppercase T
+  pub const T_UPPER: Self = const_ok(Self::new(b'T')).unwrap();
+  /// Uppercase U
+  pub const U_UPPER: Self = const_ok(Self::new(b'U')).unwrap();
+  /// Uppercase V
+  pub const V_UPPER: Self = const_ok(Self::new(b'V')).unwrap();
+  /// Uppercase W
+  pub const W_UPPER: Self = const_ok(Self::new(b'W')).unwrap();
+  /// Uppercase X
+  pub const X_UPPER: Self = const_ok(Self::new(b'X')).unwrap();
+  /// Uppercase Y
+  pub const Y_UPPER: Self = const_ok(Self::new(b'Y')).unwrap();
+  /// Uppercase Z
+  pub const Z_UPPER: Self = const_ok(Self::new(b'Z')).unwrap();
+  /// Left square bracket
+  pub const LEFT_BRACKET: Self = const_ok(Self::new(b'[')).unwrap();
+  /// Backslash
+  pub const BACKSLASH: Self = const_ok(Self::new(b'\\')).unwrap();
+  /// Right square bracket
+  pub const RIGHT_BRACKET: Self = const_ok(Self::new(b']')).unwrap();
+  /// Caret
+  pub const CARET: Self = const_ok(Self::new(b'^')).unwrap();
+  /// Underscore
+  pub const UNDERSCORE: Self = const_ok(Self::new(b'_')).unwrap();
+  /// Backtick
+  pub const BACKTICK: Self = const_ok(Self::new(b'`')).unwrap();
+  /// Lowercase a
+  pub const A_LOWER: Self = const_ok(Self::new(b'a')).unwrap();
+  /// Lowercase b
+  pub const B_LOWER: Self = const_ok(Self::new(b'b')).unwrap();
+  /// Lowercase c
+  pub const C_LOWER: Self = const_ok(Self::new(b'c')).unwrap();
+  /// Lowercase d
+  pub const D_LOWER: Self = const_ok(Self::new(b'd')).unwrap();
+  /// Lowercase e
+  pub const E_LOWER: Self = const_ok(Self::new(b'e')).unwrap();
+  /// Lowercase f
+  pub const F_LOWER: Self = const_ok(Self::new(b'f')).unwrap();
+  /// Lowercase g
+  pub const G_LOWER: Self = const_ok(Self::new(b'g')).unwrap();
+  /// Lowercase h
+  pub const H_LOWER: Self = const_ok(Self::new(b'h')).unwrap();
+  /// Lowercase i
+  pub const I_LOWER: Self = const_ok(Self::new(b'i')).unwrap();
+  /// Lowercase j
+  pub const J_LOWER: Self = const_ok(Self::new(b'j')).unwrap();
+  /// Lowercase k
+  pub const K_LOWER: Self = const_ok(Self::new(b'k')).unwrap();
+  /// Lowercase l
+  pub const L_LOWER: Self = const_ok(Self::new(b'l')).unwrap();
+  /// Lowercase m
+  pub const M_LOWER: Self = const_ok(Self::new(b'm')).unwrap();
+  /// Lowercase n
+  pub const N_LOWER: Self = const_ok(Self::new(b'n')).unwrap();
+  /// Lowercase o
+  pub const O_LOWER: Self = const_ok(Self::new(b'o')).unwrap();
+  /// Lowercase p
+  pub const P_LOWER: Self = const_ok(Self::new(b'p')).unwrap();
+  /// Lowercase q
+  pub const Q_LOWER: Self = const_ok(Self::new(b'q')).unwrap();
+  /// Lowercase r
+  pub const R_LOWER: Self = const_ok(Self::new(b'r')).unwrap();
+  /// Lowercase s
+  pub const S_LOWER: Self = const_ok(Self::new(b's')).unwrap();
+  /// Lowercase t
+  pub const T_LOWER: Self = const_ok(Self::new(b't')).unwrap();
+  /// Lowercase u
+  pub const U_LOWER: Self = const_ok(Self::new(b'u')).unwrap();
+  /// Lowercase v
+  pub const V_LOWER: Self = const_ok(Self::new(b'v')).unwrap();
+  /// Lowercase w
+  pub const W_LOWER: Self = const_ok(Self::new(b'w')).unwrap();
+  /// Lowercase x
+  pub const X_LOWER: Self = const_ok(Self::new(b'x')).unwrap();
+  /// Lowercase y
+  pub const Y_LOWER: Self = const_ok(Self::new(b'y')).unwrap();
+  /// Lowercase z
+  pub const Z_LOWER: Self = const_ok(Self::new(b'z')).unwrap();
+  /// Left curly brace
+  pub const LEFT_BRACE: Self = const_ok(Self::new(b'{')).unwrap();
+  /// Pipe
+  pub const PIPE: Self = const_ok(Self::new(b'|')).unwrap();
+  /// Right curly brace
+  pub const RIGHT_BRACE: Self = const_ok(Self::new(b'}')).unwrap();
+  /// Tilde
+  pub const TILDE: Self = const_ok(Self::new(b'~')).unwrap();
+  /// Delete character
+  pub const DELETE: Self = const_ok(Self::new(127)).unwrap();
+
   /// Generic constructor
   #[inline]
   pub const fn new(byte: u8) -> Result<Self, AsciiError> {
-    match AsciiTy::from_u8(AT) {
+    match T::TY {
       AsciiTy::Alphabetic => {
         if byte.is_ascii_alphabetic() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotAlphabetic)
         }
       }
       AsciiTy::AlphaNumeric => {
         if byte.is_ascii_alphanumeric() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotAlphaNumeric)
         }
       }
       AsciiTy::Control => {
         if byte.is_ascii_control() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotControl)
         }
       }
       AsciiTy::Digit => {
         if byte.is_ascii_digit() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotDigit)
         }
       }
-      AsciiTy::Generic => {
-        if byte.is_ascii() {
-          Ok(Self(byte))
-        } else {
-          Err(AsciiError::NotAscii)
-        }
-      }
       AsciiTy::Graphic => {
         if byte.is_ascii_graphic() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotGraphic)
         }
       }
       AsciiTy::HexDigit => {
         if byte.is_ascii_hexdigit() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotHexDigit)
         }
       }
       AsciiTy::Lowercase => {
         if byte.is_ascii_lowercase() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotLowercase)
         }
       }
       AsciiTy::Punctuation => {
         if byte.is_ascii_punctuation() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotPunctuation)
         }
       }
       AsciiTy::Uppercase => {
         if byte.is_ascii_uppercase() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotUppercase)
         }
       }
       AsciiTy::Whitespace => {
         if byte.is_ascii_whitespace() {
-          Ok(Self(byte))
+          Ok(Self(byte, PhantomData))
         } else {
           Err(AsciiError::NotWhitespace)
         }
       }
     }
   }
+}
 
+impl<T> Ascii<T> {
   /// Returns the underlying byte.
   #[inline]
   pub const fn as_u8(self) -> u8 {
@@ -215,14 +466,6 @@ impl AsciiDigit {
   /// See [`AsciiDigit`].
   #[inline]
   pub const fn digit(byte: u8) -> Result<Self, AsciiError> {
-    Self::new(byte)
-  }
-}
-
-impl AsciiGeneric {
-  /// See [`AsciiGeneric`].
-  #[inline]
-  pub const fn generic(byte: u8) -> Result<Self, AsciiError> {
     Self::new(byte)
   }
 }
@@ -275,28 +518,40 @@ impl AsciiWhitespace {
   }
 }
 
-impl<const AT: u8> Display for Ascii<AT> {
+impl<T> Clone for Ascii<T> {
+  #[inline]
+  fn clone(&self) -> Self {
+    *self
+  }
+}
+
+impl<T> Copy for Ascii<T> {}
+
+impl<T> Display for Ascii<T> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.write_char(self.as_char())
   }
 }
 
-impl<const AT: u8> From<Ascii<AT>> for char {
+impl<T> From<Ascii<T>> for char {
   #[inline]
-  fn from(value: Ascii<AT>) -> Self {
+  fn from(value: Ascii<T>) -> Self {
     value.as_char()
   }
 }
 
-impl<const AT: u8> From<Ascii<AT>> for u8 {
+impl<T> From<Ascii<T>> for u8 {
   #[inline]
-  fn from(value: Ascii<AT>) -> Self {
+  fn from(value: Ascii<T>) -> Self {
     value.0
   }
 }
 
-impl<const AT: u8> FromStr for Ascii<AT> {
+impl<T> FromStr for Ascii<T>
+where
+  T: AsciiParams,
+{
   type Err = crate::Error;
 
   #[inline]
@@ -305,7 +560,31 @@ impl<const AT: u8> FromStr for Ascii<AT> {
   }
 }
 
-impl<const AT: u8> TryFrom<&[u8]> for Ascii<AT> {
+impl<T, U> PartialEq<Ascii<U>> for Ascii<T> {
+  #[inline]
+  fn eq(&self, other: &Ascii<U>) -> bool {
+    self.0 == other.0
+  }
+}
+
+impl<T> PartialEq<u8> for Ascii<T> {
+  #[inline]
+  fn eq(&self, other: &u8) -> bool {
+    self.0 == *other
+  }
+}
+
+impl<T> PartialEq<char> for Ascii<T> {
+  #[inline]
+  fn eq(&self, other: &char) -> bool {
+    self.as_char() == *other
+  }
+}
+
+impl<T> TryFrom<&[u8]> for Ascii<T>
+where
+  T: AsciiParams,
+{
   type Error = crate::Error;
 
   #[inline]
@@ -317,7 +596,10 @@ impl<const AT: u8> TryFrom<&[u8]> for Ascii<AT> {
   }
 }
 
-impl<const AT: u8> TryFrom<&str> for Ascii<AT> {
+impl<T> TryFrom<&str> for Ascii<T>
+where
+  T: AsciiParams,
+{
   type Error = crate::Error;
 
   #[inline]
@@ -326,7 +608,10 @@ impl<const AT: u8> TryFrom<&str> for Ascii<AT> {
   }
 }
 
-impl<const AT: u8> TryFrom<char> for Ascii<AT> {
+impl<T> TryFrom<char> for Ascii<T>
+where
+  T: AsciiParams,
+{
   type Error = crate::Error;
 
   #[inline]
@@ -335,7 +620,10 @@ impl<const AT: u8> TryFrom<char> for Ascii<AT> {
   }
 }
 
-impl<const AT: u8> TryFrom<u8> for Ascii<AT> {
+impl<T> TryFrom<u8> for Ascii<T>
+where
+  T: AsciiParams,
+{
   type Error = crate::Error;
 
   #[inline]
@@ -344,63 +632,37 @@ impl<const AT: u8> TryFrom<u8> for Ascii<AT> {
   }
 }
 
-impl AsciiTy {
-  pub(crate) const fn from_u8(num: u8) -> Self {
-    match num {
-      0 => Self::Alphabetic,
-      1 => Self::AlphaNumeric,
-      2 => Self::Control,
-      3 => Self::Digit,
-      4 => Self::Generic,
-      5 => Self::Graphic,
-      6 => Self::HexDigit,
-      7 => Self::Lowercase,
-      8 => Self::Punctuation,
-      9 => Self::Uppercase,
-      _ => Self::Whitespace,
-    }
-  }
+/// Ascii Params
+pub trait AsciiParams: private::Sealed {
+  /// See [`AsciiTy`]
+  const TY: AsciiTy;
 }
 
-macro_rules! create_constants {
+macro_rules! create_params {
   (
-    $($ty:ty),+ $(,)? {
-      $($name:ident = $val:expr;)+
-    }
-  ) => {
-    create_constants!(@expand { $($ty),+ } { $($name = $val;)+ });
-  };
-  (@expand { $($ty:ty),+ } $consts:tt) => {
-    $(create_constants!(@impl $ty, $consts);)+
-  };
-  (@impl $ty:ty, { $($name:ident = $val:expr;)+ }) => {
-    impl $ty {
-      $(
-        #[doc = stringify!($name)]
-        pub const $name: Self = Self($val);
-      )+
-    }
-  };
-}
-
-macro_rules! create_conversions {
-  (
-    $($ty:ident),* $(,)?
+    $(($name:ident, $ty:expr)),* $(,)?
   ) => {
     $(
-      impl From<$ty> for AsciiGeneric {
-        #[inline]
-        fn from(value: $ty) -> Self {
-          Self(value.as_u8())
-        }
+      /// Parameters used by the associated ASCII range
+      #[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+      pub struct $name;
+
+      impl AsciiParams for $name {
+        const TY: AsciiTy = $ty;
       }
 
-      impl TryFrom<AsciiGeneric> for $ty {
-        type Error = crate::Error;
+      impl private::Sealed for $name {}
+    )*
+  };
+}
 
+macro_rules! impl_conversion {
+  ($(($from:ty, $to:ty)),* $(,)?) => {
+    $(
+      impl From<$from> for $to {
         #[inline]
-        fn try_from(value: AsciiGeneric) -> Result<Self, Self::Error> {
-          Ok(Self::new(value.as_u8())?)
+        fn from(value: $from) -> Self {
+          Self(value.0, PhantomData)
         }
       }
     )*
@@ -409,163 +671,54 @@ macro_rules! create_conversions {
 
 macro_rules! impl_default {
   (
-    $(($type:ident, $char:expr)),* $(,)?
+    $(($name:ident, $char:expr)),* $(,)?
   ) => {
     $(
-      impl Default for $type {
+      impl Default for $name {
         #[inline]
         fn default() -> Self {
-          Self($char)
+          Self($char, PhantomData)
         }
       }
     )*
   };
 }
 
-create_constants! {
-  AsciiGeneric {
-    NULL = 0;
-    START_OF_HEADING = 1;
-    START_OF_TEXT = 2;
-    END_OF_TEXT = 3;
-    END_OF_TRANSMISSION = 4;
-    ENQUIRY = 5;
-    ACKNOWLEDGE = 6;
-    BELL = 7;
-    BACKSPACE = 8;
-    TAB = b'\t';
-    LINE_FEED = b'\n';
-    VERTICAL_TAB = 11;
-    FORM_FEED = 12;
-    CARRIAGE_RETURN = b'\r';
-    SHIFT_OUT = 14;
-    SHIFT_IN = 15;
-    DATA_LINK_ESCAPE = 16;
-    DEVICE_CONTROL_1 = 17;
-    DEVICE_CONTROL_2 = 18;
-    DEVICE_CONTROL_3 = 19;
-    DEVICE_CONTROL_4 = 20;
-    NEGATIVE_ACKNOWLEDGE = 21;
-    SYNCHRONOUS_IDLE = 22;
-    END_OF_TRANSMISSION_BLOCK = 23;
-    CANCEL = 24;
-    END_OF_MEDIUM = 25;
-    SUBSTITUTE = 26;
-    ESCAPE = 27;
-    FILE_SEPARATOR = 28;
-    GROUP_SEPARATOR = 29;
-    RECORD_SEPARATOR = 30;
-    UNIT_SEPARATOR = 31;
-    SPACE = b' ';
-    EXCLAMATION_MARK = b'!';
-    DOUBLE_QUOTE = b'"';
-    HASH = b'#';
-    DOLLAR = b'$';
-    PERCENT = b'%';
-    AMPERSAND = b'&';
-    SINGLE_QUOTE = b'\'';
-    LEFT_PARENTHESIS = b'(';
-    RIGHT_PARENTHESIS = b')';
-    ASTERISK = b'*';
-    PLUS = b'+';
-    COMMA = b',';
-    MINUS = b'-';
-    DOT = b'.';
-    SLASH = b'/';
-    ZERO = b'0';
-    ONE = b'1';
-    TWO = b'2';
-    THREE = b'3';
-    FOUR = b'4';
-    FIVE = b'5';
-    SIX = b'6';
-    SEVEN = b'7';
-    EIGHT = b'8';
-    NINE = b'9';
-    COLON = b':';
-    SEMICOLON = b';';
-    LESS_THAN = b'<';
-    EQUAL = b'=';
-    GREATER_THAN = b'>';
-    QUESTION_MARK = b'?';
-    AT = b'@';
-    A_UPPER = b'A';
-    B_UPPER = b'B';
-    C_UPPER = b'C';
-    D_UPPER = b'D';
-    E_UPPER = b'E';
-    F_UPPER = b'F';
-    G_UPPER = b'G';
-    H_UPPER = b'H';
-    I_UPPER = b'I';
-    J_UPPER = b'J';
-    K_UPPER = b'K';
-    L_UPPER = b'L';
-    M_UPPER = b'M';
-    N_UPPER = b'N';
-    O_UPPER = b'O';
-    P_UPPER = b'P';
-    Q_UPPER = b'Q';
-    R_UPPER = b'R';
-    S_UPPER = b'S';
-    T_UPPER = b'T';
-    U_UPPER = b'U';
-    V_UPPER = b'V';
-    W_UPPER = b'W';
-    X_UPPER = b'X';
-    Y_UPPER = b'Y';
-    Z_UPPER = b'Z';
-    LEFT_BRACKET = b'[';
-    BACKSLASH = b'\\';
-    RIGHT_BRACKET = b']';
-    CARET = b'^';
-    UNDERSCORE = b'_';
-    BACKTICK = b'`';
-    A_LOWER = b'a';
-    B_LOWER = b'b';
-    C_LOWER = b'c';
-    D_LOWER = b'd';
-    E_LOWER = b'e';
-    F_LOWER = b'f';
-    G_LOWER = b'g';
-    H_LOWER = b'h';
-    I_LOWER = b'i';
-    J_LOWER = b'j';
-    K_LOWER = b'k';
-    L_LOWER = b'l';
-    M_LOWER = b'm';
-    N_LOWER = b'n';
-    O_LOWER = b'o';
-    P_LOWER = b'p';
-    Q_LOWER = b'q';
-    R_LOWER = b'r';
-    S_LOWER = b's';
-    T_LOWER = b't';
-    U_LOWER = b'u';
-    V_LOWER = b'v';
-    W_LOWER = b'w';
-    X_LOWER = b'x';
-    Y_LOWER = b'y';
-    Z_LOWER = b'z';
-    LEFT_BRACE = b'{';
-    PIPE = b'|';
-    RIGHT_BRACE = b'}';
-    TILDE = b'~';
-    DELETE = 127;
-  }
+create_params! {
+  (AsciiAlphabeticParams, AsciiTy::Alphabetic),
+  (AsciiAlphaNumericParams, AsciiTy::AlphaNumeric),
+  (AsciiControlParams, AsciiTy::Control),
+  (AsciiDigitParams, AsciiTy::Digit),
+  (AsciiGraphicParams, AsciiTy::Graphic),
+  (AsciiHexDigitParams, AsciiTy::HexDigit),
+  (AsciiLowercaseParams, AsciiTy::Lowercase),
+  (AsciiPunctuationParams, AsciiTy::Punctuation),
+  (AsciiUppercaseParams, AsciiTy::Uppercase),
+  (AsciiWhitespaceParams, AsciiTy::Whitespace),
 }
 
-create_conversions! {
-  AsciiAlphabetic,
-  AsciiAlphaNumeric,
-  AsciiControl,
-  AsciiDigit,
-  AsciiGraphic,
-  AsciiHexDigit,
-  AsciiLowercase,
-  AsciiPunctuation,
-  AsciiUppercase,
-  AsciiWhitespace,
+impl_conversion! {
+  (AsciiAlphabetic, AsciiAlphaNumeric),
+  (AsciiAlphabetic, AsciiGraphic),
+
+  (AsciiAlphaNumeric, AsciiGraphic),
+
+  (AsciiDigit, AsciiAlphaNumeric),
+  (AsciiDigit, AsciiGraphic),
+  (AsciiDigit, AsciiHexDigit),
+
+  (AsciiHexDigit, AsciiAlphaNumeric),
+  (AsciiHexDigit, AsciiGraphic),
+
+  (AsciiLowercase, AsciiAlphabetic),
+  (AsciiLowercase, AsciiAlphaNumeric),
+  (AsciiLowercase, AsciiGraphic),
+
+  (AsciiPunctuation, AsciiGraphic),
+
+  (AsciiUppercase, AsciiAlphabetic),
+  (AsciiUppercase, AsciiAlphaNumeric),
+  (AsciiUppercase, AsciiGraphic),
 }
 
 impl_default! {
@@ -573,11 +726,15 @@ impl_default! {
   (AsciiAlphaNumeric, b'0'),
   (AsciiControl, 0),
   (AsciiDigit, b'0'),
-  (AsciiGeneric, b'A'),
   (AsciiGraphic, b'!'),
   (AsciiHexDigit, b'0'),
   (AsciiLowercase, b'a'),
   (AsciiPunctuation, b'.'),
   (AsciiUppercase, b'A'),
   (AsciiWhitespace, b' ')
+}
+
+mod private {
+  #[allow(unnameable_types, reason = "intended behavior")]
+  pub trait Sealed {}
 }

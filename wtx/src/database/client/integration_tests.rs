@@ -1,5 +1,5 @@
 use crate::{
-  codec::{CodecController, Decode, Encode, u16_string},
+  codec::{CodecController, Decode, Encode, num_str::nstr16},
   collections::VectorUsize,
   database::{Database, DbClient, Typed, record::Record, records::Records},
   executor::StdRuntime,
@@ -26,11 +26,11 @@ where
             SELECT 12,13,14 UNION SELECT 15,16,17;
           ",
         |record| {
-          assert_eq!(record.decode::<_, &str>(0).unwrap(), u16_string(idx).as_str());
+          assert_eq!(record.decode::<_, &str>(0).unwrap(), nstr16(idx).as_str());
           idx = idx.wrapping_add(1);
-          assert_eq!(record.decode::<_, &str>(1).unwrap(), u16_string(idx).as_str());
+          assert_eq!(record.decode::<_, &str>(1).unwrap(), nstr16(idx).as_str());
           idx = idx.wrapping_add(1);
-          assert_eq!(record.decode::<_, &str>(2).unwrap(), u16_string(idx).as_str());
+          assert_eq!(record.decode::<_, &str>(2).unwrap(), nstr16(idx).as_str());
           idx = idx.wrapping_add(1);
           Ok(())
         },

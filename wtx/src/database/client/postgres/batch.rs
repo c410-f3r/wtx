@@ -1,5 +1,5 @@
 use crate::{
-  codec::u64_string,
+  codec::num_str::nstr64,
   collections::{ArrayVectorCopy, TryExtend},
   database::{
     Database, DatabaseError, RecordValues, StmtCmd,
@@ -86,7 +86,7 @@ where
           cs,
           read_buffer,
           stmt_cmd_id,
-          u64_string(stmt_cmd_id),
+          nstr64(stmt_cmd_id),
           stmts,
           stream,
         )
@@ -158,7 +158,7 @@ where
     let ClientBuffer { common, conn_params: _ } = cb;
     let CommonClientBuffer { read_buffer, stmts, records_params: _, values_params: _ } = common;
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
-    let stmt_cmd_id_array = u64_string(stmt_cmd_id);
+    let stmt_cmd_id_array = nstr64(stmt_cmd_id);
     let is_already_known_externally = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some();
     let is_already_known_internally = self.stmt_cmd_ids.iter().any(|&(id, _)| id == stmt_cmd_id);
     let is_already_known = is_already_known_externally || is_already_known_internally;

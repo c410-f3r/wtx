@@ -9,7 +9,7 @@ mod simple_seed;
 mod weighted_index;
 mod xorshift;
 
-use crate::misc::{Ascii, TryArithmetic};
+use crate::misc::{Ascii, AsciiParams, TryArithmetic};
 pub use cha_cha20::ChaCha20;
 use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
@@ -24,16 +24,30 @@ pub use xorshift::*;
 ///
 /// Abstraction tailored for the needs of this project.
 pub trait Rng: Sized {
-  /// Returns an infinite iterator that will always output printable ASCII bytes.
+  /// Returns an infinite iterator that yields random ASCII bytes.
   ///
-  /// The ASCII parameter is only used for inference.
-  //
-  // FIXME(STABLE) `const AT: AsciiTy`
+  /// The `_ascii` argument is not used and only exists for type inference, therefore, callers
+  /// can pass any value of the desired category, such as the one returned by `T::default()`.
+  ///
+  /// ```rust
+  /// use wtx::{
+  ///   misc::AsciiAlphabetic,
+  ///   rng::{Rng, Xorshift64},
+  /// };
+  ///
+  /// let mut rng = Xorshift64::new(1);
+  /// let mut iter = rng.ascii_iter(AsciiAlphabetic::default());
+  /// let letters = iter.take(5).map(|el| el.as_char()).collect::<Vec<_>>();
+  /// assert!(letters.iter().all(char::is_ascii_alphabetic));
+  /// ```
   #[inline]
-  fn ascii_iter<const AT: u8>(&mut self, _: Ascii<AT>) -> impl Iterator<Item = Ascii<AT>> {
+  fn ascii_iter<T>(&mut self, _ascii: Ascii<T>) -> impl Iterator<Item = Ascii<T>>
+  where
+    T: AsciiParams,
+  {
     iter::repeat_with(|| self.u8_4())
       .flat_map(IntoIterator::into_iter)
-      .filter_map(|el| Ascii::<AT>::new(el).ok())
+      .filter_map(|el| Ascii::<T>::new(el).ok())
   }
 
   /// Chooses a random element from the slice. Returns `None` if the slice is empty.

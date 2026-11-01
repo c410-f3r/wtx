@@ -358,7 +358,7 @@ fn evaluate_test_case<'bytes>(
     return;
   };
 
-  let mut cvp = CvPolicy::new(Datetime::now().unwrap());
+  let mut cvp = CvPolicy::new(Vector::new(), Datetime::now().unwrap());
   mem::swap(cvp.crls_mut(), crls);
   fill_cvp(&mut cvp, ExtendedKeyUsage::default(), testcase);
 
@@ -439,7 +439,11 @@ where
   }
 }
 
-fn fill_cvp(cvp: &mut CvPolicy<&[u8]>, mut eku: ExtendedKeyUsage, testcase: &Testcase) {
+fn fill_cvp(
+  cvp: &mut CvPolicy<VectorU8<CvCrl<&[u8]>>>,
+  mut eku: ExtendedKeyUsage,
+  testcase: &Testcase,
+) {
   for elem in &testcase.extended_key_usage {
     match elem {
       KnownEKUs::AnyExtendedKeyUsage => {

@@ -2,7 +2,7 @@ mod req_builder;
 mod res_builder;
 
 use crate::{
-  codec::u32_string,
+  codec::num_str::nstr32,
   collections::VectorUsize,
   http::{Header, KnownHeaderName, Mime, MsgDataMut},
   misc::{Either, LeaseMut},
@@ -116,7 +116,7 @@ where
   pub fn content_length(&mut self, value: u32) -> crate::Result<&mut Self> {
     self.msg_data.headers_mut().push_from_iter(Header::from_name_and_value(
       KnownHeaderName::ContentLength.into(),
-      [u32_string(value).as_str()],
+      [nstr32(value).as_str()],
     ))?;
     Ok(self)
   }

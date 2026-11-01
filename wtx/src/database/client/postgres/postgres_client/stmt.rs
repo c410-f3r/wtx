@@ -1,5 +1,5 @@
 use crate::{
-  codec::{U64String, u64_string},
+  codec::num_str::{NumStr64, nstr64},
   collections::VectorUsize,
   database::{
     DatabaseError, RecordValues, StmtCmd,
@@ -46,7 +46,7 @@ where
     cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     stmt_cmd_id: u64,
-    stmt_cmd_id_array: U64String,
+    stmt_cmd_id_array: NumStr64,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<PostgresStatementMut<'stmts>, E>
@@ -62,7 +62,7 @@ where
       .builder((&mut *read_buffer, &mut *stream), {
         async fn fun<S>(
           _: &mut (&mut BufStreamReader, &mut S),
-          _: StatementsMisc<U64String>,
+          _: StatementsMisc<NumStr64>,
         ) -> crate::Result<()>
         where
           S: Stream,
@@ -128,7 +128,7 @@ where
     cs: &mut ConnectionState,
     read_buffer: &mut BufStreamReader,
     rv: RV,
-    stmt_cmd_id_array: &U64String,
+    stmt_cmd_id_array: &NumStr64,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(), E>
   where
@@ -149,7 +149,7 @@ where
     sc: SC,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
-  ) -> Result<(u64, U64String, PostgresStatementMut<'stmts>), E>
+  ) -> Result<(u64, NumStr64, PostgresStatementMut<'stmts>), E>
   where
     RV: RecordValues<Postgres<E>>,
     S: Stream,
@@ -157,7 +157,7 @@ where
     TCX: TlsCtx,
   {
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
-    let stmt_cmd_id_array = u64_string(stmt_cmd_id);
+    let stmt_cmd_id_array = nstr64(stmt_cmd_id);
     if let Some(elem) = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id) {
       return Ok((stmt_cmd_id, stmt_cmd_id_array, elem));
     }
@@ -181,7 +181,7 @@ where
 
   pub(crate) fn write_stmt_bind<RV, const SYNC: bool>(
     rv: RV,
-    stmt_cmd_id_array: &U64String,
+    stmt_cmd_id_array: &NumStr64,
     sw: &mut VectorUsize<u8>,
   ) -> Result<(), E>
   where
@@ -199,7 +199,7 @@ where
     buffer: &mut VectorUsize<u8>,
     rv: &RV,
     stmt_cmd: &str,
-    stmt_cmd_id_array: &U64String,
+    stmt_cmd_id_array: &NumStr64,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,

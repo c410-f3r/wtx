@@ -1,7 +1,7 @@
 use crate::{
-  codec::{I32String, num_string},
+  codec::num_str::{NumStr32, NumStrFmt, nstr32_fmt},
   misc::{
-    AsciiGraphic, const_ok,
+    AsciiGraphic,
     int_conv::{i8i32, i16i32, i32f64, u8i32},
   },
 };
@@ -131,17 +131,12 @@ impl IPpm32 {
 
   /// Representation in decimal string with the given number of decimals
   #[inline]
-  pub fn repr_decimal(&self, decimals: u8) -> I32String {
+  pub fn repr_decimal(&self, decimals: u8) -> NumStr32 {
     let final_decimals = decimals.min(6);
     let surplus_decimals: i32 = 6u8.wrapping_sub(final_decimals).into();
     let surplus_divisor = 10i32.checked_pow(surplus_decimals.unsigned_abs()).unwrap_or_default();
     let final_value = self.0.checked_div(surplus_divisor).unwrap_or_default();
-    num_string(
-      0,
-      Some((const { const_ok(AsciiGraphic::new(b'.')).unwrap() }, final_decimals)),
-      final_value,
-      0,
-    )
+    nstr32_fmt(final_value, NumStrFmt::new().sep(AsciiGraphic::DOT, final_decimals))
   }
 
   /// Computes `self - rhs`, saturating at the numeric bounds instead of overflowing.

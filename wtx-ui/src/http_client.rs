@@ -6,7 +6,7 @@ use wtx::{
     Header, HttpClient as _, KnownHeaderName, MsgBuffer, ReqBuilder,
     http2_client_pool::Http2ClientPoolBuilder,
   },
-  misc::{AsciiGeneric, from_utf8_basic, into_rslt, str_split_once1, tracing_tree_init},
+  misc::{AsciiGraphic, from_utf8_basic, into_rslt, str_split_once1, tracing_tree_init},
   tls::TlsConfig,
 };
 
@@ -20,7 +20,7 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
   }
   let mut msg_buffer = MsgBuffer::from_uri(uri.into());
   for pair in header {
-    let (name, values) = into_rslt(str_split_once1(&pair, AsciiGeneric::COLON))?;
+    let (name, values) = into_rslt(str_split_once1(&pair, AsciiGraphic::COLON))?;
     msg_buffer
       .headers
       .push_from_iter(Header::from_name_and_value(name.trim(), values.split(',').map(str::trim)))?;

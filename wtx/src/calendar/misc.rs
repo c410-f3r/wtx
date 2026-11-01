@@ -3,8 +3,8 @@
 #[cfg(feature = "serde")]
 use crate::calendar::{Datetime, TimeZone};
 use crate::{
-  codec::{U32String, u32_string_pad},
-  misc::{AsciiGraphic, const_ok},
+  codec::num_str::{NumStr32, NumStrFmt, nstr32_fmt},
+  misc::AsciiGraphic,
 };
 
 /// Serializes a datetime as an ISO 8601 string without timezone information.
@@ -38,6 +38,6 @@ where
   }
 }
 
-pub(crate) fn nanosecond_string(nanosecond: u32) -> U32String {
-  u32_string_pad(nanosecond, const { const_ok(AsciiGraphic::new(b'0')).unwrap() }, 9)
+pub(crate) fn nanosecond_string(nanosecond: u32) -> NumStr32 {
+  nstr32_fmt(nanosecond, NumStrFmt::new().pad(AsciiGraphic::ZERO, 9))
 }

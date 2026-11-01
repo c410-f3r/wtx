@@ -2,7 +2,7 @@ use crate::{
   codec::PercentDecode,
   collections::{ArrayVectorU8, VectorUsize},
   http::cookie::CookieGeneric,
-  misc::{AsciiGeneric, from_utf8_basic, str_split_once1, str_split1},
+  misc::{AsciiGraphic, from_utf8_basic, str_split_once1, str_split1},
 };
 use core::str;
 
@@ -27,8 +27,8 @@ impl<'str> CookieStr<'str> {
     let mut generic = CookieGeneric { values: ArrayVectorU8::new() };
     let mut parsed = ArrayVectorU8::<_, 8>::new();
 
-    for semicolon in str_split1(str, AsciiGeneric::SEMICOLON) {
-      let (name, value) = if let Some(elem) = str_split_once1(semicolon, AsciiGeneric::EQUAL) {
+    for semicolon in str_split1(str, AsciiGraphic::SEMICOLON) {
+      let (name, value) = if let Some(elem) = str_split_once1(semicolon, AsciiGraphic::EQUAL) {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
         continue;
