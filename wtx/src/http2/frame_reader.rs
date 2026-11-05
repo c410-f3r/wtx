@@ -20,7 +20,7 @@ use crate::{
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
     misc::{
-      manage_termination, process_higher_operation_err, protocol_err, read_frame,
+      manage_termination, now_ms, process_higher_operation_err, protocol_err, read_frame,
       send_reset_stream, write_array,
     },
     ping_frame::PingFrame,
@@ -33,7 +33,7 @@ use crate::{
   sync::Arc,
   tls::{TlsCtx, TlsStreamBridge, TlsStreamReader},
 };
-use core::{future::poll_fn, hint::cold_path, mem, pin::pin, task::Poll};
+use core::{future::poll_fn, hint::cold_path, mem, pin::pin, sync::atomic::Ordering, task::Poll};
 
 pub(crate) async fn frame_reader<SR, SW, TCX, const IS_CLIENT: bool>(
   inner: Arc<Http2Inner<SW, TCX, IS_CLIENT>>,
@@ -141,6 +141,9 @@ where
     }
     Ok(Some(fi)) => fi,
   };
+  if let Some(last_recv_ms) = &inner.last_recv_ms {
+    last_recv_ms.store(now_ms(), Ordering::Relaxed);
+  }
   if let Err(err) = manage_fi(fi, inner, nrb, stream_reader).await {
     process_higher_operation_err(&err, inner).await;
     finish(Some(err), inner, nrb).await;

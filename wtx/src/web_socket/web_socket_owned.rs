@@ -13,7 +13,7 @@ use crate::{
     write_frame::write_frame,
   },
 };
-use core::{marker::PhantomData, sync::atomic::Ordering};
+use core::marker::PhantomData;
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
@@ -65,7 +65,10 @@ where
       &self.stream_bridge,
       buffer,
       |el| {
-        el.0.common().connection_state.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
+        let _prev = ConnectionState::atomic_update(
+          &el.0.common().connection_state,
+          ConnectionState::on_remote_close,
+        );
       },
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
@@ -104,27 +107,15 @@ where
     let should_stop = match (data.tls, data.ws) {
       (None, None) => true,
       (None, Some(mut ws)) => {
-        self.do_write_frame::<_, true>(&mut ws).await?;
-        if ws.op_code().is_close() {
-          self.close_abruptly();
-          true
-        } else {
-          false
-        }
+        self.write_frame(&mut ws).await?;
+        ws.op_code().is_close()
       }
       (Some(tls), None) => self.stream_writer.manage_bridge_data(tls).await?,
       (Some(tls), Some(mut ws)) => {
-        self.do_write_frame::<_, true>(&mut ws).await?;
+        self.write_frame(&mut ws).await?;
         let should_stop_ws = ws.op_code().is_close();
         let should_stop_tls = self.stream_writer.manage_bridge_data(tls).await?;
-        if should_stop_tls {
-          true
-        } else if should_stop_ws {
-          self.close_abruptly();
-          true
-        } else {
-          false
-        }
+        should_stop_tls || should_stop_ws
       }
     };
     Ok(should_stop)
@@ -133,17 +124,6 @@ where
   /// Writes a frame to the stream.
   #[inline]
   pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
-  where
-    P: LeaseMut<[u8]>,
-  {
-    self.do_write_frame::<_, false>(frame).await
-  }
-
-  #[inline]
-  async fn do_write_frame<P, const IS_CLOSED: bool>(
-    &mut self,
-    frame: &mut Frame<P>,
-  ) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
@@ -156,9 +136,11 @@ where
       &mut self.stream_writer,
       self.writer_buffer.lease_mut(),
       |el| {
-        let value =
-          if IS_CLOSED { ConnectionState::ClosedGracefully } else { ConnectionState::WriteClosed };
-        el.common().connection_state.store(value.into(), Ordering::Relaxed);
+        let _prev = ConnectionState::atomic_update(
+          &el.common().connection_state,
+          ConnectionState::on_local_close,
+        );
+        el.common().reader_waker.wake();
       },
     )
     .await

@@ -1,5 +1,5 @@
 use crate::{
-  codec::num_str::{NumStr32, NumStrFmt, nstr32_fmt},
+  codec::nstr::{NStr32, NumStrFmt, nstr32_fmt},
   misc::{
     AsciiGraphic,
     int_conv::{i8i32, i16i32, i32f64, u8i32},
@@ -131,7 +131,7 @@ impl IPpm32 {
 
   /// Representation in decimal string with the given number of decimals
   #[inline]
-  pub fn repr_decimal(&self, decimals: u8) -> NumStr32 {
+  pub fn repr_decimal(&self, decimals: u8) -> NStr32 {
     let final_decimals = decimals.min(6);
     let surplus_decimals: i32 = 6u8.wrapping_sub(final_decimals).into();
     let surplus_divisor = 10i32.checked_pow(surplus_decimals.unsigned_abs()).unwrap_or_default();

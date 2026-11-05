@@ -233,7 +233,6 @@ const fn duplicated_error(is_some: bool) -> crate::Result<()> {
   Ok(())
 }
 
-#[expect(clippy::too_many_lines, reason = "up to the specification")]
 #[inline]
 fn manage_extension<'de>(
   dw: &mut TlsDecodeWrapper<'de>,

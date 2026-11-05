@@ -1,7 +1,7 @@
 use crate::{
   collections::VectorUsize,
   misc::LeaseMut,
-  net::{BufStreamReader, ConnectionState, Stream},
+  net::{BufStreamReader, Stream},
   rng::Xorshift64,
   tls::{TlsCtx, TlsStream, TlsStreamBridge},
   web_socket::{
@@ -68,7 +68,7 @@ where
       common.stream,
       &WebSocketBridge::new(TlsStreamBridge::new()),
       buffer,
-      |el| el.connection_state = ConnectionState::ClosedGracefully,
+      |el| el.connection_state = el.connection_state.on_both_close(),
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -110,7 +110,7 @@ where
       common.rng,
       common.stream,
       self.writer_buffer,
-      |el| el.connection_state = ConnectionState::WriteClosed,
+      |el| el.connection_state = el.connection_state.on_local_close(),
     )
     .await
   }

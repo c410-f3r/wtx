@@ -10,6 +10,9 @@ use crate::{
   sync::{AsyncMutex, AtomicCell},
   tls::TlsConfig,
 };
+use core::time::Duration;
+
+const DEFAULT_IDLE_TIMEOUT_SECS: u64 = 60;
 
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
@@ -18,6 +21,7 @@ pub struct Http2ClientPoolBuilder<AUX, EX, TCX> {
   disable_auto_sni: bool,
   executor: EX,
   hrp: HttpRecvParams,
+  idle_timeout: Option<Duration>,
   len: usize,
   rng: ChaCha20,
   tcp_params: TcpParams,
@@ -41,6 +45,7 @@ impl<EX, TCX> Http2ClientPoolBuilder<(), EX, TCX> {
       disable_auto_sni: false,
       executor,
       hrp: HttpRecvParams::with_optioned_params(),
+      idle_timeout: Some(Duration::from_secs(DEFAULT_IDLE_TIMEOUT_SECS)),
       len,
       rng,
       tcp_params: TcpParams::default(),
@@ -77,6 +82,13 @@ impl<AUX, EX, TCX> Http2ClientPoolBuilder<AUX, EX, TCX> {
     &mut self.hrp
   }
 
+  /// Connections that didn't receive any frame within this period are re-created before being
+  /// handed out. Defaults to 60 seconds.
+  #[inline]
+  pub const fn idle_timeout_mut(&mut self) -> &mut Option<Duration> {
+    &mut self.idle_timeout
+  }
+
   /// See [`ChaCha20`].
   #[inline]
   pub const fn rng_mut(&mut self) -> &mut ChaCha20 {
@@ -94,6 +106,7 @@ impl<AUX, EX, TCX> Http2ClientPoolBuilder<AUX, EX, TCX> {
       disable_auto_sni: self.disable_auto_sni,
       executor: self.executor,
       hrp: self.hrp,
+      idle_timeout: self.idle_timeout,
       len: self.len,
       rng: self.rng,
       tcp_params: self.tcp_params,
@@ -115,6 +128,8 @@ where
   /// Creates a new client with inner parameters.
   #[inline]
   pub fn build(self) -> Http2ClientPool<AUX, EX, TCX> {
+    let hrp =
+      if self.idle_timeout.is_some() { self.hrp.set_idle_detection(true) } else { self.hrp };
     Http2ClientPool {
       pool: SimplePool::new(
         self.len,
@@ -122,7 +137,8 @@ where
           aux_fn: self.aux_fn,
           disable_auto_sni: self.disable_auto_sni,
           executor: self.executor,
-          hrp: self.hrp,
+          hrp,
+          idle_timeout: self.idle_timeout,
           rng: AtomicCell::new(self.rng),
           tcp_params: self.tcp_params,
           tls_config: AsyncMutex::new(self.tls_config),

@@ -6,7 +6,7 @@ use crate::{
       push::{push_four_digits_year, push_two_spaces_day},
     },
   },
-  codec::num_str::nstr16,
+  codec::nstr::nstr16,
   collections::{ArrayString, ArrayStringU8},
 };
 

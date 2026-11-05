@@ -1,8 +1,9 @@
 use crate::{
+  AFTER_CLOSE_TIMEOUT_MS,
   codec::Decode,
   collections::{ArrayVectorCopy, MaybeUninitSlice, ShortBoxSliceU16, TryExtend, VectorUsize},
   crypto::AEAD_TAG_LEN,
-  futures::FnMutFut,
+  futures::{FnMutFut, Sleep},
   misc::{TryArithmetic as _, unlikely_elem},
   net::{BufStreamReader, StreamReader, StreamWriter},
   tls::{
@@ -25,7 +26,15 @@ use crate::{
     tls_cc_wrappers::TlsDecodeWrapper,
   },
 };
-use core::{hint::cold_path, num::NonZeroUsize, ops::Range};
+use alloc::boxed::Box;
+use core::{
+  hint::cold_path,
+  num::NonZeroUsize,
+  ops::Range,
+  pin::Pin,
+  task::{Context, Poll},
+  time::Duration,
+};
 
 const UNEXPECTED_AFTER_HANDSHAKE_INNER_RECORD: crate::Error = crate::Error::TlsErrorReply(
   TlsError::UnexpectedAfterHandshakeInnerRecord,
@@ -272,6 +281,17 @@ pub(crate) fn manage_key_update(key_updates: &mut u8) -> crate::Result<()> {
     ));
   }
   Ok(())
+}
+
+pub(crate) fn poll_close_timer(
+  cx: &mut Context<'_>,
+  timer: &mut Option<Pin<Box<Sleep>>>,
+) -> Poll<crate::Result<()>> {
+  let local_timer = match timer {
+    Some(elem) => elem,
+    None => timer.insert(Box::pin(Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS))?)),
+  };
+  local_timer.as_mut().poll(cx)
 }
 
 pub(crate) const fn post_handshake_dec_error(

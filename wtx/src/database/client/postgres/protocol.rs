@@ -1,5 +1,5 @@
 use crate::{
-  codec::{Base64Alphabet, encode_base64_into_buffer, num_str::NumStr64},
+  codec::{Base64Alphabet, encode_base64_into_buffer, nstr::NStr64},
   collections::VectorUsize,
   crypto::{Hash as _, Hmac as _, HmacSha256Global, Sha256Global},
   database::{
@@ -13,7 +13,7 @@ pub(crate) fn bind<E, RV>(
   buffer: &mut VectorUsize<u8>,
   portal: &str,
   rv: RV,
-  stmt_cmd_id_array: &NumStr64,
+  stmt_cmd_id_array: &NStr64,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
@@ -179,7 +179,7 @@ pub(crate) fn parse<E, RV>(
   buffer: &mut VectorUsize<u8>,
   rv: &RV,
   stmt_cmd: &str,
-  stmt_cmd_id_array: &NumStr64,
+  stmt_cmd_id_array: &NStr64,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,

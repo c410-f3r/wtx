@@ -22,4 +22,5 @@ doc-valid-idents = [
   "WebTransport"
 ]
 too-many-arguments-threshold = 16
+too-many-lines-threshold = 120
 type-complexity-threshold = 500

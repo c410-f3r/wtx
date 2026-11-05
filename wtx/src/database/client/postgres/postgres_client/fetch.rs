@@ -2,11 +2,11 @@ use crate::{
   database::{
     DatabaseError,
     client::postgres::{
-      PostgresClient,
+      DbError, PostgresClient,
       message::{Message, MessageTy},
     },
   },
-  misc::Usize,
+  misc::{Usize, from_utf8_basic},
   net::{BufStreamReader, Stream},
   tls::{TlsCtx, TlsStream},
 };
@@ -26,6 +26,9 @@ where
     let tag = Self::fetch_representative_msg(read_buffer, stream).await?;
     if tag == b'E' {
       cold_path();
+      let db_error = from_utf8_basic(read_buffer.current())
+        .map_err(crate::Error::from)
+        .and_then(DbError::try_from);
       'err: {
         for _ in 0..MAX_IGNORABLE_MESSAGES_AFTER_ERR {
           let local_tag = Self::fetch_single_msg(read_buffer, stream).await?;
@@ -35,6 +38,10 @@ where
         }
         return Err(DatabaseError::MaxIgnorableMessages.into());
       }
+      return match db_error {
+        Ok(elem) => Err(elem.into()),
+        Err(err) => Err(err),
+      };
     }
     Ok(Message { tag, ty: MessageTy::try_from((tag, read_buffer.current()))? })
   }

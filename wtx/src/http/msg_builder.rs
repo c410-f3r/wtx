@@ -2,7 +2,7 @@ mod req_builder;
 mod res_builder;
 
 use crate::{
-  codec::num_str::nstr32,
+  codec::nstr::nstr32,
   collections::VectorUsize,
   http::{Header, KnownHeaderName, Mime, MsgDataMut},
   misc::{Either, LeaseMut},

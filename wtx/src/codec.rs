@@ -21,7 +21,7 @@ mod from_radix_10;
 mod generic_codec;
 mod hex;
 mod misc;
-pub mod num_str;
+pub mod nstr;
 mod pem;
 pub mod protocol;
 mod url_encoding;

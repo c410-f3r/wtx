@@ -53,7 +53,7 @@ use crate::{
   http2::settings_frame::SettingsFrame,
   misc::{Lease, LeaseMut, Usize},
   net::{ConnectionState, StreamReader, StreamWriter},
-  sync::{Arc, AsyncMutex},
+  sync::{Arc, AsyncMutex, AtomicU64},
   tls::{
     TlsCtx, TlsStreamBridge, TlsStreamReader, TlsStreamWriter, tls_stream_common::TlsStreamCommon,
   },
@@ -64,7 +64,9 @@ use core::{
   future::poll_fn,
   mem,
   pin::pin,
+  sync::atomic::Ordering,
   task::{Poll, Waker},
+  time::Duration,
 };
 use hashbrown::HashMap;
 pub use http2_buffer::Http2Buffer;
@@ -96,7 +98,19 @@ where
   /// See [`ConnectionState`].
   #[inline]
   pub fn connection_state(&self) -> ConnectionState {
-    misc::connection_state(&self.inner.is_conn_open.connection_state)
+    ConnectionState::from_atomic(&self.inner.is_conn_open.connection_state)
+  }
+
+  /// Elapsed time since the last frame was received from the remote peer.
+  ///
+  /// Returns [`Duration::ZERO`] if the idle detection is disabled, see
+  /// [`HttpRecvParams::set_idle_detection`].
+  #[inline]
+  pub fn idle_duration(&self) -> Duration {
+    let Some(last_recv_ms) = &self.inner.last_recv_ms else {
+      return Duration::ZERO;
+    };
+    Duration::from_millis(misc::now_ms().saturating_sub(last_recv_ms.load(Ordering::Relaxed)))
   }
 
   send_go_away_method!();
@@ -108,11 +122,10 @@ where
 
   #[cfg(feature = "http2-client-pool")]
   pub(crate) fn close_abruptly(&self, hb: &mut Http2Buffer) {
-    self
-      .inner
-      .is_conn_open
-      .connection_state
-      .store(ConnectionState::ClosedAbruptly.into(), core::sync::atomic::Ordering::Relaxed);
+    let _prev = ConnectionState::atomic_update(
+      &self.inner.is_conn_open.connection_state,
+      ConnectionState::on_abrupt_close,
+    );
     self.inner.is_conn_open.reader_waker.wake();
     hb.drain_and_wake();
   }
@@ -152,9 +165,11 @@ where
     hb.hpack_enc.set_max_dyn_super_bytes(hrp.max_hpack_len().1);
     let nrb = mem::take(&mut hb.nrb);
     let max_frame_len = hrp.max_frame_len();
+    let last_recv_ms = hrp.idle_detection().then(|| AtomicU64::new(misc::now_ms()));
     let inner = Arc::new(Http2Inner {
       hd: AsyncMutex::new(Http2Data::new(hb, hrp)),
       is_conn_open: stream_reader.common().clone(),
+      last_recv_ms,
       wd: AsyncMutex::new(stream_writer),
     });
     Ok((
@@ -213,7 +228,7 @@ where
       let mut guard = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = guard.parts_mut();
       let linger = hdpm.hp.linger();
-      if misc::connection_state(&inner.is_conn_open.connection_state).is_full_close() {
+      if ConnectionState::from_atomic(&inner.is_conn_open.connection_state).is_full_close() {
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
       }
@@ -336,5 +351,6 @@ impl<SW, TCX, const IS_CLIENT: bool> Clone for Http2<SW, TCX, IS_CLIENT> {
 pub(crate) struct Http2Inner<SW, TCX, const IS_CLIENT: bool> {
   pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
   pub(crate) is_conn_open: Arc<TlsStreamCommon>,
+  pub(crate) last_recv_ms: Option<AtomicU64>,
   pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TCX, IS_CLIENT>>,
 }

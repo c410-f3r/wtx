@@ -8,7 +8,7 @@ use crate::{
   sync::{AsyncMutex, AtomicCell},
   tls::{TlsConfig, TlsConnectorBuilder, TlsCtx, TlsStream},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, time::Duration};
 
 /// Resource manager for `ClientPool`.
 #[derive(Debug)]
@@ -17,6 +17,7 @@ pub struct Http2RM<AUX, EX, TCX> {
   pub(crate) disable_auto_sni: bool,
   pub(crate) executor: EX,
   pub(crate) hrp: HttpRecvParams,
+  pub(crate) idle_timeout: Option<Duration>,
   pub(crate) rng: AtomicCell<ChaCha20>,
   pub(crate) tcp_params: TcpParams,
   pub(crate) tls_config: AsyncMutex<TlsConfig<TCX>>,
@@ -72,6 +73,7 @@ where
   #[inline]
   fn is_invalid(&self, resource: &Self::Resource) -> bool {
     !resource.client.connection_state().is_open()
+      || self.idle_timeout.is_some_and(|elem| resource.client.idle_duration() >= elem)
   }
 
   #[inline]

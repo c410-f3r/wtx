@@ -31,7 +31,7 @@ mod ty;
 mod tys;
 
 use crate::{
-  codec::{CodecController, num_str::NumStr64},
+  codec::{CodecController, nstr::NStr64},
   database::{
     Database, DatabaseTy,
     client::rdbms::{
@@ -67,17 +67,17 @@ pub use tys::pg_range::PgRange;
 
 pub(crate) type Oid = u32;
 pub(crate) type PostgresCommonRecord<'exec, E> =
-  CommonRecord<'exec, NumStr64, postgres_column_info::PostgresColumnInfo, Postgres<E>, Ty>;
+  CommonRecord<'exec, NStr64, postgres_column_info::PostgresColumnInfo, Postgres<E>, Ty>;
 pub(crate) type PostgresCommonRecords<'exec, E> =
-  CommonRecords<'exec, NumStr64, postgres_column_info::PostgresColumnInfo, Postgres<E>, Ty>;
+  CommonRecords<'exec, NStr64, postgres_column_info::PostgresColumnInfo, Postgres<E>, Ty>;
 pub(crate) type PostgresStatements =
-  Statements<NumStr64, postgres_column_info::PostgresColumnInfo, Ty>;
+  Statements<NStr64, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresStatement<'stmts> =
-  Statement<'stmts, NumStr64, postgres_column_info::PostgresColumnInfo, Ty>;
+  Statement<'stmts, NStr64, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresStatementMut<'stmts> =
-  StatementMut<'stmts, NumStr64, postgres_column_info::PostgresColumnInfo, Ty>;
+  StatementMut<'stmts, NStr64, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresCommonExecutorBuffer =
-  CommonClientBuffer<NumStr64, postgres_column_info::PostgresColumnInfo, Ty>;
+  CommonClientBuffer<NStr64, postgres_column_info::PostgresColumnInfo, Ty>;
 
 /// Postgres
 pub struct Postgres<E>(PhantomData<fn() -> E>);

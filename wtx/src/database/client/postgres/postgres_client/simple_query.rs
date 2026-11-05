@@ -1,5 +1,5 @@
 use crate::{
-  codec::num_str::{NumStr64, nstr64},
+  codec::nstr::{NStr64, nstr64},
   collections::{TryExtend, VectorUsize},
   database::{
     StmtCmd as _,
@@ -88,7 +88,7 @@ where
             let stmt_cmd_id = timestamp_nanos_str.as_str().hash(stmts.hasher_mut());
             let mut builder = stmts
               .builder((), {
-                async fn fun(_: &mut (), _: StatementsMisc<NumStr64>) -> crate::Result<()> {
+                async fn fun(_: &mut (), _: StatementsMisc<NStr64>) -> crate::Result<()> {
                   Ok(())
                 }
                 fun

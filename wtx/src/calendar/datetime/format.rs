@@ -7,7 +7,7 @@ use crate::{
     },
     misc::nanosecond_string,
   },
-  codec::num_str::nstr16,
+  codec::nstr::nstr16,
   collections::{ArrayString, ArrayStringU8},
 };
 

@@ -1,4 +1,4 @@
-use crate::collections::VectorUsize;
+use crate::collections::{LinearStorageLen, Vector};
 
 /// Dictates how decompression should work.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -20,13 +20,15 @@ pub trait Decompression {
   /// Decompress
   ///
   /// Returns the number of written bytes.
-  fn decompress(
+  fn decompress<L>(
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-    upper_bound: usize,
-  ) -> crate::Result<usize>;
+    output: &mut Vector<L, u8>,
+    upper_bound: L,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen;
 
   /// Prepare the instance for a new stream.
   fn reset(&mut self);
@@ -36,14 +38,17 @@ impl Decompression for () {
   const IS_NOOP: bool = true;
 
   #[inline]
-  fn decompress(
+  fn decompress<L>(
     &mut self,
     _: DecompressionFlush,
     _: &[u8],
-    _: &mut VectorUsize<u8>,
-    _: usize,
-  ) -> crate::Result<usize> {
-    Ok(0)
+    _: &mut Vector<L, u8>,
+    _: L,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
+    Ok(L::ZERO)
   }
 
   #[inline]
@@ -57,14 +62,21 @@ where
   const IS_NOOP: bool = T::IS_NOOP;
 
   #[inline]
-  fn decompress(
+  fn decompress<L>(
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-    upper_bound: usize,
-  ) -> crate::Result<usize> {
-    if let Some(elem) = self { elem.decompress(flush, input, output, upper_bound) } else { Ok(0) }
+    output: &mut Vector<L, u8>,
+    upper_bound: L,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
+    if let Some(elem) = self {
+      elem.decompress(flush, input, output, upper_bound)
+    } else {
+      Ok(L::ZERO)
+    }
   }
 
   #[inline]
@@ -79,28 +91,29 @@ where
 mod zlib_rs {
   use crate::{
     codec::{CodecError, Decompression, DecompressionFlush},
-    collections::VectorUsize,
+    collections::{LinearStorageLen, Vector},
   };
   use zlib_rs::{Inflate, InflateFlush, Status};
 
   impl Decompression for Inflate {
     #[inline]
-    fn decompress(
+    fn decompress<L>(
       &mut self,
       flush: DecompressionFlush,
       input: &[u8],
-      output: &mut VectorUsize<u8>,
-      upper_bound: usize,
-    ) -> crate::Result<usize> {
-      {
-        let additional = input.len().max(64);
-        if output.len().saturating_add(additional) > upper_bound {
-          return Err(CodecError::DecompressionOverflow.into());
-        }
-        output.reserve(additional)?;
+      output: &mut Vector<L, u8>,
+      upper_bound: L,
+    ) -> crate::Result<L>
+    where
+      L: LinearStorageLen,
+    {
+      let additional = input.len().max(64);
+      if output.len().usize().saturating_add(additional) > upper_bound.usize() {
+        return Err(CodecError::DecompressionOverflow.into());
       }
+      output.reserve(L::from_usize(additional)?)?;
       let mut curr_input = input;
-      let mut total_read: u64 = 0;
+      let mut total_read: L = L::ZERO;
       loop {
         let (_, uninit) = output.split_at_spare_mut();
         let uninit_len = uninit.len();
@@ -110,31 +123,32 @@ mod zlib_rs {
         let consumed = self.total_in().wrapping_sub(before_in).try_into()?;
         let written = self.total_out().wrapping_sub(before_out);
         let written_usize: usize = written.try_into()?;
+        let written_lsl = L::from_usize(written_usize)?;
         curr_input = curr_input.get(consumed..).unwrap_or_default();
-        total_read = total_read.wrapping_add(written);
-        let new_len = output.len().wrapping_add(written_usize);
+        total_read = total_read.wrapping_add(written_lsl);
+        let new_len = output.len().wrapping_add(written_lsl);
         // SAFETY: `decompress_uninit` just initialized `written` bytes
         unsafe {
           output.set_len(new_len);
         }
         match status {
           Status::BufError if curr_input.is_empty() => {
-            return Ok(total_read.try_into()?);
+            return Ok(total_read);
           }
           Status::Ok if curr_input.is_empty() && written_usize < uninit_len => {
-            return Ok(total_read.try_into()?);
+            return Ok(total_read);
           }
           Status::StreamEnd => {
-            return Ok(total_read.try_into()?);
+            return Ok(total_read);
           }
           Status::BufError | Status::Ok => {}
         }
         {
-          let additional = (output.capacity() / 2).max(64);
-          if output.len().saturating_add(additional) > upper_bound {
+          let local_additional = L::from_usize((output.capacity().usize() / 2).max(64))?;
+          if output.len().usize().saturating_add(local_additional.usize()) > upper_bound.usize() {
             return Err(CodecError::DecompressionOverflow.into());
           }
-          output.reserve(additional)?;
+          output.reserve(local_additional)?;
         }
       }
     }

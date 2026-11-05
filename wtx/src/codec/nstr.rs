@@ -4,13 +4,13 @@ use crate::{collections::ArrayStringU8, misc::AsciiGraphic};
 use core::ops::{ControlFlow, DivAssign, Rem};
 
 /// Array string that can store numbers composed by `8` bits.
-pub type NumStr8 = ArrayStringU8<5>;
+pub type NStr8 = ArrayStringU8<5>;
 /// Array string that can store numbers composed by `16` bits.
-pub type NumStr16 = ArrayStringU8<7>;
+pub type NStr16 = ArrayStringU8<7>;
 /// Array string that can store numbers composed by `32` bits.
-pub type NumStr32 = ArrayStringU8<12>;
+pub type NStr32 = ArrayStringU8<12>;
 /// Array string that can store numbers composed by `64` bits.
-pub type NumStr64 = ArrayStringU8<21>;
+pub type NStr64 = ArrayStringU8<21>;
 
 /// Formatting options for number-to-string conversion.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -197,10 +197,10 @@ macro_rules! impl_num_str {
 }
 
 create_functions!(
-  (nstr8, nstr8_fmt, NumStr8),
-  (nstr16, nstr16_fmt, NumStr16),
-  (nstr32, nstr32_fmt, NumStr32),
-  (nstr64, nstr64_fmt, NumStr64),
+  (nstr8, nstr8_fmt, NStr8),
+  (nstr16, nstr16_fmt, NStr16),
+  (nstr32, nstr32_fmt, NStr32),
+  (nstr64, nstr64_fmt, NStr64),
 );
 
 impl_num_str!((i8, u8), (i16, u16), (i32, u32), (i64, u64));
@@ -208,7 +208,7 @@ impl_num_str!((i8, u8), (i16, u16), (i32, u32), (i64, u64));
 #[cfg(test)]
 mod tests {
   use crate::{
-    codec::num_str::{NumStrFmt, nstr8, nstr16, nstr16_fmt, nstr32, nstr32_fmt, nstr64},
+    codec::nstr::{NumStrFmt, nstr8, nstr16, nstr16_fmt, nstr32, nstr32_fmt, nstr64},
     misc::AsciiGraphic,
   };
 

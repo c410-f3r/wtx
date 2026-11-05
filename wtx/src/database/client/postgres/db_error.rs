@@ -286,10 +286,8 @@ impl TryFrom<&str> for DbError {
         "s" => schema = Some(range),
         "t" => table = Some(range),
         _ => {
-          return Err(crate::Error::UnexpectedUint {
-            identifier: "DbError".try_into().unwrap_or_default(),
-            received: u64::from_radix_10(ty.as_bytes())?.try_into().unwrap_or(u16::MAX),
-          });
+          let received = ty.as_bytes().first().copied().unwrap_or(0);
+          return Err(PostgresError::UnknownDbErrorField { received }.into());
         }
       }
     }
