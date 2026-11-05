@@ -1,3 +1,5 @@
+// In several benchmarks the use of `memchr` did not create a positive impact.
+
 #[cfg(all(feature = "_bench", test))]
 mod bench;
 #[cfg(test)]
@@ -14,6 +16,10 @@ use core::{
   range::Range,
   str,
 };
+
+/// An option-like flag. `RouterBuilder::manage_row_ty` rejects every non-graphic byte and every
+/// local route starts with `/` or `{`, so a literal route can never start with zero.
+const PARAM_FIRST_BYTE: u8 = 0;
 
 /// Matcher Error
 #[derive(Debug)]
@@ -92,7 +98,7 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
       cold_path();
       return Err(RouterError::FindErrEmpty.into());
     };
-    match Self::check_row(curr_route, &mut path_rows, route_len, first_row, 0) {
+    match Self::check_row(curr_route, &mut path_rows, route_len, first_row, 0, rows) {
       CheckSearchRowRslt::CompleteMatch(value) => {
         return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
       }
@@ -103,11 +109,29 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
     }
 
     loop {
+      let curr_ident_first = curr_route.first().copied().unwrap_or(PARAM_FIRST_BYTE);
+      if let Some(csr) = Self::find_single_edge(
+        curr_ident_first,
+        curr_route,
+        &mut edges,
+        &mut path_rows,
+        route_len,
+        rows,
+      ) {
+        match csr {
+          CheckSearchRowRslt::CompleteMatch(value) => {
+            return Ok(RouterMatch { rmpi: path_rows, route, rows, value });
+          }
+          CheckSearchRowRslt::IncompleteMatch(_) => continue,
+          CheckSearchRowRslt::Mismatch => {
+            return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
+          }
+        }
+      }
       let [statics @ .., last] = edges.as_slice() else {
         return Err(RouterError::FindMismatch(ShortBoxStrU8::try_from(route_str)?).into());
       };
-      let curr_ident_first = curr_route.first().copied();
-      let last_edge_has_param = last.first_byte.is_none();
+      let last_edge_has_param = last.first_byte == PARAM_FIRST_BYTE;
       if last_edge_has_param {
         if let Some(edge) = statics.iter().find(|el| el.first_byte == curr_ident_first) {
           match Self::check_edge(*edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
@@ -157,7 +181,7 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
     let row_idx = edge.row_target_idx;
     // SAFETY: constructed edges always point to valid row indices
     let row = unsafe { rows.get(usize::from(row_idx)).unwrap_unchecked() };
-    match Self::check_row(curr_route, path_rows, route_len, row, row_idx) {
+    match Self::check_row(curr_route, path_rows, route_len, row, row_idx, rows) {
       CheckSearchRowRslt::CompleteMatch(value) => CheckSearchRowRslt::CompleteMatch(value),
       CheckSearchRowRslt::IncompleteMatch(local_edges) => {
         *edges = local_edges;
@@ -174,11 +198,13 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
     route_len: u8,
     row: &'this Row<T, MC>,
     row_idx: u8,
+    rows: &'this [Row<T, MC>],
   ) -> CheckSearchRowRslt<'this, T, MC> {
     match row.ty {
       RowTy::Literal => {
-        if let Some(rest) = curr_route.strip_prefix(row.route.as_bytes()) {
-          *curr_route = rest;
+        let row_route = row.route.as_bytes();
+        if Self::slice_cmp(curr_route, row_route) {
+          *curr_route = curr_route.get(row_route.len()..).unwrap_or_default();
         } else {
           return CheckSearchRowRslt::Mismatch;
         }
@@ -190,7 +216,7 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
       )]
       RowTy::Param => {
         // For some reason `memchr` degrades the performance if `target-cpu=native`.
-        let (param, rest) = if let Some(param_end_idx) = bytes_pos1(*curr_route, b'/') {
+        let (param, rest) = if let Some(param_end_idx) = Self::find_slash(curr_route) {
           if param_end_idx == 0 {
             cold_path();
             return CheckSearchRowRslt::Mismatch;
@@ -214,12 +240,104 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
             .unwrap_unchecked();
         }
         *curr_route = rest;
+        match Self::param_slash(rest, row, rows) {
+          ParamSlashRslt::NotApplicable => {}
+          ParamSlashRslt::CompleteMatch(value) => {
+            return CheckSearchRowRslt::CompleteMatch(value);
+          }
+          ParamSlashRslt::IncompleteMatch(local_rest, edges) => {
+            *curr_route = local_rest;
+            return CheckSearchRowRslt::IncompleteMatch(edges);
+          }
+        }
       }
     }
     if let ([], Some(value)) = (curr_route, &row.value) {
       return CheckSearchRowRslt::CompleteMatch(value);
     }
     CheckSearchRowRslt::IncompleteMatch(&row.edges)
+  }
+
+  #[inline(always)]
+  fn find_single_edge<'this>(
+    curr_ident_first: u8,
+    curr_route: &mut &'this [u8],
+    edges: &mut &'this ArrayVectorCopy<Edge, MC>,
+    path_rows: &mut ArrayVectorCopy<RouterMatchParamIndices, MD>,
+    route_len: u8,
+    rows: &'this [Row<T, MC>],
+  ) -> Option<CheckSearchRowRslt<'this, T, MC>> {
+    let [edge] = edges.as_slice() else {
+      return None;
+    };
+    if edge.first_byte != PARAM_FIRST_BYTE && edge.first_byte != curr_ident_first {
+      return Some(CheckSearchRowRslt::Mismatch);
+    }
+    Some(Self::check_edge(*edge, edges, curr_route, path_rows, route_len, rows))
+  }
+
+  #[inline(always)]
+  fn find_slash(bytes: &[u8]) -> Option<usize> {
+    const FAST_PATH_LEN: usize = 8;
+    let head_len = bytes.len().min(FAST_PATH_LEN);
+    let head = bytes.get(..head_len).unwrap_or_default();
+    if let Some(idx) = head.iter().position(|byte| *byte == b'/') {
+      return Some(idx);
+    }
+    if bytes.len() <= FAST_PATH_LEN {
+      return None;
+    }
+    bytes
+      .get(FAST_PATH_LEN..)
+      .unwrap_or_default()
+      .iter()
+      .position(|&byte| byte == b'/')
+      .map(|idx| idx.wrapping_add(FAST_PATH_LEN))
+  }
+
+  #[inline(always)]
+  fn param_slash<'this>(
+    rest: &'this [u8],
+    row: &'this Row<T, MC>,
+    rows: &'this [Row<T, MC>],
+  ) -> ParamSlashRslt<'this, T, MC> {
+    let [edge] = row.edges.as_slice() else {
+      return ParamSlashRslt::NotApplicable;
+    };
+    if rest.first() != Some(&b'/') {
+      return ParamSlashRslt::NotApplicable;
+    }
+    // SAFETY: constructed edges always point to valid row indices
+    let child = unsafe { rows.get(usize::from(edge.row_target_idx)).unwrap_unchecked() };
+    if child.ty != RowTy::Literal || child.route.as_bytes() != b"/" {
+      return ParamSlashRslt::NotApplicable;
+    }
+    // SAFETY: `rest` starts with '/', so the slice starts at index 1.
+    let local_rest = unsafe { rest.get_unchecked(1..) };
+    if let ([], Some(value)) = (local_rest, &child.value) {
+      return ParamSlashRslt::CompleteMatch(value);
+    }
+    ParamSlashRslt::IncompleteMatch(local_rest, &child.edges)
+  }
+
+  #[inline(always)]
+  fn slice_cmp(lhs: &[u8], rhs: &[u8]) -> bool {
+    let len = rhs.len();
+    if lhs.len() < len {
+      return false;
+    }
+    match len {
+      0 => true,
+      1 => lhs.first() == rhs.first(),
+      2 => lhs.get(..2) == rhs.get(..2),
+      3 => lhs.get(..3) == rhs.get(..3),
+      4 => lhs.get(..4) == rhs.get(..4),
+      5 => lhs.get(..5) == rhs.get(..5),
+      6 => lhs.get(..6) == rhs.get(..6),
+      7 => lhs.get(..7) == rhs.get(..7),
+      8 => lhs.get(..8) == rhs.get(..8),
+      _ => lhs.starts_with(rhs),
+    }
   }
 }
 
@@ -342,7 +460,7 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
         let child_edges = mem::take(&mut parent.edges);
         let child_route = unique_route(common_prefix_len, &parent.route)?;
         let child_value = parent.value.take();
-        parent.edges.push(Edge::new(None, child_idx))?;
+        parent.edges.push(Edge::new(PARAM_FIRST_BYTE, child_idx))?;
         parent.route = common_route(common_prefix_len, &parent.route)?;
         parent.ty = ty;
         rows.push(Row::new(child_edges, child_route, ty, child_value))?;
@@ -350,7 +468,7 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
         let Some(parent) = rows.get_mut(parent_idx) else {
           return Ok(());
         };
-        parent.edges.push(Edge::new(None, child_idx))?;
+        parent.edges.push(Edge::new(PARAM_FIRST_BYTE, child_idx))?;
         rows.push(Row::new(ArrayVectorCopy::new(), route_str, ty, None))?;
         *row_idx = child_idx;
       }
@@ -363,8 +481,8 @@ impl<T, const MC: usize, const MD: usize> RouterBuilder<'_, T, MC, MD> {
       let child0_edges = mem::take(&mut parent.edges);
       let child0_route = unique_route(common_prefix_len, &parent.route)?;
       let child0_value = parent.value.take();
-      parent.edges.push(Edge::new(None, child0_idx))?;
-      parent.edges.push(Edge::new(None, child1_idx))?;
+      parent.edges.push(Edge::new(PARAM_FIRST_BYTE, child0_idx))?;
+      parent.edges.push(Edge::new(PARAM_FIRST_BYTE, child1_idx))?;
       parent.route = common_route(common_prefix_len, &parent.route)?;
       rows.push(Row::new(child0_edges, child0_route, RowTy::Literal, child0_value))?;
       rows.push(Row::new(ArrayVectorCopy::new(), route_str, ty, None))?;
@@ -518,8 +636,10 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
               continue;
             };
             let first = match target_row.ty {
-              RowTy::Literal => target_row.route.as_bytes().first().copied(),
-              RowTy::Param => None,
+              RowTy::Literal => {
+                target_row.route.as_bytes().first().copied().unwrap_or(PARAM_FIRST_BYTE)
+              }
+              RowTy::Param => PARAM_FIRST_BYTE,
             };
             let _rslt = first_bytes.push(first);
           }
@@ -532,7 +652,8 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
         row_idx = row_idx.wrapping_add(1);
       }
       for row in rows {
-        let Some(param_idx) = row.edges.iter().position(|el| el.first_byte.is_none()) else {
+        let Some(param_idx) = row.edges.iter().position(|el| el.first_byte == PARAM_FIRST_BYTE)
+        else {
           continue;
         };
         let last_idx = row.edges.len().wrapping_sub(1).into();
@@ -656,12 +777,19 @@ enum CheckSearchRowRslt<'any, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
   Mismatch,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum CompareRowRslt<const MC: usize = DEFAULT_MAX_CHILDREN> {
   Finished,
   RowFull(ArrayVectorCopy<Edge, MC>),
   RowPartial { common_prefix_len: usize, is_single: bool },
   Unmatched,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ParamSlashRslt<'any, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
+  CompleteMatch(&'any T),
+  IncompleteMatch(&'any [u8], &'any ArrayVectorCopy<Edge, MC>),
+  NotApplicable,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -673,14 +801,14 @@ enum RowTy {
 /// An edge is also a piece of data in CSR terms.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Edge {
-  // If the target node is a parameter, then the first byte will always be 'None'.
-  first_byte: Option<u8>,
+  // If the target node is a parameter, then the first byte will always be `PARAM_FIRST_BYTE`.
+  first_byte: u8,
   row_target_idx: u8,
 }
 
 impl Edge {
   #[inline]
-  const fn new(first_byte: Option<u8>, row_target_idx: u8) -> Self {
+  const fn new(first_byte: u8, row_target_idx: u8) -> Self {
     Self { first_byte, row_target_idx }
   }
 }

@@ -53,6 +53,11 @@ pub enum PostgresError {
   UnknownAuthenticationMethod,
   /// The system does not support a provided parameter.
   UnknownConfigurationParameter,
+  /// Received an unknown field tag in a database error message.
+  UnknownDbErrorField {
+    /// Received field tag.
+    received: u8,
+  },
   /// The system only supports decimals with 64 digits.
   VeryLargeDecimal,
 }

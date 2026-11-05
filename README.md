@@ -1,5 +1,6 @@
 # WTX
 
+[![GitHub](https://img.shields.io/badge/GitHub-c410--f3r%2Fwtx-blue?logo=github)](https://github.com/c410-f3r/wtx)
 [![crates.io](https://img.shields.io/crates/v/wtx?color=blue)](https://crates.io/crates/wtx)
 [![deps.rs](https://deps.rs/crate/wtx/latest/status.svg)](https://deps.rs/crate/wtx)
 [![docs.rs](https://img.shields.io/docsrs/wtx?color=blue)](https://docs.rs/wtx)

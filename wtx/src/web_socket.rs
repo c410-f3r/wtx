@@ -25,7 +25,7 @@ use crate::{
   MAX_PAYLOAD_LEN,
   collections::VectorUsize,
   misc::LeaseMut,
-  net::{ConnectionState, Stream},
+  net::Stream,
   rng::{SeedableRng as _, Xorshift64},
   tls::{TlsCtx, TlsStream, TlsStreamBridge},
   web_socket::web_socket_compression::NegotiatedWsCompression,
@@ -162,7 +162,7 @@ where
       stream,
       &WebSocketBridge::new(TlsStreamBridge::new()),
       buffer,
-      |el| el.connection_state = ConnectionState::ClosedGracefully,
+      |el| el.connection_state = el.connection_state.on_both_close(),
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -217,7 +217,7 @@ where
       &mut self.rng,
       &mut self.stream,
       &mut self.wsb.writer_buffer,
-      |el| el.connection_state = ConnectionState::WriteClosed,
+      |el| el.connection_state = el.connection_state.on_local_close(),
     )
     .await
   }

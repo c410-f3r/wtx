@@ -1,5 +1,5 @@
 use crate::{
-  codec::num_str::{NumStr64, nstr64},
+  codec::nstr::{NStr64, nstr64},
   collections::VectorUsize,
   database::{
     DatabaseError, RecordValues, StmtCmd,
@@ -44,7 +44,7 @@ where
   pub(crate) async fn await_stmt_prepare<'stmts, const HAS_SYNC: bool>(
     read_buffer: &mut BufStreamReader,
     stmt_cmd_id: u64,
-    stmt_cmd_id_array: NumStr64,
+    stmt_cmd_id_array: NStr64,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<PostgresStatementMut<'stmts>, E>
@@ -60,7 +60,7 @@ where
       .builder((&mut *read_buffer, &mut *stream), {
         async fn fun<S>(
           _: &mut (&mut BufStreamReader, &mut S),
-          _: StatementsMisc<NumStr64>,
+          _: StatementsMisc<NStr64>,
         ) -> crate::Result<()>
         where
           S: Stream,
@@ -125,7 +125,7 @@ where
   pub(crate) async fn write_send_await_stmt_bind<RV>(
     read_buffer: &mut BufStreamReader,
     rv: RV,
-    stmt_cmd_id_array: &NumStr64,
+    stmt_cmd_id_array: &NStr64,
     stream: &mut TlsStream<S, TCX, true>,
   ) -> Result<(), E>
   where
@@ -145,7 +145,7 @@ where
     sc: SC,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut TlsStream<S, TCX, true>,
-  ) -> Result<(u64, NumStr64, PostgresStatementMut<'stmts>), E>
+  ) -> Result<(u64, NStr64, PostgresStatementMut<'stmts>), E>
   where
     RV: RecordValues<Postgres<E>>,
     S: Stream,
@@ -171,7 +171,7 @@ where
 
   pub(crate) fn write_stmt_bind<RV, const SYNC: bool>(
     rv: RV,
-    stmt_cmd_id_array: &NumStr64,
+    stmt_cmd_id_array: &NStr64,
     sw: &mut VectorUsize<u8>,
   ) -> Result<(), E>
   where
@@ -189,7 +189,7 @@ where
     buffer: &mut VectorUsize<u8>,
     rv: &RV,
     stmt_cmd: &str,
-    stmt_cmd_id_array: &NumStr64,
+    stmt_cmd_id_array: &NStr64,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,

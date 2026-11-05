@@ -1,6 +1,6 @@
 use crate::{
   codec::{Compression, CompressionFlush, Decompression, DecompressionFlush, FromRadix10 as _},
-  collections::{ArrayVectorCopy, VectorUsize},
+  collections::{ArrayVectorCopy, LinearStorageLen, Vector},
   http::GenericHeader,
   misc::bytes_split1,
   web_socket::{
@@ -142,12 +142,15 @@ pub struct NegotiatedZlibRs {
 
 impl Compression for NegotiatedZlibRs {
   #[inline]
-  fn compress(
+  fn compress<L>(
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-  ) -> crate::Result<usize> {
+    output: &mut Vector<L, u8>,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
     <Deflate as Compression>::compress(&mut self.deflate, flush, input, output)
   }
 
@@ -164,13 +167,16 @@ impl Compression for NegotiatedZlibRs {
 
 impl Decompression for NegotiatedZlibRs {
   #[inline]
-  fn decompress(
+  fn decompress<L>(
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-    upper_bound: usize,
-  ) -> crate::Result<usize> {
+    output: &mut Vector<L, u8>,
+    upper_bound: L,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
     <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output, upper_bound)
   }
 
@@ -243,12 +249,15 @@ pub struct NegotiatedZlibRsCompression {
 
 impl Compression for NegotiatedZlibRsCompression {
   #[inline]
-  fn compress(
+  fn compress<L>(
     &mut self,
     flush: CompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-  ) -> crate::Result<usize> {
+    output: &mut Vector<L, u8>,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
     <Deflate as Compression>::compress(&mut self.deflate, flush, input, output)
   }
 
@@ -285,13 +294,16 @@ pub struct NegotiatedZlibRsDecompression {
 
 impl Decompression for NegotiatedZlibRsDecompression {
   #[inline]
-  fn decompress(
+  fn decompress<L>(
     &mut self,
     flush: DecompressionFlush,
     input: &[u8],
-    output: &mut VectorUsize<u8>,
-    upper_bound: usize,
-  ) -> crate::Result<usize> {
+    output: &mut Vector<L, u8>,
+    upper_bound: L,
+  ) -> crate::Result<L>
+  where
+    L: LinearStorageLen,
+  {
     <Inflate as Decompression>::decompress(&mut self.inflate, flush, input, output, upper_bound)
   }
 

@@ -171,6 +171,10 @@ pub(crate) fn manage_text_of_recurrent_continuation_frames(
   Ok(())
 }
 
+/// In concurrent scenarios the close frame is forwarded through the bridge, so the state must be
+/// updated before waking the writer. In sequential scenarios the automatic reply is written by
+/// this task, so the state must only be updated after the write is performed. Otherwise writers
+/// that ignore operations after closure silently drop the reply.
 pub(crate) async fn read_frame<
   'frame,
   'nb,
@@ -220,11 +224,11 @@ where
     )
     .await?;
     if first_rfi.fin {
-      if first_rfi.op_code.is_close() {
+      if !HAS_AUTO_REPLY && first_rfi.op_code.is_close() {
         cold_path();
         closed_conn_cb(stream);
       }
-      return manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+      let rslt = manage_first_finished_frame::<_, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
         max_payload_len,
         nc,
         nc_rsv1,
@@ -238,6 +242,11 @@ where
         user_buffer,
       )
       .await;
+      if HAS_AUTO_REPLY && first_rfi.op_code.is_close() && rslt.is_ok() {
+        cold_path();
+        closed_conn_cb(stream);
+      }
+      return rslt;
     }
     let buffer = if !D::IS_NOOP && first_rfi.should_decompress {
       reader_buffer.clear();
@@ -266,6 +275,7 @@ where
       rng,
       stream,
       stream_bridge,
+      &mut closed_conn_cb,
       &mut copy_from_compressed_rb1_to_rb2,
       &mut |_, _| Ok(()),
       &mut stream_reader_cb,
@@ -285,6 +295,7 @@ where
       rng,
       stream,
       stream_bridge,
+      &mut closed_conn_cb,
       &mut |_, _, _, _, _| Ok(()),
       &mut manage_text_of_recurrent_continuation_frames,
       &mut stream_reader_cb,
@@ -293,10 +304,6 @@ where
     .await?
   };
   let (op_code, payload) = if let Some(op_code) = control_frame {
-    if op_code.is_close() {
-      cold_path();
-      closed_conn_cb(stream);
-    }
     (op_code, payload_origin.manage_payload(network_buffer.current_mut(), user_buffer)?)
   } else {
     reader_buffer.clear();
@@ -518,6 +525,7 @@ async fn read_continuation_frames<
   rng: &mut R,
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
+  closed_conn_cb: &mut impl FnMut(&mut S),
   reader_buffer_first_cb: &mut impl FnMut(
     OpCode,
     usize,
@@ -547,6 +555,11 @@ where
     rfi.should_decompress = is_in_continuation_frame.should_decompress;
     let payload = network_buffer.current_mut();
     unmask_nb::<IS_CLIENT>(rfi.mask, payload, no_masking)?;
+    // Same ordering rules of the first frame. See `read_frame`.
+    if !HAS_AUTO_REPLY && rfi.op_code.is_close() {
+      cold_path();
+      closed_conn_cb(stream);
+    }
     let is_control_frame = manage_auto_reply::<_, _, HAS_AUTO_REPLY, IS_CLIENT>(
       stream_writer(stream),
       no_masking,
@@ -557,6 +570,10 @@ where
       write_control_frame_cb,
     )
     .await?;
+    if HAS_AUTO_REPLY && rfi.op_code.is_close() {
+      cold_path();
+      closed_conn_cb(stream);
+    }
     if is_control_frame {
       return Ok(Some(rfi.op_code));
     }

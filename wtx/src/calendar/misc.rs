@@ -3,7 +3,7 @@
 #[cfg(feature = "serde")]
 use crate::calendar::{Datetime, TimeZone};
 use crate::{
-  codec::num_str::{NumStr32, NumStrFmt, nstr32_fmt},
+  codec::nstr::{NStr32, NumStrFmt, nstr32_fmt},
   misc::AsciiGraphic,
 };
 
@@ -38,6 +38,6 @@ where
   }
 }
 
-pub(crate) fn nanosecond_string(nanosecond: u32) -> NumStr32 {
+pub(crate) fn nanosecond_string(nanosecond: u32) -> NStr32 {
   nstr32_fmt(nanosecond, NumStrFmt::new().pad(AsciiGraphic::ZERO, 9))
 }

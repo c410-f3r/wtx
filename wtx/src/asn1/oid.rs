@@ -1,7 +1,7 @@
 use crate::{
   asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
   codec::{
-    Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, num_str::nstr32,
+    Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, nstr::nstr32,
   },
   collections::{ArrayString, ArrayStringU8, ArrayVectorCopy},
   misc::bytes_split_once1,

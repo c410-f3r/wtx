@@ -1,5 +1,5 @@
 use crate::{
-  codec::num_str::nstr64,
+  codec::nstr::nstr64,
   collections::{ArrayVectorCopy, TryExtend},
   database::{
     Database, DatabaseError, RecordValues, StmtCmd,

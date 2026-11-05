@@ -1,5 +1,6 @@
 use crate::{
   AFTER_CLOSE_TIMEOUT_MS,
+  calendar::Instant,
   futures::Sleep,
   http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, U31},
   http2::{
@@ -22,7 +23,6 @@ use crate::{
 };
 use core::{
   mem,
-  sync::atomic::Ordering,
   task::{Context, Poll},
   time::Duration,
 };
@@ -47,8 +47,9 @@ pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result
   }
 }
 
-pub(crate) fn connection_state(atomic_bool: &AtomicU8) -> ConnectionState {
-  ConnectionState::from(atomic_bool.load(Ordering::Relaxed))
+/// Milliseconds since the UNIX epoch or zero if there is no time backend.
+pub(crate) fn now_ms() -> u64 {
+  Instant::now_timestamp().map_or_default(|el| u64::try_from(el.as_millis()).unwrap_or(u64::MAX))
 }
 
 #[track_caller]
@@ -96,7 +97,7 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
   }
 
   let sorp = sorp_mut(&mut hdpm.hb.sorps, stream_id)?;
-  match (!connection_state(is_conn_open).is_closed(), sorp.is_stream_open) {
+  match (!ConnectionState::from_atomic(is_conn_open).is_closed(), sorp.is_stream_open) {
     (false, false | true) => {
       let msg_buffer = mem::take(&mut sorp.msg_buffer);
       drop(hdpm.hb.sorps.remove(&stream_id));
@@ -164,7 +165,10 @@ pub(crate) async fn manage_termination<SW, TCX, const IS_CLIENT: bool, const IS_
     }
     return;
   }
-  inner.is_conn_open.connection_state.store(ConnectionState::Draining.into(), Ordering::Relaxed);
+  let _prev = ConnectionState::atomic_update(
+    &inner.is_conn_open.connection_state,
+    ConnectionState::on_draining,
+  );
   let last_stream_id = *inner.hd.lock().await.parts_mut().last_stream_id;
   do_send_go_away(error_code, last_stream_id, &mut *inner.wd.lock().await).await;
   inner.hd.lock().await.parts_mut().hb.drain_and_wake();
@@ -377,7 +381,7 @@ pub(crate) fn status_recv<EOS, ONG>(
   sorp: &mut StreamOverallRecvParams,
   eos_cb: impl FnOnce(&mut StreamOverallRecvParams) -> crate::Result<EOS>,
 ) -> crate::Result<Option<Http2RecvStatus<EOS, ONG>>> {
-  if connection_state(is_conn_open).is_closed() {
+  if ConnectionState::from_atomic(is_conn_open).is_closed() {
     return Ok(Some(Http2RecvStatus::ClosedConnection));
   }
   if !sorp.is_stream_open {
@@ -393,7 +397,7 @@ pub(crate) fn status_send<const IS_CLIENT: bool>(
   is_conn_open: &AtomicU8,
   sorp: &StreamOverallRecvParams,
 ) -> Option<Http2SendStatus> {
-  if connection_state(is_conn_open).is_closed() {
+  if ConnectionState::from_atomic(is_conn_open).cannot_write() {
     return Some(Http2SendStatus::ClosedConnection);
   }
   if !sorp.is_stream_open {

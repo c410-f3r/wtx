@@ -57,6 +57,8 @@ pub trait LinearStorageLen:
   const BYTES: u8;
   /// Instance that represents the number one.
   const ONE: Self;
+  /// Instance that represents the number two.
+  const TWO: Self;
   /// The maximum number of allowed elements.
   const UPPER_BOUND: Self;
   /// The maximum number of allowed elements as `usize`.
@@ -76,6 +78,10 @@ pub trait LinearStorageLen:
   /// Checked integer addition.
   #[must_use = must_use_itself_doc!()]
   fn checked_add(self, rhs: Self) -> Option<Self>;
+
+  /// Checked integer division.
+  #[must_use = must_use_itself_doc!()]
+  fn checked_div(self, rhs: Self) -> Option<Self>;
 
   /// Checked integer remainder.
   #[must_use = must_use_itself_doc!()]
@@ -120,6 +126,7 @@ macro_rules! impl_linear_storage_len {
       const BITS: u8 = $bits;
       const BYTES: u8 = $bits / 8;
       const ONE: Self = 1;
+      const TWO: Self = 2;
       const UPPER_BOUND: Self = $upper_bound;
       const UPPER_BOUND_USIZE: usize = $upper_bound;
       const ZERO: Self = 0;
@@ -139,6 +146,11 @@ macro_rules! impl_linear_storage_len {
       #[inline]
       fn checked_add(self, rhs: Self) -> Option<Self> {
         self.checked_add(rhs)
+      }
+
+      #[inline]
+      fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.checked_div(rhs)
       }
 
       #[inline]
@@ -294,6 +306,7 @@ macro_rules! impl_linear_storage_len_wrapper {
       const BITS: u8 = $bits;
       const BYTES: u8 = $bytes;
       const ONE: Self = Self(1);
+      const TWO: Self = Self(2);
       const UPPER_BOUND: Self = Self($upper_bound);
       const UPPER_BOUND_USIZE: usize = $upper_bound;
       const ZERO: Self = Self(0);
@@ -313,6 +326,11 @@ macro_rules! impl_linear_storage_len_wrapper {
       #[inline]
       fn checked_add(self, rhs: Self) -> Option<Self> {
         Some(Self(self.0.checked_add(rhs.0)?))
+      }
+
+      #[inline]
+      fn checked_div(self, rhs: Self) -> Option<Self> {
+        Some(Self(self.0.checked_div(rhs.0)?))
       }
 
       #[inline]

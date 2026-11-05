@@ -1,6 +1,6 @@
 use crate::{
   calendar::CalendarError,
-  codec::num_str::{NumStr16, NumStrFmt, nstr16_fmt},
+  codec::nstr::{NStr16, NumStrFmt, nstr16_fmt},
   misc::AsciiGraphic,
 };
 
@@ -51,7 +51,7 @@ impl Year {
 
   /// String representation
   #[inline]
-  pub fn num_str(self) -> NumStr16 {
+  pub fn num_str(self) -> NStr16 {
     nstr16_fmt(self.0, NumStrFmt::new().pad(AsciiGraphic::ZERO, 4))
   }
 }

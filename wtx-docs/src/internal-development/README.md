@@ -29,19 +29,21 @@ Many things that generally improve performance are used in the project, to name 
 
 ## Connection Management
 
-All protocols are expected to end an connection with a signal that allows a graceful stop. For example, when WebSocket sends a Close frame.
+All protocols are expected to end a connection with a signal that allows a graceful stop. For example, when WebSocket sends a Close frame.
+
+It is important to note that in a abrupt termination the connection ends without any type of signal and the state becomes `ClosedAbruptly`.
 
 ### Sequential code
 
-* `Local termination`: A local command sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
-* `Remote termination`: System receives a termination signal that halts the reading of further data. Immediately sends a terminal signal and closes the connection. Internal state jumps from `Open` to `Closed`.
+**Local termination:** Halts further data writes by sending a local termination signal, moving the state from `Open` to `WriteClosed`. When the remote actor replies within the expected timeout, the local side echoes the signal and transitions to `ClosedGracefully`.
+
+**Remote termination:** Halts further data reads upon receiving a remote termination signal. The system immediately replies with its own termination signal, jumping the state from `Open` to `ClosedGracefully` in one step.
 
 ### Concurrent code
 
-* `Local termination`: A local command sends a termination signal that halts the writing of further data. Remote actor is expected to also send a termination signal within a timeout. Internal state jumps from `Open` to `WriteClosed`.
-* `Remote termination`: System receives a termination signal that halts the reading of further data. Local system will send a termination signal in a posterior step. Internal state jumps from `Open` to `ReadClosed`.
+**Local termination:** Halts further data writes by sending a local termination signal, moving the state from `Open` to `WriteClosed` while awaiting a remote reply. The reader observes this state and transitions to `ClosedGracefully` once the remote signal arrives or the close timeout expires.
 
-Internal state is expected to jump from `ReadClosed` or `WriteClosed` to `Closed` once the termination cycle is fulfilled.
+**Remote termination:** Halts further data reads upon receiving a remote termination signal, moving the internal state from `Open` to `ReadClosed`. In a subsequent step the writer sends the termination reply and transitions the state to `ClosedGracefully`.
 
 ### Protocols
 

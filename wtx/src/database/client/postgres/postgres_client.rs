@@ -134,7 +134,7 @@ where
 
   #[inline]
   fn connection_state(&self) -> ConnectionState {
-    ConnectionState::Open
+    self.stream.connection_state()
   }
 
   #[inline]

@@ -1,15 +1,17 @@
 use crate::{
-  AFTER_CLOSE_TIMEOUT_MS,
   collections::{MaybeUninitSlice, ShortBoxSliceU16},
   futures::Sleep,
-  misc::Either,
   net::{BufStreamReader, ConnectionState, StreamCommon, StreamReader},
   sync::Arc,
   tls::{
     AlertDescription, AlertLevel, TlsCtx, TlsError, TlsStreamBridge, TlsStreamBridgeData,
     key_schedule::KeyScheduleRead,
-    misc::{manage_err_ad, manage_key_update, manage_user_canceled, read_after_handshake_data},
+    misc::{
+      manage_err_ad, manage_key_update, manage_user_canceled, poll_close_timer,
+      read_after_handshake_data,
+    },
     protocol::{alert::Alert, key_update::KeyUpdate, new_session_ticket::NewSessionTicket},
+    tls_stream_bridge::TlsStreamBridgeFrame,
     tls_stream_common::TlsStreamCommon,
   },
 };
@@ -22,7 +24,6 @@ use core::{
   pin::{Pin, pin},
   sync::atomic::Ordering,
   task::{Poll, ready},
-  time::Duration,
 };
 
 /// Reader that can be used in concurrent scenarios.
@@ -41,7 +42,7 @@ pub struct TlsStreamReader<SR, TCX, const IS_CLIENT: bool> {
   split_len: usize,
   stream_bridge: TlsStreamBridge<IS_CLIENT>,
   stream_reader: SR,
-  timer: Pin<Box<Sleep>>,
+  timer: Option<Pin<Box<Sleep>>>,
   warning_alerts: u8,
 }
 
@@ -57,8 +58,8 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
     reader_buffer: BufStreamReader,
     stream_bridge: TlsStreamBridge<IS_CLIENT>,
     stream_reader: SR,
-  ) -> crate::Result<Self> {
-    Ok(Self {
+  ) -> Self {
+    Self {
       common,
       key_updates: 0,
       ksr,
@@ -72,9 +73,9 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
       split_len: 0,
       stream_bridge,
       stream_reader,
-      timer: Box::pin(Sleep::new(Duration::from_millis(AFTER_CLOSE_TIMEOUT_MS))?),
+      timer: None,
       warning_alerts: 0,
-    })
+    }
   }
 
   /// Closes itself as well as the write part without a graceful shutdown.
@@ -82,13 +83,16 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
   // There is nothing to write to the peer so we don't wake the writer side.
   #[inline]
   pub fn close_abruptly(&self) {
-    self.common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+    let _state = ConnectionState::atomic_update(
+      &self.common.connection_state,
+      ConnectionState::on_abrupt_close,
+    );
   }
 
   /// See [`ConnectionState`].
   #[inline]
   pub fn connection_state(&self) -> ConnectionState {
-    self.common.connection_state.load(Ordering::Relaxed).into()
+    ConnectionState::from_atomic(&self.common.connection_state)
   }
 
   /// Exports the application traffic secrets.
@@ -97,11 +101,19 @@ impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
     self.ksr.state().raw_traffic_secret()
   }
 
-  /// Sends a warning alert of type `CloseNotify`, gracefully closing the connection.
+  /// Asks the writer part to send a warning alert of type `CloseNotify`, gracefully closing the
+  /// connection.
+  ///
+  /// The connection only transitions to [`ConnectionState::WriteClosed`] after the alert is
+  /// actually written by [`crate::tls::TlsStreamWriter::manage_bridge_data`].
   #[inline]
   pub fn send_close_notify(&self) -> crate::Result<()> {
-    self.common.connection_state.store(ConnectionState::WriteClosed.into(), Ordering::Relaxed);
-    self.stream_bridge.update(TlsStreamBridgeData::new(Either::Left(Alert::close_notify())));
+    if self.connection_state().cannot_write() {
+      return Ok(());
+    }
+    self
+      .stream_bridge
+      .update(TlsStreamBridgeData::new(TlsStreamBridgeFrame::Alert(Alert::close_notify())));
     Ok(())
   }
 
@@ -121,6 +133,10 @@ where
 {
   #[inline]
   async fn read(&mut self, bytes: MaybeUninitSlice<'_, u8>) -> crate::Result<Option<NonZeroUsize>> {
+    if self.connection_state().cannot_read() {
+      cold_path();
+      return Ok(None);
+    }
     let Self {
       common,
       key_updates,
@@ -161,11 +177,16 @@ where
       )
       .await;
       manage_err_ad(rslt, async |description| {
-        stream_bridge.update(TlsStreamBridgeData::new(Either::Left(Alert::new(
-          AlertLevel::Fatal,
-          description,
-        ))));
-        common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+        let prev = ConnectionState::atomic_update(
+          &common.connection_state,
+          ConnectionState::on_abrupt_close,
+        );
+        if !prev.cannot_write() {
+          stream_bridge.update(TlsStreamBridgeData::new(TlsStreamBridgeFrame::Alert(Alert::new(
+            AlertLevel::Fatal,
+            description,
+          ))));
+        }
         Ok(())
       })
       .await
@@ -174,8 +195,7 @@ where
       Poll::Ready(res) => Poll::Ready(res),
       Poll::Pending => {
         common.reader_waker.register(cx.waker());
-        let current_state = common.connection_state.load(Ordering::Relaxed);
-        match ConnectionState::from(current_state) {
+        match ConnectionState::from_atomic(&common.connection_state) {
           // Normal operation
           ConnectionState::Draining | ConnectionState::Open => Poll::Pending,
           // * An abrupt close signal was received/generated by us or the writer side abruptly
@@ -192,10 +212,11 @@ where
           // is a graceful stop.
           ConnectionState::WriteClosed => {
             cold_path();
-            let _rslt = ready!(timer.as_mut().poll(cx));
-            common
-              .connection_state
-              .store(ConnectionState::ClosedGracefully.into(), Ordering::Relaxed);
+            ready!(poll_close_timer(cx, timer))?;
+            let _state = ConnectionState::atomic_update(
+              &common.connection_state,
+              ConnectionState::on_remote_close,
+            );
             Poll::Ready(Ok(None))
           }
         }
@@ -212,8 +233,11 @@ async fn alert_cb<SR, const IS_CLIENT: bool>(
 ) -> crate::Result<bool> {
   match (alert.level(), alert.description()) {
     (AlertLevel::Warning, AlertDescription::CloseNotify) => {
-      aux.common.connection_state.store(ConnectionState::ReadClosed.into(), Ordering::Relaxed);
-      aux.stream_bridge.update(TlsStreamBridgeData::new(Either::Left(alert)));
+      let _state = ConnectionState::atomic_update(
+        &aux.common.connection_state,
+        ConnectionState::on_remote_close,
+      );
+      aux.stream_bridge.update(TlsStreamBridgeData::new(TlsStreamBridgeFrame::Alert(alert)));
       Ok(true)
     }
     (AlertLevel::Warning, AlertDescription::UserCanceled) => {
@@ -225,7 +249,8 @@ async fn alert_cb<SR, const IS_CLIENT: bool>(
 
 // This branch is only entered when the peer closed the connection without an alert.
 fn closed_conn_cb<const IS_CLIENT: bool>(aux: &mut Aux<'_, IS_CLIENT>) {
-  aux.common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+  let _state =
+    ConnectionState::atomic_update(&aux.common.connection_state, ConnectionState::on_abrupt_close);
 }
 
 async fn key_update_cb<SR, const IS_CLIENT: bool>(
@@ -237,7 +262,8 @@ async fn key_update_cb<SR, const IS_CLIENT: bool>(
   if let Some(elem) = key_update
     && aux.common.can_reply_key_update.load(Ordering::Relaxed)
   {
-    aux.stream_bridge.update(TlsStreamBridgeData::new(Either::Right(elem)));
+    let _ = aux.common.key_update_reply.update(|_| Some(elem));
+    aux.stream_bridge.update(TlsStreamBridgeData::new(TlsStreamBridgeFrame::KeyUpdate));
     aux.common.can_reply_key_update.store(false, Ordering::Relaxed);
   }
   Ok(())

@@ -1,7 +1,7 @@
 use crate::{
   codec::{
     AsciiSet, UrlEncode,
-    num_str::{nstr8, nstr16, nstr32, nstr64},
+    nstr::{nstr8, nstr16, nstr32, nstr64},
   },
   collections::VectorUsize,
 };

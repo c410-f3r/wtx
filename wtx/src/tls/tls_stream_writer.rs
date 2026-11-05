@@ -1,10 +1,9 @@
 use crate::{
   collections::{ArrayVectorCopy, VectorUsize},
-  misc::Either,
   net::{ConnectionState, StreamCommon, StreamWriter},
   sync::Arc,
   tls::{
-    KeySchedule, MAX_HASH_LEN, TlsCtx, TlsStreamBridgeData,
+    AlertLevel, KeySchedule, MAX_HASH_LEN, TlsCtx, TlsStreamBridgeData,
     key_schedule::KeyScheduleWrite,
     misc::write_payloads,
     protocol::{
@@ -12,6 +11,7 @@ use crate::{
       key_update::{KeyUpdate, KeyUpdateRequest},
     },
     record_content_ty::RecordContentTy,
+    tls_stream_bridge::TlsStreamBridgeFrame,
     tls_stream_common::TlsStreamCommon,
   },
 };
@@ -57,14 +57,17 @@ where
   /// Closes itself as well as the reader part without a graceful shutdown.
   #[inline]
   pub fn close_abruptly(&self) {
-    self.common.connection_state.store(ConnectionState::ClosedAbruptly.into(), Ordering::Relaxed);
+    let _prev = ConnectionState::atomic_update(
+      &self.common.connection_state,
+      ConnectionState::on_abrupt_close,
+    );
     self.common.reader_waker.wake();
   }
 
   /// See [`ConnectionState`].
   #[inline]
   pub fn connection_state(&self) -> ConnectionState {
-    self.common.connection_state.load(Ordering::Relaxed).into()
+    ConnectionState::from_atomic(&self.common.connection_state)
   }
 
   /// Exports keying material
@@ -94,29 +97,54 @@ where
   /// connection has been closed.
   #[inline]
   pub async fn manage_bridge_data(&mut self, data: TlsStreamBridgeData) -> crate::Result<bool> {
-    let kss = self.ksw.state_mut();
+    let cannot_write = self.connection_state().cannot_write();
     Ok(match data.frame() {
-      Either::Left(elem) => {
-        self.stream_writer.write_all(&Alert::record_bytes(elem, kss)?).await?;
+      TlsStreamBridgeFrame::Alert(elem) => {
+        let is_fatal = elem.level() == AlertLevel::Fatal;
         // The reader part received an alert, set itself as read closed, and signed us. This is
         // a graceful stop.
-        self
-          .common
-          .connection_state
-          .store(ConnectionState::ClosedGracefully.into(), Ordering::Relaxed);
+        if !TCX::TY.is_plain_text() && (is_fatal || !cannot_write) {
+          let kss = self.ksw.state_mut();
+          self.stream_writer.write_all(&Alert::record_bytes(elem, kss)?).await?;
+        }
+        let _prev = ConnectionState::atomic_update(
+          &self.common.connection_state,
+          ConnectionState::on_local_close,
+        );
+        self.common.reader_waker.wake();
         true
       }
-      Either::Right(elem) => {
-        self.stream_writer.write_all(&KeyUpdate::record_bytes(elem, kss)?).await?;
-        kss.rotate()?;
+      TlsStreamBridgeFrame::KeyUpdate => {
+        self.send_key_update_reply_if_pending().await?;
         false
       }
     })
   }
 
+  #[inline(always)]
+  async fn send_key_update_reply_if_pending(&mut self) -> crate::Result<()> {
+    let Some(elem) = self.common.key_update_reply.update(|_| None) else {
+      return Ok(());
+    };
+    if TCX::TY.is_plain_text() || self.connection_state().cannot_write() {
+      return Ok(());
+    }
+    let rslt =
+      self.stream_writer.write_all(&KeyUpdate::record_bytes(elem, self.ksw.state_mut())?).await;
+    if rslt.is_err() {
+      self.close_abruptly();
+      rslt?;
+    }
+    self.ksw.state_mut().rotate()?;
+    Ok(())
+  }
+
   /// Refreshes the connection's keys through the sending of a `KeyUpdate` record.
   #[inline]
   pub async fn refresh_traffic_keys(&mut self) -> crate::Result<()> {
+    if self.connection_state().cannot_write() {
+      return Ok(());
+    }
     let key_update = KeyUpdate::new(KeyUpdateRequest::UpdateRequested);
     let kss = self.ksw.state_mut();
     self.stream_writer.write_all(&key_update.record_bytes(kss)?).await?;
@@ -127,11 +155,21 @@ where
   /// Sends a warning alert of type `CloseNotify`, gracefully closing the connection.
   #[inline]
   pub async fn send_close_notify(&mut self) -> crate::Result<()> {
-    self
-      .stream_writer
-      .write_all(&Alert::close_notify().record_bytes(self.ksw.state_mut())?)
-      .await?;
-    self.common.connection_state.store(ConnectionState::WriteClosed.into(), Ordering::Relaxed);
+    if self.connection_state().cannot_write() {
+      return Ok(());
+    }
+    if !TCX::TY.is_plain_text() {
+      let kss = self.ksw.state_mut();
+      let rslt = self.stream_writer.write_all(&Alert::close_notify().record_bytes(kss)?).await;
+      if rslt.is_err() {
+        self.close_abruptly();
+        return rslt;
+      }
+    }
+    let _prev = ConnectionState::atomic_update(
+      &self.common.connection_state,
+      ConnectionState::on_local_close,
+    );
     self.common.reader_waker.wake();
     Ok(())
   }
@@ -164,35 +202,19 @@ where
 {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    if TCX::TY.is_plain_text() {
-      return self.stream_writer.write_all(bytes).await;
-    }
-    if self.connection_state().cannot_write() {
-      cold_path();
-      return Ok(());
-    }
-    write_payloads(
-      RecordContentTy::ApplicationData,
-      &mut self.ksw,
-      self.max_fragment_length_send,
-      &[bytes],
-      &mut self.stream_writer,
-      &mut self.writer_buffer,
-    )
-    .await?;
-    self.common.can_reply_key_update.store(true, Ordering::Relaxed);
-    Ok(())
+    self.write_all_vectored(&[bytes]).await
   }
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    if TCX::TY.is_plain_text() {
-      return self.stream_writer.write_all_vectored(bytes).await;
-    }
     if self.connection_state().cannot_write() {
       cold_path();
       return Ok(());
     }
+    if TCX::TY.is_plain_text() {
+      return self.stream_writer.write_all_vectored(bytes).await;
+    }
+    self.send_key_update_reply_if_pending().await?;
     write_payloads(
       RecordContentTy::ApplicationData,
       &mut self.ksw,

@@ -16,6 +16,7 @@ pub struct HttpRecvParams {
   max_headers_len: u32,
   max_hpack_len: (u32, u32),
   max_recv_streams_num: u32,
+  idle_detection: bool,
 }
 
 impl HttpRecvParams {
@@ -34,6 +35,7 @@ impl HttpRecvParams {
       max_headers_len: DEFAULT_MAX_HEADERS_LEN,
       max_hpack_len: (DEFAULT_MAX_HPACK_LEN, DEFAULT_MAX_HPACK_LEN),
       max_recv_streams_num: 32,
+      idle_detection: false,
     }
   }
 
@@ -43,6 +45,7 @@ impl HttpRecvParams {
   pub const fn with_optioned_params() -> Self {
     Self {
       enable_connect_protocol: false,
+      idle_detection: false,
       initial_window_len: U31::from_i32(4 * 1024 * 1024),
       linger: true,
       max_body_len: 64 * 1024 * 1024,
@@ -59,6 +62,7 @@ impl HttpRecvParams {
   pub const fn with_permissive_params() -> Self {
     Self {
       enable_connect_protocol: false,
+      idle_detection: false,
       initial_window_len: U31::MAX,
       linger: true,
       max_body_len: u32::MAX,
@@ -79,6 +83,14 @@ impl HttpRecvParams {
   #[inline]
   pub const fn enable_connect_protocol(&self) -> bool {
     self.enable_connect_protocol
+  }
+
+  /// If `true`, then idle detection is enabled by tracking the instant of the last received frame.
+  ///
+  /// Defaults to `false`.
+  #[inline]
+  pub const fn idle_detection(&self) -> bool {
+    self.idle_detection
   }
 
   /// Initial window length
@@ -164,6 +176,14 @@ impl HttpRecvParams {
   #[must_use = must_use_itself_doc!()]
   pub const fn set_enable_connect_protocol(mut self, value: bool) -> Self {
     self.enable_connect_protocol = value;
+    self
+  }
+
+  /// Mutable version of [`Self::idle_detection`].
+  #[inline]
+  #[must_use = must_use_itself_doc!()]
+  pub const fn set_idle_detection(mut self, value: bool) -> Self {
+    self.idle_detection = value;
     self
   }
 

@@ -1,7 +1,6 @@
 use crate::{
-  misc::Either,
   sync::{Arc, AtomicCell, AtomicWaker},
-  tls::{Alert, protocol::key_update::KeyUpdate},
+  tls::Alert,
 };
 use core::{future::poll_fn, task::Poll};
 
@@ -50,17 +49,30 @@ impl<const IS_CLIENT: bool> TlsStreamBridge<IS_CLIENT> {
 /// Data returned by the [`TlsStreamBridge::listen`] method. Should be handed to the writer part.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TlsStreamBridgeData {
-  frame: Either<Alert, KeyUpdate>,
+  frame: TlsStreamBridgeFrame,
 }
 
 impl TlsStreamBridgeData {
   #[inline]
-  pub(crate) const fn new(frame: Either<Alert, KeyUpdate>) -> Self {
+  pub(crate) const fn new(frame: TlsStreamBridgeFrame) -> Self {
     Self { frame }
   }
 
   #[inline]
-  pub(crate) const fn frame(self) -> Either<Alert, KeyUpdate> {
+  pub(crate) const fn frame(self) -> TlsStreamBridgeFrame {
     self.frame
   }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TlsStreamBridgeFrame {
+  Alert(Alert),
+  /// The frame cannot remain here because the RFC requires an immediate reply and also because
+  /// of concurrent scenarios.
+  ///
+  /// For example, after this variant is issued but before the bridge enters thr branch,
+  /// someone else might write an application data frame.
+  ///
+  /// See the `key_update_reply` field of [`crate::tls::tls_stream_common::TlsStreamCommon`].
+  KeyUpdate,
 }

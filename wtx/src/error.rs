@@ -190,6 +190,8 @@ pub enum Error {
   GenericStatic(ShortStrU8<'static>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
   InsufficientOptionCapacity,
+  /// A `u8` value is not a valid [`crate::net::ConnectionState`] discriminant.
+  InvalidConnectionState(u8),
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
   /// Invalid PPM value

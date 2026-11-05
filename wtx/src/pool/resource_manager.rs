@@ -206,7 +206,7 @@ pub(crate) mod database {
 
     #[inline]
     fn is_invalid(&self, resource: &Self::Resource) -> bool {
-      resource.lease().connection_state().is_closed()
+      !resource.lease().connection_state().is_open()
     }
 
     #[inline]
