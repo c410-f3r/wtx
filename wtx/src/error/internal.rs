@@ -85,15 +85,6 @@ impl From<crate::codec::CodecError> for Error {
   }
 }
 
-#[cfg(feature = "http-cookie")]
-impl From<crate::http::cookie::CookieError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: crate::http::cookie::CookieError) -> Self {
-    Self::Cookie(from)
-  }
-}
-
 #[cfg(feature = "crypto")]
 impl From<crate::crypto::CryptoError> for Error {
   #[inline]

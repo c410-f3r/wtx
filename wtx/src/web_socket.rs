@@ -32,9 +32,7 @@ use crate::{
 };
 pub use close_code::CloseCode;
 use core::marker::PhantomData;
-pub use frame::{
-  Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut, FrameVectorRef,
-};
+pub use frame::{Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut};
 pub use op_code::OpCode;
 pub use web_socket_acceptor::WebSocketAcceptor;
 pub use web_socket_bridge::{WebSocketBridge, WebSocketBridgeData};
@@ -148,7 +146,8 @@ where
       stream,
       wsb,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer: _ } = wsb;
+    let WebSocketBuffer { network_buffer, reader_batches: _, reader_buffer, writer_buffer: _ } =
+      wsb;
     read_frame::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       is_in_continuation_frame,
       *max_payload_len,
@@ -157,6 +156,49 @@ where
       network_buffer,
       *no_masking,
       payload_origin,
+      reader_buffer,
+      rng,
+      stream,
+      &WebSocketBridge::new(TlsStreamBridge::new()),
+      buffer,
+      |el| el.connection_state = el.connection_state.on_both_close(),
+      |local_stream| local_stream,
+      |local_stream| local_stream,
+    )
+    .await
+  }
+
+  /// Reads all frames that are already available in the internal network buffer.
+  #[inline]
+  pub async fn read_frames<'buffer, 'frame, 'this>(
+    &'this mut self,
+    buffer: &'buffer mut VectorUsize<u8>,
+    payload_origin: WebSocketPayloadOrigin,
+  ) -> crate::Result<impl Iterator<Item = FrameMut<'frame>>>
+  where
+    'buffer: 'frame,
+    'this: 'frame,
+  {
+    let WebSocket {
+      is_in_continuation_frame,
+      max_payload_len,
+      nc_rsv1,
+      nc,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+    } = self;
+    let WebSocketBuffer { network_buffer, reader_batches, reader_buffer, writer_buffer: _ } = wsb;
+    read_frame::read_frames::<_, _, _, _, _, true, IS_CLIENT>(
+      is_in_continuation_frame,
+      *max_payload_len,
+      nc,
+      *nc_rsv1,
+      network_buffer,
+      *no_masking,
+      payload_origin,
+      reader_batches,
       reader_buffer,
       rng,
       stream,
@@ -188,7 +230,7 @@ where
       wsb,
       max_payload_len,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
+    let WebSocketBuffer { network_buffer, reader_batches, reader_buffer, writer_buffer } = wsb;
     (
       WebSocketCommonMut { nc, nc_rsv1: *nc_rsv1, rng, stream },
       WebSocketReaderMut {
@@ -197,6 +239,7 @@ where
         network_buffer,
         no_masking: *no_masking,
         phantom: PhantomData,
+        reader_batches,
         reader_buffer,
       },
       WebSocketWriterMut { no_masking: *no_masking, phantom: PhantomData, writer_buffer },
@@ -214,6 +257,28 @@ where
       self.no_masking,
       &mut self.nc,
       self.nc_rsv1,
+      &mut self.rng,
+      &mut self.stream,
+      &mut self.wsb.writer_buffer,
+      |el| el.connection_state = el.connection_state.on_local_close(),
+    )
+    .await
+  }
+
+  /// Writes multiple frames to the stream.
+  #[inline]
+  pub async fn write_frames<'frame, P>(
+    &mut self,
+    frames: impl IntoIterator<Item = &'frame mut Frame<P>>,
+  ) -> crate::Result<()>
+  where
+    P: LeaseMut<[u8]> + 'frame,
+  {
+    write_frame::write_frames::<_, _, _, _, IS_CLIENT>(
+      frames,
+      self.nc_rsv1,
+      &mut self.nc,
+      self.no_masking,
       &mut self.rng,
       &mut self.stream,
       &mut self.wsb.writer_buffer,
@@ -243,7 +308,7 @@ where
       max_payload_len,
     } = self;
     let (compression, decompression) = nc.into_split();
-    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
+    let WebSocketBuffer { network_buffer, reader_batches, reader_buffer, writer_buffer } = wsb;
     let (stream_bridge_tls, stream_reader, stream_writer) = stream.into_split()?;
     let stream_bridge_ws = WebSocketBridge::new(stream_bridge_tls);
     Ok((
@@ -256,6 +321,7 @@ where
         network_buffer,
         no_masking,
         phantom: PhantomData,
+        reader_batches,
         reader_buffer,
         rng: Xorshift64::from_rng(&mut rng)?,
         stream_bridge: stream_bridge_ws,

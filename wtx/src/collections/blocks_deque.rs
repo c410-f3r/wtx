@@ -64,8 +64,6 @@ pub type BlocksDequeUsize<D, M> = BlocksDeque<D, usize, M>;
 /// Errors of [`BlocksDeque`].
 #[derive(Clone, Copy, Debug)]
 pub enum BlocksDequeError {
-  /// The provided index does not point to valid internal data
-  OutOfBoundsIndex,
   #[doc = doc_single_elem_cap_overflow!()]
   PushBackOverflow,
   #[doc = doc_single_elem_cap_overflow!()]

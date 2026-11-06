@@ -1,9 +1,15 @@
-use crate::{collections::VectorUsize, net::BufStreamReader};
+use crate::{
+  collections::{VectorU8, VectorUsize},
+  net::BufStreamReader,
+  web_socket::read_frame_info::ReadFrameInfo,
+};
+use core::range::Range;
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
 pub struct WebSocketBuffer {
   pub(crate) network_buffer: BufStreamReader,
+  pub(crate) reader_batches: VectorU8<(ReadFrameInfo, Range<usize>)>,
   // Used for decompression
   pub(crate) reader_buffer: VectorUsize<u8>,
   pub(crate) writer_buffer: VectorUsize<u8>,
@@ -15,14 +21,16 @@ impl WebSocketBuffer {
   pub const fn new() -> Self {
     Self {
       network_buffer: BufStreamReader::new(),
+      reader_batches: VectorU8::new(),
       reader_buffer: VectorUsize::new(),
       writer_buffer: VectorUsize::new(),
     }
   }
 
   pub(crate) fn clear(&mut self) {
-    let Self { network_buffer, reader_buffer, writer_buffer } = self;
+    let Self { network_buffer, reader_batches, reader_buffer, writer_buffer } = self;
     network_buffer.clear();
+    reader_batches.clear();
     reader_buffer.clear();
     writer_buffer.clear();
   }

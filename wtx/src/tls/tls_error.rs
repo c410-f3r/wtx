@@ -10,8 +10,6 @@ pub enum TlsError {
   AbortedHandshake(Alert),
   /// Peer closed the connection without a graceful stop
   AbruptDisconnect,
-  /// Bad Pre Key Share
-  BadPreKeyShare,
   /// Bad signature
   BadSignature,
   /// Expected Finished record
@@ -38,32 +36,22 @@ pub enum TlsError {
   EmptyNewSessionTicket,
   /// Empty inner plaintext of a protected record
   EmptyPlaintext,
-  /// Empty set of certificates
-  EmptySetOfCertificates,
   /// Trailing Data In Handshake
   ExcessHandshakeData(RoleTy),
-  /// Incompatible ALPN
-  IncompatibleAlpn,
   /// Incomplete Handshake
   IncompleteHandshake,
-  /// Incompatible Certificate Types
-  IncompatibleCertificateTypes,
   /// Invalid AES data
   InvalidAesData,
   /// Invalid Alert
   InvalidAlert,
   /// Invalid array
   InvalidArray,
-  /// Invalid slice
-  InvalidSlice,
   /// Invalid certificate
   InvalidCertificate,
   /// Invalid certificate authorities
   InvalidCertificateAuthorities,
   /// Invalid certificate request
   InvalidCertificateRequest,
-  /// Invalid Certificate Type
-  InvalidCertificateType,
   /// Invalid certificate verify
   InvalidCertificateVerify,
   /// Invalid Cipher Suite
@@ -92,40 +80,20 @@ pub enum TlsError {
   InvalidLegacySessionId,
   /// Invalid new session ticket
   InvalidNewSessionTicket,
-  /// Invalid Key Share Client Hello
-  InvalidKeyShareClientHello,
-  /// Invalid Key Share
-  InvalidKeyShare,
   /// Invalid Key Share Entry
   InvalidKeyShareEntry,
-  /// Invalid key update state
-  InvalidKeyUpdateState,
   /// Invalid Max Fragment Length
   InvalidMaxFragmentLength,
   /// Invalid Negotiated Max Fragment Length
   InvalidNegotiatedMaxFragmentLength,
   /// Invalid Negotiated Server Name
   InvalidNegotiatedServerName,
-  /// Invalid Psk Key Exchange Modes
-  InvalidPskKeyExchangeModes,
-  /// Invalid Signature Algorithms
-  InvalidSignatureAlgorithms,
-  /// Invalid Signature Algorithms Certificate
-  InvalidSignatureAlgorithmsCert,
-  /// Invalid Signature Scheme
-  InvalidSignatureScheme,
-  /// Invalid Supported Groups
-  InvalidSupportedGroups,
   /// Invalid Supported Versions Of Client Hello
   InvalidSupportedVersions,
   /// Invalid server hello
   InvalidServerHello,
-  /// Invalid Legacy Session Id Echo
-  InvalidLegacySessionIdEcho,
   /// Invalid Psk Key Exchange Mode
   InvalidPskKeyExchangeMode,
-  /// Invalid Raw Public Key
-  InvalidRawPublicKey,
   /// Invalid server name
   InvalidServerName,
   /// Invalid server name list
@@ -186,20 +154,14 @@ pub enum TlsError {
   UnknownKeyUpdateRequest,
   /// Unknown Signature Scheme
   UnknownSignatureScheme,
-  /// Unknown Webpki Signature Scheme
-  UnknownWebpkiSignatureScheme,
   /// Secret mismatch
   SecretMismatch,
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleSignatureScheme,
   /// The server has a set of suites that the client don't support
-  ServerHasNoCompatibleAlgorithmTyForCert,
-  /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleCypherSuite,
   /// The server has a set of suites that the client don't support
   ServerHasNoCompatibleKeyShare,
-  /// The capacity upper bound of `TlsReadBuffer` was extrapolated
-  TlsReadBufferOverflow,
   /// Usage of deprecated PKCS1
   UsageOfDeprecatedPKCS1,
   /// Records like `ChangeCipherSpec` are not allowed as an inner type
@@ -208,10 +170,6 @@ pub enum TlsError {
   UnexpectedAfterHandshakeOuterRecord,
   /// Unsupported Cipher Suite
   UnsupportedCipherSuite,
-  /// Unsupported extension
-  UnsupportedExtension,
-  /// mTLS is not supported
-  UnsupportedMtls,
   /// Only TLS 1.2 is supported due to legacy reasons
   UnsupportedRecTlsVersion(ProtocolVersion),
   /// Unsupported Sign Algorithm

@@ -23,8 +23,6 @@ pub enum Asn1Error {
   InvalidOidBytes,
   /// Invalid Octetstring
   InvalidOctetstring,
-  /// Invalid Set
-  InvalidSet,
   /// Invalid Tag-Length-Value
   InvalidTlv,
   /// A sequence of DER bytes can not represent `u32`

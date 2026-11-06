@@ -1,5 +1,5 @@
 use crate::{
-  collections::VectorUsize,
+  collections::{VectorU8, VectorUsize},
   misc::LeaseMut,
   net::{BufStreamReader, ConnectionState, StreamReader, StreamWriter},
   rng::Xorshift64,
@@ -7,13 +7,14 @@ use crate::{
   web_socket::{
     Frame, FrameMut, WebSocketPayloadOrigin,
     is_in_continuation_frame::IsInContinuationFrame,
-    read_frame::read_frame,
+    read_frame::{read_frame, read_frames},
+    read_frame_info::ReadFrameInfo,
     web_socket_bridge::{WebSocketBridge, WebSocketBridgeData},
     web_socket_compression::{WebSocketCompression, WebSocketDecompression},
-    write_frame::write_frame,
+    write_frame::{write_frame, write_frames},
   },
 };
-use core::marker::PhantomData;
+use core::{marker::PhantomData, range::Range};
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct WebSocketReaderOwned<D, SR, TCX, const IS_CLIENT: bool> {
   pub(crate) network_buffer: BufStreamReader,
   pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<SR>,
+  pub(crate) reader_batches: VectorU8<(ReadFrameInfo, Range<usize>)>,
   pub(crate) reader_buffer: VectorUsize<u8>,
   pub(crate) rng: Xorshift64,
   pub(crate) stream_bridge: WebSocketBridge<IS_CLIENT>,
@@ -59,6 +61,43 @@ where
       &mut self.network_buffer,
       self.no_masking,
       payload_origin,
+      &mut self.reader_buffer,
+      &mut self.rng,
+      &mut (&mut self.stream_reader, &mut ()),
+      &self.stream_bridge,
+      buffer,
+      |el| {
+        let _prev = ConnectionState::atomic_update(
+          &el.0.common().connection_state,
+          ConnectionState::on_remote_close,
+        );
+      },
+      |local_stream| local_stream.0,
+      |local_stream| local_stream.1,
+    )
+    .await
+  }
+
+  /// Reads all frames that are already available in the internal network buffer.
+  #[inline]
+  pub async fn read_frames<'buffer, 'frame, 'this>(
+    &'this mut self,
+    buffer: &'buffer mut VectorUsize<u8>,
+    payload_origin: WebSocketPayloadOrigin,
+  ) -> crate::Result<impl Iterator<Item = FrameMut<'frame>>>
+  where
+    'buffer: 'frame,
+    'this: 'frame,
+  {
+    read_frames::<_, _, _, _, _, false, IS_CLIENT>(
+      &mut self.is_in_continuation_frame,
+      self.max_payload_len,
+      &mut self.nc,
+      self.nc_rsv1,
+      &mut self.network_buffer,
+      self.no_masking,
+      payload_origin,
+      &mut self.reader_batches,
       &mut self.reader_buffer,
       &mut self.rng,
       &mut (&mut self.stream_reader, &mut ()),
@@ -132,6 +171,34 @@ where
       self.no_masking,
       &mut self.nc,
       self.nc_rsv1,
+      &mut self.rng,
+      &mut self.stream_writer,
+      self.writer_buffer.lease_mut(),
+      |el| {
+        let _prev = ConnectionState::atomic_update(
+          &el.common().connection_state,
+          ConnectionState::on_local_close,
+        );
+        el.common().reader_waker.wake();
+      },
+    )
+    .await
+  }
+
+  /// Writes multiple frames to the stream.
+  #[inline]
+  pub async fn write_frames<'frame, P>(
+    &mut self,
+    frames: impl IntoIterator<Item = &'frame mut Frame<P>>,
+  ) -> crate::Result<()>
+  where
+    P: LeaseMut<[u8]> + 'frame,
+  {
+    write_frames::<_, _, _, _, IS_CLIENT>(
+      frames,
+      self.nc_rsv1,
+      &mut self.nc,
+      self.no_masking,
       &mut self.rng,
       &mut self.stream_writer,
       self.writer_buffer.lease_mut(),

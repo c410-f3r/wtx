@@ -17,6 +17,4 @@ pub enum Http2ServerFrameworkError {
   InvalidWebSocketParameters,
   /// Entered in a route that has an incompatible operation mode
   OperationModeMismatch,
-  /// Unknown path
-  UnknownPath,
 }

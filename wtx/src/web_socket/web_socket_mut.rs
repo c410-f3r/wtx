@@ -1,16 +1,19 @@
 use crate::{
-  collections::VectorUsize,
+  collections::{VectorU8, VectorUsize},
   misc::LeaseMut,
   net::{BufStreamReader, Stream},
   rng::Xorshift64,
   tls::{TlsCtx, TlsStream, TlsStreamBridge},
   web_socket::{
     Frame, FrameMut, WebSocketBridge, WebSocketPayloadOrigin,
-    is_in_continuation_frame::IsInContinuationFrame, read_frame::read_frame,
-    web_socket_compression::NegotiatedWsCompression, write_frame::write_frame,
+    is_in_continuation_frame::IsInContinuationFrame,
+    read_frame::{read_frame, read_frames},
+    read_frame_info::ReadFrameInfo,
+    web_socket_compression::NegotiatedWsCompression,
+    write_frame::{write_frame, write_frames},
   },
 };
-use core::marker::PhantomData;
+use core::{marker::PhantomData, range::Range};
 
 /// Auxiliary common structure used by [`WebSocketReaderMut`] and [`WebSocketWriterMut`]
 #[derive(Debug)]
@@ -30,6 +33,7 @@ pub struct WebSocketReaderMut<'instance, NC, S, TCX, const IS_CLIENT: bool> {
   pub(crate) network_buffer: &'instance mut BufStreamReader,
   pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S, TCX)>,
+  pub(crate) reader_batches: &'instance mut VectorU8<(ReadFrameInfo, Range<usize>)>,
   pub(crate) reader_buffer: &'instance mut VectorUsize<u8>,
 }
 
@@ -74,6 +78,39 @@ where
     )
     .await
   }
+
+  /// Reads all frames that are already available in the internal network buffer.
+  #[inline]
+  pub async fn read_frames<'buffer, 'frame, 'this>(
+    &'this mut self,
+    buffer: &'buffer mut VectorUsize<u8>,
+    common: &mut WebSocketCommonMut<'instance, NC, S, TCX, IS_CLIENT>,
+    payload_origin: WebSocketPayloadOrigin,
+  ) -> crate::Result<impl Iterator<Item = FrameMut<'frame>>>
+  where
+    'buffer: 'frame,
+    'this: 'frame,
+  {
+    read_frames::<_, _, _, _, _, true, IS_CLIENT>(
+      self.is_in_continuation_frame,
+      self.max_payload_len,
+      common.nc,
+      common.nc_rsv1,
+      self.network_buffer.lease_mut(),
+      self.no_masking,
+      payload_origin,
+      self.reader_batches.lease_mut(),
+      self.reader_buffer.lease_mut(),
+      common.rng,
+      common.stream,
+      &WebSocketBridge::new(TlsStreamBridge::new()),
+      buffer,
+      |el| el.connection_state = el.connection_state.on_both_close(),
+      |local_stream| local_stream,
+      |local_stream| local_stream,
+    )
+    .await
+  }
 }
 
 /// Auxiliary structure that can be used when it is necessary to write a received frame that belongs
@@ -107,6 +144,29 @@ where
       self.no_masking,
       common.nc,
       common.nc_rsv1,
+      common.rng,
+      common.stream,
+      self.writer_buffer,
+      |el| el.connection_state = el.connection_state.on_local_close(),
+    )
+    .await
+  }
+
+  /// Writes multiple frames to the stream.
+  #[inline]
+  pub async fn write_frames<'frame, P>(
+    &mut self,
+    common: &mut WebSocketCommonMut<'instance, NC, S, TCX, IS_CLIENT>,
+    frames: impl IntoIterator<Item = &'frame mut Frame<P>>,
+  ) -> crate::Result<()>
+  where
+    P: LeaseMut<[u8]> + 'frame,
+  {
+    write_frames::<_, _, _, _, IS_CLIENT>(
+      frames,
+      common.nc_rsv1,
+      common.nc,
+      self.no_masking,
       common.rng,
       common.stream,
       self.writer_buffer,

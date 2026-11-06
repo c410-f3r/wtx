@@ -41,3 +41,6 @@ pub use tcp_stream::TcpStream;
 pub use to_socket_addrs::ToSocketAddrs;
 pub use udp_stream::UdpStream;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
+
+/// The maximum amount of slices that can be sent at once
+pub const MAX_VECTORED_WRITES: usize = 8;

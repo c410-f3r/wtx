@@ -83,6 +83,13 @@ impl From<TryFromSliceError> for Error {
   }
 }
 
+impl From<core::str::Utf8Error> for Error {
+  #[inline]
+  fn from(from: core::str::Utf8Error) -> Self {
+    Self::Utf8(from.into())
+  }
+}
+
 impl From<Box<dyn Any + Send + 'static>> for Error {
   #[inline]
   fn from(from: Box<dyn Any + Send + 'static>) -> Self {

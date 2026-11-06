@@ -40,8 +40,6 @@ pub enum ArrayStringError {
     /// Maximum
     max: u32,
   },
-  /// The index provided in the `insert` method is out of bounds.
-  OutOfBoundsInsertIdx,
 }
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.

@@ -17,8 +17,6 @@ pub enum X509CvError {
   DoesNotHaveMatchedConstraints,
   /// End Entity certificate cannot have a critical Extended Key Usage.
   EeCanNotHaveACriticalEku,
-  /// End Entity certificate must have an Extended Key Usage extension.
-  EeMustHaveEku,
   /// End Entity certificate must have SAN
   EeMustHaveSan,
   /// Extended Key Usage cannot contain the anyExtendedKeyUsage OID.
@@ -73,8 +71,6 @@ pub enum X509CvError {
   RootCasMustHaveMatchingAkiAndSki,
   /// Subject Alternative Name must be critical if subject is empty.
   SanMustBeCritical,
-  /// Cryptographic signature verification failed.
-  SignatureMismatch,
   /// Subject Key Identifier extension must not be marked critical.
   SubjectKeyIdentifierMustNotBeCritical,
   /// Subject name type or format is unrecognized.

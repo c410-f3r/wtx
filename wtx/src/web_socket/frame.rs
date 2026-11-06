@@ -18,8 +18,6 @@ pub type FrameRef<'bytes> = Frame<&'bytes [u8]>;
 pub type FrameVector = Frame<VectorUsize<u8>>;
 /// Composed by a mutable vector reference.
 pub type FrameVectorMut<'bytes> = Frame<&'bytes mut VectorUsize<u8>>;
-/// Composed by a immutable vector reference.
-pub type FrameVectorRef<'bytes> = Frame<&'bytes VectorUsize<u8>>;
 
 /// Unit of generic data used for communication.
 #[derive(Debug)]

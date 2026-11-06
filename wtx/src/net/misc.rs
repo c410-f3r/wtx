@@ -1,9 +1,9 @@
 #[cfg(feature = "std")]
 pub(crate) fn convert_to_io_slices<'buffer, 'bytes>(
-  buffer: &'buffer mut [::std::io::IoSlice<'bytes>; 8],
+  buffer: &'buffer mut [::std::io::IoSlice<'bytes>; crate::net::MAX_VECTORED_WRITES],
   elems: &[&'bytes [u8]],
 ) -> crate::Result<&'buffer mut [::std::io::IoSlice<'bytes>]> {
-  if elems.len() > 8 {
+  if elems.len() > crate::net::MAX_VECTORED_WRITES {
     return crate::misc::unlikely_elem(Err(crate::net::NetError::VectoredWriteOverflow.into()));
   }
   for (elem, io_slice) in elems.iter().zip(&mut *buffer) {
