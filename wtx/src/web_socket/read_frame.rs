@@ -173,6 +173,7 @@ pub(crate) fn manage_text_of_recurrent_continuation_frames(
 async fn read_continuation_frames_until_final<
   'frame,
   'nb,
+  'rb,
   'ub,
   D,
   R,
@@ -182,6 +183,7 @@ async fn read_continuation_frames_until_final<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
+  force_user_buffer: bool,
   is_in_continuation_frame: &mut IsInContinuationFrame,
   max_payload_len: usize,
   nc: &mut D,
@@ -189,7 +191,7 @@ async fn read_continuation_frames_until_final<
   network_buffer: &'nb mut BufStreamReader,
   no_masking: bool,
   payload_origin: WebSocketPayloadOrigin,
-  reader_buffer: &mut VectorUsize<u8>,
+  reader_buffer: &'rb mut VectorUsize<u8>,
   rng: &mut R,
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
@@ -199,14 +201,19 @@ async fn read_continuation_frames_until_final<
   stream_writer_cb: &mut impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<(FrameMut<'frame>, bool)>
 where
-  'nb: 'frame,
-  'ub: 'frame,
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
+  'nb: 'frame,
+  'rb: 'frame,
+  'ub: 'frame,
 {
-  let control_frame = if !D::IS_NOOP && is_in_continuation_frame.should_decompress {
+  // A previous control frame may have been placed after the fragments of the current message.
+  // Remove it before continuing the message.
+  user_buffer.truncate(is_in_continuation_frame.user_buffer_end);
+  let is_decompressing = !D::IS_NOOP && is_in_continuation_frame.should_decompress;
+  let control_frame = if is_decompressing {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
       &mut *reader_buffer,
       &mut *user_buffer,
@@ -229,7 +236,7 @@ where
   } else {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
       user_buffer,
-      &mut VectorUsize::new(),
+      reader_buffer,
       is_in_continuation_frame,
       max_payload_len,
       nc,
@@ -240,7 +247,7 @@ where
       stream,
       stream_bridge,
       closed_conn_cb,
-      &mut |_, _, _, _, _| Ok(()),
+      &mut |_, _, _, _, _, _| Ok(()),
       &mut manage_text_of_recurrent_continuation_frames,
       stream_reader_cb,
       stream_writer_cb,
@@ -249,11 +256,32 @@ where
   };
   let is_final = control_frame.is_none();
   let (op_code, payload) = if let Some(op_code) = control_frame {
-    (op_code, payload_origin.manage_payload(network_buffer.current_mut(), user_buffer)?)
+    let payload = match payload_origin {
+      WebSocketPayloadOrigin::Adaptive => network_buffer.current_mut(),
+      WebSocketPayloadOrigin::Consistent => {
+        let user_buffer_begin = is_in_continuation_frame.user_buffer_begin;
+        if is_decompressing {
+          user_buffer.truncate(user_buffer_begin);
+          user_buffer.extend_from_copyable_slice(network_buffer.current())?;
+          user_buffer.as_slice_mut().get_mut(user_buffer_begin..).unwrap_or_default()
+        } else if force_user_buffer {
+          let control_begin = user_buffer.len();
+          user_buffer.extend_from_copyable_slice(network_buffer.current())?;
+          is_in_continuation_frame.user_buffer_end = control_begin;
+          user_buffer.as_slice_mut().get_mut(control_begin..).unwrap_or_default()
+        } else {
+          reader_buffer.clear();
+          reader_buffer.extend_from_copyable_slice(network_buffer.current())?;
+          reader_buffer.as_slice_mut()
+        }
+      }
+    };
+    (op_code, payload)
   } else {
     reader_buffer.clear();
     let op_code = is_in_continuation_frame.op_code;
-    (op_code, user_buffer.as_slice_mut())
+    let user_buffer_begin = is_in_continuation_frame.user_buffer_begin;
+    (op_code, user_buffer.as_slice_mut().get_mut(user_buffer_begin..).unwrap_or_default())
   };
   Ok((Frame::new(true, op_code, payload, nc_rsv1), is_final))
 }
@@ -265,6 +293,7 @@ where
 pub(crate) async fn read_frame<
   'frame,
   'nb,
+  'rb,
   'ub,
   D,
   R,
@@ -281,7 +310,7 @@ pub(crate) async fn read_frame<
   network_buffer: &'nb mut BufStreamReader,
   no_masking: bool,
   payload_origin: WebSocketPayloadOrigin,
-  reader_buffer: &mut VectorUsize<u8>,
+  reader_buffer: &'rb mut VectorUsize<u8>,
   rng: &mut R,
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
@@ -291,12 +320,13 @@ pub(crate) async fn read_frame<
   mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<FrameMut<'frame>>
 where
-  'nb: 'frame,
-  'ub: 'frame,
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
+  'nb: 'frame,
+  'rb: 'frame,
+  'ub: 'frame,
 {
   let Some(is_in_continuation_frame) = is_in_continuation_frame_opt else {
     user_buffer.clear();
@@ -309,6 +339,7 @@ where
     )
     .await?;
     return read_frame_from_first_rfi::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+      false,
       is_in_continuation_frame_opt,
       max_payload_len,
       nc,
@@ -329,6 +360,7 @@ where
     .await;
   };
   let tuple = read_continuation_frames_until_final::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+    false,
     is_in_continuation_frame,
     max_payload_len,
     nc,
@@ -355,6 +387,7 @@ where
 
 pub(crate) async fn read_frames<
   'frame,
+  'rb,
   D,
   R,
   S,
@@ -371,7 +404,7 @@ pub(crate) async fn read_frames<
   no_masking: bool,
   payload_origin: WebSocketPayloadOrigin,
   reader_batches: &'frame mut VectorU8<(ReadFrameInfo, Range<usize>)>,
-  reader_buffer: &mut VectorUsize<u8>,
+  reader_buffer: &'rb mut VectorUsize<u8>,
   rng: &mut R,
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
@@ -385,6 +418,7 @@ where
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
+  'rb: 'frame,
 {
   if is_in_continuation_frame_opt.is_some() {
     let frame = read_frame::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
@@ -419,28 +453,28 @@ where
   )
   .await?;
   let mut processed = 0;
-  let mut scratch = VectorUsize::new();
   let len = usize::from(reader_batches.len());
   for idx in 0..len {
     let Some((rfi, range)) = reader_batches.get(idx).copied() else {
       break;
     };
     network_buffer.set_indices(range.start, range.end);
-    scratch.clear();
+    let payload_begin = user_buffer.len();
     let frame = read_frame_from_first_rfi::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+      true,
       is_in_continuation_frame_opt,
       max_payload_len,
       nc,
       nc_rsv1,
       network_buffer,
       no_masking,
-      payload_origin,
+      WebSocketPayloadOrigin::Consistent,
       reader_buffer,
       rfi,
       rng,
       stream,
       stream_bridge,
-      &mut scratch,
+      user_buffer,
       &mut closed_conn_cb,
       &mut stream_reader_cb,
       &mut stream_writer_cb,
@@ -448,8 +482,12 @@ where
     .await?;
     let frame_fin = frame.fin();
     let frame_op_code = frame.op_code();
-    let payload_begin = user_buffer.len();
-    user_buffer.extend_from_copyable_slice(frame.payload())?;
+    drop(frame);
+    let payload_begin = if !rfi.fin && frame_op_code.is_control() {
+      is_in_continuation_frame_opt.as_ref().map_or(payload_begin, |el| el.user_buffer_end)
+    } else {
+      payload_begin
+    };
     let payload_end = user_buffer.len();
     if let Some(entry) = reader_batches.as_slice_mut().get_mut(idx) {
       entry.0.fin = frame_fin;
@@ -529,12 +567,14 @@ fn copy_from_compressed_rb1_to_rb2<D>(
   first_op_code: OpCode,
   max_payload_len: usize,
   nc: &mut D,
+  user_buffer_begin: usize,
   reader_buffer_first: &mut VectorUsize<u8>,
   reader_buffer_second: &mut VectorUsize<u8>,
 ) -> crate::Result<()>
 where
   D: WebSocketDecompression,
 {
+  reader_buffer_second.truncate(user_buffer_begin);
   reader_buffer_first.extend_from_copyable_slice(&DECOMPRESSION_SUFFIX)?;
   let payload_len = nc.decompress(
     DecompressionFlush::SyncFlush,
@@ -542,11 +582,12 @@ where
     reader_buffer_second,
     max_payload_len,
   )?;
-  reader_buffer_second.truncate(payload_len);
+  reader_buffer_second.truncate(user_buffer_begin.saturating_add(payload_len));
   if !D::IS_NOOP && nc.no_context_takeover() {
     nc.reset();
   }
-  if matches!(first_op_code, OpCode::Text) && from_utf8_basic(reader_buffer_second).is_err() {
+  let message = reader_buffer_second.as_slice().get(user_buffer_begin..).unwrap_or_default();
+  if matches!(first_op_code, OpCode::Text) && from_utf8_basic(message).is_err() {
     return Err(crate::Error::InvalidUTF8);
   }
   Ok(())
@@ -563,22 +604,16 @@ where
   D: WebSocketDecompression,
   SR: StreamReader,
 {
-  *network_buffer.forbid_clear_mut() = true;
-  let fut = async {
-    let rfi = ReadFrameInfo::from_stream::<D, _, IS_CLIENT>(
-      max_payload_len,
-      nc_rsv1,
-      network_buffer,
-      no_masking,
-      stream_reader,
-    )
-    .await?;
-    network_buffer.read_payload(rfi.payload_len, stream_reader).await?;
-    crate::Result::Ok(rfi)
-  };
-  let rslt = fut.await;
-  *network_buffer.forbid_clear_mut() = false;
-  rslt
+  let rfi = ReadFrameInfo::from_stream::<D, _, IS_CLIENT>(
+    max_payload_len,
+    nc_rsv1,
+    network_buffer,
+    no_masking,
+    stream_reader,
+  )
+  .await?;
+  network_buffer.read_payload(rfi.payload_len, stream_reader).await?;
+  Ok(rfi)
 }
 
 async fn fetch_frames_from_stream<D, SR, const IS_CLIENT: bool>(
@@ -711,6 +746,8 @@ where
     iuc,
     op_code: rfi.op_code,
     should_decompress: rfi.should_decompress,
+    user_buffer_begin: 0,
+    user_buffer_end: 0,
   }))
 }
 
@@ -739,6 +776,7 @@ async fn read_continuation_frames<
     OpCode,
     usize,
     &mut D,
+    usize,
     &mut VectorUsize<u8>,
     &mut VectorUsize<u8>,
   ) -> crate::Result<()>,
@@ -791,6 +829,9 @@ where
       return Err(WebSocketError::VeryLargePayload.into());
     }
     continuation_buffer.extend_from_copyable_slice(payload)?;
+    if !is_in_continuation_frame.should_decompress {
+      is_in_continuation_frame.user_buffer_end = continuation_buffer.len();
+    }
     if manage_op_code_of_continuation_frames(
       rfi.fin,
       is_in_continuation_frame.op_code,
@@ -803,6 +844,7 @@ where
         is_in_continuation_frame.op_code,
         max_payload_len,
         nc,
+        is_in_continuation_frame.user_buffer_begin,
         continuation_buffer,
         final_buffer,
       )?;
@@ -814,6 +856,7 @@ where
 async fn read_frame_from_first_rfi<
   'frame,
   'nb,
+  'rb,
   'ub,
   D,
   R,
@@ -823,6 +866,7 @@ async fn read_frame_from_first_rfi<
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
+  force_user_buffer: bool,
   is_in_continuation_frame_opt: &mut Option<IsInContinuationFrame>,
   max_payload_len: usize,
   nc: &mut D,
@@ -830,7 +874,7 @@ async fn read_frame_from_first_rfi<
   network_buffer: &'nb mut BufStreamReader,
   no_masking: bool,
   payload_origin: WebSocketPayloadOrigin,
-  reader_buffer: &mut VectorUsize<u8>,
+  reader_buffer: &'rb mut VectorUsize<u8>,
   first_rfi: ReadFrameInfo,
   rng: &mut R,
   stream: &mut S,
@@ -846,6 +890,7 @@ where
   SR: StreamReader,
   SW: StreamWriter,
   'nb: 'frame,
+  'rb: 'frame,
   'ub: 'frame,
 {
   if first_rfi.fin {
@@ -874,7 +919,9 @@ where
     }
     return rslt;
   }
-  let buffer = if !D::IS_NOOP && first_rfi.should_decompress {
+  let is_decompressing = !D::IS_NOOP && first_rfi.should_decompress;
+  let user_buffer_begin = user_buffer.len();
+  let buffer = if is_decompressing {
     reader_buffer.clear();
     &mut *reader_buffer
   } else {
@@ -887,7 +934,11 @@ where
     no_masking,
     &first_rfi,
   )?;
+  is_in_continuation_frame.user_buffer_begin = user_buffer_begin;
+  is_in_continuation_frame.user_buffer_end =
+    if is_decompressing { user_buffer_begin } else { user_buffer.len() };
   let tuple = read_continuation_frames_until_final::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
+    force_user_buffer,
     is_in_continuation_frame,
     max_payload_len,
     nc,
