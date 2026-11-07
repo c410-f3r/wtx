@@ -393,6 +393,9 @@ pub(crate) async fn read_frames<
   S,
   SR,
   SW,
+  CCB,
+  SRB,
+  SWB,
   const HAS_AUTO_REPLY: bool,
   const IS_CLIENT: bool,
 >(
@@ -409,15 +412,22 @@ pub(crate) async fn read_frames<
   stream: &mut S,
   stream_bridge: &WebSocketBridge<IS_CLIENT>,
   user_buffer: &'frame mut VectorUsize<u8>,
-  mut closed_conn_cb: impl FnMut(&mut S),
-  mut stream_reader_cb: impl FnMut(&mut S) -> &mut SR,
-  mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
-) -> crate::Result<impl Iterator<Item = FrameMut<'frame>> + 'frame>
+  mut closed_conn_cb: CCB,
+  mut stream_reader_cb: SRB,
+  mut stream_writer_cb: SWB,
+) -> crate::Result<
+  impl Iterator<Item = FrameMut<'frame>>
+  + 'frame
+  + use<'frame, D, R, S, SR, SW, CCB, SRB, SWB, HAS_AUTO_REPLY, IS_CLIENT>,
+>
 where
+  CCB: FnMut(&mut S),
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
+  SRB: FnMut(&mut S) -> &mut SR,
   SW: StreamWriter,
+  SWB: FnMut(&mut S) -> &mut SW,
   'rb: 'frame,
 {
   if is_in_continuation_frame_opt.is_some() {

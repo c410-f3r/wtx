@@ -84,12 +84,12 @@ where
     &'this mut self,
     buffer: &'buffer mut VectorUsize<u8>,
     payload_origin: WebSocketPayloadOrigin,
-  ) -> crate::Result<impl Iterator<Item = FrameMut<'frame>>>
+  ) -> crate::Result<impl Iterator<Item = FrameMut<'frame>> + use<'frame, D, SR, TCX, IS_CLIENT>>
   where
     'buffer: 'frame,
     'this: 'frame,
   {
-    read_frames::<_, _, _, _, _, false, IS_CLIENT>(
+    read_frames::<_, _, _, _, _, _, _, _, false, IS_CLIENT>(
       &mut self.is_in_continuation_frame,
       self.max_payload_len,
       &mut self.nc,
@@ -187,12 +187,12 @@ where
 
   /// Writes multiple frames to the stream.
   #[inline]
-  pub async fn write_frames<'frame, P>(
+  pub async fn write_frames<P>(
     &mut self,
-    frames: impl IntoIterator<Item = &'frame mut Frame<P>>,
+    frames: impl IntoIterator<Item = Frame<P>>,
   ) -> crate::Result<()>
   where
-    P: LeaseMut<[u8]> + 'frame,
+    P: LeaseMut<[u8]>,
   {
     write_frames::<_, _, _, _, IS_CLIENT>(
       frames,

@@ -256,14 +256,12 @@ where
   NC: NegotiatedWsCompression,
 {
   async fn client(ws: &mut LocalWebSocket<NC, true>) {
-    let mut frame0 = Frame::new_fin(OpCode::Text, *b"0").unwrap();
-    let mut frame1 = Frame::new_fin(OpCode::Text, *b"1").unwrap();
-    let mut frame2 = Frame::new_fin(OpCode::Text, *b"2").unwrap();
-    let mut frame3 = Frame::new_fin(OpCode::Text, *b"3").unwrap();
-    let mut frame4 = Frame::new_fin(OpCode::Text, *b"4").unwrap();
-    ws.write_frames([&mut frame0, &mut frame1, &mut frame2, &mut frame3, &mut frame4].into_iter())
-      .await
-      .unwrap();
+    let frame0 = Frame::new_fin(OpCode::Text, *b"0").unwrap();
+    let frame1 = Frame::new_fin(OpCode::Text, *b"1").unwrap();
+    let frame2 = Frame::new_fin(OpCode::Text, *b"2").unwrap();
+    let frame3 = Frame::new_fin(OpCode::Text, *b"3").unwrap();
+    let frame4 = Frame::new_fin(OpCode::Text, *b"4").unwrap();
+    ws.write_frames([frame0, frame1, frame2, frame3, frame4].into_iter()).await.unwrap();
   }
 
   async fn server(ws: &mut LocalWebSocket<NC, false>) {

@@ -65,8 +65,8 @@ where
   Ok(())
 }
 
-pub(crate) async fn write_frames<'frame, C, P, R, SW, const IS_CLIENT: bool>(
-  frames: impl IntoIterator<Item = &'frame mut Frame<P>>,
+pub(crate) async fn write_frames<C, P, R, SW, const IS_CLIENT: bool>(
+  frames: impl IntoIterator<Item = Frame<P>>,
   nc_rsv1: u8,
   nc: &mut C,
   no_masking: bool,
@@ -77,7 +77,7 @@ pub(crate) async fn write_frames<'frame, C, P, R, SW, const IS_CLIENT: bool>(
 ) -> crate::Result<()>
 where
   C: WebSocketCompression,
-  P: LeaseMut<[u8]> + 'frame,
+  P: LeaseMut<[u8]>,
   R: Rng,
   SW: StreamWriter,
 {
@@ -91,13 +91,13 @@ where
     writer_buffer.clear();
     // `writer_buffer` has *****mutable***** operations
     while usize::from(batch.len()) < FRAMES_PER_BATCH {
-      let Some(frame) = iter.next() else { break };
-      let cf = if manage_compression::<C, _>(frame, nc_rsv1) {
-        let mut cf = compress_frame(frame, nc, nc_rsv1, writer_buffer)?;
+      let Some(mut frame) = iter.next() else { break };
+      let cf = if manage_compression::<C, _>(&mut frame, nc_rsv1) {
+        let mut cf = compress_frame(&frame, nc, nc_rsv1, writer_buffer)?;
         mask_compressed_frame::<_, IS_CLIENT>(&mut cf, no_masking, rng, writer_buffer);
         Some(cf)
       } else {
-        mask_frame::<_, _, IS_CLIENT>(frame, no_masking, rng);
+        mask_frame::<_, _, IS_CLIENT>(&mut frame, no_masking, rng);
         None
       };
       has_close |= frame.op_code().is_close();
@@ -132,9 +132,9 @@ struct CompressedFrame {
   header: ArrayVectorCopy<u8, MAX_HEADER_LEN>,
 }
 
-struct PreparedFrame<'frame, P> {
+struct PreparedFrame<P> {
   cf: Option<CompressedFrame>,
-  frame: &'frame mut Frame<P>,
+  frame: Frame<P>,
 }
 
 #[inline]
