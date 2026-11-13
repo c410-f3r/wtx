@@ -9,7 +9,7 @@ use wtx::{
   collections::VectorUsize,
   http::WebSocketServerFramework,
   tls::{SkCtx, TlsConfig},
-  web_socket::{OpCode, WebSocket, WebSocketPayloadOrigin},
+  web_socket::WebSocket,
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
@@ -26,12 +26,9 @@ fn main() -> wtx::Result<()> {
 async fn echo(mut buffer: VectorUsize<u8>, mut ws: LocalWebSocket) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   loop {
-    let origin = WebSocketPayloadOrigin::Adaptive;
-    let mut frame = reader.read_frame(&mut buffer, &mut common, origin).await?;
-    match frame.op_code() {
-      OpCode::Binary | OpCode::Text => writer.write_frame(&mut common, &mut frame).await?,
-      OpCode::Close => return Ok(()),
-      _ => {}
-    }
+    let Ok(frames) = reader.read_frames(&mut buffer, &mut common).await else {
+      return Ok(());
+    };
+    writer.write_frames(&mut common, frames.filter(|el| el.op_code().is_data())).await?;
   }
 }

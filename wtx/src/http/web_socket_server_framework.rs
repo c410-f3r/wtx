@@ -8,7 +8,7 @@ use crate::{
   rng::{CryptoRng, CryptoSeedableRng},
   sync::Arc,
   tls::{TlsAcceptor, TlsConfig, TlsCtxSk},
-  web_socket::{WebSocket, WebSocketAcceptor, WsCompression},
+  web_socket::{WebSocket, WebSocketAcceptor, WebSocketBuffer, WsCompression},
 };
 use alloc::string::String;
 use core::num::NonZeroUsize;
@@ -22,7 +22,7 @@ type LocalWebSocket<CO, EX, TCX> = WebSocket<
 
 /// WebSocket Server Framework
 #[derive(Debug)]
-pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX> {
+pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX, WC> {
   compression: CO,
   error_cb: EC,
   executor: EX,
@@ -31,6 +31,7 @@ pub struct WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX> {
   rng: RNG,
   tcp_params: TcpParams,
   tls_config: Arc<TlsConfig<TCX>>,
+  wsb_cb: WC,
 }
 
 impl<ER, EX, RNG, TCX>
@@ -41,6 +42,7 @@ impl<ER, EX, RNG, TCX>
     fn() -> Result<<EX as Executor>::LocalRuntime, ER>,
     RNG,
     TCX,
+    fn() -> crate::Result<WebSocketBuffer>,
   >
 where
   ER: From<crate::Error>,
@@ -60,6 +62,7 @@ where
       rng,
       tcp_params: TcpParams::default(),
       tls_config: tls_config.into(),
+      wsb_cb: || Ok(WebSocketBuffer::default()),
     })
   }
 }
@@ -73,6 +76,7 @@ impl<ER, TCX>
     fn() -> Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime, ER>,
     crate::rng::ChaCha20,
     TCX,
+    fn() -> crate::Result<WebSocketBuffer>,
   >
 where
   ER: From<crate::Error>,
@@ -88,13 +92,13 @@ where
   }
 }
 
-impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX> {
+impl<CO, EC, EX, RC, RNG, TCX, WC> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX, WC> {
   /// Sets the compression algorithm.
   #[inline]
-  pub fn set_compression<_C>(
+  pub fn set_compression<_CO>(
     self,
-    value: _C,
-  ) -> WebSocketServerFramework<_C, EC, EX, RC, RNG, TCX> {
+    value: _CO,
+  ) -> WebSocketServerFramework<_CO, EC, EX, RC, RNG, TCX, WC> {
     WebSocketServerFramework {
       compression: value,
       error_cb: self.error_cb,
@@ -104,6 +108,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
       rng: self.rng,
       tcp_params: self.tcp_params,
       tls_config: self.tls_config,
+      wsb_cb: self.wsb_cb,
     }
   }
 
@@ -112,7 +117,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
   pub fn set_error_cb<_EC>(
     self,
     value: _EC,
-  ) -> WebSocketServerFramework<CO, _EC, EX, RC, RNG, TCX> {
+  ) -> WebSocketServerFramework<CO, _EC, EX, RC, RNG, TCX, WC> {
     WebSocketServerFramework {
       compression: self.compression,
       error_cb: value,
@@ -122,6 +127,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
       rng: self.rng,
       tcp_params: self.tcp_params,
       tls_config: self.tls_config,
+      wsb_cb: self.wsb_cb,
     }
   }
 
@@ -132,7 +138,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
   pub fn set_local_runtime_cb<_RC>(
     self,
     value: _RC,
-  ) -> WebSocketServerFramework<CO, EC, EX, _RC, RNG, TCX> {
+  ) -> WebSocketServerFramework<CO, EC, EX, _RC, RNG, TCX, WC> {
     WebSocketServerFramework {
       compression: self.compression,
       error_cb: self.error_cb,
@@ -142,6 +148,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
       rng: self.rng,
       tcp_params: self.tcp_params,
       tls_config: self.tls_config,
+      wsb_cb: self.wsb_cb,
     }
   }
 
@@ -149,7 +156,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
   ///
   /// Only works when calling [`Self::run_in_threads`]. If [`None`], defaults to the number of threads.
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_local_runtimes(mut self, value: Option<NonZeroUsize>) -> Self {
     self.local_runtimes = value;
     self
@@ -157,7 +164,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
 
   /// See [`TcpParams`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_tcp_params(mut self, value: TcpParams) -> Self {
     self.tcp_params = value;
     self
@@ -168,7 +175,7 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
   pub fn set_tls_config<_TM>(
     self,
     value: TlsConfig<_TM>,
-  ) -> WebSocketServerFramework<CO, EC, EX, RC, RNG, _TM> {
+  ) -> WebSocketServerFramework<CO, EC, EX, RC, RNG, _TM, WC> {
     WebSocketServerFramework {
       compression: self.compression,
       error_cb: self.error_cb,
@@ -178,11 +185,31 @@ impl<CO, EC, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX
       rng: self.rng,
       tcp_params: self.tcp_params,
       tls_config: Arc::new(value),
+      wsb_cb: self.wsb_cb,
+    }
+  }
+
+  /// Sets the buffer callback
+  #[inline]
+  pub fn set_wsb_cb<_WC>(
+    self,
+    value: _WC,
+  ) -> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX, _WC> {
+    WebSocketServerFramework {
+      compression: self.compression,
+      error_cb: self.error_cb,
+      executor: self.executor,
+      local_runtime_cb: self.local_runtime_cb,
+      local_runtimes: self.local_runtimes,
+      rng: self.rng,
+      tcp_params: self.tcp_params,
+      tls_config: self.tls_config,
+      wsb_cb: value,
     }
   }
 }
 
-impl<CO, EC, ER, EX, RC, RNG, TCX> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX>
+impl<CO, EC, ER, EX, RC, RNG, TCX, WC> WebSocketServerFramework<CO, EC, EX, RC, RNG, TCX, WC>
 where
   CO: Clone + WsCompression<false> + 'static,
   EC: Clone + Fn(ER) + 'static,
@@ -191,6 +218,7 @@ where
   RC: Clone + Fn() -> Result<EX::LocalRuntime, ER> + 'static,
   RNG: CryptoRng + CryptoSeedableRng + 'static,
   TCX: TlsCtxSk + 'static,
+  WC: Clone + Fn() -> crate::Result<WebSocketBuffer> + 'static,
 {
   /// Starts the server distributing connections across multiple tasks.
   ///
@@ -200,7 +228,7 @@ where
   pub async fn run<WSR>(mut self, addr: &str, wsr: WSR) -> Result<(), ER>
   where
     CO: Send,
-    CO::NegotiatedCompression: Send + Sync,
+    CO::NegotiatedCompression: Send,
     EC: Send,
     ER: Send,
     EX: Send,
@@ -208,6 +236,7 @@ where
     RC: Send,
     RNG: Send,
     TCX: Send + Sync,
+    WC: Send,
     WSR: WebSocketRouter<CO, ER, EX, TCX> + Send + Sync + 'static,
     WSR::call(..): Send,
     <EX::TcpStream as StreamReader>::read(..): Send,
@@ -219,8 +248,8 @@ where
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let router = build_matcher(&*web_socket_router)?;
     loop {
-      let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WSR>(
-        (&self.compression, &self.error_cb),
+      let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WC, WSR>(
+        (&self.compression, &self.error_cb, &self.wsb_cb),
         (&mut self.rng, self.tcp_params, &self.tls_config),
         &listener,
         &router,
@@ -252,6 +281,7 @@ where
     RC: Send,
     RNG: Send,
     TCX: Send + Sync,
+    WC: Send,
     WSR: WebSocketRouter<CO, ER, EX, TCX> + Send + Sync + 'static,
   {
     let runtimes = if let Some(elem) = self.local_runtimes {
@@ -273,14 +303,15 @@ where
       let thread_tls_config = self.tls_config.clone();
       let thread_uri = Uri::new(String::from(addr));
       let thread_web_socket_router = web_socket_router.clone();
+      let thread_wsb_cb = self.wsb_cb.clone();
       join_handles.push(std::thread::spawn(move || {
         let lc = thread_local_runtime_cb()?;
         lc.block_on(async {
           let hostname = thread_uri.hostname_with_implied_port();
           let listener = EX::TcpListener::bind(hostname, thread_tcp_params).await?;
           loop {
-            let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WSR>(
-              (&thread_comp, &thread_error_cb),
+            let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WC, WSR>(
+              (&thread_comp, &thread_error_cb, &thread_wsb_cb),
               (&mut thread_rng, thread_tcp_params, &thread_tls_config),
               &listener,
               &thread_router,
@@ -319,8 +350,8 @@ where
     let uri = Uri::new(addr);
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     loop {
-      let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WSR>(
-        (&self.compression, &self.error_cb),
+      let Ok(cp) = conn_params::<CO, EC, EX, RNG, TCX, WC, WSR>(
+        (&self.compression, &self.error_cb, &self.wsb_cb),
         (&mut self.rng, self.tcp_params, &self.tls_config),
         &listener,
         &router,
@@ -353,7 +384,7 @@ where
   fn paths(&self) -> impl ExactSizeIterator<Item = &'static str>;
 }
 
-struct ConnParams<CO, EC, EX, RNG, TCX, WSR>
+struct ConnParams<CO, EC, EX, RNG, TCX, WC, WSR>
 where
   EX: Executor,
 {
@@ -364,6 +395,7 @@ where
   stream: EX::TcpStream,
   tls_config: Arc<TlsConfig<TCX>>,
   web_socket_router: Arc<WSR>,
+  wsb_cb: WC,
 }
 
 fn build_matcher<CO, ER, EX, TCX, WSR>(web_socket_router: &WSR) -> crate::Result<Arc<Router<u8>>>
@@ -385,16 +417,19 @@ where
 }
 
 #[inline]
-async fn conn_fut<CO, EC, ER, EX, RNG, TCX, WSR>(conn_params: ConnParams<CO, EC, EX, RNG, TCX, WSR>)
-where
+async fn conn_fut<CO, EC, ER, EX, RNG, TCX, WC, WSR>(
+  conn_params: ConnParams<CO, EC, EX, RNG, TCX, WC, WSR>,
+) where
   CO: WsCompression<false>,
   EC: Fn(ER),
   ER: From<crate::Error>,
   EX: Executor,
   RNG: CryptoRng + CryptoSeedableRng,
   TCX: TlsCtxSk,
+  WC: Fn() -> crate::Result<WebSocketBuffer>,
   WSR: WebSocketRouter<CO, ER, EX, TCX>,
 {
+  let wsb_cb_rslt = (conn_params.wsb_cb)();
   let fun = async {
     let mut path = String::new();
     let web_socket = WebSocketAcceptor::default()
@@ -405,6 +440,7 @@ where
         }
         crate::Result::Ok(true)
       })
+      .set_wsb(wsb_cb_rslt?)
       .accept(TlsAcceptor::new(&*conn_params.tls_config, conn_params.rng, conn_params.stream))
       .await?;
     conn_params.web_socket_router.call(&conn_params.router, path, web_socket).await?;
@@ -415,18 +451,19 @@ where
   }
 }
 
-async fn conn_params<CO, EC, EX, RNG, TCX, WSR>(
-  (compression, error_cb): (&CO, &EC),
+async fn conn_params<CO, EC, EX, RNG, TCX, WC, WSR>(
+  (compression, error_cb, wsb_cb): (&CO, &EC, &WC),
   (rng, tcp_params, tls_config): (&mut RNG, TcpParams, &Arc<TlsConfig<TCX>>),
   listener: &EX::TcpListener,
   router: &Arc<Router<u8>>,
   web_socket_router: &Arc<WSR>,
-) -> crate::Result<ConnParams<CO, EC, EX, RNG, TCX, WSR>>
+) -> crate::Result<ConnParams<CO, EC, EX, RNG, TCX, WC, WSR>>
 where
   CO: Clone,
   EC: Clone,
   EX: Executor,
   RNG: CryptoRng + CryptoSeedableRng,
+  WC: Clone,
 {
   Ok(ConnParams {
     compression: compression.clone(),
@@ -436,5 +473,6 @@ where
     stream: listener.accept(tcp_params).await?.0,
     tls_config: tls_config.clone(),
     web_socket_router: web_socket_router.clone(),
+    wsb_cb: wsb_cb.clone(),
   })
 }

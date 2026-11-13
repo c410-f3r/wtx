@@ -76,27 +76,27 @@ pub trait LinearStorageLen:
   fn from_usize(num: usize) -> crate::Result<Self>;
 
   /// Checked integer addition.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn checked_add(self, rhs: Self) -> Option<Self>;
 
   /// Checked integer division.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn checked_div(self, rhs: Self) -> Option<Self>;
 
   /// Checked integer remainder.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn checked_rem(self, rhs: Self) -> Option<Self>;
 
   /// Checked integer subtraction.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn checked_sub(self, rhs: Self) -> Option<Self>;
 
   /// Saturating integer addition.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn saturating_add(self, rhs: Self) -> Self;
 
   /// Saturating integer subtraction.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn saturating_sub(self, rhs: Self) -> Self;
 
   /// Returns the memory representation of this integer as a byte array in little-endian byte order.
@@ -106,11 +106,11 @@ pub trait LinearStorageLen:
   fn usize(self) -> usize;
 
   /// Wrapping (modular) addition.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn wrapping_add(self, rhs: Self) -> Self;
 
   /// Wrapping (modular) subtraction.
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   fn wrapping_sub(self, rhs: Self) -> Self;
 }
 

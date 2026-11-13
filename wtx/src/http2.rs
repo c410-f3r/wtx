@@ -228,7 +228,8 @@ where
       let mut guard = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = guard.parts_mut();
       let linger = hdpm.hp.linger();
-      if ConnectionState::from_atomic(&inner.is_conn_open.connection_state).is_full_close() {
+      if ConnectionState::from_atomic(&inner.is_conn_open.connection_state).is_closed_or_draining()
+      {
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
       }

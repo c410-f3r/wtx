@@ -100,6 +100,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
         PingAndText,
         PingBetweenFragmentedText,
         TwoPings,
+        MultipleFrames,
         // Last,
         HelloAndGoodbye,
       );
@@ -125,6 +126,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
     PingAndText,
     PingBetweenFragmentedText,
     TwoPings,
+    MultipleFrames,
     // Last,
     HelloAndGoodbye,
   );
@@ -245,6 +247,38 @@ where
       ),
       (text.op_code(), text.payload().len())
     );
+  }
+}
+
+struct MultipleFrames;
+impl<NC> Test<NC> for MultipleFrames
+where
+  NC: NegotiatedWsCompression,
+{
+  async fn client(ws: &mut LocalWebSocket<NC, true>) {
+    let frame0 = Frame::new_fin(OpCode::Text, *b"0").unwrap();
+    let frame1 = Frame::new_fin(OpCode::Text, *b"1").unwrap();
+    let frame2 = Frame::new_fin(OpCode::Text, *b"2").unwrap();
+    let frame3 = Frame::new_fin(OpCode::Text, *b"3").unwrap();
+    let frame4 = Frame::new_fin(OpCode::Text, *b"4").unwrap();
+    ws.write_frames([frame0, frame1, frame2, frame3, frame4].into_iter()).await.unwrap();
+  }
+
+  async fn server(ws: &mut LocalWebSocket<NC, false>) {
+    let mut buffer = VectorUsize::new();
+    let expected = [b"0".as_slice(), b"1", b"2", b"3", b"4"];
+    let mut received = 0;
+    while received < 5 {
+      let frames = ws.read_frames(&mut buffer).await.unwrap();
+      let mut read = 0;
+      for frame in frames {
+        let item = expected[received];
+        assert_eq!((OpCode::Text, item), (frame.op_code(), &**frame.payload()));
+        received += 1;
+        read += 1;
+      }
+      assert!(read > 0);
+    }
   }
 }
 

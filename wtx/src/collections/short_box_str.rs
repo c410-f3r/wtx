@@ -5,7 +5,7 @@ use crate::{
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{
   borrow::Borrow,
-  fmt::{Debug, Formatter},
+  fmt::{Debug, Display, Formatter},
   hash::{Hash, Hasher},
   ops::Deref,
   str::{self, FromStr},
@@ -98,7 +98,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    (**self).fmt(f)
+    f.write_str(self)
   }
 }
 
@@ -112,6 +112,16 @@ where
   fn deref(&self) -> &Self::Target {
     // SAFETY: Constructors only accept strings
     unsafe { str::from_utf8_unchecked(&self.0) }
+  }
+}
+
+impl<L> Display for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.write_str(self)
   }
 }
 

@@ -3,8 +3,6 @@ use crate::http::{KnownHeaderName, Method, Mime};
 /// Http error
 #[derive(Clone, Copy, Debug)]
 pub enum HttpError {
-  /// Generic request error
-  BadRequest,
   /// Invalid `form/data` content
   InvalidFormDataContent,
   /// Invalid HTTP/2 or HTTP/3 header
@@ -22,8 +20,6 @@ pub enum HttpError {
   MissingResponseStatusCode,
   /// The URI doesn't have any placeholder
   MissingUriPlaceholder,
-  /// `TlsConfig` is mandatory for TLS connections
-  TlsConnectionRequireTlsConfig,
   /// Content-Type mismatch
   UnexpectedContentType {
     /// Expected method

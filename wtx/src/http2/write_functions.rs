@@ -103,16 +103,13 @@ pub(crate) fn push_data(
   wp: &mut WindowsPair<'_>,
 ) -> crate::Result<bool> {
   const fn should_stop(data: &[u8], frame: &mut DataFrame, is_eos: bool, idx: u32) -> bool {
-    if Usize::from_u32(idx).into_usize() >= data.len() {
-      if is_eos {
+    Usize::from_u32(idx).into_usize() >= data.len()
+      && if is_eos {
         frame.set_eos();
         true
       } else {
         false
       }
-    } else {
-      false
-    }
   }
 
   if let Some(available_send_rest @ 1..=u32::MAX) = available_send.checked_sub(max_frame_len) {

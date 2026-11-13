@@ -49,15 +49,25 @@ macro_rules! _impl_enc {
         &self,
         $ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>
       ) -> crate::Result<()> {
-        if size_of::<Self>() == 0 {
-          return Ok(());
-        }
         let $this = self;
         $impl
         Ok(())
       }
     }
   }
+}
+
+macro_rules! _impl_empty_body_enc {
+  ($struct:ident, $drsr:ty) => {
+    impl<DA> crate::codec::Encode<crate::codec::GenericCodec<DA, &mut $drsr>>
+      for $struct<crate::codec::EmptyBody>
+    {
+      #[inline]
+      fn encode(&self, _: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
+        Ok(())
+      }
+    }
+  };
 }
 
 macro_rules! _impl_se_collections {

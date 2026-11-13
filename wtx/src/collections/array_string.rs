@@ -40,8 +40,6 @@ pub enum ArrayStringError {
     /// Maximum
     max: u32,
   },
-  /// The index provided in the `insert` method is out of bounds.
-  OutOfBoundsInsertIdx,
 }
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
@@ -237,7 +235,6 @@ where
     <str as LinearStorageSlice>::remove(&mut self.0, index)
   }
 
-  #[expect(clippy::missing_safety_doc, reason = "false-positive")]
   #[doc = set_len_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"1\"")]
   #[inline]
   pub const unsafe fn set_len(&mut self, new_len: L) {

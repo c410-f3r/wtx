@@ -214,8 +214,8 @@ const fn is_valid(mut bytes: &[u8]) -> Option<&str> {
     match first {
       b'0' | b'1' => {
         match bytes {
-          [b'0' | b'1'..=b'9'] | [b'1'..=b'3', b'0'..=b'9'] => break 'validation,
-          [b'0' | b'1'..=b'9', b'.', rest @ ..] | [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
+          [b'0'..=b'9'] | [b'1'..=b'3', b'0'..=b'9'] => break 'validation,
+          [b'0'..=b'9', b'.', rest @ ..] | [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
             bytes = rest;
           }
           _ => return None,

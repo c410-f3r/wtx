@@ -47,8 +47,6 @@ pub enum RouterError {
   FindErrEmpty,
   /// Route does not exist
   FindMismatch(ShortBoxStrU8),
-  /// Input string or parameter length exceeds internal limits
-  FindErrOverflow,
 }
 
 /// Decomposes a series of prefixed routes into common nodes to allow fast comparisons with

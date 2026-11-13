@@ -45,6 +45,7 @@ pub enum WebSocketPayloadOrigin {
 }
 
 impl WebSocketPayloadOrigin {
+  #[inline]
   pub(crate) fn manage_payload<'nb, 'rslt, 'ub>(
     self,
     network_buffer: &'nb mut [u8],
@@ -57,8 +58,9 @@ impl WebSocketPayloadOrigin {
     Ok(match self {
       WebSocketPayloadOrigin::Adaptive => network_buffer,
       WebSocketPayloadOrigin::Consistent => {
+        let begin = user_buffer.len();
         user_buffer.extend_from_copyable_slice(network_buffer)?;
-        user_buffer.as_slice_mut()
+        user_buffer.as_slice_mut().get_mut(begin..).unwrap_or_default()
       }
     })
   }

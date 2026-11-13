@@ -41,7 +41,7 @@ impl<C, H, R> WebSocketConnector<C, H, R> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R> {
     self.no_masking = elem;
     self
@@ -49,6 +49,7 @@ impl<C, H, R> WebSocketConnector<C, H, R> {
 
   /// Response callback.
   #[inline]
+  #[must_use = must_use_itself_generic_doc!()]
   pub fn set_res_cb<_R>(self, elem: _R) -> WebSocketConnector<C, H, _R> {
     WebSocketConnector {
       compression: self.compression,
@@ -56,6 +57,19 @@ impl<C, H, R> WebSocketConnector<C, H, R> {
       no_masking: self.no_masking,
       res_cb: elem,
       wsb: self.wsb,
+    }
+  }
+
+  /// WebSocket buffer.
+  #[inline]
+  #[must_use = must_use_itself_generic_doc!()]
+  pub fn set_wsb(self, elem: WebSocketBuffer) -> WebSocketConnector<C, H, R> {
+    WebSocketConnector {
+      compression: self.compression,
+      headers: self.headers,
+      no_masking: self.no_masking,
+      res_cb: self.res_cb,
+      wsb: elem,
     }
   }
 }

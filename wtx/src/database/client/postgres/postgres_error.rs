@@ -15,9 +15,6 @@ pub enum PostgresError {
   InvalidIpFormat,
   /// JSONB is the only supported JSON format
   InvalidJsonFormat,
-  /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
-  /// and read with numbers up to 127.
-  InvalidPostgresUint,
   /// Received bytes don't compose a valid record.
   InvalidPostgresRecord,
   /// Unknown range bytes

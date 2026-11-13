@@ -47,14 +47,8 @@ pub enum X509Error {
   InvalidGeneralSubtree,
   /// Invalid Ip Address Representation,
   InvalidIpAddressRepresentation,
-  /// Invalid Key Identifier
-  InvalidKeyIdentifier,
-  /// Invalid Object Identifier
-  InvalidObjectIdentifier,
   /// Invalid PKCS#8
   InvalidPkcs8,
-  /// Invalid Reason Flags
-  InvalidReasonFlags,
   /// Invalid Revoked Certificate
   InvalidRevokedCertificate,
   /// Invalid RSASSA-PSS Parameters

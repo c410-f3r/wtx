@@ -8,7 +8,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use pkcs8::DecodePrivateKey as _;
-use rsa::{RsaPublicKey, pkcs1::DecodeRsaPublicKey as _, pkcs1v15, pss};
+use rsa::{PublicKey, pkcs1::DecodeRsaPublicKey as _, pkcs1v15, pss};
 use signature::{RandomizedSigner as _, Signer as _, Verifier as _};
 use spki::DecodePublicKey as _;
 
@@ -105,13 +105,13 @@ impl SigningKey for RsaPkcs1SigningKeyRuco {
   fn from_pkcs8(bytes: &[u8], hash_ty: HashTy) -> crate::Result<Self> {
     Ok(match hash_ty {
       HashTy::Sha256 => RsaPkcs1SigningKeyRuco::Sha256(pkcs1v15::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
+        rsa::PrivateKey::from_pkcs8_der(bytes)?,
       )),
       HashTy::Sha384 => RsaPkcs1SigningKeyRuco::Sha384(pkcs1v15::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
+        rsa::PrivateKey::from_pkcs8_der(bytes)?,
       )),
       HashTy::Sha512 => RsaPkcs1SigningKeyRuco::Sha512(pkcs1v15::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
+        rsa::PrivateKey::from_pkcs8_der(bytes)?,
       )),
     })
   }
@@ -131,8 +131,7 @@ impl SigningKey for RsaPkcs1SigningKeyRuco {
 
   #[inline]
   fn validate(msg: &[u8], pk: &[u8], so: &SigningOutput<&[u8]>) -> crate::Result<()> {
-    let rpk =
-      RsaPublicKey::from_public_key_der(pk).or_else(|_| RsaPublicKey::from_pkcs1_der(pk))?;
+    let rpk = PublicKey::from_public_key_der(pk).or_else(|_| PublicKey::from_pkcs1_der(pk))?;
     let sig = pkcs1v15::Signature::try_from(&**so.signature())?;
     match so.hash_ty() {
       HashTy::Sha256 => pkcs1v15::VerifyingKey::<sha2::Sha256>::new(rpk).verify(msg, &sig)?,
@@ -149,15 +148,15 @@ impl SigningKey for RsaPssSigningKeyRuco {
   #[inline]
   fn from_pkcs8(bytes: &[u8], hash_ty: HashTy) -> crate::Result<Self> {
     Ok(match hash_ty {
-      HashTy::Sha256 => RsaPssSigningKeyRuco::Sha256(pss::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
-      )),
-      HashTy::Sha384 => RsaPssSigningKeyRuco::Sha384(pss::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
-      )),
-      HashTy::Sha512 => RsaPssSigningKeyRuco::Sha512(pss::SigningKey::new(
-        rsa::RsaPrivateKey::from_pkcs8_der(bytes)?,
-      )),
+      HashTy::Sha256 => {
+        RsaPssSigningKeyRuco::Sha256(pss::SigningKey::new(rsa::PrivateKey::from_pkcs8_der(bytes)?))
+      }
+      HashTy::Sha384 => {
+        RsaPssSigningKeyRuco::Sha384(pss::SigningKey::new(rsa::PrivateKey::from_pkcs8_der(bytes)?))
+      }
+      HashTy::Sha512 => {
+        RsaPssSigningKeyRuco::Sha512(pss::SigningKey::new(rsa::PrivateKey::from_pkcs8_der(bytes)?))
+      }
     })
   }
 
@@ -176,8 +175,7 @@ impl SigningKey for RsaPssSigningKeyRuco {
 
   #[inline]
   fn validate(msg: &[u8], pk: &[u8], so: &SigningOutput<&[u8]>) -> crate::Result<()> {
-    let rpk =
-      RsaPublicKey::from_public_key_der(pk).or_else(|_| RsaPublicKey::from_pkcs1_der(pk))?;
+    let rpk = PublicKey::from_public_key_der(pk).or_else(|_| PublicKey::from_pkcs1_der(pk))?;
     let sig = pss::Signature::try_from(&**so.signature())?;
     match so.hash_ty() {
       HashTy::Sha256 => pss::VerifyingKey::<sha2::Sha256>::new(rpk).verify(msg, &sig)?,

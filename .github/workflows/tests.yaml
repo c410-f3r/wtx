@@ -32,7 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          toolchain: nightly-2026-10-12
+          toolchain: nightly-2026-11-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/${{ matrix.script }}
 
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2026-10-12
+          toolchain: nightly-2026-11-12
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2026-10-12
+          toolchain: nightly-2026-11-12
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt update && sudo apt install nghttp2-client -y
       - run: ${{ matrix.scripts }}

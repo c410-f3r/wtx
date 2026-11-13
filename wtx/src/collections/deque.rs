@@ -82,10 +82,6 @@ pub type DequeUsize<T> = Deque<usize, T>;
 #[derive(Clone, Copy, Debug)]
 pub enum DequeueError {
   #[doc = doc_single_elem_cap_overflow!()]
-  ExtendFromSliceOverflow,
-  /// The provided range does not point to valid internal data
-  OutOfBoundsRange,
-  #[doc = doc_single_elem_cap_overflow!()]
   PushFrontOverflow,
   #[doc = doc_reserve_overflow!()]
   ReserveOverflow,

@@ -22,14 +22,24 @@ impl OpCode {
   /// If this instance is of type [`OpCode::Close`].
   #[inline]
   pub const fn is_close(self) -> bool {
-    matches!(self, OpCode::Close)
+    matches!(self, Self::Close)
   }
 
-  pub(crate) const fn is_control(self) -> bool {
-    matches!(self, OpCode::Close | OpCode::Ping | OpCode::Pong)
+  /// If this instance is of type [`OpCode::Binary`] or [`OpCode::Text`].
+  #[inline]
+  pub const fn is_data(self) -> bool {
+    matches!(self, Self::Binary | Self::Text)
   }
 
-  pub(crate) const fn is_text(self) -> bool {
-    matches!(self, OpCode::Text)
+  /// If this instance is of type [`OpCode::Close`], [`OpCode::Ping`] or [`OpCode::Pong`].
+  #[inline]
+  pub const fn is_control(self) -> bool {
+    matches!(self, Self::Close | Self::Ping | Self::Pong)
+  }
+
+  /// If this instance is of type [`OpCode::Text`].
+  #[inline]
+  pub const fn is_text(self) -> bool {
+    matches!(self, Self::Text)
   }
 }

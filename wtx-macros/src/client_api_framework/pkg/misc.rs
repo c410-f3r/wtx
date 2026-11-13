@@ -71,6 +71,16 @@ pub(crate) fn inner_angle_bracketed_values(
   }
 }
 
+pub(crate) fn is_empty_body_type(ty: &Type) -> bool {
+  let Type::Path(type_path) = ty else {
+    return false;
+  };
+  let Some(last_segment) = type_path.path.segments.last() else {
+    return false;
+  };
+  last_segment.ident == "EmptyBody" && last_segment.arguments.is_none()
+}
+
 pub(crate) fn is_unit_type(ty_tuple: &TypeTuple) -> bool {
   ty_tuple.elems.is_empty()
 }

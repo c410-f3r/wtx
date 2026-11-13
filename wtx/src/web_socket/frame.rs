@@ -1,6 +1,6 @@
 use crate::{
-  collections::{ArrayVectorCopy, VectorUsize},
-  misc::{Lease, from_utf8_basic},
+  collections::{ArrayVectorCopy, SingleTypeStorage, VectorUsize},
+  misc::{Lease, LeaseMut, from_utf8_basic},
   web_socket::{
     CloseCode, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode, WebSocketError,
     misc::{has_masked_frame, header_from_params},
@@ -18,8 +18,6 @@ pub type FrameRef<'bytes> = Frame<&'bytes [u8]>;
 pub type FrameVector = Frame<VectorUsize<u8>>;
 /// Composed by a mutable vector reference.
 pub type FrameVectorMut<'bytes> = Frame<&'bytes mut VectorUsize<u8>>;
-/// Composed by a immutable vector reference.
-pub type FrameVectorRef<'bytes> = Frame<&'bytes VectorUsize<u8>>;
 
 /// Unit of generic data used for communication.
 #[derive(Debug)]
@@ -169,6 +167,24 @@ where
     };
     Self { fin, header: header_from_params(fin, op_code, payload_len, rsv1), op_code, payload }
   }
+}
+
+impl<P> Lease<Frame<P>> for Frame<P> {
+  #[inline]
+  fn lease(&self) -> &Frame<P> {
+    self
+  }
+}
+
+impl<P> LeaseMut<Frame<P>> for Frame<P> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Frame<P> {
+    self
+  }
+}
+
+impl<P> SingleTypeStorage for Frame<P> {
+  type Item = P;
 }
 
 #[inline]

@@ -30,7 +30,7 @@ impl NumStrFmt {
 
   /// Sets the fill byte and minimum width for padding.
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn pad(mut self, fill: AsciiGraphic, width: u8) -> Self {
     self.pad = Some((fill, width));
     self
@@ -38,7 +38,7 @@ impl NumStrFmt {
 
   /// Sets the separator character and its digit position from the right.
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn sep(mut self, char: AsciiGraphic, pos: u8) -> Self {
     self.sep = Some((char, pos));
     self

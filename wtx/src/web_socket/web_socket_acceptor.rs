@@ -26,7 +26,7 @@ impl<C, R> WebSocketAcceptor<C, R> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R> {
     self.no_masking = elem;
     self
@@ -34,6 +34,7 @@ impl<C, R> WebSocketAcceptor<C, R> {
 
   /// Request callback.
   #[inline]
+  #[must_use = must_use_itself_generic_doc!()]
   pub fn set_req<_E, _R>(self, elem: _R) -> WebSocketAcceptor<C, _R>
   where
     _R: FnOnce(&Request<'_, '_>) -> Result<bool, _E>,
@@ -43,6 +44,18 @@ impl<C, R> WebSocketAcceptor<C, R> {
       no_masking: self.no_masking,
       req: elem,
       wsb: self.wsb,
+    }
+  }
+
+  /// WebSocket buffer.
+  #[inline]
+  #[must_use = must_use_itself_generic_doc!()]
+  pub fn set_wsb(self, elem: WebSocketBuffer) -> WebSocketAcceptor<C, R> {
+    WebSocketAcceptor {
+      compression: self.compression,
+      no_masking: self.no_masking,
+      req: self.req,
+      wsb: elem,
     }
   }
 }

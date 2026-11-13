@@ -118,9 +118,13 @@ fn extend_buffer(
   no_masking: bool,
   mut slice: &[u8],
 ) -> crate::Result<(ReadFrameInfo, usize)> {
-  let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, MAX_PAYLOAD_LEN, 0, no_masking)?;
+  let Some(rfi) =
+    ReadFrameInfo::from_bytes::<(), false>(&mut slice, MAX_PAYLOAD_LEN, 0, no_masking)?
+  else {
+    return Err(crate::Error::Http2(Http2Error::InvalidWebSocketFrame));
+  };
   if slice.len() != rfi.payload_len {
-    return Err(crate::Error::UnexpectedBufferState);
+    return Err(crate::Error::Http2(Http2Error::InvalidWebSocketFrame));
   }
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;

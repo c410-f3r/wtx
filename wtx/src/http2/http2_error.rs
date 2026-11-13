@@ -75,14 +75,14 @@ pub enum Http2Error {
   InvalidSendStreamState,
   /// Received insufficient data to fullfil a server's header
   InvalidServerHeader,
-  /// URI is too large for servers
-  InvalidServerHeaderUriOverflow,
   /// Settings frames length must be divisible  by 6
   InvalidSettingsFrameLength,
   #[doc = stream_id_must_be_zero!()]
   InvalidSettingsFrameNonZeroId,
   /// Settings ACK must be empty
   InvalidSettingsFrameNonEmptyAck,
+  /// Bytes from an HTTP/2 stream don't represent a WebSocket frame
+  InvalidWebSocketFrame,
   #[doc = invalid_frame_bytes!()]
   InvalidWindowUpdateFrameBytes,
   /// Size increment can't be greater than`2^31 - 1`.
@@ -126,8 +126,6 @@ pub enum Http2Error {
   UnexpectedStreamId,
   /// A stream ID is not locally stored to allow the processing of data frames.
   UnknownDataStreamReceiver,
-  /// A programming error that shouldn't never happen
-  UnknownInitialServerHeaderId(u32),
   /// A stream ID is not locally stored to allow the processing of reset frames.
   UnknownResetStreamReceiver,
   /// Type is out of range or unsupported.
@@ -136,8 +134,6 @@ pub enum Http2Error {
   UnknownControlStreamId(U31),
   /// Stream id doesn't exist locally
   UnknownOverallStreamId(U31),
-  /// A stream ID is not locally stored.
-  UnknownStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of window update frames.
   UnknownWindowUpdateStreamReceiver,
   /// Length of a header name or value is limited to 127 bytes.

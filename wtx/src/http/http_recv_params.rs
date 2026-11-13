@@ -173,7 +173,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::enable_connect_protocol`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_enable_connect_protocol(mut self, value: bool) -> Self {
     self.enable_connect_protocol = value;
     self
@@ -181,7 +181,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::idle_detection`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_idle_detection(mut self, value: bool) -> Self {
     self.idle_detection = value;
     self
@@ -189,7 +189,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::initial_window_len`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_initial_window_len(mut self, value: u32) -> Self {
     self.initial_window_len = U31::from_u32(value);
     self
@@ -197,7 +197,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::linger`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_linger(mut self, value: bool) -> Self {
     self.linger = value;
     self
@@ -205,7 +205,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_body_len`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_body_len(mut self, value: u32) -> Self {
     self.max_body_len = value;
     self
@@ -213,7 +213,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_concurrent_streams_num`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_concurrent_streams_num(mut self, value: u32) -> Self {
     self.max_concurrent_streams_num = value;
     self
@@ -221,7 +221,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_headers_len`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_headers_len(mut self, value: u32) -> Self {
     self.max_headers_len = value;
     self
@@ -229,7 +229,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_hpack_len`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_hpack_len(mut self, value: (u32, u32)) -> Self {
     self.max_hpack_len = value;
     self
@@ -237,7 +237,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_frame_len`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_frame_len(mut self, value: u32) -> Self {
     // FIXME(STABLE): Use constant `clamp`
     self.max_frame_len = if value < MAX_FRAME_LEN_LOWER_BOUND {
@@ -252,7 +252,7 @@ impl HttpRecvParams {
 
   /// Mutable version of [`Self::max_recv_streams_num`].
   #[inline]
-  #[must_use = must_use_itself_doc!()]
+  #[must_use = must_use_itself_generic_doc!()]
   pub const fn set_max_recv_streams_num(mut self, value: u32) -> Self {
     self.max_recv_streams_num = value;
     self
