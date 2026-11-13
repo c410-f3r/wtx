@@ -41,6 +41,12 @@ impl BufStreamReader {
     }
   }
 
+  /// Empty instance with a pre-allocated buffer.
+  #[inline]
+  pub fn with_capacity(capacity: usize) -> crate::Result<Self> {
+    Ok(Self { buffer: VectorUsize::with_capacity(capacity)?, ..Self::new() })
+  }
+
   /// The antecedent (already consumed) region.
   #[inline]
   pub fn antecedent(&self) -> &[u8] {

@@ -19,7 +19,7 @@ pub enum ConnectionState {
   /// Is closed for both reads and writes. The connection has gracefully closed.
   ClosedGracefully,
   /// Signals the intention to transit to closed, however, some internal state still
-  /// needs to be managed through a few more receipts and sends.
+  /// needs to be managed through a few more receipts and/or sends.
   Draining,
   /// Is open for both reads and writes.
   Open,
@@ -39,6 +39,12 @@ pub enum ConnectionState {
 }
 
 impl ConnectionState {
+  #[cfg(any(feature = "http2", feature = "tls", feature = "web-socket"))]
+  #[inline]
+  pub(crate) fn from_atomic(atomic: &AtomicU8) -> Self {
+    Self::from_u8(atomic.load(Ordering::Relaxed))
+  }
+
   /// Returns `true` if the connection is no longer readable.
   #[inline]
   pub const fn cannot_read(self) -> bool {
@@ -57,17 +63,17 @@ impl ConnectionState {
     matches!(self, Self::ClosedAbruptly | Self::ClosedGracefully)
   }
 
+  /// Shortcut for [`ConnectionState::ClosedAbruptly`],
+  /// [`ConnectionState::ClosedGracefully`] or [`ConnectionState::Draining`].
+  #[inline]
+  pub const fn is_closed_or_draining(self) -> bool {
+    matches!(self, Self::ClosedAbruptly | Self::ClosedGracefully | Self::Draining)
+  }
+
   /// Shortcut for [`ConnectionState::Draining`].
   #[inline]
   pub const fn is_draining(self) -> bool {
     matches!(self, Self::Draining)
-  }
-
-  /// Returns `true` if the state is [`ConnectionState::ClosedAbruptly`],
-  /// [`ConnectionState::ClosedGracefully`] or  [`ConnectionState::Draining`].
-  #[inline]
-  pub const fn is_full_close(self) -> bool {
-    matches!(self, Self::ClosedAbruptly | Self::ClosedGracefully | Self::Draining)
   }
 
   /// Shortcut for [`ConnectionState::Open`].
@@ -86,12 +92,6 @@ impl ConnectionState {
   #[inline]
   pub const fn is_write_closed(self) -> bool {
     matches!(self, Self::WriteClosed)
-  }
-
-  #[cfg(any(feature = "http2", feature = "tls", feature = "web-socket"))]
-  #[inline]
-  pub(crate) fn from_atomic(atomic: &AtomicU8) -> Self {
-    Self::from_u8(atomic.load(Ordering::Relaxed))
   }
 
   #[allow(deprecated, reason = "`try_update` is not available in `portable-atomic`")]

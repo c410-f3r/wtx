@@ -16,7 +16,6 @@ use crate::{
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
 use core::{
-  alloc::Layout,
   array::TryFromSliceError,
   fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
@@ -90,9 +89,6 @@ pub enum Error {
   #[cfg(feature = "quick-xml")]
   #[doc = associated_element_doc!()]
   QuickXmlAttr(Box<quick_xml::events::attributes::AttrError>),
-  #[cfg(feature = "crypto-ruco")]
-  #[doc = associated_element_doc!()]
-  Rsa(Box<rsa::Error>),
   #[cfg(feature = "rust_decimal")]
   #[doc = associated_element_doc!()]
   RustDecimal(Box<rust_decimal::Error>),
@@ -172,18 +168,12 @@ pub enum Error {
 
   // Generic
   //
-  /// Allocation error
-  Alloc(Box<Layout>),
   /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
   ClosedHttpConnection,
-  /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
-  ClosedWebSocketConnection,
   /// The amount of elements exceeds the underlying storage.
   CounterWriterOverflow,
   /// Future should complete before a certain duration but didn't
   ExpiredFuture,
-  /// Future must not be polled again after finalization
-  FuturePolledAfterFinalization,
   /// Generic error
   Generic(ShortBoxStrU16),
   /// Generic static error
@@ -192,8 +182,6 @@ pub enum Error {
   InsufficientOptionCapacity,
   /// A `u8` value is not a valid [`crate::net::ConnectionState`] discriminant.
   InvalidConnectionState(u8),
-  /// Indices are out-of-bounds or the number of bytes are too small.
-  InvalidPartitionedBufferBounds,
   /// Invalid PPM value
   InvalidPpmValue,
   /// Invalid UTF-8.
@@ -204,8 +192,6 @@ pub enum Error {
   InvalidUri,
   /// Weight is zero, negative or overflowed list
   InvalidWeight,
-  /// There is no CA provider.
-  MissingCaProviders,
   /// A instance could not be constructed because of a missing required variable.
   MissingVar(ShortStrU8<'static>),
   /// A variable does not have an ending quote
@@ -218,16 +204,9 @@ pub enum Error {
   NoAvailableVars(ShortBoxStrU16),
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(ShortStrU8<'static>),
-  /// Byte is not an ASCII graphic character
-  NonGraphicByte,
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
   /// involved code was not built the way it should be.
   ProgrammingError,
-  /// It wasn't possible to fetch entropy from a supported host, which probably means a kernel
-  /// malfunction.
-  RngHostError,
-  /// `WTX` can not fetch entropy from a host. To fix the issue, use `getrandom` or `std::random`.
-  RngUnsupportedHost,
   /// Unexpected Unsigned integer
   UnboundedNumber {
     /// Expected bounds
@@ -235,11 +214,6 @@ pub enum Error {
     /// Received number
     received: i32,
   },
-  /// A buffer was partially read or write but should in fact be fully processed.
-  UnexpectedBufferState,
-  /// In compression/decompression. A buffer was partially read or write but should in fact be
-  /// fully processed.
-  UnexpectedBufferStateInCodec,
   /// Unexpected bytes
   UnexpectedBytes {
     /// Length of the unexpected bytes
@@ -261,8 +235,6 @@ pub enum Error {
   },
   /// Linux Kernel is too old or doesn't have a required configuration activated.
   UnsupportedLinuxKernel,
-  /// The operation `mlock` is not supported in your platform
-  UnsupportedMlockPlatform,
   /// Unsupported operation
   UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
@@ -296,9 +268,6 @@ pub enum Error {
   ClientApiFramework(crate::client_api_framework::ClientApiFrameworkError),
   #[doc = associated_element_doc!()]
   Codec(Box<crate::codec::CodecError>),
-  #[cfg(feature = "http-cookie")]
-  #[doc = associated_element_doc!()]
-  Cookie(crate::http::cookie::CookieError),
   #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
   Crypto(crate::crypto::CryptoError),

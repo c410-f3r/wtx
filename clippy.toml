@@ -21,6 +21,6 @@ doc-valid-idents = [
   "WebSockets",
   "WebTransport"
 ]
-too-many-arguments-threshold = 16
+too-many-arguments-threshold = 18
 too-many-lines-threshold = 120
 type-complexity-threshold = 500

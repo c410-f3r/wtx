@@ -351,7 +351,6 @@ where
     <[T] as LinearStorageSlice>::retain_unstable(&mut self.0, cb);
   }
 
-  #[expect(clippy::missing_safety_doc, reason = "false-positive")]
   #[doc = set_len_doc!("VectorU8", "[1, 2, 3]", "&[1]")]
   #[inline]
   pub unsafe fn set_len(&mut self, new_len: L) {

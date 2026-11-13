@@ -28,7 +28,7 @@ use crate::{
   tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsCtx, TlsCtxSk},
   web_socket::{
     WebSocket, WebSocketAcceptor, WebSocketConnector, WebSocketError, WsCompression,
-    web_socket_compression::NegotiatedWsCompression,
+    web_socket_compression::NegotiatedWsCompression as _,
   },
 };
 use httparse::{EMPTY_HEADER, Header, Request, Response, Status};
@@ -89,7 +89,8 @@ where
             }
           };
           let nc = self.compression.negotiate(req.headers.iter())?;
-          build_and_send_res101(swa, &nc, self.no_masking, &mut tls_stream).await?;
+          let res_headers = nc.res_headers();
+          build_and_send_res101(swa, self.no_masking, &res_headers, &mut tls_stream).await?;
           self.wsb.network_buffer.set_indices(len, len);
           let rng = Xorshift64::from_simple_seed()?;
           return Ok(WebSocket::new(nc, self.no_masking, rng, tls_stream, self.wsb));
@@ -258,28 +259,20 @@ where
 }
 
 /// Server response
-async fn build_and_send_res101<NC, S>(
+async fn build_and_send_res101<S>(
   key: &[u8],
-  nc: &NC,
   no_masking: bool,
+  res_headers: &[u8],
   stream: &mut S,
 ) -> crate::Result<()>
 where
-  NC: NegotiatedWsCompression,
   S: Stream,
 {
   let begin = b"HTTP/1.1 101 Switching Protocols\r\n";
   let middle = b"Connection: Upgrade\r\nSec-WebSocket-Accept: ";
   let end = b"\r\nUpgrade: websocket\r\n\r\n";
   stream
-    .write_all_vectored(&[
-      begin,
-      no_masking_bytes(no_masking),
-      nc.res_headers().as_slice(),
-      middle,
-      key,
-      end,
-    ])
+    .write_all_vectored(&[begin, no_masking_bytes(no_masking), res_headers, middle, key, end])
     .await?;
   Ok(())
 }

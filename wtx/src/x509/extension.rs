@@ -32,8 +32,7 @@ where
     };
     dw.bytes = value;
     let extn_id = Oid::decode(dw)?;
-    let critical =
-      if dw.bytes.first() == Some(&BOOLEAN_TAG) { Boolean::decode(dw)?.0 } else { false };
+    let critical = dw.bytes.first() == Some(&BOOLEAN_TAG) && Boolean::decode(dw)?.0;
     let extn_value = Octetstring::decode(dw)?;
     dw.bytes = rest;
     Ok(Self { extn_id, critical, extn_value })

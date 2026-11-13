@@ -29,9 +29,10 @@ mod pkg {
     impl<T: ::core::fmt::Debug, C: ::core::fmt::Debug> ::core::fmt::Debug for
         Pkg<T, C> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            ::core::fmt::Formatter::debug_struct_field3_finish(f, "Pkg",
-                "content", &self.content, "params", &self.params, "res",
+            ::core::fmt::Formatter::debug_struct_field3_finish(f,
+                "Pkg content params res", &self.content, &self.params,
                 &&self.res)
         }
     }

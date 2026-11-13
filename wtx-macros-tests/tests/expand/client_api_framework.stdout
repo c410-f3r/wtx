@@ -49,8 +49,9 @@ impl<A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug, TP: ::core::fmt::Debug>
     ::core::fmt::Debug for PkgsAux<A, DRSR, TP> where
     TP: ::wtx::client_api_framework::network::transport::TransportParams {
     #[inline]
+    #[rustc_trivial_field_reads]
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-        ::core::fmt::Formatter::debug_tuple_field1_finish(f, "PkgsAux",
+        ::core::fmt::Formatter::debug_struct_field1_finish(f, "PkgsAux",
             &&self.0)
     }
 }
@@ -161,9 +162,10 @@ pub type WsPkgsAux<A, DRSR> =
 #[automatically_derived]
 impl ::core::fmt::Debug for GenericThrottlingApi {
     #[inline]
+    #[rustc_trivial_field_reads]
     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
         ::core::fmt::Formatter::debug_struct_field1_finish(f,
-            "GenericThrottlingApi", "rc", &&self.rc)
+            "GenericThrottlingApi rc", &&self.rc)
     }
 }
 impl Api for GenericThrottlingApi {
@@ -181,8 +183,9 @@ mod generic_http_request {
     #[automatically_derived]
     impl ::core::fmt::Debug for GenericHttpRequestReq {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            ::core::fmt::Formatter::debug_tuple_field1_finish(f,
+            ::core::fmt::Formatter::debug_struct_field1_finish(f,
                 "GenericHttpRequestReq", &&self.0)
         }
     }
@@ -236,10 +239,11 @@ mod generic_http_request {
         ::core::fmt::Debug for
         GenericHttpRequestDataFormatBuilder<'aux, A, DRSR> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(f,
-                "GenericHttpRequestDataFormatBuilder", "aux", &self.aux,
-                "data", &self.data, "params", &&self.params)
+                "GenericHttpRequestDataFormatBuilder aux data params",
+                &self.aux, &self.data, &&self.params)
         }
     }
     impl<A, DRSR> crate::HttpPkgsAux<A, DRSR> where  {
@@ -269,9 +273,10 @@ mod generic_http_request {
     impl<'aux, A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug>
         ::core::fmt::Debug for GenericHttpRequestDataBuilder<'aux, A, DRSR> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(f,
-                "GenericHttpRequestDataBuilder", "aux", &self.aux, "params",
+                "GenericHttpRequestDataBuilder aux params", &self.aux,
                 &&self.params)
         }
     }
@@ -312,10 +317,11 @@ mod generic_http_request {
     impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
         GenericHttpRequestPkg<C> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(f,
-                "GenericHttpRequestPkg", "content", &self.content, "params",
-                &self.params, "res", &&self.res)
+                "GenericHttpRequestPkg content params res", &self.content,
+                &self.params, &&self.res)
         }
     }
     impl<__API, __APIPARAMS, __DRSR, __TRANSPORT>
@@ -466,10 +472,11 @@ mod generic_web_socket_subscription {
     #[automatically_derived]
     impl<'str> ::core::fmt::Debug for GenericWebSocketSubscriptionReq<'str> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(f,
-                "GenericWebSocketSubscriptionReq", "generic_string",
-                &self.generic_string, "generic_number", &&self.generic_number)
+                "GenericWebSocketSubscriptionReq generic_string generic_number",
+                &self.generic_string, &&self.generic_number)
         }
     }
     #[doc(hidden)]
@@ -544,10 +551,11 @@ mod generic_web_socket_subscription {
         ::core::fmt::Debug for
         GenericWebSocketSubscriptionDataFormatBuilder<'aux, 'str, A, DRSR> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(f,
-                "GenericWebSocketSubscriptionDataFormatBuilder", "aux",
-                &self.aux, "data", &self.data, "params", &&self.params)
+                "GenericWebSocketSubscriptionDataFormatBuilder aux data params",
+                &self.aux, &self.data, &&self.params)
         }
     }
     impl<A, DRSR> crate::WsPkgsAux<A, DRSR> where  {
@@ -581,10 +589,11 @@ mod generic_web_socket_subscription {
         ::core::fmt::Debug for
         GenericWebSocketSubscriptionDataBuilder<'aux, A, DRSR> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field2_finish(f,
-                "GenericWebSocketSubscriptionDataBuilder", "aux", &self.aux,
-                "params", &&self.params)
+                "GenericWebSocketSubscriptionDataBuilder aux params",
+                &self.aux, &&self.params)
         }
     }
     impl<'aux, 'str, A, DRSR>
@@ -626,10 +635,11 @@ mod generic_web_socket_subscription {
     impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
         GenericWebSocketSubscriptionPkg<C> {
         #[inline]
+        #[rustc_trivial_field_reads]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             ::core::fmt::Formatter::debug_struct_field3_finish(f,
-                "GenericWebSocketSubscriptionPkg", "content", &self.content,
-                "params", &self.params, "res", &&self.res)
+                "GenericWebSocketSubscriptionPkg content params res",
+                &self.content, &self.params, &&self.res)
         }
     }
     impl<'str, __API, __APIPARAMS, __DRSR, __TRANSPORT>

@@ -78,6 +78,8 @@ mod quick_protobuf {
       this.data.write_message(&mut Writer::new(&mut *ew.buffer))?;
     }
   }
+
+  _impl_empty_body_enc!(VerbatimEncoder, QuickProtobuf);
 }
 
 #[cfg(feature = "serde_json")]
@@ -114,4 +116,6 @@ mod serde_json {
       serde_json::to_writer(&mut *ew.buffer, &this.data)?;
     }
   }
+
+  _impl_empty_body_enc!(VerbatimEncoder, SerdeJson);
 }

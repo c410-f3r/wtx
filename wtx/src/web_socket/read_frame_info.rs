@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Parameters of an WebSocket frame.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct ReadFrameInfo {
   pub(crate) fin: bool,
   pub(crate) mask: Option<[u8; 4]>,
@@ -20,37 +20,36 @@ pub(crate) struct ReadFrameInfo {
 
 impl ReadFrameInfo {
   /// Creates a new instance based on a sequence of bytes.
-  #[cfg(feature = "http2")]
   #[inline]
-  pub(crate) fn from_bytes<NC, const IS_CLIENT: bool>(
+  pub(crate) fn from_bytes<D, const IS_CLIENT: bool>(
     bytes: &mut &[u8],
     max_payload_len: usize,
     nc_rsv1: u8,
     no_masking: bool,
-  ) -> crate::Result<Self>
+  ) -> crate::Result<Option<Self>>
   where
-    NC: crate::web_socket::web_socket_compression::NegotiatedWsCompression,
+    D: WebSocketDecompression,
   {
     let first_two = {
       let [b0, b1, rest @ ..] = bytes else {
-        return Err(crate::Error::UnexpectedBufferState);
+        return Ok(None);
       };
       *bytes = rest;
       [*b0, *b1]
     };
-    let tuple = Self::manage_first_two_bytes::<NC>(first_two, nc_rsv1)?;
+    let tuple = Self::manage_first_two_bytes::<D>(first_two, nc_rsv1)?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let payload_len = match length_code {
       126 => {
         let [b0, b1, rest @ ..] = bytes else {
-          return Err(crate::Error::UnexpectedBufferState);
+          return Ok(None);
         };
         *bytes = rest;
         u16::from_be_bytes([*b0, *b1]).into()
       }
       127 => {
         let [b0, b1, b2, b3, b4, b5, b6, b7, rest @ ..] = bytes else {
-          return Err(crate::Error::UnexpectedBufferState);
+          return Ok(None);
         };
         *bytes = rest;
         u64::from_be_bytes([*b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7]).try_into()?
@@ -59,7 +58,7 @@ impl ReadFrameInfo {
     };
     let mask = if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
       let [b0, b1, b2, b3, rest @ ..] = bytes else {
-        return Err(crate::Error::UnexpectedBufferState);
+        return Ok(None);
       };
       *bytes = rest;
       Some([*b0, *b1, *b2, *b3])
@@ -67,7 +66,7 @@ impl ReadFrameInfo {
       None
     };
     Self::manage_final_params(fin, op_code, max_payload_len, payload_len)?;
-    Ok(ReadFrameInfo { fin, mask, op_code, payload_len, should_decompress })
+    Ok(Some(ReadFrameInfo { fin, mask, op_code, payload_len, should_decompress }))
   }
 
   pub(crate) async fn from_stream<D, SR, const IS_CLIENT: bool>(

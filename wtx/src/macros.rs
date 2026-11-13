@@ -213,6 +213,14 @@ macro_rules! hexe {
   };
 }
 
+/// Generic documentation used in places where a method returns its associated instance.
+#[macro_export]
+macro_rules! must_use_itself_generic_doc {
+  () => {
+    "this returns the result of the operation, without modifying the original"
+  };
+}
+
 macro_rules! _debug {
   ($($tt:tt)+) => {
     #[cfg(feature = "tracing")]
@@ -259,12 +267,6 @@ macro_rules! _max_continuation_frames {
 macro_rules! _max_frames_mismatches {
   () => {
     2
-  };
-}
-
-macro_rules! must_use_itself_doc {
-  () => {
-    "this returns the result of the operation, without modifying the original"
   };
 }
 

@@ -3,7 +3,8 @@ use crate::{
     enum_struct_or_type::EnumStructOrType,
     fir::{fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef},
     misc::{
-      EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, inner_angle_bracketed_values, is_unit_type, split_params,
+      EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, inner_angle_bracketed_values, is_empty_body_type,
+      is_unit_type, split_params,
     },
     sir::sir_aux_item_values::{
       BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams,
@@ -33,11 +34,7 @@ impl SirAuxItemValues {
               .iter()
               .zip(fields_attrs)
               .map(|(struct_field, attr_field)| {
-                Some(
-                  attr_field
-                    .as_ref()
-                    .map_or_else(|| struct_field.ident.as_ref(), |el| Some(&el.name)),
-                )
+                Some(attr_field.as_ref().map_or(struct_field.ident.as_ref(), |el| Some(&el.name)))
               })
               .collect::<Vec<_>>();
             let tys = fields_named.named.iter().map(|struct_field| &struct_field.ty);
@@ -78,6 +75,8 @@ impl SirAuxItemValues {
           } else {
             single_elem(false)
           }
+        } else if is_empty_body_type(&item_type.ty) {
+          (quote::quote!(), quote::quote!(wtx::codec::EmptyBody), true)
         } else {
           single_elem(false)
         }

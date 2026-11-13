@@ -78,6 +78,8 @@ mod quick_protobuf {
       this.data.write_message(&mut Writer::new(&mut *ew.buffer))?;
     }
   }
+
+  _impl_empty_body_enc!(VerbatimDecoder, QuickProtobuf);
 }
 
 #[cfg(feature = "serde_json")]
@@ -95,7 +97,14 @@ mod serde_json {
     VerbatimDecoder<(D): Deserialize<'de>>,
     SerdeJson,
     |_aux, dw| {
-      serde_json_deserialize_from_slice(dw.bytes)
+      // This is a hack. Client api framework often requires serialization bounds
+      // but some HTTP connections that involve GET or DELETE requests send and/or receive
+      // nothing.
+      if dw.bytes.is_empty() {
+        serde_json_deserialize_from_slice(b"null")
+      } else {
+        serde_json_deserialize_from_slice(dw.bytes)
+      }
     }
   }
 
@@ -103,7 +112,14 @@ mod serde_json {
     VerbatimDecoder<D: Deserialize<'de>>,
     SerdeJson,
     |_aux, buffer, dw| {
-      collect_using_serde_json(buffer, &mut dw.bytes)
+      // This is a hack. Client api framework often requires serialization bounds
+      // but some HTTP connections that involve GET or DELETE requests send and/or receive
+      // nothing.
+      if dw.bytes.is_empty() {
+        Ok(())
+      } else {
+        collect_using_serde_json(buffer, &mut dw.bytes)
+      }
     }
   }
 
@@ -114,4 +130,6 @@ mod serde_json {
       serde_json::to_writer(&mut *ew.buffer, &this.data)?;
     }
   }
+
+  _impl_empty_body_enc!(VerbatimDecoder, SerdeJson);
 }

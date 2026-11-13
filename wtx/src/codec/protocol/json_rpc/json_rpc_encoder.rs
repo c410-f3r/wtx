@@ -98,7 +98,7 @@ impl<P> PartialOrd for JsonRpcEncoder<P> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::codec::protocol::JsonRpcEncoder;
+  use crate::codec::{EmptyBody, protocol::JsonRpcEncoder};
   use serde::{
     Serialize,
     ser::{SerializeStruct as _, Serializer},
@@ -116,9 +116,21 @@ mod serde {
       let mut state = serializer.serialize_struct("JsonRpcEncoder", 4)?;
       state.serialize_field("jsonrpc", "2.0")?;
       state.serialize_field("method", self.method)?;
-      if size_of::<P>() > 0 {
-        state.serialize_field("params", &self.params)?;
-      }
+      state.serialize_field("params", &self.params)?;
+      state.serialize_field("id", &self.id)?;
+      state.end()
+    }
+  }
+
+  impl Serialize for JsonRpcEncoder<EmptyBody> {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      let mut state = serializer.serialize_struct("JsonRpcEncoder", 3)?;
+      state.serialize_field("jsonrpc", "2.0")?;
+      state.serialize_field("method", self.method)?;
       state.serialize_field("id", &self.id)?;
       state.end()
     }
@@ -127,7 +139,9 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::codec::{format::SerdeJson, protocol::JsonRpcEncoder};
+  use crate::codec::{
+    EmptyBody, Encode, EncodeWrapper, GenericCodec, format::SerdeJson, protocol::JsonRpcEncoder,
+  };
   use serde::Serialize;
 
   _impl_enc! {
@@ -135,6 +149,14 @@ mod serde_json {
     SerdeJson,
     |this, _aux, ew| {
       serde_json::to_writer(&mut *ew.buffer, this)?;
+    }
+  }
+
+  impl<DA> Encode<GenericCodec<DA, &mut SerdeJson>> for JsonRpcEncoder<EmptyBody> {
+    #[inline]
+    fn encode(&self, ew: &mut EncodeWrapper<'_, &mut SerdeJson>) -> crate::Result<()> {
+      serde_json::to_writer(&mut *ew.buffer, self)?;
+      Ok(())
     }
   }
 }
