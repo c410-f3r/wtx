@@ -201,13 +201,13 @@ async fn read_continuation_frames_until_final<
   stream_writer_cb: &mut impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<(FrameMut<'frame>, bool)>
 where
+  'nb: 'frame,
+  'rb: 'frame,
+  'ub: 'frame,
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
-  'nb: 'frame,
-  'rb: 'frame,
-  'ub: 'frame,
 {
   user_buffer.truncate(is_in_continuation_frame.user_buffer_end);
   let is_decompressing = !D::IS_NOOP && is_in_continuation_frame.should_decompress;
@@ -318,13 +318,13 @@ pub(crate) async fn read_frame<
   mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<FrameMut<'frame>>
 where
+  'nb: 'frame,
+  'rb: 'frame,
+  'ub: 'frame,
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
-  'nb: 'frame,
-  'rb: 'frame,
-  'ub: 'frame,
 {
   let Some(is_in_continuation_frame) = is_in_continuation_frame_opt else {
     user_buffer.clear();
@@ -418,6 +418,7 @@ pub(crate) async fn read_frames<
   + use<'frame, D, R, S, SR, SW, CCB, SRB, SWB, HAS_AUTO_REPLY, IS_CLIENT>,
 >
 where
+  'rb: 'frame,
   CCB: FnMut(&mut S),
   D: WebSocketDecompression,
   R: Rng,
@@ -425,7 +426,6 @@ where
   SRB: FnMut(&mut S) -> &mut SR,
   SW: StreamWriter,
   SWB: FnMut(&mut S) -> &mut SW,
-  'rb: 'frame,
 {
   if is_in_continuation_frame_opt.is_some() {
     let frame = read_frame::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
@@ -897,13 +897,13 @@ async fn read_frame_from_first_rfi<
   mut stream_writer_cb: impl FnMut(&mut S) -> &mut SW,
 ) -> crate::Result<FrameMut<'frame>>
 where
+  'nb: 'frame,
+  'rb: 'frame,
+  'ub: 'frame,
   D: WebSocketDecompression,
   R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
-  'nb: 'frame,
-  'rb: 'frame,
-  'ub: 'frame,
 {
   if first_rfi.fin {
     if !HAS_AUTO_REPLY && first_rfi.op_code.is_close() {
