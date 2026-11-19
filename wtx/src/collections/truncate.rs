@@ -1,4 +1,4 @@
-use crate::collections::{ArrayString, LinearStorageLen, Vector};
+use crate::collections::{ArrayStr, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// Truncates the storage, delimiting its length by `I`.
@@ -17,7 +17,7 @@ where
   }
 }
 
-impl<L, const N: usize> Truncate for ArrayString<L, N>
+impl<L, const N: usize> Truncate for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {

@@ -5,7 +5,7 @@ use crate::{
   calendar::CalendarError,
   codec::{Base64Error, FromRadix10Error, HexError},
   collections::{
-    ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
+    ArrayStrError, ArrayVectorError, BlocksDequeError, DequeueError, DynVectorError, FixedStrError,
     VectorError,
   },
   misc::{ArithmeticError, AsciiError},
@@ -20,10 +20,10 @@ impl From<ArithmeticError> for Error {
   }
 }
 
-impl From<ArrayStringError> for Error {
+impl From<ArrayStrError> for Error {
   #[inline]
-  fn from(from: ArrayStringError) -> Self {
-    Self::ArrayString(from)
+  fn from(from: ArrayStrError) -> Self {
+    Self::ArrayStr(from)
   }
 }
 
@@ -110,6 +110,13 @@ impl From<crate::database::DatabaseError> for Error {
   }
 }
 
+impl From<DynVectorError> for Error {
+  #[inline]
+  fn from(from: DynVectorError) -> Self {
+    Self::DynVector(from)
+  }
+}
+
 impl From<crate::executor::ExecutorError> for Error {
   #[inline]
   fn from(from: crate::executor::ExecutorError) -> Self {
@@ -117,10 +124,10 @@ impl From<crate::executor::ExecutorError> for Error {
   }
 }
 
-impl From<FixedStringError> for Error {
+impl From<FixedStrError> for Error {
   #[inline]
-  fn from(from: FixedStringError) -> Self {
-    Self::FixedString(from)
+  fn from(from: FixedStrError) -> Self {
+    Self::FixedStr(from)
   }
 }
 

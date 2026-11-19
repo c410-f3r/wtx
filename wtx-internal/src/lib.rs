@@ -4,7 +4,7 @@
 use {
   tokio::net::TcpStream,
   wtx::{
-    collections::{ArrayStringU8, VectorUsize},
+    collections::{ArrayStrU8, VectorUsize},
     net::Uri,
     rng::{ChaCha20, CryptoSeedableRng as _},
     tls::{PlaintextCtx, TlsConfig, TlsConnectorBuilder},
@@ -23,7 +23,7 @@ pub async fn autobahn_case_conn(
   host: &str,
 ) -> wtx::Result<WebSocket<Option<NegotiatedZlibRs>, TcpStream, PlaintextCtx, true>> {
   let uri =
-    ArrayStringU8::<128>::try_from(format_args!("http://{host}/runCase?case={case}&agent=wtx"))?;
+    ArrayStrU8::<128>::try_from(format_args!("http://{host}/runCase?case={case}&agent=wtx"))?;
   WebSocketConnector::default()
     .set_compression(ZlibRs::default())
     .set_no_masking(false)
@@ -39,7 +39,7 @@ pub async fn autobahn_case_conn(
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
 pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
-  let uri = ArrayStringU8::<128>::try_from(format_args!("http://{host}/updateReports?agent=wtx"))?;
+  let uri = ArrayStrU8::<128>::try_from(format_args!("http://{host}/updateReports?agent=wtx"))?;
   WebSocketConnector::default()
     .connect(
       TlsConnectorBuilder::tokio(Uri::new(uri.as_str()))
@@ -55,7 +55,7 @@ pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
 pub async fn autobahn_get_case_count(buffer: &mut VectorUsize<u8>, host: &str) -> wtx::Result<u32> {
-  let uri = ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?;
+  let uri = ArrayStrU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?;
   let mut ws = WebSocketConnector::default()
     .connect(
       TlsConnectorBuilder::tokio(Uri::new(uri.as_str()))

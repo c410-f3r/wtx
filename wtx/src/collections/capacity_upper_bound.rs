@@ -1,4 +1,4 @@
-use crate::collections::{ArrayString, ArrayVector, LinearStorageLen, Vector};
+use crate::collections::{ArrayStr, ArrayVector, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// The maximum theoretical number of elements a type implementation is able to store.
@@ -52,7 +52,7 @@ where
   const CAPACITY_UPPER_BOUND: usize = N;
 }
 
-impl<L, const N: usize> CapacityUpperBound for ArrayString<L, N>
+impl<L, const N: usize> CapacityUpperBound for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {

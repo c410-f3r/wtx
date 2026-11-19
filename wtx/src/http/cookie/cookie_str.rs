@@ -1,6 +1,6 @@
 use crate::{
   codec::PercentDecode,
-  collections::{ArrayVectorU8, VectorUsize},
+  collections::{DynVectorU7, VectorUsize},
   http::cookie::CookieGeneric,
   misc::{AsciiGraphic, from_utf8_basic, str_split_once1, str_split1},
 };
@@ -24,8 +24,8 @@ impl<'str> CookieStr<'str> {
     'local_str: 'str,
     'vector: 'str,
   {
-    let mut generic = CookieGeneric { values: ArrayVectorU8::new() };
-    let mut parsed = ArrayVectorU8::<_, 8>::new();
+    let mut generic = CookieGeneric { values: DynVectorU7::new() };
+    let mut parsed = DynVectorU7::<_, 8>::new();
 
     for semicolon in str_split1(str, AsciiGraphic::SEMICOLON) {
       let (name, value) = if let Some(elem) = str_split_once1(semicolon, AsciiGraphic::EQUAL) {
@@ -58,7 +58,7 @@ impl<'str> CookieStr<'str> {
       parsed.push((name_src, value_src))?;
     }
 
-    for (name_src, value_src) in parsed {
+    for (name_src, value_src) in &parsed {
       let name = name_src.resolve(buffer, str)?;
       let value = value_src.resolve(buffer, str)?;
       generic.values.push((name.try_into()?, value))?;
@@ -97,14 +97,17 @@ impl StrSrc {
 
 #[cfg(test)]
 mod tests {
-  use crate::{collections::VectorUsize, http::cookie::CookieStr};
+  use crate::{
+    collections::{LinearStorageLen, VectorUsize},
+    http::cookie::CookieStr,
+  };
 
   #[test]
   fn mixed() {
     let mut buffer = VectorUsize::new();
     let input = "plain1=regular_value; encoded=special%2Fvalue; plain2=foo";
     let cookie = CookieStr::parse(&mut buffer, input).unwrap();
-    assert_eq!(cookie.0.values.len(), 3);
+    assert_eq!(cookie.0.values.len().usize(), 3);
     assert_eq!(cookie.0.values[0], ("plain1".try_into().unwrap(), "regular_value"));
     assert_eq!(cookie.0.values[1], ("encoded".try_into().unwrap(), "special/value"));
     assert_eq!(cookie.0.values[2], ("plain2".try_into().unwrap(), "foo"));

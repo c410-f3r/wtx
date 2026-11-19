@@ -4,10 +4,11 @@ macro_rules! allocated {
       "The entire allocated region, from zero to the buffer's capacity.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let instance = wtx::collections::",
       $struct,
       "::with_capacity(4).unwrap();\n",
-      "assert_eq!(instance.len(), 0);\n",
+      "assert_eq!(instance.len().usize(), 0);\n",
       "assert!(instance.allocated().len() >= 4);\n",
       "```"
     )
@@ -130,12 +131,13 @@ macro_rules! capacity_doc {
       "Returns the total number of elements the instance can hold without reallocating.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let mut instance = wtx::collections::",
       $struct,
       "::from_iterator(",
       $new,
       ").unwrap();\n",
-      "assert!(instance.capacity() >= 3);\n",
+      "assert!(instance.capacity().usize() >= 3);\n",
       "```"
     )
   };
@@ -147,13 +149,14 @@ macro_rules! clear_doc {
       "Clears the instance, removing all values.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let mut instance = wtx::collections::",
       $struct,
       "::from_iterator(",
       $new,
       ").unwrap();\n",
       "instance.clear();\n",
-      "assert_eq!(instance.len(), 0);\n",
+      "assert_eq!(instance.len().usize(), 0);\n",
       "```"
     )
   };
@@ -319,12 +322,13 @@ macro_rules! len_doc {
       "Returns the number of elements in the storage, also referred to as its ‘length’.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let instance = wtx::collections::",
       $struct,
       "::from_iterator(",
       $new,
       ").unwrap();\n",
-      "assert_eq!(instance.len(), 3);\n",
+      "assert_eq!(instance.len().usize(), 3);\n",
       "```"
     )
   };
@@ -377,6 +381,8 @@ macro_rules! remaining_capacity_doc {
       "Returns the number of elements that can be added to the storage without requiring a reallocation in the underlying buffer.\n",
       "\n",
       "```rust\n",
+      "#[allow(unused_imports)]\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let mut instance = wtx::collections::",
       $struct,
       "::new();\n",
@@ -391,15 +397,20 @@ macro_rules! remaining_capacity_doc {
 }
 
 macro_rules! remaining_capacity_max_doc {
-  ($struct:literal) => {
+  ($struct:literal, $new:literal, $max:literal) => {
     concat!(
       "Returns the total number of elements that can be added before reaching the absolute maximum capacity supported by the length type.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let instance = wtx::collections::",
       $struct,
-      "::from_iterator([1, 2, 3]).unwrap();\n",
-      "assert_eq!(instance.remaining_capacity_max(), u8::MAX - 3);\n",
+      "::from_iterator(",
+      $new,
+      ").unwrap();\n",
+      "assert_eq!(instance.remaining_capacity_max().usize(), ",
+      $max,
+      ");\n",
       "```"
     )
   };
@@ -425,9 +436,10 @@ macro_rules! reserve_doc {
       "Reserves capacity for at least additional more elements to be inserted in the given instance.\n",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let mut instance = wtx::collections::", $struct, "::new();\n",
       "instance.reserve(10).unwrap();\n",
-      "assert!(instance.capacity() >= 10);\n",
+      "assert!(instance.capacity().usize() >= 10);\n",
       "```"
     )
   };
@@ -442,11 +454,12 @@ macro_rules! reserve_exact_doc {
       "allocations.",
       "\n",
       "```rust\n",
+      "use wtx::collections::LinearStorageLen;\n",
       "let mut instance = wtx::collections::",
       $struct,
       "::new();\n",
       "instance.reserve_exact(10).unwrap();\n",
-      "assert!(instance.capacity() >= 10);\n",
+      "assert!(instance.capacity().usize() >= 10);\n",
       "```"
     )
   };

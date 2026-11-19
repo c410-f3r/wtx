@@ -1,7 +1,7 @@
 //! Migration TOML parser
 
 use crate::{
-  collections::{ArrayStringU8, ArrayVectorU8},
+  collections::{ArrayStrU8, ArrayVectorU8},
   database::schema_manager::SchemaManagerError,
   misc::{AsciiGraphic, str_split1},
 };
@@ -11,8 +11,8 @@ use std::io::{BufRead as _, BufReader, Read};
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
 
 pub(crate) type ExprArrayTy = ArrayVectorU8<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
-pub(crate) type ExprStringTy = ArrayStringU8<128>;
-pub(crate) type IdentTy = ArrayStringU8<64>;
+pub(crate) type ExprStringTy = ArrayStrU8<128>;
+pub(crate) type IdentTy = ArrayStrU8<64>;
 pub(crate) type RootParamsTy = ArrayVectorU8<(IdentTy, Expr), 2>;
 
 #[expect(clippy::large_enum_variant, reason = "work in progress")]

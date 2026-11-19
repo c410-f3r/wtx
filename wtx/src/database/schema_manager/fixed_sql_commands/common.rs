@@ -63,12 +63,7 @@ where
   for migration in migrations.clone() {
     buffer_cmd.push_str(migration.sql_up());
   }
-  executor
-    .transaction(async |this| {
-      this.execute_ignored(buffer_cmd.as_str()).await?;
-      Ok(((), this))
-    })
-    .await?;
+  executor.transaction(async |this| this.execute_ignored(buffer_cmd.as_str()).await).await?;
   buffer_cmd.clear();
 
   for migration in migrations {
@@ -87,12 +82,7 @@ where
       ))
       .map_err(Into::into)?;
   }
-  executor
-    .transaction(async |this| {
-      this.execute_ignored(buffer_cmd.as_str()).await?;
-      Ok(((), this))
-    })
-    .await?;
+  executor.transaction(async |this| this.execute_ignored(buffer_cmd.as_str()).await).await?;
   buffer_cmd.clear();
 
   Ok(())

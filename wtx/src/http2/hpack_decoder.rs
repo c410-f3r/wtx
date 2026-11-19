@@ -22,7 +22,7 @@ pub(crate) struct HpackDecoder {
 }
 
 impl HpackDecoder {
-  pub(crate) fn new() -> Self {
+  pub(crate) const fn new() -> Self {
     Self {
       dyn_headers: HpackHeaders::new(0),
       header_buffers: (_HeaderNameBuffer::new(), VectorUsize::new()),

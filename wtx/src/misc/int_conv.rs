@@ -4,10 +4,6 @@
 
 use crate::misc::Usize;
 
-pub(crate) const fn boolu16(val: bool) -> u16 {
-  val as u16
-}
-
 pub(crate) const fn boolu32(val: bool) -> u32 {
   val as u32
 }
@@ -63,6 +59,10 @@ pub(crate) const fn u8u32(val: u8) -> u32 {
   val as u32
 }
 
+pub(crate) const fn u8u64(val: u8) -> u64 {
+  val as u64
+}
+
 pub(crate) const fn u8usize(val: u8) -> usize {
   val as usize
 }
@@ -79,8 +79,16 @@ pub(crate) const fn u16u32(val: u16) -> u32 {
   val as u32
 }
 
+pub(crate) const fn u16u64(val: u16) -> u64 {
+  val as u64
+}
+
 pub(crate) const fn u32i64(val: u32) -> i64 {
   val as i64
+}
+
+pub(crate) const fn u32u64(val: u32) -> u64 {
+  val as u64
 }
 
 pub(crate) const fn u32usize(val: u32) -> usize {

@@ -36,11 +36,12 @@ macro_rules! usize_cap {
 }
 
 use crate::misc::{ArithmeticError, LeaseMut, TryArithmetic, Usize, int_conv::u8usize};
-use core::fmt::Display;
+use core::{fmt::Display, ops::BitAnd};
 
 /// Determines how many elements can be stored in a linear collection.
 pub trait LinearStorageLen:
-  Copy
+  BitAnd<Output = Self>
+  + Copy
   + Default
   + Display
   + Eq
@@ -83,6 +84,10 @@ pub trait LinearStorageLen:
   #[must_use = must_use_itself_generic_doc!()]
   fn checked_div(self, rhs: Self) -> Option<Self>;
 
+  /// Returns the smallest power of two greater than or equal to `self`.
+  #[must_use = must_use_itself_generic_doc!()]
+  fn checked_next_power_of_two(self) -> Option<Self>;
+
   /// Checked integer remainder.
   #[must_use = must_use_itself_generic_doc!()]
   fn checked_rem(self, rhs: Self) -> Option<Self>;
@@ -94,6 +99,10 @@ pub trait LinearStorageLen:
   /// Saturating integer addition.
   #[must_use = must_use_itself_generic_doc!()]
   fn saturating_add(self, rhs: Self) -> Self;
+
+  /// Saturating integer multiplication.
+  #[must_use = must_use_itself_generic_doc!()]
+  fn saturating_mul(self, rhs: Self) -> Self;
 
   /// Saturating integer subtraction.
   #[must_use = must_use_itself_generic_doc!()]
@@ -112,6 +121,21 @@ pub trait LinearStorageLen:
   /// Wrapping (modular) subtraction.
   #[must_use = must_use_itself_generic_doc!()]
   fn wrapping_sub(self, rhs: Self) -> Self;
+}
+
+/// A [`LinearStorageLen`] for types that spare a bit.
+///
+/// Imagine the capacity of a signed integer in an unsigned version. For example, `u7`,
+/// `u15` or `u31`.
+pub trait SparseLinearStorageLen: From<Self::Storage> + LinearStorageLen {
+  /// Type used for storing purposes.  
+  type Storage;
+
+  /// Returns `true` if the spare bit is ON.
+  fn has_spare_bit(self) -> bool;
+
+  /// Sets the spare bit.
+  fn set_spare_bit(&mut self, value: bool);
 }
 
 macro_rules! impl_linear_storage_len {
@@ -154,6 +178,11 @@ macro_rules! impl_linear_storage_len {
       }
 
       #[inline]
+      fn checked_next_power_of_two(self) -> Option<Self> {
+        self.checked_next_power_of_two()
+      }
+
+      #[inline]
       fn checked_rem(self, rhs: Self) -> Option<Self> {
         self.checked_rem(rhs)
       }
@@ -166,6 +195,11 @@ macro_rules! impl_linear_storage_len {
       #[inline]
       fn saturating_add(self, rhs: Self) -> Self {
         self.saturating_add(rhs)
+      }
+
+      #[inline]
+      fn saturating_mul(self, rhs: Self) -> Self {
+        self.saturating_mul(rhs)
       }
 
       #[inline]
@@ -209,19 +243,17 @@ impl_linear_storage_len!(
   |n: usize| n
 );
 
-macro_rules! impl_linear_storage_len_wrapper {
+macro_rules! impl_sparse_linear_storage_len {
   (
     $name:ident,
     $inner:ty,
+    $signed:ty,
     $bits:expr,
     $bytes:expr,
     $upper_bound:expr,
     $array:ty $(,)?
   ) => {
     /// Unsigned integer used to calculate lengths of collections.
-    ///
-    /// All arithmetic operations can surpass their associated upper bounds so it is up to the caller
-    /// to avoid overflows.
     #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct $name($inner);
 
@@ -230,15 +262,173 @@ macro_rules! impl_linear_storage_len_wrapper {
       pub const MAX: Self = Self($upper_bound);
 
       /// Creates a new instance from the backing primitive.
+      ///
+      /// Values greater than the maximum allowed length are saturated to it.
       #[inline]
       pub const fn new(value: $inner) -> Self {
-        Self(value)
+        Self(if value > $upper_bound { $upper_bound } else { value })
       }
 
       /// Returns the underlying primitive value.
       #[inline]
       pub const fn get(self) -> $inner {
         self.0
+      }
+    }
+
+    impl SparseLinearStorageLen for $name {
+      type Storage = $inner;
+
+      #[inline]
+      fn has_spare_bit(self) -> bool {
+        (self.0 & !$upper_bound) != 0
+      }
+
+      #[inline]
+      fn set_spare_bit(&mut self, value: bool) {
+        if value { self.0 |= !$upper_bound } else { self.0 &= $upper_bound }
+      }
+    }
+
+    impl LinearStorageLen for $name {
+      const BITS: u8 = $bits;
+      const BYTES: u8 = $bytes;
+      const ONE: Self = Self(1);
+      const TWO: Self = Self(2);
+      const UPPER_BOUND: Self = Self($upper_bound);
+      const UPPER_BOUND_USIZE: usize = $upper_bound;
+      const ZERO: Self = Self(0);
+
+      type Array = $array;
+
+      #[inline]
+      fn from_le_bytes(array: Self::Array) -> Self {
+        Self(<$inner>::from_le_bytes(array) & $upper_bound)
+      }
+
+      #[inline]
+      fn from_usize(num: usize) -> crate::Result<Self> {
+        Ok(Self(<$signed>::try_from(num)?.cast_unsigned()))
+      }
+
+      #[inline]
+      fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.0.checked_add(rhs.0).filter(|value| *value <= $upper_bound).map(Self)
+      }
+
+      #[inline]
+      fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.0.checked_div(rhs.0).map(Self)
+      }
+
+      #[inline]
+      fn checked_next_power_of_two(self) -> Option<Self> {
+        self.0.checked_next_power_of_two().filter(|value| *value <= $upper_bound).map(Self)
+      }
+
+      #[inline]
+      fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.0.checked_rem(rhs.0).map(Self)
+      }
+
+      #[inline]
+      fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.0.checked_sub(rhs.0).map(Self)
+      }
+
+      #[inline]
+      fn saturating_add(self, rhs: Self) -> Self {
+        Self(self.0.saturating_add(rhs.0).min($upper_bound))
+      }
+
+      #[inline]
+      fn saturating_mul(self, rhs: Self) -> Self {
+        Self(self.0.saturating_mul(rhs.0).min($upper_bound))
+      }
+
+      #[inline]
+      fn saturating_sub(self, rhs: Self) -> Self {
+        Self(self.0.saturating_sub(rhs.0))
+      }
+
+      #[inline]
+      fn to_le_bytes(self) -> Self::Array {
+        self.0.to_le_bytes()
+      }
+
+      #[inline]
+      fn usize(self) -> usize {
+        *Usize::from(self.0)
+      }
+
+      #[inline]
+      fn wrapping_add(self, rhs: Self) -> Self {
+        Self(self.0.wrapping_add(rhs.0) & $upper_bound)
+      }
+
+      #[inline]
+      fn wrapping_sub(self, rhs: Self) -> Self {
+        Self(self.0.wrapping_sub(rhs.0) & $upper_bound)
+      }
+    }
+
+    impl BitAnd for $name {
+      type Output = Self;
+
+      #[inline]
+      fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+      }
+    }
+
+    impl TryArithmetic<$name> for $name {
+      type Output = $name;
+
+      #[inline]
+      fn try_add(&self, rhs: $name) -> crate::Result<Self::Output> {
+        LinearStorageLen::checked_add(*self, rhs).ok_or(ArithmeticError::AddOverflow.into())
+      }
+
+      #[inline]
+      fn try_div(&self, rhs: $name) -> crate::Result<Self::Output> {
+        LinearStorageLen::checked_div(*self, rhs).ok_or(ArithmeticError::DivOverflow.into())
+      }
+
+      #[inline]
+      fn try_mul(&self, rhs: $name) -> crate::Result<Self::Output> {
+        let value = self.0.checked_mul(rhs.0).ok_or(ArithmeticError::MulOverflow)?;
+        if value > $upper_bound {
+          return Err(ArithmeticError::MulOverflow.into());
+        }
+        Ok(Self(value))
+      }
+
+      #[inline]
+      fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output> {
+        let value = self.0.checked_pow(exp.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?;
+        if value > $upper_bound {
+          return Err(ArithmeticError::PowI32Overflow.into());
+        }
+        Ok(Self(value))
+      }
+
+      #[inline]
+      fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output> {
+        let value = self.0.checked_pow(exp).ok_or(ArithmeticError::PowU32Overflow)?;
+        if value > $upper_bound {
+          return Err(ArithmeticError::PowU32Overflow.into());
+        }
+        Ok(Self(value))
+      }
+
+      #[inline]
+      fn try_rem(&self, rhs: $name) -> crate::Result<Self::Output> {
+        LinearStorageLen::checked_rem(*self, rhs).ok_or(ArithmeticError::RemOverflow.into())
+      }
+
+      #[inline]
+      fn try_sub(&self, rhs: $name) -> crate::Result<Self::Output> {
+        LinearStorageLen::checked_sub(*self, rhs).ok_or(ArithmeticError::SubOverflow.into())
       }
     }
 
@@ -262,122 +452,26 @@ macro_rules! impl_linear_storage_len_wrapper {
         from.0
       }
     }
+  };
+}
 
-    impl TryArithmetic<$name> for $name {
-      type Output = $name;
-
+macro_rules! impl_from_inner {
+  ($name:ident, $inner:ty) => {
+    impl From<$inner> for $name {
       #[inline]
-      fn try_add(&self, rhs: $name) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_add(rhs.0).ok_or(ArithmeticError::AddOverflow)?))
-      }
-
-      #[inline]
-      fn try_div(&self, rhs: $name) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_div(rhs.0).ok_or(ArithmeticError::DivOverflow)?))
-      }
-
-      #[inline]
-      fn try_mul(&self, rhs: $name) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_mul(rhs.0).ok_or(ArithmeticError::MulOverflow)?))
-      }
-
-      #[inline]
-      fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_pow(exp.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?))
-      }
-
-      #[inline]
-      fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_pow(exp).ok_or(ArithmeticError::PowU32Overflow)?))
-      }
-
-      #[inline]
-      fn try_rem(&self, rhs: $name) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_rem(rhs.0).ok_or(ArithmeticError::RemOverflow)?))
-      }
-
-      #[inline]
-      fn try_sub(&self, rhs: $name) -> crate::Result<Self::Output> {
-        Ok(Self(self.0.checked_sub(rhs.0).ok_or(ArithmeticError::SubOverflow)?))
-      }
-    }
-
-    impl LinearStorageLen for $name {
-      const BITS: u8 = $bits;
-      const BYTES: u8 = $bytes;
-      const ONE: Self = Self(1);
-      const TWO: Self = Self(2);
-      const UPPER_BOUND: Self = Self($upper_bound);
-      const UPPER_BOUND_USIZE: usize = $upper_bound;
-      const ZERO: Self = Self(0);
-
-      type Array = $array;
-
-      #[inline]
-      fn from_le_bytes(array: Self::Array) -> Self {
-        Self(<$inner>::from_le_bytes(array))
-      }
-
-      #[inline]
-      fn from_usize(num: usize) -> crate::Result<Self> {
-        Ok(Self(<$inner>::try_from(num)?))
-      }
-
-      #[inline]
-      fn checked_add(self, rhs: Self) -> Option<Self> {
-        Some(Self(self.0.checked_add(rhs.0)?))
-      }
-
-      #[inline]
-      fn checked_div(self, rhs: Self) -> Option<Self> {
-        Some(Self(self.0.checked_div(rhs.0)?))
-      }
-
-      #[inline]
-      fn checked_rem(self, rhs: Self) -> Option<Self> {
-        Some(Self(self.0.checked_rem(rhs.0)?))
-      }
-
-      #[inline]
-      fn checked_sub(self, rhs: Self) -> Option<Self> {
-        Some(Self(self.0.checked_sub(rhs.0)?))
-      }
-
-      #[inline]
-      fn saturating_add(self, rhs: Self) -> Self {
-        Self(self.0.saturating_add(rhs.0))
-      }
-
-      #[inline]
-      fn saturating_sub(self, rhs: Self) -> Self {
-        Self(self.0.saturating_sub(rhs.0))
-      }
-
-      #[inline]
-      fn to_le_bytes(self) -> Self::Array {
-        self.0.to_le_bytes()
-      }
-
-      #[inline]
-      fn usize(self) -> usize {
-        *Usize::from(self.0)
-      }
-
-      #[inline]
-      fn wrapping_add(self, rhs: Self) -> Self {
-        Self(self.0.wrapping_add(rhs.0))
-      }
-
-      #[inline]
-      fn wrapping_sub(self, rhs: Self) -> Self {
-        Self(self.0.wrapping_sub(rhs.0))
+      fn from(from: $inner) -> Self {
+        Self::new(from)
       }
     }
   };
 }
 
-impl_linear_storage_len_wrapper!(U7Len, u8, 7, 1, 127, [u8; 1]);
-impl_linear_storage_len_wrapper!(U15Len, u16, 15, 2, 32_767, [u8; 2]);
-impl_linear_storage_len_wrapper!(U31Len, u32, 31, 4, 2_147_483_647, [u8; 4]);
+impl_sparse_linear_storage_len!(U7Len, u8, i8, 7, 1, 127, [u8; 1]);
+impl_sparse_linear_storage_len!(U15Len, u16, i16, 15, 2, 32_767, [u8; 2]);
+impl_from_inner!(U15Len, u16);
+impl_sparse_linear_storage_len!(U31Len, u32, i32, 31, 4, 2_147_483_647, [u8; 4]);
+impl_from_inner!(U31Len, u32);
 #[cfg(target_pointer_width = "64")]
-impl_linear_storage_len_wrapper!(U63Len, u64, 63, 8, 9_223_372_036_854_775_807, [u8; 8]);
+impl_sparse_linear_storage_len!(U63Len, u64, i64, 63, 8, 9_223_372_036_854_775_807, [u8; 8]);
+#[cfg(target_pointer_width = "64")]
+impl_from_inner!(U63Len, u64);

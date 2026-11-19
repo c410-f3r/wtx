@@ -8,7 +8,7 @@ use crate::{
   calendar::CalendarError,
   codec::{Base64Error, FromRadix10Error, HexError},
   collections::{
-    ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
+    ArrayStrError, ArrayVectorError, BlocksDequeError, DequeueError, DynVectorError, FixedStrError,
     ShortBoxStrU16, ShortStrU8, VectorError,
   },
   misc::{ArithmeticError, AsciiError},
@@ -249,7 +249,7 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   Arithmetic(ArithmeticError),
   #[doc = associated_element_doc!()]
-  ArrayString(ArrayStringError),
+  ArrayStr(ArrayStrError),
   #[doc = associated_element_doc!()]
   ArrayVector(ArrayVectorError),
   #[doc = associated_element_doc!()]
@@ -277,9 +277,11 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   Database(crate::database::DatabaseError),
   #[doc = associated_element_doc!()]
+  DynVector(DynVectorError),
+  #[doc = associated_element_doc!()]
   Executor(crate::executor::ExecutorError),
   #[doc = associated_element_doc!()]
-  FixedString(FixedStringError),
+  FixedStr(FixedStrError),
   #[doc = associated_element_doc!()]
   FromRadix10(FromRadix10Error),
   #[doc = associated_element_doc!()]

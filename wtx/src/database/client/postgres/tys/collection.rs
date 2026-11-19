@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::{ArrayString, LinearStorageLen, ShortBoxStr},
+  collections::{ArrayStr, LinearStorageLen, ShortBoxStr},
   database::{
     Typed,
     client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
@@ -132,9 +132,9 @@ where
 }
 test!(str, &str, "1234");
 
-// ArrayString
+// ArrayStr
 
-impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayString<L, N>
+impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayStr<L, N>
 where
   E: From<crate::Error>,
   L: LinearStorageLen,
@@ -144,7 +144,7 @@ where
     Ok(from_utf8_basic(dw.bytes()).map_err(Into::into)?.try_into()?)
   }
 }
-impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayString<L, N>
+impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayStr<L, N>
 where
   E: From<crate::Error>,
   L: LinearStorageLen,
@@ -155,7 +155,7 @@ where
     Ok(())
   }
 }
-impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayString<L, N>
+impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayStr<L, N>
 where
   E: From<crate::Error>,
   L: LinearStorageLen,
@@ -170,7 +170,7 @@ where
     Some(Ty::Text)
   }
 }
-test!(array_string, crate::collections::ArrayStringU8<4>, ArrayString::try_from("123").unwrap());
+test!(array_string, crate::collections::ArrayStrU8<4>, ArrayStr::try_from("123").unwrap());
 
 // Cow (std)
 

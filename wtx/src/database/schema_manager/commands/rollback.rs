@@ -43,13 +43,7 @@ where
     for elem in filtered_by_db.map(UserMigration::sql_down) {
       buffer_cmd.push_str(elem);
     }
-    self
-      .executor
-      .transaction(async |this| {
-        this.execute_ignored(buffer_cmd.as_str()).await?;
-        Ok(((), this))
-      })
-      .await?;
+    self.executor.transaction(async |this| this.execute_ignored(buffer_cmd.as_str()).await).await?;
     buffer_cmd.clear();
     self.executor.delete_migrations(&mut buffer_cmd, mg, uid).await?;
     buffer_db_migrations.clear();

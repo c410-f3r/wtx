@@ -82,12 +82,7 @@ where
     |buffer| push_drop(buffer, "TYPE"),
   )
   .await?;
-  executor
-    .transaction(async |this| {
-      this.execute_ignored(buffer_cmd.as_str()).await?;
-      Ok(((), this))
-    })
-    .await?;
+  executor.transaction(async |this| this.execute_ignored(buffer_cmd.as_str()).await).await?;
   buffer_cmd.clear();
   Ok(())
 }

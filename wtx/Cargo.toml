@@ -10,7 +10,7 @@ hashbrown = { default-features = false, optional = true, version = "0.17" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
 memchr = { default-features = false, optional = true, version = "2.0" }
-parking_lot = { default-features = false, optional = true, version = "0.12" }
+parking_lot = { default-features = false, optional = true, version = "0.13" }
 pin-project-lite = { default-features = false, optional = true, version = "0.2" }
 portable-atomic = { default-features = false, optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, optional = true, version = "0.2" }

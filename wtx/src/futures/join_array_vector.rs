@@ -8,7 +8,7 @@ use core::{
 /// Joins the result of a dynamic array of futures, waiting for them all to complete.
 ///
 /// You should `Box` this structure if size is a concern.
-#[must_use = "Futures do nothing unless you await them"]
+#[must_use = "futures do nothing unless you await them"]
 #[derive(Debug)]
 pub struct JoinArrayVector<F, const N: usize>
 where
@@ -78,7 +78,7 @@ where
 /// soon as one future returns an error, the whole process aborts early.
 ///
 /// You should `Box` this structure if size is a concern.
-#[must_use = "Futures do nothing unless you await them"]
+#[must_use = "futures do nothing unless you await them"]
 #[derive(Debug)]
 pub struct TryJoinArrayVector<C, E, F, T, const N: usize>
 where

@@ -79,7 +79,7 @@ macro_rules! impl_tuples {
     #[cfg(feature = "http2-server-framework")]
     mod http_server_framework {
       use crate::{
-        collections::{ArrayVectorCopy, ShortStrU8, VectorUsize},
+        collections::{ArrayVectorCopy, VectorU16, ShortStrU8},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           MsgBufferString, Response,
@@ -197,7 +197,7 @@ macro_rules! impl_tuples {
           fn paths_indices(
             &self,
             _prev: ArrayVectorCopy<RouteMatch, 4>,
-            _vec: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>
+            _vec: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>
           ) -> crate::Result<()> {
             $({
               let mut local_prev = _prev.clone();

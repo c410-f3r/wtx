@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, Hour, MINUTES_PER_HOUR, Sixty, TimeZone},
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
 };
 
 /// Dynamic Time Zone. From -23:59 to +23:59.
@@ -50,7 +50,7 @@ impl TimeZone for DynTz {
 
   #[expect(clippy::arithmetic_side_effects, reason = "`mph` is a constant")]
   #[inline]
-  fn iso8601(self) -> ArrayStringU8<6> {
+  fn iso8601(self) -> ArrayStrU8<6> {
     let mph = i16::from(MINUTES_PER_HOUR);
     // SAFETY: the number of minutes is within the -1439..=1439 range
     let hour = unsafe {
@@ -62,7 +62,7 @@ impl TimeZone for DynTz {
       let elem = (self.0.abs() % mph).abs().try_into().unwrap_or_default();
       Sixty::from_num(elem).unwrap_unchecked()
     };
-    let mut str = ArrayString::new();
+    let mut str = ArrayStr::new();
     let _rslt0 = str.push(if self.0 < 0 { '-' } else { '+' });
     let _rslt1 = str.push_str(hour.num_str());
     let _rslt2 = str.push(':');

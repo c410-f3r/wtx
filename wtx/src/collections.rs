@@ -5,7 +5,7 @@
 #[macro_use]
 mod macros;
 
-mod array_string;
+mod array_str;
 mod array_vector;
 mod array_vector_copy;
 mod array_vector_inner;
@@ -16,9 +16,10 @@ mod capacity_upper_bound;
 mod clear;
 mod csr;
 mod deque;
+mod dyn_str;
 mod dyn_vector;
 mod expansion_ty;
-mod fixed_string;
+mod fixed_str;
 mod linear_storage;
 mod maybe_uninit_slice;
 mod misc;
@@ -33,9 +34,7 @@ mod truncate;
 mod try_extend;
 mod vector;
 
-pub use array_string::{
-  ArrayString, ArrayStringError, ArrayStringU8, ArrayStringU16, ArrayStringU32, ArrayStringUsize,
-};
+pub use array_str::{ArrayStr, ArrayStrError, ArrayStrU8, ArrayStrU16, ArrayStrU32, ArrayStrUsize};
 pub use array_vector::{
   ArrayVector, ArrayVectorError, ArrayVectorU8, ArrayVectorU16, ArrayVectorU32, ArrayVectorUsize,
 };
@@ -51,13 +50,17 @@ pub use capacity_upper_bound::CapacityUpperBound;
 pub use clear::Clear;
 pub use csr::{Csr, CsrError, CsrLineBuilder, CsrRow, CsrRowIter, CsrU8, CsrU16, CsrU32, CsrUsize};
 pub use deque::{Deque, DequeU8, DequeU16, DequeU32, DequeUsize, DequeueError};
+pub use dyn_str::{DynStr, DynStrU7, DynStrU15, DynStrU31};
+pub use dyn_vector::{DynVector, DynVectorError, DynVectorU7, DynVectorU15, DynVectorU31};
 pub use expansion_ty::ExpansionTy;
-pub use fixed_string::{FixedString, FixedStringError};
+pub use fixed_str::{FixedStr, FixedStrError};
 #[cfg(feature = "hashbrown")]
 pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
 #[cfg(target_pointer_width = "64")]
 pub use linear_storage::linear_storage_len::U63Len;
-pub use linear_storage::linear_storage_len::{LinearStorageLen, U7Len, U15Len, U31Len};
+pub use linear_storage::linear_storage_len::{
+  LinearStorageLen, SparseLinearStorageLen, U7Len, U15Len, U31Len,
+};
 pub use maybe_uninit_slice::MaybeUninitSlice;
 pub use misc::{backward_deque_idx, concat_slices};
 pub use short_box_slice::{ShortBoxSlice, ShortBoxSliceU8, ShortBoxSliceU16};

@@ -1,6 +1,6 @@
 use crate::{
   codec::nstr::nstr64,
-  collections::{ArrayVectorCopy, TryExtend},
+  collections::{DynVectorU7, TryExtend},
   database::{
     Database, DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -19,14 +19,12 @@ use crate::{
   tls::TlsCtx,
 };
 
-const MAX_STMTS: usize = 4;
-
 /// Sends multiple statements at once and awaits them when flushed.
 #[derive(Debug)]
 pub struct Batch<'exec, E, S, TCX> {
   client: &'exec mut PostgresClient<E, S, TCX>,
   initial_len: usize,
-  stmt_cmd_ids: ArrayVectorCopy<(u64, bool), MAX_STMTS>,
+  stmt_cmd_ids: DynVectorU7<(u64, bool), 4>,
 }
 
 impl<'exec, E, S, TCX> Batch<'exec, E, S, TCX>
@@ -42,7 +40,7 @@ where
     clear_query_buffers(records_params, values_params);
     let initial_len = read_buffer.buffer_mut().len();
     *read_buffer.forbid_clear_mut() = true;
-    Self { client, initial_len, stmt_cmd_ids: ArrayVectorCopy::new() }
+    Self { client, initial_len, stmt_cmd_ids: DynVectorU7::new() }
   }
 
   /// Combines received results based on previous [`Self::stmt`] calls.

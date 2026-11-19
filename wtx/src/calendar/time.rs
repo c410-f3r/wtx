@@ -8,7 +8,7 @@ use crate::{
     NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Sixty,
     misc::nanosecond_string, nanosecond::Nanosecond,
   },
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
   misc::int_conv::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
 };
 use core::{
@@ -107,8 +107,8 @@ impl Time {
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso8601(self) -> ArrayStringU8<18> {
-    let mut array = ArrayString::new();
+  pub fn iso8601(self) -> ArrayStrU8<18> {
+    let mut array = ArrayStr::new();
     let _rslt0 = array.push_str(self.hour().num_str());
     let _rslt1 = array.push(':');
     let _rslt2 = array.push_str(self.minute().num_str());

@@ -1,7 +1,10 @@
 use crate::collections::{LinearStorageLen, TryExtend};
+use alloc::alloc::Global;
 use core::{
-  mem::{self, MaybeUninit},
-  ptr, slice,
+  alloc::{Allocator, Layout},
+  mem::{DropGuard, MaybeUninit},
+  ptr::{self, NonNull},
+  slice,
 };
 
 /// Calculates the current index of a previous `push_front` element.
@@ -68,6 +71,50 @@ where
   Some(unsafe { ptr::read(concatenated.as_ptr().cast()) })
 }
 
+pub(crate) struct HeapDeallocator<'alloc, A: Allocator> {
+  align: usize,
+  allocator: &'alloc A,
+  len_bytes: usize,
+  pointer: NonNull<u8>,
+}
+
+impl<'alloc, A> HeapDeallocator<'alloc, A>
+where
+  A: Allocator,
+{
+  #[inline]
+  pub(crate) const unsafe fn new<E>(
+    allocator: &'alloc A,
+    capacity: usize,
+    pointer: NonNull<u8>,
+  ) -> Self {
+    Self {
+      align: align_of::<E>(),
+      allocator,
+      len_bytes: capacity.wrapping_mul(size_of::<E>()),
+      pointer,
+    }
+  }
+}
+
+impl<A> Drop for HeapDeallocator<'_, A>
+where
+  A: Allocator,
+{
+  #[inline]
+  fn drop(&mut self) {
+    if self.len_bytes == 0 {
+      return;
+    }
+    // SAFETY: Up to the caller
+    let layout = unsafe { Layout::from_size_align_unchecked(self.len_bytes, self.align) };
+    // SAFETY: Up to the caller
+    unsafe {
+      self.allocator.deallocate(self.pointer, layout);
+    }
+  }
+}
+
 pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
   if idx == 0 {
     return true;
@@ -101,44 +148,68 @@ where
       ptr::drop_in_place(elements);
     }
   } else {
-    let mut guard = SliceDropGuard { data, begin: 0, len: len.usize() };
-    while guard.begin < guard.len {
-      // SAFETY: caller ensures `len` is valid, so `data + begin` is in-bounds.
-      let src = unsafe { guard.data.add(guard.begin) };
-      guard.begin = guard.begin.wrapping_add(1);
+    let mut guard = DropGuard::new((data, len.usize()), |(local_data, local_len)| {
+      if local_len > 0 {
+        // SAFETY: it is up to the caller to provide a valid slice
+        let slice_to_drop = unsafe { slice::from_raw_parts_mut(local_data, local_len) };
+        // SAFETY: it is up to the caller to provide a valid slice
+        unsafe {
+          ptr::drop_in_place(slice_to_drop);
+        }
+      }
+    });
+    while guard.1 > 0 {
+      let src = guard.0;
+      // SAFETY: `src` points to an initialized element per the function's contract.
+      guard.0 = unsafe { src.add(1) };
+      guard.1 = guard.1.wrapping_sub(1);
       // SAFETY: `src` points to an initialized element per the function's contract.
       let value = unsafe { ptr::read(src) };
       buffer.try_extend([value])?;
     }
-    #[expect(
-      clippy::mem_forget,
-      reason = "there is nothing else to drop but it is possible to avoid one arithmetic operation"
-    )]
-    mem::forget(guard);
+    let _ = DropGuard::dismiss(guard);
   }
   Ok(())
 }
 
-struct SliceDropGuard<T> {
-  data: *mut T,
-  begin: usize,
-  len: usize,
+#[inline]
+pub(crate) unsafe fn grow_heap<L, T>(
+  new_capacity: L,
+  old_capacity: L,
+  ptr: NonNull<u8>,
+) -> Option<NonNull<[u8]>>
+where
+  L: LinearStorageLen,
+{
+  if new_capacity > L::UPPER_BOUND {
+    return None;
+  }
+  let new_layout = Layout::array::<T>(new_capacity.usize()).ok()?;
+  let old_layout = Layout::array::<T>(old_capacity.usize()).ok()?;
+  if old_capacity < new_capacity {
+    // SAFETY: Up to the caller to provide valid parameters
+    unsafe { Global.grow(ptr, old_layout, new_layout).ok() }
+  } else {
+    // SAFETY: Up to the caller to provide valid parameters
+    unsafe { Global.shrink(ptr, old_layout, new_layout).ok() }
+  }
 }
 
-impl<T> Drop for SliceDropGuard<T> {
-  fn drop(&mut self) {
-    let remaining_len = self.len.wrapping_sub(self.begin);
-    if remaining_len > 0 {
-      // SAFETY: it is up to the caller to provide a valid slice
-      let data = unsafe { self.data.add(self.begin) };
-      // SAFETY: it is up to the caller to provide a valid slice
-      let slice_to_drop = unsafe { slice::from_raw_parts_mut(data, remaining_len) };
-      // SAFETY: it is up to the caller to provide a valid slice
-      unsafe {
-        ptr::drop_in_place(slice_to_drop);
-      }
-    }
+#[inline]
+pub(crate) fn reserve_new_capacity<L>(additional: L, cap: L, len: L) -> Option<L>
+where
+  L: LinearStorageLen,
+{
+  let required = len.checked_add(additional)?;
+  if cap >= required {
+    return Some(cap);
   }
+  let double_capacity = cap.saturating_mul(L::TWO);
+  let target = required.max(double_capacity);
+  if target > L::UPPER_BOUND {
+    return None;
+  }
+  Some(target.checked_next_power_of_two().unwrap_or(target))
 }
 
 #[cfg(test)]

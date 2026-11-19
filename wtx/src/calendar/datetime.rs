@@ -4,24 +4,24 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, CeDays, Date, EPOCH_CE_DAYS, Hour, IDuration, Instant,
-    Nanosecond, SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
+    CalendarError, CalendarToken, CeDays, Date, DayOfYear, EPOCH_CE_DAYS, Hour, IDuration, Instant,
+    Nanosecond, SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc, Year,
   },
-  collections::{ArrayString, ArrayStringU8},
-  misc::int_conv::{i16i64, i32i64, u8i64, u32i64},
+  collections::{ArrayStr, ArrayStrU8},
+  misc::int_conv::{i16i64, i32i64, u8i64, u8u64, u16u64, u32i64, u32u64},
 };
-use core::fmt::{Debug, Display, Formatter};
+use core::{
+  fmt::{Debug, Display, Formatter},
+  hint::unreachable_unchecked,
+};
 
 /// ISO-8601 representation with timezones.
 //
-// With a considerable and probably unworthy effort it is possible to save 2 bytes.
-//
-// | xxxxxxx | xxxxxxxxxxxxxxxx | x            | xxxxxxxxx       | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxx | xxxxxx | xxxxx |
-// | unused  | year             | is leap year | day of the year | nanosecond                     | second | minute | hour  |
+// | xxxxxxxxxxxxxxxx | xxxxxxxxx       | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxx | xxxxxx | xxxxx |
+// | year             | day of the year | nanosecond                     | second | minute | hour  |
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Datetime<TZ> {
-  date: Date,
-  time: Time,
+  data: [u8; 9],
   tz: TZ,
 }
 
@@ -97,11 +97,12 @@ impl Datetime<Utc> {
   // FIXME(STABLE): Use `timestamp_secs_and_ns` with constant traits
   #[inline]
   const fn timestamp_secs_and_ns_utc(self) -> (i64, Nanosecond) {
-    let mut rslt = i32i64(self.date.ce_days());
+    let time = self.time();
+    let mut rslt = i32i64(self.date().ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    rslt = rslt.wrapping_add(u32i64(self.time.seconds_since_mn()));
-    (rslt, self.time.nanosecond())
+    rslt = rslt.wrapping_add(u32i64(time.seconds_since_mn()));
+    (rslt, time.nanosecond())
   }
 }
 
@@ -133,7 +134,7 @@ where
   /// New instance from basic parameters
   #[inline]
   pub const fn new(date: Date, time: Time, time_zone: TZ) -> Self {
-    Self { date, time, tz: time_zone }
+    Self { data: Self::pack(date, time), tz: time_zone }
   }
 
   /// Computes `self + duration`, returning an error if an overflow occurred.
@@ -142,12 +143,12 @@ where
     if duration.is_zero() {
       return Ok(self);
     }
-    let (time, remaining) = self.time.overflowing_add(duration);
+    let (time, remaining) = self.time().overflowing_add(duration);
     let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
-    let date = match self.date.add(rhs) {
+    let date = match self.date().add(rhs) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
@@ -157,16 +158,30 @@ where
   /// See [`Date`].
   #[inline]
   pub const fn date(self) -> Date {
-    self.date
+    let year_num = u16::from_be_bytes([self.data[0], self.data[1]]) ^ 0b1000_0000_0000_0000;
+    let rest_num = Self::rest_num(self.data);
+    let Ok(year) = Year::from_num(year_num.cast_signed()) else {
+      // SAFETY: `data` only stores instances created by `Year::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    let Ok(day_of_year) = DayOfYear::from_num(Self::day_of_year_bits(rest_num)) else {
+      // SAFETY: `data` only stores instances created by `DayOfYear::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    let Ok(elem) = Date::new(year, day_of_year) else {
+      // SAFETY: `data` only stores instances created by `Date::new`
+      unsafe { unreachable_unchecked() }
+    };
+    elem
   }
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso8601(self, tz: bool) -> ArrayStringU8<38> {
-    let mut rslt = ArrayString::new();
-    let _rslt0 = rslt.push_str(&self.date.iso8601());
+  pub fn iso8601(self, tz: bool) -> ArrayStrU8<38> {
+    let mut rslt = ArrayStr::new();
+    let _rslt0 = rslt.push_str(&self.date().iso8601());
     let _rslt1 = rslt.push('T');
-    let _rslt2 = rslt.push_str(&self.time.iso8601());
+    let _rslt2 = rslt.push_str(&self.time().iso8601());
     if tz {
       let _rslt3 = rslt.push_str(&self.tz.iso8601());
     }
@@ -176,12 +191,12 @@ where
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
   pub const fn sub(self, duration: IDuration) -> Result<Self, CalendarError> {
-    let (time, remaining) = self.time.overflowing_sub(duration);
+    let (time, remaining) = self.time().overflowing_sub(duration);
     let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
-    let date = match self.date.sub(rhs) {
+    let date = match self.date().sub(rhs) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
@@ -191,18 +206,36 @@ where
   /// See [`Time`].
   #[inline]
   pub const fn time(self) -> Time {
-    self.time
+    let rest_num = Self::rest_num(self.data);
+    let Ok(hour) = Hour::from_num(Self::hour_bits(rest_num)) else {
+      // SAFETY: `data` only stores instances created by `Hour::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    let Ok(minute) = Sixty::from_num(Self::minute_bits(rest_num)) else {
+      // SAFETY: `data` only stores instances created by `Sixty::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    let Ok(second) = Sixty::from_num(Self::second_bits(rest_num)) else {
+      // SAFETY: `data` only stores instances created by `Sixty::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    let Ok(nanosecond) = Nanosecond::from_num(Self::nanosecond_bits(rest_num)) else {
+      // SAFETY: `data` only stores instances created by `Nanosecond::from_num`
+      unsafe { unreachable_unchecked() }
+    };
+    Time::from_hms_ns(hour, minute, second, nanosecond)
   }
 
   /// UNIX timestamp in seconds as well as the number of nanoseconds.
   #[inline]
   pub fn timestamp_secs_and_ns(self) -> (i64, Nanosecond) {
-    let mut rslt = i32i64(self.date.ce_days());
+    let time = self.time();
+    let mut rslt = i32i64(self.date().ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    rslt = rslt.wrapping_add(u32i64(self.time.seconds_since_mn()));
+    rslt = rslt.wrapping_add(u32i64(time.seconds_since_mn()));
     rslt = rslt.wrapping_sub(i16i64(self.tz.minutes()).wrapping_mul(u8i64(SECONDS_PER_MINUTE)));
-    (rslt, self.time.nanosecond())
+    (rslt, time.nanosecond())
   }
 
   /// Returns a new instance with the internal values converted to the provided timezone.
@@ -212,20 +245,20 @@ where
     NTZ: TimeZone,
   {
     if (TZ::IS_LOCAL || TZ::IS_UTC) && (NTZ::IS_LOCAL || NTZ::IS_UTC) {
-      return Ok(Datetime::new(self.date, self.time, tz));
+      return Ok(Datetime::new(self.date(), self.time(), tz));
     }
     let datetime = self.to_utc()?.add(IDuration::from_minutes(i64::from(tz.minutes()))?)?;
-    Ok(Datetime::new(datetime.date, datetime.time, tz))
+    Ok(Datetime::new(datetime.date(), datetime.time(), tz))
   }
 
   /// Returns a new instance with the internal values converted to UTC.
   #[inline]
   pub fn to_utc(self) -> Result<Datetime<Utc>, CalendarError> {
     if TZ::IS_LOCAL || TZ::IS_UTC {
-      Ok(Datetime::new(self.date, self.time, Utc))
+      Ok(Datetime::new(self.date(), self.time(), Utc))
     } else {
       let datetime = self.sub(IDuration::from_minutes(i64::from(self.tz.minutes()))?)?;
-      Ok(Datetime::new(datetime.date, datetime.time, Utc))
+      Ok(Datetime::new(datetime.date(), datetime.time(), Utc))
     }
   }
 
@@ -233,27 +266,63 @@ where
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
   pub const fn trunc_to_ms(self) -> Self {
-    let mut new = self;
-    new.time = new.time.trunc_to_ms();
-    new
+    Self::new(self.date(), self.time().trunc_to_ms(), self.tz)
   }
 
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
   pub const fn trunc_to_secs(self) -> Self {
-    let mut new = self;
-    new.time = new.time.trunc_to_sec();
-    new
+    Self::new(self.date(), self.time().trunc_to_sec(), self.tz)
   }
 
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
   pub const fn trunc_to_us(self) -> Self {
-    let mut new = self;
-    new.time = new.time.trunc_to_us();
-    new
+    Self::new(self.date(), self.time().trunc_to_us(), self.tz)
+  }
+
+  #[inline]
+  const fn day_of_year_bits(rest_num: u64) -> u16 {
+    ((rest_num >> 47) & 0b1_1111_1111) as u16
+  }
+
+  #[inline]
+  const fn hour_bits(rest_num: u64) -> u8 {
+    ((rest_num >> 42) & 0b1_1111) as u8
+  }
+
+  #[inline]
+  const fn minute_bits(rest_num: u64) -> u8 {
+    ((rest_num >> 36) & 0b11_1111) as u8
+  }
+
+  #[inline]
+  const fn nanosecond_bits(rest_num: u64) -> u32 {
+    (rest_num & 0b11_1111_1111_1111_1111_1111_1111_1111) as u32
+  }
+
+  #[inline]
+  const fn pack(date: Date, time: Time) -> [u8; 9] {
+    let year = (date.year().num().cast_unsigned() ^ 0b1000_0000_0000_0000).to_be_bytes();
+    let rest_num = (u16u64(date.day_of_year().num()) << 47)
+      | (u8u64(time.hour().num()) << 42)
+      | (u8u64(time.minute().num()) << 36)
+      | (u8u64(time.second().num()) << 30)
+      | u32u64(time.nanosecond().num());
+    let rest = rest_num.to_be_bytes();
+    [year[0], year[1], rest[1], rest[2], rest[3], rest[4], rest[5], rest[6], rest[7]]
+  }
+
+  #[inline]
+  const fn rest_num(data: [u8; 9]) -> u64 {
+    u64::from_be_bytes([0, data[2], data[3], data[4], data[5], data[6], data[7], data[8]])
+  }
+
+  #[inline]
+  const fn second_bits(rest_num: u64) -> u8 {
+    ((rest_num >> 30) & 0b11_1111) as u8
   }
 }
 

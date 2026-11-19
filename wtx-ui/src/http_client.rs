@@ -26,10 +26,9 @@ pub(crate) async fn http_client(http_client: HttpClient) -> wtx::Result<()> {
       .push_from_iter(Header::from_name_and_value(name.trim(), values.split(',').map(str::trim)))?;
   }
   if let Some(elem) = user_agent {
-    msg_buffer.headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::UserAgent.into(),
-      [elem.as_str()],
-    ))?;
+    msg_buffer
+      .headers
+      .push(Header::from_name_and_value(KnownHeaderName::UserAgent.into(), elem.as_str()))?;
   }
   if let Some(elem) = data {
     msg_buffer.body.extend_from_copyable_slice(elem.as_bytes())?;

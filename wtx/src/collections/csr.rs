@@ -48,7 +48,7 @@ where
 
   /// Number of columns
   #[inline]
-  pub fn columns(&self) -> L {
+  pub const fn columns(&self) -> L {
     self.columns_len
   }
 
@@ -78,7 +78,7 @@ where
 
   /// Iterates over [`Csr`] rows
   #[inline]
-  pub fn row_iter(&self) -> CsrRowIter<'_, L, T> {
+  pub const fn row_iter(&self) -> CsrRowIter<'_, L, T> {
     CsrRowIter { columns_indices_prev: 0, csr: self, row_idx: 0 }
   }
 
@@ -178,13 +178,13 @@ pub struct CsrRow<'csr, T> {
 impl<'csr, T> CsrRow<'csr, T> {
   /// Column indices.
   #[inline]
-  pub fn columns_indices(&self) -> &'csr [usize] {
+  pub const fn columns_indices(&self) -> &'csr [usize] {
     self.columns_indices
   }
 
   /// All data contained in this row.
   #[inline]
-  pub fn data(&self) -> &'csr [T] {
+  pub const fn data(&self) -> &'csr [T] {
     self.data
   }
 

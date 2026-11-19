@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData,
     misc::nanosecond_string,
   },
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
 };
 
 impl Time {
@@ -31,8 +31,8 @@ impl Time {
   pub fn to_string<const N: usize>(
     &self,
     tokens: impl IntoIterator<Item = CalendarToken>,
-  ) -> crate::Result<ArrayStringU8<N>> {
-    let mut string = ArrayString::new();
+  ) -> crate::Result<ArrayStrU8<N>> {
+    let mut string = ArrayStr::new();
     for token in tokens {
       match token {
         CalendarToken::Colon => {

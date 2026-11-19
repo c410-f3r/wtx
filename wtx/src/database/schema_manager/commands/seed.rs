@@ -26,13 +26,7 @@ where
     for elem in seeds {
       buffer_cmd.push_str(elem.lease());
     }
-    self
-      .executor
-      .transaction(async |this| {
-        this.execute_ignored(buffer_cmd.as_str()).await?;
-        Ok(((), this))
-      })
-      .await?;
+    self.executor.transaction(async |this| this.execute_ignored(buffer_cmd.as_str()).await).await?;
     Ok(())
   }
 

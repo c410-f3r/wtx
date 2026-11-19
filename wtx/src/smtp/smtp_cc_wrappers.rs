@@ -10,7 +10,7 @@ pub(crate) struct _SmtpDecodeWrapper<'de> {
 }
 
 impl<'de> _SmtpDecodeWrapper<'de> {
-  pub(crate) fn _from_bytes(bytes: &'de [u8]) -> Self {
+  pub(crate) const fn _from_bytes(bytes: &'de [u8]) -> Self {
     Self { bytes }
   }
 }

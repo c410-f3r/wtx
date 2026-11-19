@@ -7,7 +7,7 @@ use crate::{
     },
   },
   codec::nstr::nstr16,
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
 };
 
 impl Date {
@@ -35,8 +35,8 @@ impl Date {
   pub fn to_string<const N: usize>(
     &self,
     tokens: impl IntoIterator<Item = CalendarToken>,
-  ) -> crate::Result<ArrayStringU8<N>> {
-    let mut string = ArrayString::new();
+  ) -> crate::Result<ArrayStrU8<N>> {
+    let mut string = ArrayStr::new();
     for token in tokens {
       match token {
         CalendarToken::AbbreviatedMonthName => {

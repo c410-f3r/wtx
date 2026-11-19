@@ -13,12 +13,12 @@ use crate::{
     DAYS_PER_QUADCENTURY, Day, DayOfYear, IDuration, Month, SECONDS_PER_DAY, Weekday,
     YEARS_PER_QUADCENTURY, Year,
   },
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
   misc::{
     Usize,
     int_conv::{
-      boolu16, boolu32, boolusize, i16i32, i32i64, u8i16, u8i32, u8u16, u8u32, u8usize, u16i32,
-      u16u32, u32i64,
+      boolu32, boolusize, i16i32, i32i64, u8i16, u8i32, u8u16, u8u32, u8usize, u16i32, u16u32,
+      u32i64,
     },
   },
 };
@@ -56,8 +56,8 @@ static QUADCENTURY_ADJUSTMENTS: &[u8; 401] = &[
 #[derive(Clone, Copy)]
 pub struct Date {
   year: Year,
-  // | xxxxxx | x            | xxxxxxxxx       |
-  // | unused | is leap year | day of the year |
+  // | xxxxxxx | xxxxxxxxx       |
+  // | unused  | day of the year |
   params: u16,
 }
 
@@ -149,8 +149,7 @@ impl Date {
     if !is_leap_year && day_of_year.num() == DayOfYear::N366.num() {
       return Err(CalendarError::InvalidDayOfTheYearInNonLeapYear);
     }
-    let mut params = boolu16(is_leap_year) << 15;
-    params |= day_of_year.num();
+    let params = day_of_year.num();
     Ok(Self { year, params })
   }
 
@@ -213,8 +212,8 @@ impl Date {
 
   /// String representation
   #[inline]
-  pub fn iso8601(self) -> ArrayStringU8<12> {
-    let mut array = ArrayString::new();
+  pub fn iso8601(self) -> ArrayStrU8<12> {
+    let mut array = ArrayStr::new();
     let _rslt0 = array.push_str(&self.year.num_str());
     let _rslt1 = array.push('-');
     let _rslt2 = array.push_str(self.month().num_str());

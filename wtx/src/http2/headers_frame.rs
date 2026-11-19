@@ -1,5 +1,5 @@
 use crate::{
-  collections::ArrayStringU8,
+  collections::ArrayStrU8,
   http::{Header, HttpRecvParams, KnownHeaderName, Method, MsgBufferString, U31},
   http2::{
     Http2Error,
@@ -88,9 +88,9 @@ impl<'uri> HeadersFrame<'uri> {
     let mut protocol = None;
     let mut status = None;
 
-    let mut authority = ArrayStringU8::<64>::new();
+    let mut authority = ArrayStrU8::<64>::new();
     let mut path_len = 0;
-    let mut scheme = ArrayStringU8::<12>::new();
+    let mut scheme = ArrayStrU8::<12>::new();
     let mut static_path = None;
     let mut uri_buffer_opt = if IS_TRAILER { None } else { Some(rrb_uri.reset()) };
 
@@ -143,7 +143,7 @@ impl<'uri> HeadersFrame<'uri> {
                 }
                 content_length = Some(local_content_length);
               }
-              rrb_headers.push_from_iter(Header::new(false, IS_TRAILER, name.str(), [value]))?;
+              rrb_headers.push(Header::new(false, IS_TRAILER, name.str(), value))?;
             }
           }
         },
@@ -254,7 +254,7 @@ impl<'uri> HeadersFrame<'uri> {
         let Some(uri_buffer) = &mut uri_buffer_opt else {
           return Err(protocol_err(Http2Error::InvalidHeaderFrame));
         };
-        let mut prefix = ArrayStringU8::<79>::new();
+        let mut prefix = ArrayStrU8::<79>::new();
         let _rslt0 = prefix.push_str(&scheme);
         let _rslt1 = prefix.push_str("://");
         let _rslt2 = prefix.push_str(&authority);

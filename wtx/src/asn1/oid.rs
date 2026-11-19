@@ -3,7 +3,7 @@ use crate::{
   codec::{
     Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, nstr::nstr32,
   },
-  collections::{ArrayString, ArrayStringU8, ArrayVectorCopy},
+  collections::{ArrayStr, ArrayStrU8, ArrayVectorCopy},
   misc::bytes_split_once1,
 };
 use core::{
@@ -15,7 +15,7 @@ use core::{
 ///
 /// Unique, dot-separated numerical string.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Oid(ArrayStringU8<31>);
+pub struct Oid(ArrayStrU8<31>);
 
 impl Oid {
   /// New instance where `str` must be a valid `ITU-T` sequence. For example, zero padding like in
@@ -31,7 +31,7 @@ impl Oid {
     let Some(string) = is_valid(bytes) else {
       return None;
     };
-    let Some(inner) = ArrayStringU8::from_str_u8_opt(string) else { return None };
+    let Some(inner) = ArrayStrU8::from_str_u8_opt(string) else { return None };
     Some(Self(inner))
   }
 }
@@ -51,7 +51,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Oid {
     } else {
       (2u32, first_combined.wrapping_sub(80))
     };
-    let mut buffer = ArrayStringU8::<31>::new();
+    let mut buffer = ArrayStrU8::<31>::new();
     let _ = buffer.push_strs([&nstr32(c1), ".", &nstr32(c2)])?;
     decode_base128(&mut buffer, remaining)?;
     Ok(Self(buffer))
@@ -95,7 +95,7 @@ impl Debug for Oid {
 impl Default for Oid {
   #[inline]
   fn default() -> Self {
-    let mut array = ArrayStringU8::new();
+    let mut array = ArrayStrU8::new();
     let _rslt = array.push_str("0.0");
     Self(array)
   }
@@ -139,7 +139,7 @@ impl Iterator for OidComponentIter<'_> {
   }
 }
 
-fn decode_base128(buffer: &mut ArrayString<u8, 31>, value: &[u8]) -> crate::Result<()> {
+fn decode_base128(buffer: &mut ArrayStr<u8, 31>, value: &[u8]) -> crate::Result<()> {
   let mut remaining = value;
   while !remaining.is_empty() {
     let (component, rest) = decode_base128_one(remaining)?;

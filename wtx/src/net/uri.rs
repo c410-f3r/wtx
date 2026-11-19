@@ -1,6 +1,6 @@
 use crate::{
   codec::FromRadix10 as _,
-  collections::{ArrayStringU16, Clear, SingleTypeStorage, Truncate, TryExtend},
+  collections::{ArrayStrU16, Clear, SingleTypeStorage, Truncate, TryExtend},
   misc::{AsciiGraphic, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
 };
 use alloc::{boxed::Box, string::String};
@@ -10,7 +10,7 @@ use core::{
 };
 
 /// [Uri] with an owned array.
-pub type UriArrayString<const N: usize> = Uri<ArrayStringU16<N>>;
+pub type UriArrayString<const N: usize> = Uri<ArrayStrU16<N>>;
 /// [Uri] with an owned string.
 pub type UriBox = Uri<Box<str>>;
 /// [Uri] with an owned string.

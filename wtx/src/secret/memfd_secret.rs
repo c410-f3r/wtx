@@ -2,6 +2,7 @@ use crate::{misc::SensitiveBytes, secret::SecretData};
 use alloc::string::String;
 use core::{
   fmt::{Debug, Formatter},
+  mem::DropGuard,
   ops::{Deref, DerefMut},
   ptr::{self, NonNull},
   slice, str,
@@ -18,17 +19,6 @@ impl MemFdSecret {
   /// New instance
   #[inline]
   pub fn new(bytes: &mut [u8], cloexec: bool) -> Option<Self> {
-    struct FdGuard(libc::c_int);
-
-    impl Drop for FdGuard {
-      fn drop(&mut self) {
-        // SAFETY: Only called after a syscall was performed
-        unsafe {
-          let _ = libc::close(self.0);
-        }
-      }
-    }
-
     let bytes_sb = SensitiveBytes::new(bytes);
     let len = bytes_sb.len();
     if len == 0 {
@@ -43,7 +33,12 @@ impl MemFdSecret {
       return None;
     }
     let fd_int: libc::c_int = fd.try_into().ok()?;
-    let _guard = FdGuard(fd_int);
+    let _guard = DropGuard::new(fd_int, |local_fd| {
+      // SAFETY: Only called after a syscall was performed
+      unsafe {
+        let _ = libc::close(local_fd);
+      }
+    });
     // SAFETY: `fd_int` originates from the newly allocated `fd`
     if unsafe { libc::ftruncate(fd_int, len.try_into().ok()?) } != 0 {
       return None;

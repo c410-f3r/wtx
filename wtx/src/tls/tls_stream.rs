@@ -60,7 +60,7 @@ where
 {
   /// Creates a new instance with a stream that supposedly already performed a handshake.
   #[inline]
-  pub fn new(
+  pub const fn new(
     buffer: TlsBuffer,
     key_schedule: KeySchedule,
     max_fragment_length: u16,

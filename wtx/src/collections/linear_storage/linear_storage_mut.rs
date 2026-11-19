@@ -5,7 +5,11 @@ use crate::{
   },
   misc::Lease,
 };
-use core::{hint::cold_path, mem::MaybeUninit, ptr, slice};
+use core::{
+  hint::cold_path,
+  mem::{DropGuard, MaybeUninit},
+  ptr, slice,
+};
 
 /// Mutable version of [`LinearStorage`].
 pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
@@ -106,12 +110,26 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     };
     self.reserve(additional)?;
     let (_, unfilled) = self.split_at_spare_mut();
-    if let Some(elem) = unfilled.get_mut(..additional.usize()) {
-      elem.fill_with(|| MaybeUninit::new(value.clone()));
-      // SAFETY: elements have been initialized
-      unsafe {
-        self.set_len(new_len);
+    let Some(elem) = unfilled.get_mut(..additional.usize()) else {
+      return Ok(());
+    };
+    let inner = (elem.as_mut_ptr().cast::<T>(), 0usize);
+    let mut guard = DropGuard::new(inner, |(ptr, initialized)| {
+      if initialized > 0 {
+        // SAFETY: the first `initialized` elements were successfully written by `expand`.
+        unsafe {
+          ptr::drop_in_place(ptr::slice_from_raw_parts_mut(ptr, initialized));
+        }
       }
+    });
+    for slot in elem {
+      let _ = slot.write(value.clone());
+      guard.1 = guard.1.wrapping_add(1);
+    }
+    let _ = DropGuard::dismiss(guard);
+    // SAFETY: elements have been initialized
+    unsafe {
+      self.set_len(new_len);
     }
     Ok(())
   }

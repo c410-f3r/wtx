@@ -30,7 +30,7 @@ pub trait FromRadix10: Sized {
 }
 
 #[inline(always)]
-fn ascii_to_number(byte: u8) -> Option<u8> {
+const fn ascii_to_number(byte: u8) -> Option<u8> {
   let digit = byte.wrapping_sub(b'0');
   if digit > 9 {
     cold_path();
