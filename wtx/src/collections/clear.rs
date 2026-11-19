@@ -1,4 +1,4 @@
-use crate::collections::{ArrayString, ArrayVector, ArrayVectorCopy, LinearStorageLen, Vector};
+use crate::collections::{ArrayStr, ArrayVector, ArrayVectorCopy, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// See [`Clear::clear`] for more information.
@@ -32,7 +32,7 @@ impl Clear for () {
   fn clear(&mut self) {}
 }
 
-impl<L, const N: usize> Clear for ArrayString<L, N>
+impl<L, const N: usize> Clear for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {

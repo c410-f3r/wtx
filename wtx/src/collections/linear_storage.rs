@@ -13,6 +13,8 @@ use linear_storage_slice::LinearStorageSlice as _;
 pub(crate) trait LinearStorage<T> {
   /// See [`needs_drop`].
   const NEEDS_DROP: bool = needs_drop::<T>();
+  /// Is zero sized type
+  const IS_ZST: bool = size_of::<T>() == 0;
 
   /// See [`linear_storage_len::LinearStorageLen`].
   type Len: linear_storage_len::LinearStorageLen;

@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayString, ArrayVector, ArrayVectorCopy, ExpansionTy, LinearStorageLen, Vector},
+  collections::{ArrayStr, ArrayVector, ArrayVectorCopy, ExpansionTy, LinearStorageLen, Vector},
   misc::{Wrapper, from_utf8_basic},
 };
 use alloc::{string::String, vec::Vec};
@@ -26,9 +26,9 @@ where
   }
 }
 
-// ArrayString
+// ArrayStr
 
-impl<L, const N: usize> TryExtend<(u8, usize)> for ArrayString<L, N>
+impl<L, const N: usize> TryExtend<(u8, usize)> for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {
@@ -39,7 +39,7 @@ where
   }
 }
 
-impl<'slice, L, const N: usize> TryExtend<&'slice str> for ArrayString<L, N>
+impl<'slice, L, const N: usize> TryExtend<&'slice str> for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {
@@ -50,7 +50,7 @@ where
   }
 }
 
-impl<'slice, L, const N: usize> TryExtend<&'slice [u8]> for ArrayString<L, N>
+impl<'slice, L, const N: usize> TryExtend<&'slice [u8]> for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {
@@ -61,7 +61,7 @@ where
   }
 }
 
-impl<L, const M: usize, const N: usize> TryExtend<[u8; M]> for ArrayString<L, N>
+impl<L, const M: usize, const N: usize> TryExtend<[u8; M]> for ArrayStr<L, N>
 where
   L: LinearStorageLen,
 {
@@ -72,7 +72,7 @@ where
   }
 }
 
-impl<I, L, const N: usize> TryExtend<Wrapper<I>> for ArrayString<L, N>
+impl<I, L, const N: usize> TryExtend<Wrapper<I>> for ArrayStr<L, N>
 where
   I: IntoIterator<Item = char>,
   L: LinearStorageLen,

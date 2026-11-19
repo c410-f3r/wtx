@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, VectorUsize},
+  collections::{ArrayVectorCopy, VectorU16},
   http::{
     AutoStream, ManualStream, OperationMode, Response, Router, StatusCode,
     http2_server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
@@ -29,11 +29,11 @@ where
   }
 
   fn matcher(en: &EN) -> crate::Result<Router<(ArrayVectorCopy<RouteMatch, 4>, OperationMode)>> {
-    let mut vec = VectorUsize::new();
+    let mut vec = VectorU16::new();
     en.paths_indices(ArrayVectorCopy::new(), &mut vec)?;
     let mut matcher = Router::new();
     let mut builder = matcher.builder();
-    for array in vec {
+    for array in &vec {
       let [initials @ .., last] = array.as_slice() else {
         continue;
       };
@@ -43,7 +43,7 @@ where
       }
       key.push_str(&last.path);
       let om = last.om;
-      let _ = builder.add(&key.try_into()?, (array, om))?;
+      let _ = builder.add(&key.try_into()?, (*array, om))?;
     }
     drop(builder);
     Ok(matcher)
@@ -128,7 +128,7 @@ where
   fn paths_indices(
     &self,
     prev: ArrayVectorCopy<RouteMatch, 4>,
-    vec: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>,
+    vec: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>,
   ) -> crate::Result<()> {
     self.en.paths_indices(prev, vec)
   }

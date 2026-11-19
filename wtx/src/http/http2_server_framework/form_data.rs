@@ -1,7 +1,7 @@
 // https://datatracker.ietf.org/doc/html/rfc7578
 
 use crate::{
-  collections::ArrayStringU8,
+  collections::ArrayStrU8,
   futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, HttpError, Method, Mime, StatusCode,
@@ -18,7 +18,7 @@ use core::str;
 #[derive(Debug)]
 pub struct FormData(
   /// Delimiter
-  pub ArrayStringU8<63>,
+  pub ArrayStrU8<63>,
 );
 
 impl<D, E, F, RES, S> Endpoint<D, E, S> for FnFutWrapper<(State<'_, D>, FormData), F>
@@ -117,7 +117,7 @@ impl<'any> FormDataBlock<'any> {
 }
 
 #[inline]
-fn consume_content(data: &[u8]) -> Option<&[u8]> {
+const fn consume_content(data: &[u8]) -> Option<&[u8]> {
   if let [b'c' | b'C', b'o', b'n', b't', b'e', b'n', b't', b'-', rest @ ..] = data {
     Some(rest)
   } else {

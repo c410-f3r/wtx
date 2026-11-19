@@ -48,7 +48,7 @@ pub struct TlsStreamReader<SR, TCX, const IS_CLIENT: bool> {
 
 impl<SR, TCX, const IS_CLIENT: bool> TlsStreamReader<SR, TCX, IS_CLIENT> {
   #[inline]
-  pub(crate) fn new(
+  pub(crate) const fn new(
     common: Arc<TlsStreamCommon>,
     ksr: KeyScheduleRead,
     max_fragment_length: u16,

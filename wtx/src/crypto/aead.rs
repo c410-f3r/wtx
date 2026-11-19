@@ -12,7 +12,7 @@ use crate::{
   codec::{
     Base64Alphabet, base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
-  collections::{ExpansionTy, VectorUsize},
+  collections::{ExpansionTy, LinearStorageLen, Vector},
   crypto::{AEAD_NONCE_LEN, AEAD_TAG_LEN, CryptoError, dummy_crypto_call},
   misc::SensitiveBytes,
 };
@@ -43,19 +43,26 @@ pub trait Aead {
 
   /// Decrypts a base64 encoded string, using the provided buffer for the output.
   #[inline]
-  fn decrypt_base64_to_buffer<'buffer>(
+  fn decrypt_base64_to_buffer<'buffer, L>(
     associated_data: &[u8],
-    buffer: &'buffer mut VectorUsize<u8>,
+    buffer: &'buffer mut Vector<L, u8>,
     data: &[u8],
     secret: &Self::Secret,
-  ) -> crate::Result<(&'buffer mut [u8], Range<usize>)> {
-    let additional = base64_decoded_len_ub(data.len());
+  ) -> crate::Result<(&'buffer mut [u8], Range<usize>)>
+  where
+    L: LinearStorageLen,
+  {
+    let additional = L::from_usize(base64_decoded_len_ub(data.len()))?;
     let begin = buffer.len();
     buffer.expand(ExpansionTy::Additional(additional), 0)?;
-    let buffer_slice = buffer.get_mut(begin..).unwrap_or_default();
+    let buffer_slice = buffer.get_mut(begin.usize()..).unwrap_or_default();
     let len = base64_decode(Base64Alphabet::UrlNoPad, data, buffer_slice)?.len();
-    buffer.truncate(begin.wrapping_add(len));
-    Self::decrypt_in_place(associated_data, buffer.get_mut(begin..).unwrap_or_default(), secret)
+    buffer.truncate(begin.wrapping_add(L::from_usize(len)?));
+    Self::decrypt_in_place(
+      associated_data,
+      buffer.get_mut(begin.usize()..).unwrap_or_default(),
+      secret,
+    )
   }
 
   /// Decrypts data in-place.
@@ -78,72 +85,80 @@ pub trait Aead {
 
   /// Encrypts data into a dedicated buffer
   #[inline]
-  fn encrypt_to_buffer<'buffer>(
+  fn encrypt_to_buffer<'buffer, L>(
     associated_data: &[u8],
-    buffer: &'buffer mut VectorUsize<u8>,
+    buffer: &'buffer mut Vector<L, u8>,
     nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &[u8],
     secret: &Self::Secret,
-  ) -> crate::Result<&'buffer mut [u8]> {
+  ) -> crate::Result<&'buffer mut [u8]>
+  where
+    L: LinearStorageLen,
+  {
     let begin = buffer.len();
     let _ = buffer.extend_from_copyable_slices([
       nonce.as_slice(),
       plaintext,
       [0; AEAD_TAG_LEN].as_slice(),
     ])?;
-    let plaintext_begin = begin.wrapping_add(AEAD_NONCE_LEN);
-    let plaintext_end = buffer.len().wrapping_sub(AEAD_TAG_LEN);
+    let plaintext_begin = begin.wrapping_add(L::from_usize(AEAD_NONCE_LEN)?);
+    let plaintext_end = buffer.len().wrapping_sub(L::from_usize(AEAD_TAG_LEN)?);
     let tag = Self::encrypt_parts(
       associated_data,
       nonce,
-      buffer.get_mut(plaintext_begin..plaintext_end).unwrap_or_default(),
+      buffer.get_mut(plaintext_begin.usize()..plaintext_end.usize()).unwrap_or_default(),
       secret,
     )?;
     if let Some(elem) = buffer.last_chunk_mut::<AEAD_TAG_LEN>() {
       elem.copy_from_slice(&tag);
     }
-    Ok(buffer.get_mut(begin..).unwrap_or_default())
+    Ok(buffer.get_mut(begin.usize()..).unwrap_or_default())
   }
 
   /// Encrypts `plaintext`, appending the base64 encoded result into `buffer`.
   //
   // Buffer allocates two areas: one for the resulting base64 and another for intermediary work.
   #[inline]
-  fn encrypt_to_buffer_base64<'buffer>(
+  fn encrypt_to_buffer_base64<'buffer, L>(
     associated_data: &[u8],
-    buffer: &'buffer mut VectorUsize<u8>,
+    buffer: &'buffer mut Vector<L, u8>,
     nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &[u8],
     secret: &Self::Secret,
-  ) -> crate::Result<&'buffer str> {
+  ) -> crate::Result<&'buffer str>
+  where
+    L: LinearStorageLen,
+  {
     let begin = buffer.len();
     let data_len = AEAD_NONCE_LEN.wrapping_add(plaintext.len()).wrapping_add(AEAD_TAG_LEN);
-    let base64_len = base64_encoded_len(data_len, true).unwrap_or(usize::MAX);
+    let base64_len = L::from_usize(base64_encoded_len(data_len, true).unwrap_or(usize::MAX))?;
     buffer.expand(ExpansionTy::Additional(base64_len), 0)?;
     let _ = buffer.extend_from_copyable_slices([
       nonce.as_slice(),
       plaintext,
       [0; AEAD_TAG_LEN].as_slice(),
     ])?;
-    let plaintext_begin = begin.wrapping_add(base64_len).wrapping_add(AEAD_NONCE_LEN);
-    let plaintext_end = buffer.len().wrapping_sub(AEAD_TAG_LEN);
+    let plaintext_begin =
+      begin.wrapping_add(base64_len).wrapping_add(L::from_usize(AEAD_NONCE_LEN)?);
+    let plaintext_end = buffer.len().wrapping_sub(L::from_usize(AEAD_TAG_LEN)?);
     let tag = Self::encrypt_parts(
       associated_data,
       nonce,
-      buffer.get_mut(plaintext_begin..plaintext_end).unwrap_or_default(),
+      buffer.get_mut(plaintext_begin.usize()..plaintext_end.usize()).unwrap_or_default(),
       secret,
     )?;
     if let Some(elem) = buffer.last_chunk_mut::<AEAD_TAG_LEN>() {
       elem.copy_from_slice(&tag);
     }
-    let slice_mut = buffer.get_mut(begin..).and_then(|el| el.split_at_mut_checked(base64_len));
+    let slice_mut =
+      buffer.get_mut(begin.usize()..).and_then(|el| el.split_at_mut_checked(base64_len.usize()));
     let Some((base64, content)) = slice_mut else {
       return Ok("");
     };
     let base64_idx = base64_encode(Base64Alphabet::UrlNoPad, content, base64)?.len();
     drop(SensitiveBytes::new(content));
-    buffer.truncate(begin.wrapping_add(base64_idx));
-    let bytes = buffer.get_mut(begin..).unwrap_or_default();
+    buffer.truncate(begin.wrapping_add(L::from_usize(base64_idx)?));
+    let bytes = buffer.get_mut(begin.usize()..).unwrap_or_default();
     // SAFETY: Base64 is ASCII.
     Ok(unsafe { core::str::from_utf8_unchecked(bytes) })
   }

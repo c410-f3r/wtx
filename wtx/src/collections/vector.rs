@@ -17,7 +17,7 @@ use core::{
   fmt::{Debug, Display, Formatter},
   hash::{Hash, Hasher},
   marker::PhantomData,
-  mem::{self, ManuallyDrop, MaybeUninit},
+  mem::{self, DropGuard, ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
   ptr::NonNull,
   slice::{Iter, IterMut},
@@ -321,7 +321,7 @@ where
     self.0.remaining_capacity()
   }
 
-  #[doc = remaining_capacity_max_doc!("VectorU8")]
+  #[doc = remaining_capacity_max_doc!("VectorU8", "[1, 2, 3]", "u8::MAX as usize - 3")]
   #[inline]
   pub fn remaining_capacity_max(&self) -> L {
     self.0.remaining_capacity_max()
@@ -894,51 +894,31 @@ where
     &mut self,
     cb: impl FnOnce(&mut Vec<T>) -> crate::Result<U>,
   ) -> crate::Result<U> {
-    struct VecGuard<'any, L: LinearStorageLen, T> {
-      is_ok: &'any mut bool,
-      target: &'any mut Inner<L, T>,
-      tmp_vec: Vec<T>,
-    }
-
-    impl<'any, L: LinearStorageLen, T> VecGuard<'any, L, T> {
-      fn new(is_ok: &'any mut bool, target: &'any mut Inner<L, T>) -> Self {
-        let cap = target.cap;
-        let len = target.len;
-        let ptr = target.ptr;
-        target.cap = L::ZERO;
-        target.len = L::ZERO;
-        target.ptr = NonNull::<T>::dangling().cast::<u8>();
-        // SAFETY: Inner parameters are always valid
-        let tmp_vec = unsafe { Vec::from_parts(ptr.cast(), len.usize(), cap.usize()) };
-        Self { is_ok, target, tmp_vec }
-      }
-    }
-
-    impl<L, T> Drop for VecGuard<'_, L, T>
-    where
-      L: LinearStorageLen,
-    {
-      #[inline]
-      fn drop(&mut self) {
-        let tmp_vec_len = self.tmp_vec.len();
-        let tmp_vec_cap = self.tmp_vec.capacity();
+    let cap = self.cap;
+    let len = self.len;
+    let ptr = self.ptr;
+    self.cap = L::ZERO;
+    self.len = L::ZERO;
+    self.ptr = NonNull::<T>::dangling().cast::<u8>();
+    // SAFETY: Inner parameters are always valid
+    let tmp_vec = unsafe { Vec::from_parts(ptr.cast(), len.usize(), cap.usize()) };
+    let mut is_ok = false;
+    let rslt = {
+      let mut guard = DropGuard::new(tmp_vec, |local_tmp_vec| {
+        let tmp_vec_len = local_tmp_vec.len();
+        let tmp_vec_cap = local_tmp_vec.capacity();
         if let (Ok(len_l), Ok(cap_l)) = (L::from_usize(tmp_vec_len), L::from_usize(tmp_vec_cap))
           && len_l <= L::UPPER_BOUND
           && cap_l <= L::UPPER_BOUND
         {
-          let (ptr, _, _) = mem::take(&mut self.tmp_vec).into_parts();
-          self.target.cap = cap_l;
-          self.target.len = len_l;
-          self.target.ptr = ptr.cast();
-          *self.is_ok = true;
+          let (local_ptr, _, _) = local_tmp_vec.into_parts();
+          self.cap = cap_l;
+          self.len = len_l;
+          self.ptr = local_ptr.cast();
+          is_ok = true;
         }
-      }
-    }
-
-    let mut is_ok = false;
-    let rslt = {
-      let mut guard = VecGuard::new(&mut is_ok, self);
-      cb(&mut guard.tmp_vec)
+      });
+      cb(&mut guard)
     };
     if !is_ok {
       return Err(VectorError::StdConversionOverflow.into());

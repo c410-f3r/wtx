@@ -3,7 +3,7 @@ use crate::{
     Base64Alphabet, CodecError, Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec,
     base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
-  collections::{ArrayStringU8, ArrayVectorU8, ExpansionTy, TryExtend, VectorUsize},
+  collections::{ArrayStrU8, ArrayVectorU8, ExpansionTy, TryExtend, VectorUsize},
   misc::{Lease, LeaseMut, bytes_split_once1, strip_new_line},
 };
 use core::ops::Range;
@@ -36,7 +36,7 @@ const MAX_LABEL_LEN: usize = 23;
 #[derive(Debug, PartialEq)]
 pub struct Pem<T, const BLK: usize> {
   /// Vector of labels and their associated decoded contents
-  pub data: ArrayVectorU8<(ArrayStringU8<MAX_LABEL_LEN>, T), BLK>,
+  pub data: ArrayVectorU8<(ArrayStrU8<MAX_LABEL_LEN>, T), BLK>,
 }
 
 impl<T, const BLK: usize> Decode<'_, GenericCodec<T, ()>> for Pem<Range<usize>, BLK>
@@ -106,7 +106,7 @@ fn parse_block(
   first_line: &[u8],
   output: &mut [u8],
   output_idx: &mut usize,
-) -> crate::Result<ArrayStringU8<MAX_LABEL_LEN>> {
+) -> crate::Result<ArrayStrU8<MAX_LABEL_LEN>> {
   let [
     b'-', b'-', b'-', b'-', b'-', b'B', b'E', b'G', b'I', b'N', b' ',
     label_begin @ ..,

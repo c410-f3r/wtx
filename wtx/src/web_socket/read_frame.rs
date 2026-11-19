@@ -976,7 +976,7 @@ where
 }
 
 #[inline]
-fn split_payload(bytes: &mut [u8], len: usize) -> (&mut [u8], &mut [u8]) {
+const fn split_payload(bytes: &mut [u8], len: usize) -> (&mut [u8], &mut [u8]) {
   bytes.split_at_mut(len)
 }
 

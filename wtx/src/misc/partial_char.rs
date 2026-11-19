@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayStringU8, ArrayVectorCopy},
+  collections::{ArrayStrU8, ArrayVectorCopy},
   misc::{ExtUtf8Error, from_utf8_ext},
 };
 use core::str;
@@ -74,15 +74,15 @@ impl PartialChar {
 pub fn process_utf8_stream<'nb>(
   partial_char: &mut Option<PartialChar>,
   bytes: &'nb [u8],
-) -> crate::Result<(ArrayStringU8<4>, &'nb str)> {
-  let mut lhs = ArrayStringU8::new();
+) -> crate::Result<(ArrayStrU8<4>, &'nb str)> {
+  let mut lhs = ArrayStrU8::new();
   let tail = if let Some(mut incomplete) = partial_char.take() {
     let (rslt, tail) = incomplete.complete(bytes);
     match rslt {
       Err(CompletionErr::HasInvalidBytes) => return Err(crate::Error::InvalidUTF8),
       Err(CompletionErr::InsufficientInput) => {
         *partial_char = Some(incomplete);
-        return Ok((ArrayStringU8::new(), ""));
+        return Ok((ArrayStrU8::new(), ""));
       }
       Ok(_) => {
         // SAFETY: a successful `complete` ensures that the internal buffer is UTF-8

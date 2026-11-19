@@ -114,9 +114,9 @@ where
   /// Body request/response length
   #[inline]
   pub fn content_length(&mut self, value: u32) -> crate::Result<&mut Self> {
-    self.msg_data.headers_mut().push_from_iter(Header::from_name_and_value(
+    self.msg_data.headers_mut().push(Header::from_name_and_value(
       KnownHeaderName::ContentLength.into(),
-      [nstr32(value).as_str()],
+      nstr32(value).as_str(),
     ))?;
     Ok(self)
   }
@@ -124,10 +124,10 @@ where
   /// Media type of the resource.
   #[inline]
   pub fn content_type(&mut self, value: Mime) -> crate::Result<&mut Self> {
-    self.msg_data.headers_mut().push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::ContentType.into(),
-      [value.as_str()],
-    ))?;
+    self
+      .msg_data
+      .headers_mut()
+      .push(Header::from_name_and_value(KnownHeaderName::ContentType.into(), value.as_str()))?;
     Ok(self)
   }
 
@@ -162,7 +162,7 @@ where
     if let Some(elem) = value {
       self.push_header(name.into(), elem)?;
     } else {
-      headers.push_from_iter(Header::from_name_and_value(name.into(), [uri.host()]))?;
+      headers.push(Header::from_name_and_value(name.into(), uri.host()))?;
     }
     Ok(self)
   }

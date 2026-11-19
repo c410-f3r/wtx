@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayString, ArrayVector, LinearStorageLen, Vector},
+  collections::{ArrayStr, ArrayVector, LinearStorageLen, Vector},
   http::{MsgBufferString, Request, StatusCode},
 };
 use alloc::string::String;
@@ -33,7 +33,7 @@ where
   }
 }
 
-impl<E, L, const N: usize> ResFinalizer<E> for ArrayString<L, N>
+impl<E, L, const N: usize> ResFinalizer<E> for ArrayStr<L, N>
 where
   E: From<crate::Error>,
   L: LinearStorageLen,

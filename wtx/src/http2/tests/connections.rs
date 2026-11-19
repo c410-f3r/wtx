@@ -51,7 +51,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
   _0(msg_buffer.body(), msg_buffer.headers());
 
   msg_buffer.clear();
-  msg_buffer.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
+  msg_buffer.headers.push(Header::from_name_and_value("123", "456")).unwrap();
   msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
   _1(msg_buffer.body(), msg_buffer.headers());
 
@@ -62,7 +62,7 @@ async fn client(uri: &UriString, runtime: &StdRuntime) {
 
   msg_buffer.clear();
   msg_buffer.body.extend_from_copyable_slice(b"123").unwrap();
-  msg_buffer.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
+  msg_buffer.headers.push(Header::from_name_and_value("123", "456")).unwrap();
   msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
   _3(msg_buffer.body(), msg_buffer.headers());
 

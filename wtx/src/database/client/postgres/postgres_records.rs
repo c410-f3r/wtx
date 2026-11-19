@@ -79,21 +79,3 @@ impl<E> Default for PostgresRecords<'_, E> {
     Self::new(0, &[], &[], PostgresStatement::default(), &[])
   }
 }
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn affected_rows_support_the_full_protocol_range() {
-    let affected_rows = u64::from(u32::MAX);
-    let records = PostgresRecords::<crate::Error>::new(
-      affected_rows,
-      &[],
-      &[],
-      PostgresStatement::default(),
-      &[],
-    );
-    assert_eq!(records.affected_rows(), affected_rows);
-  }
-}

@@ -14,13 +14,13 @@ macro_rules! concat_slices {
 macro_rules! concat_strings {
   ($($string:expr),* $(,)?) => {
     const {
-      use $crate::collections::FixedString;
+      use $crate::collections::FixedStr;
       $( let _type_hint: &str = $string; )*
       const LEN: usize = 0 $(+ $string.len())*;
-      const ARRAY: FixedString<LEN> = {
+      const ARRAY: FixedStr<LEN> = {
         let arrays = &[$($string.as_bytes()),*];
         let concatenated = $crate::collections::concat_slices(arrays).unwrap();
-        FixedString::from_array_opt(concatenated).unwrap()
+        FixedStr::from_bytes_array_opt(concatenated).unwrap()
       };
       ARRAY.as_str()
     }
@@ -167,15 +167,15 @@ macro_rules! create_enum {
 
 /// Creates an array string from a literal string
 #[macro_export]
-macro_rules! fixed_string {
+macro_rules! fixed_str {
   ($input:expr) => {
     const {
-      use $crate::collections::FixedString;
+      use $crate::collections::FixedStr;
       const LEN: usize = $input.len();
       let _type_hint: &str = $input;
       let mut array = [0; LEN];
       array.copy_from_slice($input.as_bytes());
-      FixedString::from_array_opt(array).unwrap()
+      FixedStr::from_array_opt(array).unwrap()
     }
   };
 }

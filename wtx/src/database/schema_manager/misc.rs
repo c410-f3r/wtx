@@ -72,7 +72,7 @@ where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
   use crate::{
-    collections::ArrayStringU8,
+    collections::ArrayStrU8,
     database::schema_manager::migration_parser::{parse_migration_toml, parse_unified_migration},
   };
 
@@ -99,13 +99,13 @@ where
         name = parts.0;
         uid = parts.1;
 
-        let mut cfg_file_name = ArrayStringU8::<64>::new();
+        let mut cfg_file_name = ArrayStrU8::<64>::new();
         cfg_file_name.write_fmt(format_args!("{dir_name}.toml"))?;
 
-        let mut down_file_name = ArrayStringU8::<64>::new();
+        let mut down_file_name = ArrayStrU8::<64>::new();
         down_file_name.write_fmt(format_args!("{dir_name}_down.sql"))?;
 
-        let mut up_file_name = ArrayStringU8::<64>::new();
+        let mut up_file_name = ArrayStrU8::<64>::new();
         up_file_name.write_fmt(format_args!("{dir_name}_up.sql"))?;
 
         for file_rslt in files(local_path.as_path())? {

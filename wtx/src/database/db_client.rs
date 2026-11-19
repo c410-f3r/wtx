@@ -267,18 +267,25 @@ pub trait DbClient {
 
   /// Makes internal calls to "BEGIN" and "COMMIT".
   #[inline]
-  fn transaction<'this, F, R>(
-    &'this mut self,
-    fun: impl FnOnce(&'this mut Self) -> F,
-  ) -> impl Future<Output = Result<R, <Self::Database as CodecController>::Error>>
-  where
-    F: Future<Output = Result<(R, &'this mut Self), <Self::Database as CodecController>::Error>>,
-  {
+  fn transaction<R>(
+    &mut self,
+    fun: impl AsyncFnOnce(&mut Self) -> Result<R, <Self::Database as CodecController>::Error>,
+  ) -> impl Future<Output = Result<R, <Self::Database as CodecController>::Error>> {
     async move {
       self.execute_ignored("BEGIN").await?;
-      let (rslt, this) = fun(self).await?;
-      this.execute_ignored("COMMIT").await?;
-      Ok(rslt)
+      match fun(self).await {
+        Ok(elem) => {
+          if let Err(err) = self.execute_ignored("COMMIT").await {
+            let _rslt = self.execute_ignored("ROLLBACK").await;
+            return Err(err);
+          }
+          Ok(elem)
+        }
+        Err(err) => {
+          let _rslt = self.execute_ignored("ROLLBACK").await;
+          Err(err)
+        }
+      }
     }
   }
 }

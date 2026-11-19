@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, Encode},
-  collections::ArrayStringU8,
+  collections::ArrayStrU8,
   misc::{
     Lease as _,
     counter_writer::{CounterWriterBytesTy, u16_write},
@@ -16,20 +16,20 @@ use crate::{
 /// Server name
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ServerName {
-  name: ArrayStringU8<46>,
+  name: ArrayStrU8<46>,
   name_type: NameType,
 }
 
 impl ServerName {
   /// From arbitrary name
   #[inline]
-  pub const fn from_name(name: ArrayStringU8<46>) -> Self {
+  pub const fn from_name(name: ArrayStrU8<46>) -> Self {
     Self { name_type: NameType::HostName, name }
   }
 
   /// Name
   #[inline]
-  pub const fn name(&self) -> &ArrayStringU8<46> {
+  pub const fn name(&self) -> &ArrayStrU8<46> {
     &self.name
   }
 }

@@ -1,5 +1,4 @@
-//! Sessions contain information that live until the end of a connection. Optionally, they can be
-//! stored in an external store.
+//! Sessions are carried in cookies and optionally persisted in an external store.
 //!
 //! This example illustrates an authentication system using Argon2 and PostgreSQL.
 //!
@@ -13,21 +12,24 @@
 //! );
 //! ALTER TABLE "user" ADD CONSTRAINT user__email__uq UNIQUE (email);
 //!
-//! CREATE TABLE _wtx.session (
+//! CREATE TABLE _wtx.session_state (
 //!   key VARCHAR(32) NOT NULL PRIMARY KEY,
 //!   csrf VARCHAR(32) NOT NULL,
-//!   custom_state INT NOT NULL,
-//!   expires_at TIMESTAMPTZ NOT NULL
+//!   expires_at BIGINT NOT NULL,
+//!   expires_at_ub BIGINT NOT NULL,
+//!   -- Native rust types always hardcode the name "custom_state". However, you can
+//!   -- change the name of this field implementing "SessionCustomState".
+//!   custom_state INT NOT NULL
 //! );
-//! ALTER TABLE _wtx.session ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
+//! ALTER TABLE _wtx.session_state ADD CONSTRAINT session_state__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
 //! ```
 
 use wtx::{
-  collections::VectorUsize,
+  collections::{VectorU16, VectorUsize},
   database::{DbClient, Record},
   executor::TokioExecutor,
   http::{
-    MsgData, SessionManager, SessionMiddleware, SessionState, StatusCode,
+    MsgData, RememberMe, SessionManager, SessionMiddleware, SessionState, StatusCode,
     http2_server_framework::{
       DynParams, Http2ServerFramework, HttpRouter, State, StateClean, VerbatimParams, get, post,
     },
@@ -41,7 +43,7 @@ use wtx::{
 use wtx_examples::{PUBLIC_KEY, ROOT_CA, SECRET_KEY, host_from_args};
 
 type DbPool = SimplePool<PostgresRMDefault<wtx::Error, TokioExecutor, TrustedCtx>>;
-type LocalSessionManager = SessionManager<u32, wtx::Error>;
+type LocalSessionManager = SessionManager<u32, wtx::Error, ChaCha20>;
 
 fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20::from_std_random()?;
@@ -53,17 +55,20 @@ fn main() -> wtx::Result<()> {
       SecretStr::new(String::from("postgres://USER:PASSWORD@localhost/DB_NAME").as_mut_str())?,
     )?,
   );
-  let (cleaner, session_manager) =
-    LocalSessionManager::builder().build_generating_key(&mut rng, db_pool.clone())?;
+  let (cleaner, session_manager) = LocalSessionManager::builder()
+    .remember_me(Some(RememberMe::default()))
+    .build_generating_key(ChaCha20::from_crypto_rng(&mut rng)?, db_pool.clone())?;
   tokio::spawn(async move {
     if let Err(err) = cleaner.await {
       eprintln!("{err}");
     }
   });
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
+  let mut allowed_paths = VectorU16::new();
+  allowed_paths.push("/login".try_into()?)?;
   let router = HttpRouter::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
-    SessionMiddleware::new(VectorUsize::new(), session_manager.clone(), db_pool.clone()),
+    SessionMiddleware::new(allowed_paths, session_manager.clone(), db_pool.clone()),
   )?;
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
     .set_data(Data { db_pool, session_manager, session_state: None })
@@ -75,7 +80,6 @@ async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
   let Data { db_pool, session_manager, session_state } = data;
   if session_state.is_some() {
     req.clear();
-    session_manager.delete_session_cookie(&mut req.msg_data, session_state, db_pool).await?;
     return Ok(DynParams::Verbatim(StatusCode::Forbidden));
   }
   let user: UserLoginReq<'_> = serde_json::from_slice(req.msg_data.body())?;
@@ -98,9 +102,10 @@ async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
   }
   serde_json::to_writer(&mut req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
-  session_manager
-    .set_session_cookie(id, &mut req.msg_data, &mut ChaCha20::from_std_random()?, db_pool)
-    .await?;
+  // CSRF tokens are already included in "x-csrf-token" headers so the returned values here are only
+  // meant for inspection purposes.
+  let _csrf =
+    session_manager.set_session_cookie(&id, &mut req.msg_data, session_state, db_pool).await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 

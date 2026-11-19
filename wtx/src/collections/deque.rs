@@ -65,7 +65,7 @@ mod tests;
 use crate::collections::{ExpansionTy, LinearStorageLen, TryExtend, Vector, misc::drop_elements};
 use core::{
   fmt::{Debug, Formatter},
-  mem::needs_drop,
+  mem::{DropGuard, needs_drop},
   ptr, slice,
 };
 
@@ -809,20 +809,20 @@ where
 {
   #[inline]
   fn drop(&mut self) {
-    struct Guard<'any, T>(&'any mut [T]);
-    impl<T> Drop for Guard<'_, T> {
-      fn drop(&mut self) {
-        // SAFETY: `as_slices_mut` returns initialized elements
-        unsafe {
-          ptr::drop_in_place(self.0);
-        }
-      }
-    }
-
     {
       let (front, back) = self.as_slices_mut();
-      let _back_dropper = Guard(back);
-      let _front_dropper = Guard(front);
+      let _back_dropper = DropGuard::new(back, |local_back| {
+        // SAFETY: `as_slices_mut` returns initialized elements
+        unsafe {
+          ptr::drop_in_place(local_back);
+        }
+      });
+      let _front_dropper = DropGuard::new(front, |local_front| {
+        // SAFETY: `as_slices_mut` returns initialized elements
+        unsafe {
+          ptr::drop_in_place(local_front);
+        }
+      });
     }
 
     // SAFETY: We have just manually dropped all valid elements.
@@ -843,7 +843,7 @@ impl<L> ReserveRslt<L>
 where
   L: LinearStorageLen,
 {
-  fn new(begin: L, head_shift: L) -> Self {
+  const fn new(begin: L, head_shift: L) -> Self {
     Self { begin, head_shift }
   }
 }

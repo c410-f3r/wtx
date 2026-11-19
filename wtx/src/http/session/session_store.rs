@@ -26,10 +26,7 @@ pub trait SessionStore<CS, E> {
   ) -> impl Future<Output = Result<(), E>>;
 }
 
-impl<CS, E> SessionStore<CS, E> for ()
-where
-  CS: Default,
-{
+impl<CS, E> SessionStore<CS, E> for () {
   #[inline]
   async fn create(&mut self, _: &SessionState<CS>) -> Result<(), E> {
     Ok(())
@@ -89,44 +86,59 @@ where
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
-    codec::{Decode, Encode},
+    codec::Encode,
+    collections::ArrayStrU8,
     database::{
-      DbClient as _, Record as _, Typed,
+      Database, DbClient as _, Record as _, RecordValues, Typed,
       client::postgres::{Postgres, PostgresClient},
+      record_values::encode,
     },
-    http::session::{SessionKey, SessionState, SessionStore},
+    http::{
+      SessionCustomState, SessionState,
+      session::{SessionKey, SessionStore},
+    },
     net::Stream,
     pool::{ResourceManager, SimplePool},
     tls::TlsCtx,
   };
+  use core::marker::PhantomData;
 
-  /// Expects the following SQL table definition in your database. Column names can NOT be changed.
+  /// Expects the following SQL table definition in your database. Column ordering CAN NOT change.
   ///
   /// ```sql
-  /// CREATE TABLE _wtx.session (
+  /// CREATE TABLE _wtx.session_state (
   ///   key VARCHAR(32) NOT NULL PRIMARY KEY,
   ///   csrf VARCHAR(32) NOT NULL,
-  ///   custom_state SOME_CUSTOM_TY NOT NULL,
-  ///   expires_at TIMESTAMPTZ NOT NULL
+  ///   expires_at BIGINT NOT NULL,
+  ///   expires_at_ub BIGINT NOT NULL
   /// );
   /// ```
   ///
-  /// Change `SOME_CUSTOM_TY` to any type you want, just make sure that it implements [`Decode`] and
-  /// [`Encode`] in the Rust side.
+  /// Every column returned by [`SessionCustomState::IDENTIFIERS`] must also be declared, in
+  /// the same order.
   impl<CS, E, S, TCX> SessionStore<CS, E> for PostgresClient<E, S, TCX>
   where
-    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
+    CS: SessionCustomState<Postgres<E>>,
     E: From<crate::Error>,
     S: Stream,
     TCX: TlsCtx,
   {
     #[inline]
     async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
-      let SessionState { custom_state, expires_at, session_csrf, session_key } = state;
+      let SessionState { custom_state, expires_at, expires_at_ub, session_csrf, session_key } =
+        state;
+      let query = insert_query(CS::NAMESPACE, CS::IDENTIFIERS)?;
       self
         .execute_stmt_none(
-          "INSERT INTO _wtx.session (key, csrf, custom_state, expires_at) VALUES ($1, $2, $3, $4)",
-          (session_key, session_csrf, custom_state, expires_at),
+          query.as_str(),
+          Values {
+            csrf: session_csrf.as_str(),
+            custom_state: custom_state.values(),
+            expires_at,
+            expires_at_ub,
+            key: session_key.as_str(),
+            phantom: PhantomData,
+          },
         )
         .await?;
       Ok(())
@@ -134,31 +146,35 @@ mod postgres {
 
     #[inline]
     async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
-      self.execute_stmt_none("DELETE FROM _wtx.session WHERE key=$1", (session_key,)).await?;
+      let query = query(["DELETE FROM ", CS::NAMESPACE, ".session_state WHERE key=$1"])?;
+      self.execute_stmt_none(query.as_str(), (session_key.as_str(),)).await?;
       Ok(())
     }
 
     #[inline]
     async fn delete_expired(&mut self) -> Result<(), E> {
-      self.execute_ignored("DELETE FROM _wtx.session WHERE expires_at <= NOW()").await?;
+      let query = query([
+        "DELETE FROM ",
+        CS::NAMESPACE,
+        ".session_state WHERE expires_at <= EXTRACT(EPOCH FROM NOW())::BIGINT OR expires_at_ub <= EXTRACT(EPOCH FROM NOW())::BIGINT",
+      ])?;
+      self.execute_stmt_none(query.as_str(), ()).await?;
       Ok(())
     }
 
     #[inline]
     async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
-      let Some(record) = self
-        .execute_stmt_optional(
-          "SELECT csrf, custom_state, expires_at FROM _wtx.session WHERE key=$1",
-          (&session_key,),
-        )
-        .await?
+      let query = read_query(CS::NAMESPACE, CS::IDENTIFIERS)?;
+      let Some(record) =
+        self.execute_stmt_optional(query.as_str(), (&session_key.as_str(),)).await?
       else {
         return Ok(None);
       };
       Ok(Some(SessionState {
+        custom_state: CS::new(&record)?,
+        expires_at: record.decode(1)?,
+        expires_at_ub: record.decode(2)?,
         session_csrf: record.decode::<_, &[u8]>(0)?.try_into()?,
-        custom_state: record.decode(1)?,
-        expires_at: Some(record.decode(2)?),
         session_key,
       }))
     }
@@ -169,12 +185,28 @@ mod postgres {
       session_key: &SessionKey,
       state: &SessionState<CS>,
     ) -> Result<(), E> {
-      let SessionState { session_csrf, custom_state, expires_at, session_key: state_session_key } =
-        state;
+      let SessionState {
+        custom_state,
+        expires_at,
+        expires_at_ub,
+        session_csrf,
+        session_key: state_session_key,
+      } = state;
+      let query = update_query(CS::NAMESPACE, CS::IDENTIFIERS)?;
       self
         .execute_stmt_none(
-          "UPDATE session SET key=$1,csrf=$2,custom_state=$3,expires_at=$4 WHERE key=$5",
-          (state_session_key, session_csrf, custom_state, expires_at, session_key),
+          query.as_str(),
+          UpdateValues {
+            values: Values {
+              key: state_session_key.as_str(),
+              csrf: session_csrf.as_str(),
+              expires_at,
+              expires_at_ub,
+              custom_state: custom_state.values(),
+              phantom: PhantomData,
+            },
+            prev_key: session_key.as_str(),
+          },
         )
         .await?;
       Ok(())
@@ -215,5 +247,175 @@ mod postgres {
     ) -> Result<(), E> {
       self.get_with_unit().await?.update(session_key, state).await
     }
+  }
+
+  struct Values<'any, CS, D>
+  where
+    D: Database,
+  {
+    csrf: &'any str,
+    custom_state: CS,
+    expires_at: &'any u64,
+    expires_at_ub: &'any u64,
+    key: &'any str,
+    phantom: PhantomData<fn() -> D>,
+  }
+
+  impl<'any, CS, D> RecordValues<D> for Values<'any, CS, D>
+  where
+    D: Database,
+    CS: RecordValues<D>,
+    &'any u64: Encode<D> + Typed<D>,
+    &'any str: Encode<D> + Typed<D>,
+  {
+    #[inline]
+    fn encode_values<'bytes, 'rem, A>(
+      &self,
+      aux: &mut A,
+      ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+      mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+      mut suffix_cb: impl FnMut(
+        &mut A,
+        &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+        bool,
+        usize,
+      ) -> usize,
+    ) -> Result<usize, D::Error> {
+      let mut idx = 0;
+      encode(aux, &self.key, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      encode(aux, &self.csrf, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      encode(aux, &self.expires_at, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      encode(aux, &self.expires_at_ub, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      Ok(idx.wrapping_add(self.custom_state.encode_values(aux, ew, prefix_cb, suffix_cb)?))
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+      4usize.wrapping_add(self.custom_state.len())
+    }
+
+    #[inline]
+    fn walk(
+      &self,
+      mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
+    ) -> Result<(), D::Error> {
+      (self.key, self.csrf, self.expires_at, self.expires_at_ub).walk(&mut cb)?;
+      self.custom_state.walk(cb)
+    }
+  }
+
+  struct UpdateValues<'any, CS, D>
+  where
+    D: Database,
+  {
+    values: Values<'any, CS, D>,
+    prev_key: &'any str,
+  }
+
+  impl<'any, CS, D> RecordValues<D> for UpdateValues<'any, CS, D>
+  where
+    D: Database,
+    CS: RecordValues<D>,
+    &'any u64: Encode<D> + Typed<D>,
+    &'any str: Encode<D> + Typed<D>,
+  {
+    #[inline]
+    fn encode_values<'bytes, 'rem, A>(
+      &self,
+      aux: &mut A,
+      ew: &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+      mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>) -> usize,
+      mut suffix_cb: impl FnMut(
+        &mut A,
+        &mut D::EncodeWrapper<'bytes, 'bytes, 'rem>,
+        bool,
+        usize,
+      ) -> usize,
+    ) -> Result<usize, D::Error> {
+      let mut idx = self.values.encode_values(aux, ew, &mut prefix_cb, &mut suffix_cb)?;
+      encode(aux, &self.prev_key, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      Ok(idx)
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+      self.values.len().wrapping_add(1)
+    }
+
+    #[inline]
+    fn walk(
+      &self,
+      mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
+    ) -> Result<(), D::Error> {
+      self.values.walk(&mut cb)?;
+      (self.prev_key,).walk(cb)
+    }
+  }
+
+  #[inline]
+  fn query<const N: usize>(parts: [&str; N]) -> crate::Result<ArrayStrU8<255>> {
+    let mut query = ArrayStrU8::new();
+    let _ = query.push_strs(parts)?;
+    Ok(query)
+  }
+
+  fn insert_query(namespace: &str, identifiers: &[&str]) -> crate::Result<ArrayStrU8<255>> {
+    let mut query =
+      query(["INSERT INTO ", namespace, ".session_state (key,csrf,expires_at,expires_at_ub"])?;
+    push_identifiers(&mut query, identifiers)?;
+    query.push_str(") VALUES ($1,$2,$3,$4")?;
+    push_placeholders(&mut query, identifiers.len())?;
+    query.push(')')?;
+    Ok(query)
+  }
+
+  fn push_decimal(query: &mut ArrayStrU8<255>, value: usize) -> crate::Result<()> {
+    if value >= 10 {
+      push_decimal(query, value / 10)?;
+    }
+    let num = u32::try_from(value % 10).unwrap_or_default();
+    query.push(char::from_digit(num, 10).unwrap_or('0'))
+  }
+
+  fn push_identifiers(query: &mut ArrayStrU8<255>, columns: &[&str]) -> crate::Result<()> {
+    for column in columns {
+      let _ = query.push_strs([",", column])?;
+    }
+    Ok(())
+  }
+
+  fn push_placeholders(query: &mut ArrayStrU8<255>, len: usize) -> crate::Result<()> {
+    for idx in 0..len {
+      query.push(',')?;
+      push_placeholder(query, 5usize.wrapping_add(idx))?;
+    }
+    Ok(())
+  }
+
+  fn push_placeholder(query: &mut ArrayStrU8<255>, value: usize) -> crate::Result<()> {
+    query.push('$')?;
+    push_decimal(query, value)
+  }
+
+  fn read_query(namespace: &str, identifiers: &[&str]) -> crate::Result<ArrayStrU8<255>> {
+    let mut query = query(["SELECT csrf,expires_at,expires_at_ub"])?;
+    push_identifiers(&mut query, identifiers)?;
+    let _ = query.push_strs([" FROM ", namespace, ".session_state WHERE key=$1"])?;
+    Ok(query)
+  }
+
+  fn update_query(namespace: &str, identifiers: &[&str]) -> crate::Result<ArrayStrU8<255>> {
+    let mut query = query([
+      "UPDATE ",
+      namespace,
+      ".session_state SET key=$1,csrf=$2,expires_at=$3,expires_at_ub=$4",
+    ])?;
+    for (idx, column) in identifiers.iter().enumerate() {
+      let _ = query.push_strs([",", column, "="])?;
+      push_placeholder(&mut query, 5usize.wrapping_add(idx))?;
+    }
+    query.push_str(" WHERE key=")?;
+    push_placeholder(&mut query, 5usize.wrapping_add(identifiers.len()))?;
+    Ok(query)
   }
 }

@@ -72,7 +72,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value("name", ["value"])).unwrap();
+  /// headers.push(Header::from_name_and_value("name", "value")).unwrap();
   /// assert_eq!(headers.bytes_len(), 14);
   /// assert_eq!(headers.headers_len(), 1);
   /// headers.clear();
@@ -100,7 +100,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value("name0", [])).unwrap();
+  /// headers.push(Header::from_name_and_value("name0", "")).unwrap();
   /// let array = headers.get_by_names([b"name0", b"name1"]);
   /// assert!(array[0].is_some());
   /// assert!(array[1].is_none());
@@ -126,7 +126,7 @@ impl Headers {
 
   /// The number of headers
   #[inline]
-  pub fn headers_len(&self) -> u16 {
+  pub const fn headers_len(&self) -> u16 {
     self.headers
   }
 
@@ -141,7 +141,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value("name", ["value"])).unwrap();
+  /// headers.push(Header::from_name_and_value("name", "value")).unwrap();
   /// assert_eq!(headers.bytes_len(), 14);
   /// assert_eq!(headers.headers_len(), 1);
   /// let _ = headers.pop();
@@ -161,6 +161,42 @@ impl Headers {
     self.headers = self.headers.wrapping_sub(1);
     self.bytes.truncate(begin_idx);
     Some(())
+  }
+
+  /// Removes all headers after the first `len` headers.
+  ///
+  /// If `len` is greater than or equal to the number of headers, this method has no effect.
+  ///
+  /// ```rust
+  /// use wtx::http::{Header, Headers};
+  /// let mut headers = Headers::new();
+  /// headers.push(Header::from_name_and_value("name0", "value0")).unwrap();
+  /// headers.push(Header::from_name_and_value("name1", "value1")).unwrap();
+  /// assert_eq!(headers.headers_len(), 2);
+  /// headers.truncate(1);
+  /// assert_eq!(headers.headers_len(), 1);
+  /// assert_eq!(headers.iter().next().unwrap(), Header::from_name_and_value("name0", "value0"));
+  /// ```
+  #[inline]
+  pub fn truncate(&mut self, len: u16) {
+    while self.headers > len {
+      if self.pop().is_none() {
+        break;
+      }
+    }
+  }
+
+  /// Pushes a new header with its value composed by a single string.
+  ///
+  /// ```rust
+  /// use wtx::http::{Header, Headers};
+  /// let mut headers = Headers::new();
+  /// headers.push(Header::from_name_and_value("name", "value")).unwrap();
+  /// assert_eq!(headers.iter().next().unwrap(), Header::from_name_and_value("name", "value"));
+  /// ```
+  #[inline(always)]
+  pub fn push(&mut self, header: Header<&str, &str>) -> crate::Result<()> {
+    self.push_from_iter(header.map(|name, value| (name, [value])))
   }
 
   /// Pushes a new header with its value composed by [`Arguments`].
@@ -340,7 +376,7 @@ impl Headers {
   }
 
   #[inline]
-  fn manage_trailers_deletion(&mut self, popped_idx: u16) {
+  const fn manage_trailers_deletion(&mut self, popped_idx: u16) {
     if popped_idx == 0 {
       self.trailers = Trailers::None;
       return;
@@ -444,11 +480,18 @@ impl<N, V> Header<N, V> {
   pub const fn from_name_and_value(name: N, value: V) -> Self {
     Self { is_sensitive: false, is_trailer: false, name, value }
   }
+
+  /// Maps all types.
+  #[inline]
+  pub fn map<NN, NV>(self, cb: impl FnOnce(N, V) -> (NN, NV)) -> Header<NN, NV> {
+    let (name, value) = cb(self.name, self.value);
+    Header { is_sensitive: self.is_sensitive, is_trailer: self.is_trailer, name, value }
+  }
 }
 
 impl<'any, V> Header<&'any str, V> {
   #[inline]
-  fn strip_value(&self) -> Header<&'any str, &'any str> {
+  const fn strip_value(&self) -> Header<&'any str, &'any str> {
     Header {
       is_sensitive: self.is_sensitive,
       is_trailer: self.is_trailer,
@@ -584,16 +627,13 @@ mod tests {
     let mut headers = Headers::new();
 
     headers
-      .push_from_iter(Header::from_name_and_value(
-        KnownHeaderName::ContentType.into(),
-        ["text/plain"],
-      ))
+      .push(Header::from_name_and_value(KnownHeaderName::ContentType.into(), "text/plain"))
       .unwrap();
     assert_eq!(headers.bytes_len(), 27);
     assert_eq!(headers.headers_len(), 1);
     assert_eq!(headers.trailers(), Trailers::None);
 
-    headers.push_from_iter(Header::new(false, true, "x-trailer-a", ["value"])).unwrap();
+    headers.push(Header::new(false, true, "x-trailer-a", "value")).unwrap();
     assert_eq!(headers.bytes_len(), 27 + 21);
     assert_eq!(headers.headers_len(), 2);
     assert_eq!(headers.trailers(), Trailers::Tail(27));

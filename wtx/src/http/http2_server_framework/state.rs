@@ -12,7 +12,7 @@ pub type State<'any, D> = StateGeneric<'any, D, false>;
 /// [`StateGeneric`] with cleaned content
 pub type StateClean<'any, D> = StateGeneric<'any, D, true>;
 
-/// State of a connection
+/// State of a request.
 ///
 /// # If `CLEAN` is true
 ///
@@ -89,7 +89,7 @@ impl<'any, D, const CLEAN: bool> From<&'any mut (&'any mut D, Request<MsgBufferS
 /// Owned state used in testing environments.
 #[derive(Debug)]
 pub struct StateTest<D> {
-  /// Connection auxiliary
+  /// Auxiliary data
   pub data: D,
   /// Request/Response Data
   pub req: Request<MsgBufferString>,

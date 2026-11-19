@@ -70,7 +70,7 @@ impl<D, S> ManualStream<D, S> {
 pub trait OperationModeStream {
   /// Operation mode
   const OM: OperationMode;
-  /// Connection Auxiliary
+  /// Auxiliary data
   type Data;
 
   /// Auxiliary data

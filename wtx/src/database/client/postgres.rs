@@ -124,7 +124,7 @@ impl<E> Default for Postgres<E> {
 
 mod array {
   use crate::{
-    collections::{ArrayString, LinearStorageLen},
+    collections::{ArrayStr, LinearStorageLen},
     database::{
       FromRecords, FromRecordsParams, Record as _,
       client::postgres::{Postgres, PostgresRecord, PostgresRecords},
@@ -132,7 +132,7 @@ mod array {
     misc::{from_utf8_basic, into_rslt},
   };
 
-  impl<'exec, E, L, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayString<L, N>
+  impl<'exec, E, L, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayStr<L, N>
   where
     E: From<crate::Error>,
     L: LinearStorageLen,

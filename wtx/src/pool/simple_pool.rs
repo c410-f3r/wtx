@@ -8,7 +8,7 @@ use core::{
   fmt::{Debug, Formatter},
   future::poll_fn,
   iter,
-  mem::ManuallyDrop,
+  mem::{DropGuard, ManuallyDrop},
   ops::{Deref, DerefMut},
   task::Poll,
 };
@@ -76,7 +76,11 @@ where
       }
     })
     .await;
-    let mut drop_guard = SimplePoolGetDropGuard { state: &self.state, idx: Some(idx) };
+    let mut drop_guard = DropGuard::new(Some(idx), |idx_opt| {
+      if let Some(elem) = idx_opt {
+        push_available(elem, &self.state);
+      }
+    });
     // SAFETY: `idx` is guaranteed to be within bounds as defined in the constructor
     let lock = unsafe { self.resources.locks.get(idx).unwrap_unchecked() };
     // Indices are exclusively owned and guards are always released before their indices are
@@ -92,7 +96,7 @@ where
         }
       }
     }
-    let _ = drop_guard.idx.take();
+    let _ = drop_guard.take();
     Ok(SimplePoolGetElem {
       idx,
       resource: ManuallyDrop::new(lock_guard),
@@ -257,20 +261,6 @@ impl Drop for SimplePoolWaiter<'_> {
       // Someone else awaked this instance while it is being dropped, which means that the wake-up
       // must be transferred to another element.
       waker.wake();
-    }
-  }
-}
-
-struct SimplePoolGetDropGuard<'any> {
-  state: &'any SyncMutex<PoolState>,
-  idx: Option<usize>,
-}
-
-impl Drop for SimplePoolGetDropGuard<'_> {
-  #[inline]
-  fn drop(&mut self) {
-    if let Some(idx) = self.idx {
-      push_available(idx, self.state);
     }
   }
 }

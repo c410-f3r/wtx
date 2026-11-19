@@ -6,9 +6,9 @@ use core::{
   str::{self, FromStr},
 };
 
-/// Errors of [`FixedString`].
+/// Errors of [`FixedStr`].
 #[derive(Clone, Copy, Debug)]
-pub enum FixedStringError {
+pub enum FixedStrError {
   /// Bytes are not UTF-8
   NotUtf8,
   /// The length of the slice does not match the length of the array
@@ -18,22 +18,34 @@ pub enum FixedStringError {
 /// A wrapper around a fixed array that is always UTF-8.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct FixedString<const N: usize>([u8; N]);
+pub struct FixedStr<const N: usize>([u8; N]);
 
-impl<const N: usize> FixedString<N> {
+impl<const N: usize> FixedStr<N> {
+  /// New instance that verifies if `data` is UTF-8 and has the same length of `N`.
+  #[inline]
+  pub fn from_bytes(data: &[u8]) -> crate::Result<Self> {
+    if data.len() != N {
+      return Err(FixedStrError::LengthMismatch.into());
+    }
+    if from_utf8_basic(data).is_err() {
+      return Err(FixedStrError::NotUtf8.into());
+    }
+    Ok(Self(data.try_into()?))
+  }
+
   /// New instance that verifies if `data` is UTF-8
   #[inline]
-  pub fn from_array(data: [u8; N]) -> crate::Result<Self> {
+  pub fn from_bytes_array(data: [u8; N]) -> crate::Result<Self> {
     if from_utf8_basic(&data).is_err() {
-      return Err(FixedStringError::NotUtf8.into());
+      return Err(FixedStrError::NotUtf8.into());
     }
     Ok(Self(data))
   }
 
-  /// Constant version of [`Self::from_array`].
+  /// Constant version of [`Self::from_bytes_array`].
   #[inline]
   #[expect(clippy::disallowed_methods, reason = "the method of simutf8 is not constant")]
-  pub const fn from_array_opt(data: [u8; N]) -> Option<Self> {
+  pub const fn from_bytes_array_opt(data: [u8; N]) -> Option<Self> {
     if str::from_utf8(&data).is_err() {
       return None;
     }
@@ -46,20 +58,8 @@ impl<const N: usize> FixedString<N> {
   ///
   /// `data` must be UTF-8
   #[inline]
-  pub const unsafe fn from_array_unchecked(data: [u8; N]) -> Self {
+  pub const unsafe fn from_bytes_array_unchecked(data: [u8; N]) -> Self {
     Self(data)
-  }
-
-  /// New instance that verifies if `data` is UTF-8 and has the same length of `N`.
-  #[inline]
-  pub fn from_slice(data: &[u8]) -> crate::Result<Self> {
-    if data.len() != N {
-      return Err(FixedStringError::LengthMismatch.into());
-    }
-    if from_utf8_basic(data).is_err() {
-      return Err(FixedStringError::NotUtf8.into());
-    }
-    Ok(Self(data.try_into()?))
   }
 
   /// The inner bytes reinterpreted as a string
@@ -83,35 +83,35 @@ impl<const N: usize> FixedString<N> {
   }
 }
 
-impl<const N: usize> Borrow<str> for FixedString<N> {
+impl<const N: usize> Borrow<str> for FixedStr<N> {
   #[inline]
   fn borrow(&self) -> &str {
     self
   }
 }
 
-impl<const N: usize> Debug for FixedString<N> {
+impl<const N: usize> Debug for FixedStr<N> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     f.write_str(self)
   }
 }
 
-impl<const N: usize> Default for FixedString<N> {
+impl<const N: usize> Default for FixedStr<N> {
   #[inline]
   fn default() -> Self {
     Self([0; N])
   }
 }
 
-impl<const N: usize> Display for FixedString<N> {
+impl<const N: usize> Display for FixedStr<N> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     f.write_str(self)
   }
 }
 
-impl<const N: usize> Deref for FixedString<N> {
+impl<const N: usize> Deref for FixedStr<N> {
   type Target = str;
 
   #[inline]
@@ -120,44 +120,44 @@ impl<const N: usize> Deref for FixedString<N> {
   }
 }
 
-impl<const N: usize> Lease<str> for FixedString<N> {
+impl<const N: usize> Lease<str> for FixedStr<N> {
   #[inline]
   fn lease(&self) -> &str {
     self
   }
 }
 
-impl<const N: usize> TryFrom<[u8; N]> for FixedString<N> {
+impl<const N: usize> TryFrom<[u8; N]> for FixedStr<N> {
   type Error = crate::Error;
 
   #[inline]
   fn try_from(from: [u8; N]) -> Result<Self, Self::Error> {
-    Self::from_array(from)
+    Self::from_bytes_array(from)
   }
 }
 
-impl<const N: usize> TryFrom<&[u8]> for FixedString<N> {
+impl<const N: usize> TryFrom<&[u8]> for FixedStr<N> {
   type Error = crate::Error;
 
   #[inline]
   fn try_from(from: &[u8]) -> Result<Self, Self::Error> {
-    Self::from_slice(from)
+    Self::from_bytes(from)
   }
 }
 
-impl<const N: usize> TryFrom<&str> for FixedString<N> {
+impl<const N: usize> TryFrom<&str> for FixedStr<N> {
   type Error = crate::Error;
 
   #[inline]
   fn try_from(from: &str) -> Result<Self, Self::Error> {
     if from.len() != N {
-      return Err(FixedStringError::LengthMismatch.into());
+      return Err(FixedStrError::LengthMismatch.into());
     }
     Ok(Self(from.as_bytes().try_into()?))
   }
 }
 
-impl<const N: usize> FromStr for FixedString<N> {
+impl<const N: usize> FromStr for FixedStr<N> {
   type Err = crate::Error;
 
   #[inline]
@@ -168,14 +168,14 @@ impl<const N: usize> FromStr for FixedString<N> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::collections::FixedString;
+  use crate::collections::FixedStr;
   use core::fmt::Formatter;
   use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, Visitor},
   };
 
-  impl<'de, const N: usize> Deserialize<'de> for FixedString<N> {
+  impl<'de, const N: usize> Deserialize<'de> for FixedStr<N> {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -184,7 +184,7 @@ mod serde {
       struct LocalVisitor<const N: usize>;
 
       impl<const N: usize> Visitor<'_> for LocalVisitor<N> {
-        type Value = FixedString<N>;
+        type Value = FixedStr<N>;
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
@@ -196,7 +196,7 @@ mod serde {
         where
           E: de::Error,
         {
-          FixedString::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
+          FixedStr::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
         }
 
         #[inline]
@@ -204,7 +204,7 @@ mod serde {
         where
           E: de::Error,
         {
-          FixedString::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
+          FixedStr::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
         }
       }
 
@@ -212,7 +212,7 @@ mod serde {
     }
   }
 
-  impl<const N: usize> Serialize for FixedString<N> {
+  impl<const N: usize> Serialize for FixedStr<N> {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

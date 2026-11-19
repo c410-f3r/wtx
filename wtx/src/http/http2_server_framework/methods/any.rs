@@ -1,5 +1,5 @@
 use crate::{
-  collections::{ArrayVectorCopy, VectorUsize},
+  collections::{ArrayVectorCopy, VectorU16},
   futures::FnFut,
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode,
@@ -60,7 +60,7 @@ where
   fn paths_indices(
     &self,
     _: ArrayVectorCopy<RouteMatch, 4>,
-    _: &mut VectorUsize<ArrayVectorCopy<RouteMatch, 4>>,
+    _: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>,
   ) -> crate::Result<()> {
     Ok(())
   }

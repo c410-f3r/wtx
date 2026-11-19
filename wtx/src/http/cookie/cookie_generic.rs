@@ -1,7 +1,7 @@
 use crate::{
   calendar::{CalendarToken, Datetime, Utc},
-  collections::{ArrayStringU8, ArrayVectorU8, Clear},
-  http::{Header, Headers, KnownHeaderName, SameSite},
+  collections::{Clear, DynVectorU7},
+  http::{Header, Headers, KnownHeaderName, SameSite, cookie::CookieNameTy},
   misc::Lease,
 };
 use core::{
@@ -28,13 +28,10 @@ static FMT1: &[CalendarToken] = &[
   CalendarToken::Gmt,
 ];
 
-type NameTy = ArrayStringU8<15>;
-
 /// A piece of persistent data send from Client to Server.
 #[derive(Debug)]
 pub struct CookieGeneric<V> {
-  // TODO: Use DynVector
-  pub(crate) values: ArrayVectorU8<(NameTy, V), 3>,
+  pub(crate) values: DynVectorU7<(CookieNameTy, V), 2>,
 }
 
 impl<V> Display for CookieGeneric<V>
@@ -61,7 +58,7 @@ pub struct SetCookieGeneric<T, V> {
   pub(crate) expires: Option<Datetime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
-  pub(crate) name: NameTy,
+  pub(crate) name: CookieNameTy,
   pub(crate) path: T,
   pub(crate) same_site: Option<SameSite>,
   pub(crate) secure: bool,

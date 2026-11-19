@@ -8,7 +8,7 @@ use crate::{
     misc::nanosecond_string,
   },
   codec::nstr::nstr16,
-  collections::{ArrayString, ArrayStringU8},
+  collections::{ArrayStr, ArrayStrU8},
 };
 
 impl<TZ> Datetime<TZ>
@@ -38,15 +38,15 @@ where
   pub fn to_string<const N: usize>(
     &self,
     tokens: impl IntoIterator<Item = CalendarToken>,
-  ) -> crate::Result<ArrayStringU8<N>> {
-    let mut string = ArrayString::new();
+  ) -> crate::Result<ArrayStrU8<N>> {
+    let mut string = ArrayStr::new();
     for token in tokens {
       match token {
         CalendarToken::AbbreviatedMonthName => {
-          string.push_str(self.date.month().short_name())?;
+          string.push_str(self.date().month().short_name())?;
         }
         CalendarToken::AbbreviatedWeekdayName => {
-          string.push_str(self.date.weekday().short_name())?;
+          string.push_str(self.date().weekday().short_name())?;
         }
         CalendarToken::Colon => {
           string.push(':')?;
@@ -62,13 +62,13 @@ where
         }
         CalendarToken::DotNano => {
           string.push('.')?;
-          string.push_str(&nanosecond_string(self.time.nanosecond().num()))?;
+          string.push_str(&nanosecond_string(self.time().nanosecond().num()))?;
         }
         CalendarToken::FourDigitYear => {
-          push_four_digits_year(self.date, &mut string)?;
+          push_four_digits_year(self.date(), &mut string)?;
         }
         CalendarToken::FullWeekdayName => {
-          string.push_str(self.date.weekday().name())?;
+          string.push_str(self.date().weekday().name())?;
         }
         CalendarToken::Gmt => {
           string.push_str("GMT")?;
@@ -86,25 +86,25 @@ where
           string.push_str(&self.tz.iso8601())?;
         }
         CalendarToken::TwoDigitDay => {
-          string.push_str(self.date.day().num_str())?;
+          string.push_str(self.date().day().num_str())?;
         }
         CalendarToken::TwoDigitHour => {
-          string.push_str(self.time.hour().num_str())?;
+          string.push_str(self.time().hour().num_str())?;
         }
         CalendarToken::TwoDigitMinute => {
-          string.push_str(self.time.minute().num_str())?;
+          string.push_str(self.time().minute().num_str())?;
         }
         CalendarToken::TwoDigitMonth => {
-          string.push_str(self.date.month().num_str())?;
+          string.push_str(self.date().month().num_str())?;
         }
         CalendarToken::TwoDigitSecond => {
-          string.push_str(self.time.second().num_str())?;
+          string.push_str(self.time().second().num_str())?;
         }
         CalendarToken::TwoDigitYear => {
-          string.push_str(&nstr16(self.date.year().num().rem_euclid(100)))?;
+          string.push_str(&nstr16(self.date().year().num().rem_euclid(100)))?;
         }
         CalendarToken::TwoSpaceDay => {
-          push_two_spaces_day(self.date, &mut string)?;
+          push_two_spaces_day(self.date(), &mut string)?;
         }
       }
     }

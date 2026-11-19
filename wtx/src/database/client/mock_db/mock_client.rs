@@ -17,7 +17,7 @@ pub struct MockClient {
 impl MockClient {
   /// New instance
   #[inline]
-  pub fn new(records: VectorU8<VectorU8<(ShortBoxStrU8, ShortBoxSliceU8<u8>)>>) -> Self {
+  pub const fn new(records: VectorU8<VectorU8<(ShortBoxStrU8, ShortBoxSliceU8<u8>)>>) -> Self {
     Self { records }
   }
 }

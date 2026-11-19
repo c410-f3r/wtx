@@ -14,12 +14,12 @@ async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
   let mut executor = wtx_examples::postgres_client(uri).await?;
   executor
-    .transaction(|this| async {
+    .transaction(async |this| {
       this.execute_ignored("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)").await?;
       this
         .execute_stmt_none("INSERT INTO foo VALUES ($1, $2), ($3, $4)", (1u32, "one", 2u32, "two"))
         .await?;
-      Ok(((), this))
+      Ok(())
     })
     .await?;
   let records = executor

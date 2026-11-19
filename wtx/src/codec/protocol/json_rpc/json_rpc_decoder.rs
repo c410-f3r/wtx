@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
-  collections::{ArrayStringU8, VectorUsize},
+  collections::{ArrayStrU8, VectorUsize},
   misc::Lease,
 };
 use core::{
@@ -17,7 +17,7 @@ pub struct JsonRpcDecoder<R> {
   /// The same value specified in the request.
   pub id: Id,
   /// Optional parameter returns by the counterpart.
-  pub method: Option<ArrayStringU8<31>>,
+  pub method: Option<ArrayStrU8<31>>,
   /// Contains the `result` or the `error` field.
   pub result: crate::Result<R>,
 }

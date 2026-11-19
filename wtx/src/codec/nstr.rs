@@ -1,16 +1,16 @@
 //! Numeric string
 
-use crate::{collections::ArrayStringU8, misc::AsciiGraphic};
+use crate::{collections::ArrayStrU8, misc::AsciiGraphic};
 use core::ops::{ControlFlow, DivAssign, Rem};
 
 /// Array string that can store numbers composed by `8` bits.
-pub type NStr8 = ArrayStringU8<5>;
+pub type NStr8 = ArrayStrU8<5>;
 /// Array string that can store numbers composed by `16` bits.
-pub type NStr16 = ArrayStringU8<7>;
+pub type NStr16 = ArrayStrU8<7>;
 /// Array string that can store numbers composed by `32` bits.
-pub type NStr32 = ArrayStringU8<12>;
+pub type NStr32 = ArrayStrU8<12>;
 /// Array string that can store numbers composed by `64` bits.
-pub type NStr64 = ArrayStringU8<21>;
+pub type NStr64 = ArrayStrU8<21>;
 
 /// Formatting options for number-to-string conversion.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -96,7 +96,7 @@ fn num_string<const CAP: usize, T>(
   sep: Option<(AsciiGraphic, u8)>,
   value: T,
   width: u8,
-) -> ArrayStringU8<CAP>
+) -> ArrayStrU8<CAP>
 where
   T: NumStr,
 {
@@ -140,7 +140,7 @@ where
   }
   buffer.copy_within(usize::from(idx).., 0);
   // SAFETY: Numbers, ASCII fill, and AsciiGraphic separators are all valid ASCII (valid UTF-8).
-  unsafe { ArrayStringU8::from_parts_unchecked(buffer, Some(len)) }
+  unsafe { ArrayStrU8::from_parts_unchecked(buffer, Some(len)) }
 }
 
 macro_rules! create_functions {

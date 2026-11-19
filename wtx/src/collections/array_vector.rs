@@ -366,9 +366,10 @@ where
 {
   #[inline]
   fn drop(&mut self) {
-    if ArrayVectorInner::<L, T, N>::NEEDS_DROP {
-      self.0.clear();
+    if !ArrayVectorInner::<L, T, N>::NEEDS_DROP {
+      return;
     }
+    self.0.clear();
   }
 }
 

@@ -1,7 +1,7 @@
 // https://fetch.spec.whatwg.org/#http-cors-protocol
 
 use crate::{
-  collections::{ShortBoxStrU8, VectorUsize},
+  collections::{ShortBoxStrU8, VectorU8, VectorUsize},
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, MsgBufferString, Request, Response,
     StatusCode,
@@ -11,10 +11,10 @@ use crate::{
 };
 use core::{ops::ControlFlow, str};
 
-type AllowHeaders = (bool, VectorUsize<ShortBoxStrU8>);
-type AllowMethods = (bool, VectorUsize<Method>);
-type AllowOrigins = (bool, VectorUsize<ShortBoxStrU8>);
-type ExposeHeaders = (bool, VectorUsize<ShortBoxStrU8>);
+type AllowHeaders = (bool, VectorU8<ShortBoxStrU8>);
+type AllowMethods = (bool, VectorU8<Method>);
+type AllowOrigins = (bool, VectorU8<ShortBoxStrU8>);
+type ExposeHeaders = (bool, VectorU8<ShortBoxStrU8>);
 
 /// Used internally to manage the origins of CORS responses.
 #[derive(Debug)]
@@ -50,10 +50,10 @@ impl CorsMiddleware {
   pub const fn new() -> Self {
     Self {
       allow_credentials: false,
-      allow_headers: (false, VectorUsize::new()),
-      allow_methods: (false, VectorUsize::new()),
-      allow_origins: (false, VectorUsize::new()),
-      expose_headers: (false, VectorUsize::new()),
+      allow_headers: (false, VectorU8::new()),
+      allow_methods: (false, VectorU8::new()),
+      allow_origins: (false, VectorU8::new()),
+      expose_headers: (false, VectorU8::new()),
       max_age: None,
     }
   }
@@ -67,10 +67,10 @@ impl CorsMiddleware {
   pub const fn permissive() -> Self {
     Self {
       allow_credentials: false,
-      allow_headers: (true, VectorUsize::new()),
-      allow_methods: (true, VectorUsize::new()),
-      allow_origins: (true, VectorUsize::new()),
-      expose_headers: (true, VectorUsize::new()),
+      allow_headers: (true, VectorU8::new()),
+      allow_methods: (true, VectorU8::new()),
+      allow_origins: (true, VectorU8::new()),
+      expose_headers: (true, VectorU8::new()),
       max_age: None,
     }
   }
@@ -190,9 +190,9 @@ impl CorsMiddleware {
 
   fn apply_allow_credentials(allow_credentials: bool, headers: &mut Headers) -> crate::Result<()> {
     if allow_credentials {
-      headers.push_from_iter(Header::from_name_and_value(
+      headers.push(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowCredentials.into(),
-        ["true"],
+        "true",
       ))?;
     }
     Ok(())
@@ -200,9 +200,9 @@ impl CorsMiddleware {
 
   fn apply_allow_headers(allow_headers: &str, headers: &mut Headers) -> crate::Result<()> {
     if !allow_headers.is_empty() {
-      headers.push_from_iter(Header::from_name_and_value(
+      headers.push(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowHeaders.into(),
-        [allow_headers],
+        allow_headers,
       ))?;
     }
     Ok(())
@@ -213,9 +213,9 @@ impl CorsMiddleware {
     headers: &mut Headers,
   ) -> crate::Result<()> {
     if *is_wildcard {
-      headers.push_from_iter(Header::from_name_and_value(
+      headers.push(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowMethods.into(),
-        ["*"],
+        "*",
       ))?;
       return Ok(());
     }
@@ -240,9 +240,9 @@ impl CorsMiddleware {
     origin: &str,
     headers: &mut Headers,
   ) -> crate::Result<()> {
-    headers.push_from_iter(Header::from_name_and_value(
+    headers.push(Header::from_name_and_value(
       KnownHeaderName::AccessControlAllowOrigin.into(),
-      [origin],
+      origin,
     ))?;
     if apply_vary {
       Self::apply_vary(headers)?;
@@ -255,9 +255,9 @@ impl CorsMiddleware {
     headers: &mut Headers,
   ) -> crate::Result<()> {
     if *is_wildcard {
-      headers.push_from_iter(Header::from_name_and_value(
+      headers.push(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
-        ["*"],
+        "*",
       ))?;
       return Ok(());
     }
@@ -341,8 +341,7 @@ impl CorsMiddleware {
   }
 
   fn apply_vary(headers: &mut Headers) -> crate::Result<()> {
-    headers
-      .push_from_iter(Header::from_name_and_value(KnownHeaderName::Vary.into(), ["Origin"]))?;
+    headers.push(Header::from_name_and_value(KnownHeaderName::Vary.into(), "Origin"))?;
     Ok(())
   }
 
