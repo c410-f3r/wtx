@@ -2,6 +2,7 @@ use crate::{
   codec::FromRadix10 as _,
   collections::{ArrayStrU16, Clear, SingleTypeStorage, Truncate, TryExtend},
   misc::{AsciiGraphic, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
+  net::NetError,
 };
 use alloc::{boxed::Box, string::String};
 use core::{
@@ -442,7 +443,7 @@ where
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if self.uri.lease().len() != usize::from(self.initial_len) {
-      return Err(crate::Error::UriPathCanNotBeOverwritten);
+      return Err(NetError::UriPathCanNotBeOverwritten.into());
     }
     let prev = self.uri.lease().len();
     self.uri.write_fmt(args)?;
@@ -463,7 +464,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriQueryCanNotBeOverwritten);
+      return Err(NetError::UriQueryCanNotBeOverwritten.into());
     }
     QueryWriter { string: &mut self.uri }.do_write::<_, true>(param, value)
   }
@@ -479,7 +480,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriQueryCanNotBeOverwritten);
+      return Err(NetError::UriQueryCanNotBeOverwritten.into());
     }
     QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, ["", ",", ""])
   }
@@ -496,7 +497,7 @@ where
     ELEM: Display,
   {
     if !self.query_and_fragment().is_empty() {
-      return Err(crate::Error::UriQueryCanNotBeOverwritten);
+      return Err(NetError::UriQueryCanNotBeOverwritten.into());
     }
     QueryWriter { string: &mut self.uri }.do_write_many::<_, true>(param, value, [begin, sep, end])
   }

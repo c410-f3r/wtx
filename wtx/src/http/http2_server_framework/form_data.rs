@@ -6,7 +6,7 @@ use crate::{
   http::{
     AutoStream, HttpError, Method, Mime, StatusCode,
     http2_server_framework::{
-      Endpoint, Http2ServerFrameworkError, ResFinalizer, RouteMatch, State,
+      Endpoint, Http2ServerFrameworkError, HttpRouterNode, ResFinalizer, State,
       misc::check_header_and_method,
     },
   },
@@ -31,7 +31,7 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
     let value = check_header_and_method(
       Mime::MultipartFormData,

@@ -3,7 +3,7 @@ use crate::{
   futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, Headers, MsgBufferString, Request, StatusCode,
-    http2_server_framework::{Endpoint, ResFinalizer, RouteMatch},
+    http2_server_framework::{Endpoint, HttpRouterNode, ResFinalizer},
   },
 };
 
@@ -51,7 +51,7 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
     self
       .0
@@ -91,7 +91,7 @@ impl<'any, D, const CLEAN: bool> From<&'any mut (&'any mut D, Request<MsgBufferS
 pub struct StateTest<D> {
   /// Auxiliary data
   pub data: D,
-  /// Request/Response Data
+  /// Request Data
   pub req: Request<MsgBufferString>,
 }
 

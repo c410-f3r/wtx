@@ -118,6 +118,12 @@ List of implemented RFCs.
 | `WebSocket Over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441> |
 | `X.509`                  | <https://datatracker.ietf.org/doc/html/rfc5280> |
 
+## Testing structures suffixes
+
+* `Dummy`: Does nothing. It is a placehold.
+* `Mock`: Meant to replicate arbitrary operations, i.e., allows custom logic.
+* `Stub`: Hardcoded to act according to a set of deterministic operations.
+
 ## Compiler flags
 
 Some non-standard options that will influence the final binary. Only use them if you know what you are doing.

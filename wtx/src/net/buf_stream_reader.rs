@@ -384,11 +384,11 @@ impl Default for BufStreamReader {
 
 #[cfg(test)]
 mod tests {
-  use crate::net::{BufStreamReader, BytesStream, StreamWriter};
+  use crate::net::{BufStreamReader, StreamMock, StreamWriter};
 
   #[wtx::test]
   async fn read_header_and_payload() {
-    let mut stream = BytesStream::default();
+    let mut stream = StreamMock::default();
     stream.write_all(&[0, 2, 1, 2]).await.unwrap();
     let mut nrb = BufStreamReader::default();
     let header = nrb.read_header::<_, 2>(&mut stream).await.unwrap().unwrap();
@@ -399,7 +399,7 @@ mod tests {
 
   #[wtx::test]
   async fn zero_payload() {
-    let mut stream = BytesStream::default();
+    let mut stream = StreamMock::default();
     stream.write_all(&[0, 0]).await.unwrap();
     let mut nrb = BufStreamReader::default();
     let header = nrb.read_header::<_, 2>(&mut stream).await.unwrap().unwrap();

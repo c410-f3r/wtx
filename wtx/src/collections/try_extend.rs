@@ -1,5 +1,7 @@
 use crate::{
-  collections::{ArrayStr, ArrayVector, ArrayVectorCopy, ExpansionTy, LinearStorageLen, Vector},
+  collections::{
+    ArrayStr, ArrayVector, ArrayVectorCopy, CollectionsError, ExpansionTy, LinearStorageLen, Vector,
+  },
   misc::{Wrapper, from_utf8_basic},
 };
 use alloc::{string::String, vec::Vec};
@@ -192,7 +194,7 @@ where
       return Ok(());
     }
     let (None, [elem]) = (&*self, set) else {
-      return Err(crate::Error::InsufficientOptionCapacity);
+      return Err(CollectionsError::InsufficientOptionCapacity.into());
     };
     *self = Some(*elem);
     Ok(())
@@ -207,7 +209,7 @@ impl<T, const M: usize> TryExtend<[T; M]> for Option<T> {
     }
     let mut iter = set.into_iter();
     let (None, Some(elem), None) = (&*self, iter.next(), iter.next()) else {
-      return Err(crate::Error::InsufficientOptionCapacity);
+      return Err(CollectionsError::InsufficientOptionCapacity.into());
     };
     *self = Some(elem);
     Ok(())
@@ -225,7 +227,7 @@ where
       return Ok(());
     };
     let (None, None) = (&*self, iter.next()) else {
-      return Err(crate::Error::InsufficientOptionCapacity);
+      return Err(CollectionsError::InsufficientOptionCapacity.into());
     };
     *self = Some(elem);
     Ok(())

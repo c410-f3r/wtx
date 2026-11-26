@@ -6,12 +6,12 @@ use core::{cmp::Ordering, num::NonZeroUsize};
 
 /// Stores written data to transfer when read.
 #[derive(Debug, Default)]
-pub struct BytesStream {
+pub struct StreamMock {
   buffer: VectorUsize<u8>,
   idx: usize,
 }
 
-impl BytesStream {
+impl StreamMock {
   /// Empties the internal buffer.
   #[inline]
   pub fn clear(&mut self) {
@@ -20,7 +20,7 @@ impl BytesStream {
   }
 }
 
-impl Stream for BytesStream {
+impl Stream for StreamMock {
   type BridgeOwned = ();
   type ReadHalfOwned = ();
   type WriteHalfOwned = ();
@@ -33,9 +33,9 @@ impl Stream for BytesStream {
   }
 }
 
-impl StreamCommon for BytesStream {}
+impl StreamCommon for StreamMock {}
 
-impl StreamReader for BytesStream {
+impl StreamReader for StreamMock {
   #[inline]
   async fn read(
     &mut self,
@@ -67,7 +67,7 @@ impl StreamReader for BytesStream {
   }
 }
 
-impl StreamWriter for BytesStream {
+impl StreamWriter for StreamMock {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
     self.buffer.extend_from_copyable_slice(bytes)?;

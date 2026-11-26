@@ -5,7 +5,7 @@ use crate::{
   collections::{ArrayStrU8, FixedStr, ShortBoxStrU8, SuffixGuard, VectorU16},
   crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
-    Header, KnownHeaderName, MsgBufferString, RememberMe, SessionCsrf, SessionState, SessionStore,
+    Header, KnownHeaderName, MsgBufferString, SessionCsrf, SessionState, SessionStore,
     cookie::SetCookieGeneric, session::session_manager_builder::SessionManagerBuilder,
   },
   misc::{AsciiAlphaNumeric, LeaseMut, serde_json_deserialize_from_slice},
@@ -32,6 +32,15 @@ where
   E: From<crate::Error>,
   RNG: CryptoRng,
 {
+  /// Default lifetime (Ephemeral).
+  pub const DEFAULT_LF_EPHEMERAL: Duration = Duration::from_hours(12);
+  /// Default lifetime (Persistent).
+  pub const DEFAULT_LF_PERSISTENT: Duration = Duration::from_hours(24 * 4);
+  /// Default lifetime upper bound (Ephemeral).
+  pub const DEFAULT_LF_UB_EPHEMERAL: Duration = Duration::from_hours(24 * 2);
+  /// Default lifetime upper bound (Persistent).
+  pub const DEFAULT_LF_UB_PERSISTENT: Duration = Duration::from_hours(24 * 16);
+
   /// Allows the specification of custom parameters.
   #[inline]
   pub fn builder() -> SessionManagerBuilder {
@@ -79,7 +88,8 @@ where
     if now.saturating_add(self.inner.grace_period.as_secs()) >= state.expires_at {
       return Ok(false);
     }
-    Ok(next_rotation(state.expires_at_ub, state.expires_at, self.inner.lifetime, now).is_some())
+    let lifetime = Self::resolved_lifetime(self.inner.lifetime, state.remember_me);
+    Ok(next_rotation(state.expires_at_ub, state.expires_at, lifetime, now).is_some())
   }
 
   /// Rotates the session cookie, issuing a new session key regardless of how much of the rotation
@@ -116,6 +126,7 @@ where
     &self,
     custom_state: &CS,
     msg_data: &mut MD,
+    remember_me: bool,
     state: &mut Option<SessionState<CS>>,
     store: &mut S,
   ) -> Result<SessionCsrf, E>
@@ -131,7 +142,7 @@ where
       .sync
       .lock()
       .await
-      .create_session_and_push_headers(lifetime, custom_state, msg_data, store)
+      .create_session_and_push_headers(custom_state, lifetime, msg_data, remember_me, store)
       .await?;
     if let Some(elem) = prev_session_key {
       let _rslt = store.delete(&elem).await;
@@ -139,6 +150,15 @@ where
     let session_csrf = new_session_state.session_csrf;
     *state = Some(new_session_state);
     Ok(session_csrf)
+  }
+
+  #[inline]
+  const fn resolved_lifetime(lifetime: Option<Duration>, remember_me: bool) -> Duration {
+    match lifetime {
+      Some(el) => el,
+      None if remember_me => Self::DEFAULT_LF_PERSISTENT,
+      None => Self::DEFAULT_LF_EPHEMERAL,
+    }
   }
 }
 
@@ -159,19 +179,40 @@ impl<CS, E, RNG> Debug for SessionManager<CS, E, RNG> {
 /// Inner content
 #[derive(Debug)]
 pub struct SessionManagerInner<CS, E, RNG> {
-  pub(crate) grace_period: Duration,
-  pub(crate) lifetime: Duration,
+  grace_period: Duration,
+  lifetime: Option<Duration>,
   #[cfg(feature = "http2-server-framework")]
-  pub(crate) session_cookie_name: CookieNameTy,
-  pub(crate) sync: AsyncMutex<SessionManagerSync<CS, E, RNG>>,
+  session_cookie_name: CookieNameTy,
+  sync: AsyncMutex<SessionManagerSync<CS, E, RNG>>,
+}
+
+impl<CS, E, RNG> SessionManagerInner<CS, E, RNG> {
+  pub(crate) fn new(
+    grace_period: Duration,
+    lifetime: Option<Duration>,
+    #[cfg(feature = "http2-server-framework")] session_cookie_name: CookieNameTy,
+    sync: AsyncMutex<SessionManagerSync<CS, E, RNG>>,
+  ) -> Self {
+    Self {
+      grace_period,
+      lifetime,
+      #[cfg(feature = "http2-server-framework")]
+      session_cookie_name,
+      sync,
+    }
+  }
+
+  #[cfg(feature = "http2-server-framework")]
+  pub(crate) fn session_cookie_name(&self) -> &CookieNameTy {
+    &self.session_cookie_name
+  }
 }
 
 /// Allows the management of state across requests within a connection.
 pub struct SessionManagerSync<CS, E, RNG> {
   cookie_def: SetCookieGeneric<ShortBoxStrU8, VectorU16<u8>>,
-  lifetime_ub: Duration,
+  lifetime_ub: Option<Duration>,
   phantom: PhantomData<(CS, E)>,
-  remember_me: Option<RememberMe>,
   rng: RNG,
   session_secret: SecretArray<16>,
 }
@@ -183,12 +224,11 @@ where
 {
   pub(crate) fn new(
     cookie_def: SetCookieGeneric<ShortBoxStrU8, VectorU16<u8>>,
-    lifetime_ub: Duration,
-    remember_me: Option<RememberMe>,
+    lifetime_ub: Option<Duration>,
     rng: RNG,
     session_secret: SecretArray<16>,
   ) -> Self {
-    Self { cookie_def, lifetime_ub, phantom: PhantomData, remember_me, rng, session_secret }
+    Self { cookie_def, lifetime_ub, phantom: PhantomData, rng, session_secret }
   }
 
   #[inline]
@@ -212,7 +252,8 @@ where
   fn build_session_state(
     &mut self,
     custom_state: &CS,
-    lifetime: Duration,
+    lifetime_opt: Option<Duration>,
+    remember_me: bool,
   ) -> crate::Result<SessionState<CS>>
   where
     CS: Clone,
@@ -220,12 +261,15 @@ where
     let now = now_timestamp()?;
     let session_csrf = generic_token(&mut self.rng)?;
     let session_key = generic_token(&mut self.rng)?;
-    let expires_at_ub = now.saturating_add(self.lifetime_ub.as_secs());
+    let lifetime = SessionManager::<CS, E, RNG>::resolved_lifetime(lifetime_opt, remember_me);
+    let lifetime_ub = Self::resolved_lifetime_ub(self.lifetime_ub, remember_me);
+    let expires_at_ub = now.saturating_add(lifetime_ub.as_secs());
     let expires_at = clamp_expiry(expires_at_ub, lifetime, now);
     Ok(SessionState {
       custom_state: custom_state.clone(),
       expires_at,
       expires_at_ub,
+      remember_me,
       session_csrf,
       session_key,
     })
@@ -233,24 +277,26 @@ where
 
   async fn create_session<S>(
     &mut self,
-    lifetime: Duration,
     custom_state: &CS,
+    lifetime: Option<Duration>,
+    remember_me: bool,
     store: &mut S,
   ) -> Result<SessionState<CS>, E>
   where
     CS: Clone,
     S: SessionStore<CS, E>,
   {
-    let state = self.build_session_state(custom_state, lifetime)?;
+    let state = self.build_session_state(custom_state, lifetime, remember_me)?;
     store.create(&state).await?;
     Ok(state)
   }
 
   async fn create_session_and_push_headers<MD, S>(
     &mut self,
-    lifetime: Duration,
     custom_state: &CS,
+    lifetime: Option<Duration>,
     msg_data: &mut MD,
+    remember_me: bool,
     store: &mut S,
   ) -> Result<SessionState<CS>, E>
   where
@@ -258,7 +304,7 @@ where
     MD: LeaseMut<MsgBufferString>,
     S: SessionStore<CS, E>,
   {
-    let state = self.create_session(lifetime, custom_state, store).await?;
+    let state = self.create_session(custom_state, lifetime, remember_me, store).await?;
     let headers_len = msg_data.lease_mut().headers.headers_len();
     if let Err(err) = Self::push_csrf_header(&state, msg_data)
       .and_then(|_| self.push_session_cookie_header(&state, msg_data))
@@ -306,7 +352,7 @@ where
     let prev_expires = self.cookie_def.expires;
     let prev_max_age = self.cookie_def.max_age;
     self.cookie_def.expires =
-      self.remember_me.as_ref().map(|_| datetime_from_timestamp(state.expires_at)).transpose()?;
+      state.remember_me.then(|| datetime_from_timestamp(state.expires_at)).transpose()?;
     self.cookie_def.max_age = None;
     let value = self.cookie_def.map_mut(
       move |el| el,
@@ -326,9 +372,18 @@ where
   }
 
   #[inline]
+  const fn resolved_lifetime_ub(lifetime_ub: Option<Duration>, remember_me: bool) -> Duration {
+    match lifetime_ub {
+      Some(el) => el,
+      None if remember_me => SessionManager::<CS, E, RNG>::DEFAULT_LF_UB_PERSISTENT,
+      None => SessionManager::<CS, E, RNG>::DEFAULT_LF_UB_EPHEMERAL,
+    }
+  }
+
+  #[inline]
   async fn rotate_session_cookie<MD, S>(
     &mut self,
-    lifetime: Duration,
+    lifetime_opt: Option<Duration>,
     grace_period: Duration,
     msg_data: &mut MD,
     state: &SessionState<CS>,
@@ -343,11 +398,13 @@ where
     if now >= state.expires_at_ub {
       return Ok(None);
     }
+    let lifetime = SessionManager::<CS, E, RNG>::resolved_lifetime(lifetime_opt, state.remember_me);
     let new_expires_at = clamp_expiry(state.expires_at_ub, lifetime, now);
     let new_state = SessionState {
       custom_state: state.custom_state.clone(),
       expires_at: new_expires_at,
       expires_at_ub: state.expires_at_ub,
+      remember_me: state.remember_me,
       session_csrf: state.session_csrf,
       session_key: generic_token(&mut self.rng)?,
     };

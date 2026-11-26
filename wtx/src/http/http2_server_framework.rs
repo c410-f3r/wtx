@@ -12,6 +12,8 @@ mod endpoint_node;
 mod form_data;
 mod http2_server_framework_error;
 mod http_router;
+mod http_router_chain;
+mod http_router_node;
 mod json_reply;
 mod methods;
 mod middleware;
@@ -20,7 +22,6 @@ mod path;
 mod path_params;
 mod redirect;
 mod res_finalizer;
-mod route_match;
 mod state;
 #[cfg(test)]
 mod tests;
@@ -31,7 +32,7 @@ use crate::{
   executor::{Executor, Runtime as _},
   http::{
     AutoStream, HttpRecvParams, ManualStream, MsgBufferString, OperationMode, Request, Response,
-    push_h2_alpn,
+    StatusCode, push_h2_alpn,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus, ServerStream},
   net::{Stream, StreamReader, StreamWriter, TcpListener as _, TcpParams, TcpStream as _, Uri},
@@ -46,10 +47,11 @@ pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
 pub use form_data::*;
 pub use http_router::HttpRouter;
+pub use http_router_chain::HttpRouterChain;
+pub use http_router_node::HttpRouterNode;
 pub use http2_server_framework_error::Http2ServerFrameworkError;
 pub use json_reply::*;
 pub use methods::{
-  any::{Any, any},
   delete::{Delete, delete},
   get::{Get, get},
   json::{Json, json},
@@ -63,24 +65,33 @@ pub use path::Path;
 pub use path_params::PathParams;
 pub use redirect::Redirect;
 pub use res_finalizer::ResFinalizer;
-pub use route_match::RouteMatch;
 pub use state::{State, StateClean, StateGeneric, StateTest};
 pub use verbatim_params::VerbatimParams;
 
-type ConnRsltTy<EX, TCX, ER> = Option<(
-  LocalStream<EX, TCX>,
-  Result<(ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>), ER>,
-)>;
 type LocalStream<EX, TCX> =
   ServerStream<<<EX as Executor>::TcpStream as Stream>::WriteHalfOwned, TCX>;
 type WriteHalf<EX> = <<EX as Executor>::TcpStream as Stream>::WriteHalfOwned;
 
+/// Routing decision taken while the stream's request head is still available.
+enum StreamRoute {
+  /// The request should be fully received before being handled.
+  Auto { steps: ArrayVectorCopy<HttpRouterNode, 4> },
+  /// The user takes control of the stream immediately after the request head.
+  Manual { req: Request<MsgBufferString>, steps: ArrayVectorCopy<HttpRouterNode, 4> },
+  /// The path exists but no endpoint is registered for the request method.
+  Unmatched { steps: ArrayVectorCopy<HttpRouterNode, 4> },
+}
+
 /// HTTP/2 Server Framework
 #[derive(Debug)]
-pub struct Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
+pub struct Http2ServerFramework<DA, EC, EN, ER, EX, M, RC, RNG, TCX>
+where
+  EX: Executor,
+{
   data: DA,
   error_cb: EC,
   executor: EX,
+  http_router: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
   hrc: HttpRecvParams,
   local_runtime_cb: RC,
   local_runtimes: Option<NonZeroUsize>,
@@ -93,7 +104,10 @@ impl<ERR, EX, RNG, TCX>
   Http2ServerFramework<
     (),
     fn(ERR),
+    (),
+    ERR,
     EX,
+    (),
     fn() -> Result<<EX as Executor>::LocalRuntime, ERR>,
     RNG,
     TCX,
@@ -105,6 +119,8 @@ where
   /// Taking aside the provided parameters, everything else is set to default values.
   ///
   /// The "h2" ALPN will always be pushed into the TLS configuration.
+  ///
+  /// The framework starts with an empty router. Call [`Self::set_http_router`] before running.
   #[inline]
   pub fn new(executor: EX, rng: RNG, mut tls_config: TlsConfig<TCX>) -> crate::Result<Self> {
     push_h2_alpn(&mut tls_config)?;
@@ -114,6 +130,7 @@ where
       data: (),
       error_cb,
       executor,
+      http_router: HttpRouter::empty(),
       hrc: HttpRecvParams::with_optioned_params(),
       local_runtime_cb,
       local_runtimes: None,
@@ -129,7 +146,10 @@ impl<ERR, TCX>
   Http2ServerFramework<
     (),
     fn(ERR),
+    (),
+    ERR,
     crate::executor::TokioExecutor,
+    (),
     fn() -> Result<<crate::executor::TokioExecutor as Executor>::LocalRuntime, ERR>,
     crate::rng::ChaCha20,
     TCX,
@@ -148,20 +168,49 @@ where
   }
 }
 
-impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
-  /// Mutable Random Number Generator.
-  #[inline]
-  pub const fn rng_mut(&mut self) -> &mut RNG {
-    &mut self.rng
-  }
-
+impl<DA, EC, ER, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, (), ER, EX, (), RC, RNG, TCX>
+where
+  EX: Executor,
+{
   /// Shared data that is cloned across connections and streams.
+  ///
+  /// Must be called before [`Self::set_http_router`] because changing the data type also requires
+  /// rebuilding the empty router.
   #[inline]
-  pub fn set_data<_DA>(self, value: _DA) -> Http2ServerFramework<_DA, EC, EX, RC, RNG, TCX> {
+  pub fn set_data<_DA>(
+    self,
+    value: _DA,
+  ) -> Http2ServerFramework<_DA, EC, (), ER, EX, (), RC, RNG, TCX> {
     Http2ServerFramework {
       data: value,
       error_cb: self.error_cb,
       executor: self.executor,
+      http_router: HttpRouter::<_DA, (), ER, (), LocalStream<EX, TCX>>::empty(),
+      hrc: self.hrc,
+      local_runtime_cb: self.local_runtime_cb,
+      local_runtimes: self.local_runtimes,
+      rng: self.rng,
+      tcp_params: self.tcp_params,
+      tls_config: self.tls_config,
+    }
+  }
+}
+
+impl<DA, EC, EN, ER, EX, M, RC, RNG, TCX> Http2ServerFramework<DA, EC, EN, ER, EX, M, RC, RNG, TCX>
+where
+  EX: Executor,
+{
+  /// Sets the error callback function.
+  #[inline]
+  pub fn set_error_cb<_EC>(
+    self,
+    value: _EC,
+  ) -> Http2ServerFramework<DA, _EC, EN, ER, EX, M, RC, RNG, TCX> {
+    Http2ServerFramework {
+      data: self.data,
+      error_cb: value,
+      executor: self.executor,
+      http_router: self.http_router,
       hrc: self.hrc,
       local_runtime_cb: self.local_runtime_cb,
       local_runtimes: self.local_runtimes,
@@ -171,20 +220,10 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
     }
   }
 
-  /// Sets the error callback function.
+  /// Mutable Random Number Generator.
   #[inline]
-  pub fn set_error_cb<_EC>(self, value: _EC) -> Http2ServerFramework<DA, _EC, EX, RC, RNG, TCX> {
-    Http2ServerFramework {
-      data: self.data,
-      error_cb: value,
-      executor: self.executor,
-      hrc: self.hrc,
-      local_runtime_cb: self.local_runtime_cb,
-      local_runtimes: self.local_runtimes,
-      rng: self.rng,
-      tcp_params: self.tcp_params,
-      tls_config: self.tls_config,
-    }
+  pub const fn rng_mut(&mut self) -> &mut RNG {
+    &mut self.rng
   }
 
   /// See [`HttpRecvParams`].
@@ -195,16 +234,40 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
     self
   }
 
+  /// Sets the router used to dispatch requests.
+  ///
+  /// [`Self::new`] starts with an empty router, so this must be called before any `run` method.
+  #[inline]
+  #[must_use = must_use_itself_generic_doc!()]
+  pub fn set_http_router<_EN, _M>(
+    self,
+    value: HttpRouter<DA, _EN, ER, _M, LocalStream<EX, TCX>>,
+  ) -> Http2ServerFramework<DA, EC, _EN, ER, EX, _M, RC, RNG, TCX> {
+    Http2ServerFramework {
+      data: self.data,
+      error_cb: self.error_cb,
+      executor: self.executor,
+      http_router: value,
+      hrc: self.hrc,
+      local_runtime_cb: self.local_runtime_cb,
+      local_runtimes: self.local_runtimes,
+      rng: self.rng,
+      tcp_params: self.tcp_params,
+      tls_config: self.tls_config,
+    }
+  }
+
   /// Allows the tweaking of the chosen runtime.
   #[inline]
   pub fn set_local_runtime_cb<_RC>(
     self,
     value: _RC,
-  ) -> Http2ServerFramework<DA, EC, EX, _RC, RNG, TCX> {
+  ) -> Http2ServerFramework<DA, EC, EN, ER, EX, M, _RC, RNG, TCX> {
     Http2ServerFramework {
       data: self.data,
       error_cb: self.error_cb,
       executor: self.executor,
+      http_router: self.http_router,
       hrc: self.hrc,
       local_runtime_cb: value,
       local_runtimes: self.local_runtimes,
@@ -233,7 +296,7 @@ impl<DA, EC, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX> {
   }
 }
 
-impl<DA, EC, ER, EX, RC, RNG, TCX> Http2ServerFramework<DA, EC, EX, RC, RNG, TCX>
+impl<DA, EC, EN, ER, EX, M, RC, RNG, TCX> Http2ServerFramework<DA, EC, EN, ER, EX, M, RC, RNG, TCX>
 where
   EC: Clone + Fn(ER) + 'static,
   DA: Clone + 'static,
@@ -248,11 +311,7 @@ where
   /// You must call this method from within an existing async environment. Preferably, a
   /// multi-thread environment.
   #[inline]
-  pub async fn run<EN, M>(
-    mut self,
-    addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
-  ) -> Result<(), ER>
+  pub async fn run(mut self, addr: &str) -> Result<(), ER>
   where
     DA: Send,
     EC: Send,
@@ -277,7 +336,7 @@ where
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all(..): Send,
     <<EX::TcpStream as Stream>::WriteHalfOwned as StreamWriter>::write_all_vectored(..): Send,
   {
-    let http_router = Arc::new(hr);
+    let http_router = Arc::new(self.http_router);
     let uri = Uri::new(addr);
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let xorshift = &mut Xorshift64::from_simple_seed()?;
@@ -302,14 +361,15 @@ where
         };
         let _frame_reader_jh = cp.executor.spawn(frame_reader);
         loop {
-          let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
-            http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
-          ) {
+          let (server_stream, route) = match http2
+            .stream(|mut req, _| stream_cb::<DA, EN, ER, EX, M, TCX>(&cp.http_router, &mut req))
+            .await
+          {
             Ok(Some(el)) => el,
             Ok(None) => break,
             Err(err) => {
               http2.send_go_away(Http2ErrorCode::NoError).await;
-              (cp.error_cb)(err);
+              (cp.error_cb)(err.into());
               break;
             }
           };
@@ -317,9 +377,8 @@ where
           let stream_error_cb = cp.error_cb.clone();
           let stream_http_router = cp.http_router.clone();
           let _stream_jh = cp.executor.spawn(stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
-            headers_aux,
             ip,
-            opt,
+            route,
             server_stream,
             stream_data,
             stream_error_cb,
@@ -340,11 +399,7 @@ where
   /// threads once an error arises.
   #[cfg(feature = "std")]
   #[inline]
-  pub fn run_in_threads<EN, M>(
-    mut self,
-    addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
-  ) -> Result<(), ER>
+  pub fn run_in_threads(mut self, addr: &str) -> Result<(), ER>
   where
     DA: Send,
     EC: Send,
@@ -365,7 +420,7 @@ where
     } else {
       std::thread::available_parallelism().map_err(crate::Error::from)?.get()
     };
-    let http_router = Arc::new(hr);
+    let http_router = Arc::new(self.http_router);
     let mut join_handles = VectorUsize::<std::thread::JoinHandle<Result<(), ER>>>::new();
     for _ in 0..runtimes {
       let thread_data = self.data.clone();
@@ -407,16 +462,17 @@ where
                 };
                 let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_runtime);
                 loop {
-                  let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
-                    http2
-                      .stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req))
-                      .await,
-                  ) {
+                  let (server_stream, route) = match http2
+                    .stream(|mut req, _| {
+                      stream_cb::<DA, EN, ER, EX, M, TCX>(&cp.http_router, &mut req)
+                    })
+                    .await
+                  {
                     Ok(Some(el)) => el,
                     Ok(None) => break,
                     Err(err) => {
                       http2.send_go_away(Http2ErrorCode::NoError).await;
-                      (cp.error_cb)(err);
+                      (cp.error_cb)(err.into());
                       break;
                     }
                   };
@@ -425,9 +481,8 @@ where
                   let stream_http_router = cp.http_router.clone();
                   let _stream_jh = cp.executor.spawn_local(
                     stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
-                      headers_aux,
                       ip,
-                      opt,
+                      route,
                       server_stream,
                       stream_data,
                       stream_error_cb,
@@ -453,17 +508,12 @@ where
   ///
   /// You must call this method from within an existing async environment.
   #[inline]
-  pub async fn run_local<EN, M>(
-    mut self,
-    addr: &str,
-    hr: HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
-    lc: Arc<EX::LocalRuntime>,
-  ) -> Result<(), ER>
+  pub async fn run_local(mut self, addr: &str, lc: Arc<EX::LocalRuntime>) -> Result<(), ER>
   where
     EN: EndpointNode<DA, ER, LocalStream<EX, TCX>> + 'static,
     M: Middleware<DA, ER> + 'static,
   {
-    let http_router = Arc::new(hr);
+    let http_router = Arc::new(self.http_router);
     let uri = Uri::new(addr);
     let listener = EX::TcpListener::bind(uri.hostname_with_implied_port(), self.tcp_params).await?;
     let xorshift = &mut Xorshift64::from_simple_seed()?;
@@ -490,14 +540,15 @@ where
           };
           let _frame_reader_jh = cp.executor.spawn_local(frame_reader, &conn_lc);
           loop {
-            let (server_stream, headers_aux, opt) = match conn_rslt::<ER, EX, TCX>(
-              http2.stream(|req, _| stream_cb::<_, _, _, EX, _, _>(&cp.http_router, req)).await,
-            ) {
+            let (server_stream, route) = match http2
+              .stream(|mut req, _| stream_cb::<DA, EN, ER, EX, M, TCX>(&cp.http_router, &mut req))
+              .await
+            {
               Ok(Some(el)) => el,
               Ok(None) => break,
               Err(err) => {
                 http2.send_go_away(Http2ErrorCode::NoError).await;
-                (cp.error_cb)(err);
+                (cp.error_cb)(err.into());
                 break;
               }
             };
@@ -506,9 +557,8 @@ where
             let stream_http_router = cp.http_router.clone();
             let _stream_jh = cp.executor.spawn_local(
               stream_fut::<DA, EC, EN, ER, EX, M, TCX>(
-                headers_aux,
                 ip,
-                opt,
+                route,
                 server_stream,
                 stream_data,
                 stream_error_cb,
@@ -570,26 +620,6 @@ where
 }
 
 #[inline]
-fn conn_rslt<ER, EX, TCX>(
-  rslt: crate::Result<ConnRsltTy<EX, TCX, ER>>,
-) -> Result<
-  Option<(LocalStream<EX, TCX>, ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>)>,
-  ER,
->
-where
-  ER: From<crate::Error>,
-  EX: Executor,
-  TCX: TlsCtx,
-{
-  if let Some((server_stream, local_rslt)) = rslt.map_err(ER::from)? {
-    let (headers_aux, opt) = local_rslt?;
-    Ok(Some((server_stream, headers_aux, opt)))
-  } else {
-    Ok(None)
-  }
-}
-
-#[inline]
 async fn http2<EX, RNG, TCX>(
   hrc: HttpRecvParams,
   mut rng: RNG,
@@ -616,28 +646,55 @@ fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
   _debug!(r#"{_peer} "{_method} {_path}""#,);
 }
 
-#[expect(clippy::needless_pass_by_value, reason = "doesn't matter")]
 #[inline]
-fn stream_cb<DA, EN, ER, EX, M, TCX>(
-  http_router: &HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
-  req: Request<&mut MsgBufferString>,
-) -> Result<(ArrayVectorCopy<RouteMatch, 4>, Option<MsgBufferString>), ER>
+async fn send_response<ER, EX, TCX>(
+  server_stream: &mut LocalStream<EX, TCX>,
+  mut msg_data: MsgBufferString,
+  status: StatusCode,
+) -> Result<(), ER>
 where
   ER: From<crate::Error>,
   EX: Executor,
+  TCX: TlsCtx,
 {
-  let rslt = *http_router.router.find(req.msg_data.uri.path())?.data();
-  Ok(match rslt.1 {
-    OperationMode::Auto => (rslt.0, None),
-    OperationMode::Manual => (rslt.0, Some(mem::take(req.msg_data))),
+  // Only requests use/fill `uri` and because of that, responses take onwership of it to use the
+  // pre-allocated bytes for encoding.
+  let enc_buffer = mem::take(&mut msg_data.uri).into_inner();
+  let _ = server_stream
+    .send_res(&mut enc_buffer.into_bytes().try_into()?, Response::new(msg_data, status))
+    .await?;
+  Ok(())
+}
+
+#[inline]
+fn stream_cb<DA, EN, ER, EX, M, TCX>(
+  http_router: &HttpRouter<DA, EN, ER, M, LocalStream<EX, TCX>>,
+  req: &mut Request<&mut MsgBufferString>,
+) -> Result<StreamRoute, ER>
+where
+  ER: From<crate::Error>,
+  EX: Executor,
+  TCX: TlsCtx,
+{
+  let hrc = http_router.router().find(req.msg_data.uri.path())?.data();
+  let mut steps = *hrc.steps();
+  Ok(if let Ok(leaf) = HttpRouterNode::find_by_method(hrc.leafs(), req.method) {
+    steps.push(*leaf)?;
+    match leaf.om {
+      OperationMode::Auto => StreamRoute::Auto { steps },
+      OperationMode::Manual => {
+        StreamRoute::Manual { req: Request::new(req.method, mem::take(req.msg_data)), steps }
+      }
+    }
+  } else {
+    StreamRoute::Unmatched { steps }
   })
 }
 
 #[inline]
 async fn stream_fut<DA, EC, EN, ER, EX, M, TCX>(
-  headers_aux: ArrayVectorCopy<RouteMatch, 4>,
   ip: IpAddr,
-  opt: Option<MsgBufferString>,
+  route: Result<StreamRoute, ER>,
   mut server_stream: LocalStream<EX, TCX>,
   stream_data: DA,
   stream_error_cb: EC,
@@ -651,34 +708,46 @@ async fn stream_fut<DA, EC, EN, ER, EX, M, TCX>(
   TCX: TlsCtx,
 {
   let stream_fun = async {
-    if let Some(local_rrb) = opt {
-      let req = Request::new(server_stream.method(), local_rrb);
-      log_req(&ip, &req);
-      let manual_stream = ManualStream {
-        data: stream_data,
-        peer: ip,
-        protocol: server_stream.protocol(),
-        req,
-        stream: server_stream.clone(),
-      };
-      stream_http_router.en.manual(manual_stream, (0, &headers_aux)).await?;
-      return Ok(());
+    match route? {
+      StreamRoute::Auto { steps } => {
+        let method = server_stream.method();
+        let (hrs, msg_data) = server_stream.recv_req().await?;
+        if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
+          return Ok(());
+        }
+        let req = msg_data.into_request(method);
+        log_req(&ip, &req);
+        let mut auto_stream = AutoStream::new(stream_data, ip, server_stream.protocol(), req);
+        let status = stream_http_router.auto(&mut auto_stream, (0, &steps)).await?;
+        send_response::<ER, EX, TCX>(&mut server_stream, auto_stream.req.msg_data, status).await?;
+      }
+      StreamRoute::Manual { req, steps } => {
+        log_req(&ip, &req);
+        let manual_stream = ManualStream {
+          data: stream_data,
+          peer: ip,
+          protocol: server_stream.protocol(),
+          req,
+          stream: server_stream.clone(),
+        };
+        stream_http_router.manual(manual_stream, (0, &steps)).await?;
+      }
+      StreamRoute::Unmatched { steps } => {
+        let method = server_stream.method();
+        let (hrs, msg_data) = server_stream.recv_req().await?;
+        if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
+          return Ok(());
+        }
+        let req = msg_data.into_request(method);
+        log_req(&ip, &req);
+        let mut auto_stream = AutoStream::new(stream_data, ip, server_stream.protocol(), req);
+        let status = stream_http_router.auto(&mut auto_stream, (0, &steps)).await?;
+        if status == StatusCode::MethodNotAllowed {
+          auto_stream.req.clear();
+        }
+        send_response::<ER, EX, TCX>(&mut server_stream, auto_stream.req.msg_data, status).await?;
+      }
     }
-    let (hrs, local_rrb) = server_stream.recv_req().await?;
-    if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
-      return Ok(());
-    }
-    let req = local_rrb.into_request(server_stream.method());
-    log_req(&ip, &req);
-    let mut auto_stream = AutoStream::new(stream_data, ip, server_stream.protocol(), req);
-    let status = stream_http_router.auto(&mut auto_stream, (0, &headers_aux)).await?;
-    let enc_buffer = mem::take(&mut auto_stream.req.msg_data.uri).into_inner();
-    let _ = server_stream
-      .send_res(
-        &mut enc_buffer.into_bytes().try_into()?,
-        Response::new(auto_stream.req.msg_data, status),
-      )
-      .await?;
     Ok::<_, ER>(())
   };
   let stream_fun_rslt = stream_fun.await;

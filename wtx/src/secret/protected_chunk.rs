@@ -16,6 +16,13 @@ impl ProtectedChunk {
   }
 }
 
+impl Clone for ProtectedChunk {
+  #[inline]
+  fn clone(&self) -> Self {
+    Self::from(&**self)
+  }
+}
+
 impl Debug for ProtectedChunk {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {

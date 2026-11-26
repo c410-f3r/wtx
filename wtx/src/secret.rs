@@ -43,7 +43,7 @@ cfg_select! {
 /// Long-lived sensitive data that uses mechanics provided by kernels.
 ///
 /// If desired, you can directly use the `SD` implementations.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Secret<SD>(SD);
 
 impl<SD> Secret<SD>
@@ -79,6 +79,16 @@ mod tests {
   use crate::secret::SecretSlice;
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
+
+  #[cfg_attr(miri, ignore)]
+  #[test]
+  fn clone() {
+    let mut data = DATA;
+    let secret = SecretSlice::new(&mut data).unwrap();
+    let cloned = secret.clone();
+    assert_eq!(&*secret.peek().unwrap(), &DATA);
+    assert_eq!(&*cloned.peek().unwrap(), &DATA);
+  }
 
   #[cfg_attr(miri, ignore)]
   #[test]

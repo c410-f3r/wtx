@@ -110,7 +110,8 @@ mod postgres {
   ///   key VARCHAR(32) NOT NULL PRIMARY KEY,
   ///   csrf VARCHAR(32) NOT NULL,
   ///   expires_at BIGINT NOT NULL,
-  ///   expires_at_ub BIGINT NOT NULL
+  ///   expires_at_ub BIGINT NOT NULL,
+  ///   remember_me BOOLEAN NOT NULL
   /// );
   /// ```
   ///
@@ -125,8 +126,14 @@ mod postgres {
   {
     #[inline]
     async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
-      let SessionState { custom_state, expires_at, expires_at_ub, session_csrf, session_key } =
-        state;
+      let SessionState {
+        custom_state,
+        expires_at,
+        expires_at_ub,
+        remember_me,
+        session_csrf,
+        session_key,
+      } = state;
       let query = insert_query(CS::NAMESPACE, CS::IDENTIFIERS)?;
       self
         .execute_stmt_none(
@@ -138,6 +145,7 @@ mod postgres {
             expires_at_ub,
             key: session_key.as_str(),
             phantom: PhantomData,
+            remember_me,
           },
         )
         .await?;
@@ -174,6 +182,7 @@ mod postgres {
         custom_state: CS::new(&record)?,
         expires_at: record.decode(1)?,
         expires_at_ub: record.decode(2)?,
+        remember_me: record.decode(3)?,
         session_csrf: record.decode::<_, &[u8]>(0)?.try_into()?,
         session_key,
       }))
@@ -189,6 +198,7 @@ mod postgres {
         custom_state,
         expires_at,
         expires_at_ub,
+        remember_me,
         session_csrf,
         session_key: state_session_key,
       } = state;
@@ -204,6 +214,7 @@ mod postgres {
               expires_at_ub,
               custom_state: custom_state.values(),
               phantom: PhantomData,
+              remember_me,
             },
             prev_key: session_key.as_str(),
           },
@@ -259,12 +270,14 @@ mod postgres {
     expires_at_ub: &'any u64,
     key: &'any str,
     phantom: PhantomData<fn() -> D>,
+    remember_me: &'any bool,
   }
 
   impl<'any, CS, D> RecordValues<D> for Values<'any, CS, D>
   where
     D: Database,
     CS: RecordValues<D>,
+    &'any bool: Encode<D> + Typed<D>,
     &'any u64: Encode<D> + Typed<D>,
     &'any str: Encode<D> + Typed<D>,
   {
@@ -286,12 +299,13 @@ mod postgres {
       encode(aux, &self.csrf, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
       encode(aux, &self.expires_at, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
       encode(aux, &self.expires_at_ub, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
+      encode(aux, &self.remember_me, ew, &mut idx, &mut prefix_cb, &mut suffix_cb)?;
       Ok(idx.wrapping_add(self.custom_state.encode_values(aux, ew, prefix_cb, suffix_cb)?))
     }
 
     #[inline]
     fn len(&self) -> usize {
-      4usize.wrapping_add(self.custom_state.len())
+      5usize.wrapping_add(self.custom_state.len())
     }
 
     #[inline]
@@ -299,7 +313,7 @@ mod postgres {
       &self,
       mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
     ) -> Result<(), D::Error> {
-      (self.key, self.csrf, self.expires_at, self.expires_at_ub).walk(&mut cb)?;
+      (self.key, self.csrf, self.expires_at, self.expires_at_ub, self.remember_me).walk(&mut cb)?;
       self.custom_state.walk(cb)
     }
   }
@@ -316,6 +330,7 @@ mod postgres {
   where
     D: Database,
     CS: RecordValues<D>,
+    &'any bool: Encode<D> + Typed<D>,
     &'any u64: Encode<D> + Typed<D>,
     &'any str: Encode<D> + Typed<D>,
   {
@@ -360,10 +375,13 @@ mod postgres {
   }
 
   fn insert_query(namespace: &str, identifiers: &[&str]) -> crate::Result<ArrayStrU8<255>> {
-    let mut query =
-      query(["INSERT INTO ", namespace, ".session_state (key,csrf,expires_at,expires_at_ub"])?;
+    let mut query = query([
+      "INSERT INTO ",
+      namespace,
+      ".session_state (key,csrf,expires_at,expires_at_ub,remember_me",
+    ])?;
     push_identifiers(&mut query, identifiers)?;
-    query.push_str(") VALUES ($1,$2,$3,$4")?;
+    query.push_str(") VALUES ($1,$2,$3,$4,$5")?;
     push_placeholders(&mut query, identifiers.len())?;
     query.push(')')?;
     Ok(query)
@@ -387,7 +405,7 @@ mod postgres {
   fn push_placeholders(query: &mut ArrayStrU8<255>, len: usize) -> crate::Result<()> {
     for idx in 0..len {
       query.push(',')?;
-      push_placeholder(query, 5usize.wrapping_add(idx))?;
+      push_placeholder(query, 6usize.wrapping_add(idx))?;
     }
     Ok(())
   }
@@ -398,7 +416,7 @@ mod postgres {
   }
 
   fn read_query(namespace: &str, identifiers: &[&str]) -> crate::Result<ArrayStrU8<255>> {
-    let mut query = query(["SELECT csrf,expires_at,expires_at_ub"])?;
+    let mut query = query(["SELECT csrf,expires_at,expires_at_ub,remember_me"])?;
     push_identifiers(&mut query, identifiers)?;
     let _ = query.push_strs([" FROM ", namespace, ".session_state WHERE key=$1"])?;
     Ok(query)
@@ -408,14 +426,14 @@ mod postgres {
     let mut query = query([
       "UPDATE ",
       namespace,
-      ".session_state SET key=$1,csrf=$2,expires_at=$3,expires_at_ub=$4",
+      ".session_state SET key=$1,csrf=$2,expires_at=$3,expires_at_ub=$4,remember_me=$5",
     ])?;
     for (idx, column) in identifiers.iter().enumerate() {
       let _ = query.push_strs([",", column, "="])?;
-      push_placeholder(&mut query, 5usize.wrapping_add(idx))?;
+      push_placeholder(&mut query, 6usize.wrapping_add(idx))?;
     }
     query.push_str(" WHERE key=")?;
-    push_placeholder(&mut query, 5usize.wrapping_add(identifiers.len()))?;
+    push_placeholder(&mut query, 6usize.wrapping_add(identifiers.len()))?;
     Ok(query)
   }
 }

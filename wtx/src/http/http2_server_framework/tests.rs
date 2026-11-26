@@ -2,7 +2,9 @@ use crate::{
   executor::StdRuntime,
   http::{
     AutoStream, ManualStream, Method, MsgBufferString, Request, Response, StatusCode,
-    http2_server_framework::{HttpRouter, Middleware, StateClean, endpoint::Endpoint, get},
+    http2_server_framework::{
+      HttpRouter, HttpRouterNode, Middleware, StateClean, endpoint::Endpoint, get, post,
+    },
   },
 };
 use core::{
@@ -23,14 +25,46 @@ fn compiles() {
   async fn three(_: ManualStream<(), ()>) -> crate::Result<()> {
     Ok(())
   }
-  let _router = HttpRouter::paths(paths!(
-    ("/aaa", HttpRouter::paths(paths!(("/bbb", get(one)), ("/ccc", get(two)))).unwrap()),
+  let _router = HttpRouter::from_paths(paths!(
+    ("/aaa", HttpRouter::from_paths(paths!(("/bbb", get(one)), ("/ccc", get(two)))).unwrap()),
     ("/ddd", get(one)),
     ("/eee", get(two)),
-    ("/fff", HttpRouter::paths(paths!(("/ggg", get(one)))).unwrap()),
+    ("/fff", HttpRouter::from_paths(paths!(("/ggg", get(one)))).unwrap()),
     ("/hhh", get(three)),
   ))
   .unwrap();
+}
+
+#[test]
+fn duplicated_method_in_the_same_path() {
+  async fn foo() -> crate::Result<StatusCode> {
+    Ok(StatusCode::Ok)
+  }
+  assert!(
+    HttpRouter::<(), _, crate::Error, _, ()>::from_paths(paths!(
+      ("/a", get(foo)),
+      ("/a", get(foo))
+    ))
+    .is_err()
+  );
+}
+
+#[test]
+fn multiple_methods_in_same_path() {
+  async fn foo() -> crate::Result<StatusCode> {
+    Ok(StatusCode::Ok)
+  }
+
+  let http_router = HttpRouter::<(), _, crate::Error, _, ()>::from_paths(paths!(
+    ("/a", get(foo)),
+    ("/a", post(foo))
+  ))
+  .unwrap();
+  let router_match = http_router.router().find("/a").unwrap();
+  let mut iter = router_match.data().leafs().iter();
+  assert!(iter.next().unwrap().method == Some(Method::Get));
+  assert!(iter.next().unwrap().method == Some(Method::Post));
+  assert!(iter.next().is_none());
 }
 
 // /aaa ->   /bbb ->  /ccc
@@ -97,17 +131,13 @@ fn nested_middlewares() {
     paths!(
       (
         "/aaa",
-        HttpRouter::new(
-          paths!(
-            (
-              "/bbb",
-              HttpRouter::new(paths!(("/ccc", get(add11)), ("/ddd", get(add12))), CounterMw)
-                .unwrap()
-            ),
-            ("/eee", get(add13))
+        HttpRouter::from_paths(paths!(
+          (
+            "/bbb",
+            HttpRouter::new(paths!(("/ccc", get(add11)), ("/ddd", get(add12))), CounterMw).unwrap()
           ),
-          (),
-        )
+          ("/eee", get(add13))
+        ))
         .unwrap()
       ),
       ("/fff", get(add14)),
@@ -127,8 +157,11 @@ fn nested_middlewares() {
     {
       auto_stream.req.msg_data.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
       let path = auto_stream.req.msg_data.uri.path();
-      let path_defs = http_router.router.find(path).unwrap().data().clone().0;
-      let _ = http_router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
+      let path_node = http_router.router().find(path).unwrap().data();
+      let entry = HttpRouterNode::find_by_method(path_node.leafs(), Method::Get).unwrap();
+      let mut matches = *path_node.steps();
+      matches.push(*entry).unwrap();
+      let _status = http_router.auto(&mut auto_stream, (0, &matches)).await.unwrap();
       // 3 + 3 + 11 + 7 + 7
       assert_eq!(auto_stream.data.0, 31);
     }
@@ -139,8 +172,11 @@ fn nested_middlewares() {
     {
       auto_stream.req.msg_data.uri.reset().push_str("http://localhost/fff");
       let path = auto_stream.req.msg_data.uri.path();
-      let path_defs = http_router.router.find(path).unwrap().data().clone().0;
-      let _ = http_router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
+      let path_node = http_router.router().find(path).unwrap().data();
+      let entry = HttpRouterNode::find_by_method(path_node.leafs(), Method::Get).unwrap();
+      let mut matches = *path_node.steps();
+      matches.push(*entry).unwrap();
+      let _status = http_router.auto(&mut auto_stream, (0, &matches)).await.unwrap();
       // 3 + 17 + 7
       assert_eq!(auto_stream.data.0, 27);
     }

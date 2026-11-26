@@ -1,20 +1,16 @@
 //! The `CorsMiddleware` middleware inserts permissive CORS headers in every response.
 
 use wtx::{
-  executor::TokioExecutor,
   http::http2_server_framework::{CorsMiddleware, Http2ServerFramework, HttpRouter, get},
-  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::TlsConfig,
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 fn main() -> wtx::Result<()> {
-  let rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-  let router = HttpRouter::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive())?;
-  Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
+  Http2ServerFramework::tokio(TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?)?
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run_in_threads(&host_from_args(), router)
+    .set_http_router(HttpRouter::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::new())?)
+    .run_in_threads(&host_from_args())
 }
 
 async fn hello() -> &'static str {

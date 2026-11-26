@@ -73,7 +73,7 @@ where
 mod http2 {
   use crate::{
     collections::VectorUsize,
-    http::{HttpClient, MsgBufferString, MsgData, Request, Response},
+    http::{HttpClient, HttpError, MsgBufferString, MsgData, Request, Response},
     http2::{ClientStream, Http2, Http2RecvStatus},
     misc::Lease,
     net::StreamWriter,
@@ -92,7 +92,7 @@ mod http2 {
       let (hrs, res_rrb) = req_id.recv_res().await?;
       let (Http2RecvStatus::ClosedStream(status_code) | Http2RecvStatus::Eos(status_code)) = hrs
       else {
-        return Err(crate::Error::ClosedHttpConnection);
+        return Err(HttpError::ClosedHttpConnection.into());
       };
       req_id.common().clear().await?;
       Ok(Response::new(res_rrb, status_code))
@@ -110,7 +110,7 @@ mod http2 {
     {
       let mut req_id = self.stream().await?;
       if req_id.send_req(enc_buffer, req).await?.is_closed() {
-        return Err(crate::Error::ClosedHttpConnection);
+        return Err(HttpError::ClosedHttpConnection.into());
       }
       Ok(req_id)
     }
@@ -122,7 +122,7 @@ mod http_client_pool {
   use crate::{
     collections::VectorUsize,
     http::{
-      HttpClient, MsgBufferString, MsgData, Request, Response,
+      HttpClient, HttpError, MsgBufferString, MsgData, Request, Response,
       http2_client_pool::{Http2ClientPool, Http2ClientPoolResource, Http2RM},
     },
     http2::{ClientStream, Http2RecvStatus},
@@ -196,7 +196,7 @@ mod http_client_pool {
       let (hrs, res_rrb) = req_id.recv_res().await?;
       let (Http2RecvStatus::ClosedStream(status_code) | Http2RecvStatus::Eos(status_code)) = hrs
       else {
-        return Err(crate::Error::ClosedHttpConnection);
+        return Err(HttpError::ClosedHttpConnection.into());
       };
       req_id.common().clear().await?;
       Ok(Response::new(res_rrb, status_code))
@@ -214,7 +214,7 @@ mod http_client_pool {
     {
       let mut req_id = self.lock(&req.msg_data.uri()).await?.client.stream().await?;
       if req_id.send_req(enc_buffer, req).await?.is_closed() {
-        return Err(crate::Error::ClosedHttpConnection);
+        return Err(HttpError::ClosedHttpConnection.into());
       }
       Ok(req_id)
     }

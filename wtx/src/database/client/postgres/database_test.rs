@@ -1,5 +1,5 @@
 use crate::{
-  calendar::timestamp_str,
+  codec::nstr::nstr64,
   database::{
     DatabaseUriFromVars, DbClient as _,
     client::postgres::{ClientBuffer, Config, PostgresClient},
@@ -8,7 +8,7 @@ use crate::{
   executor::{Executor, Runtime as _},
   misc::EnvVars,
   net::TcpStream,
-  rng::{ChaCha20, CryptoSeedableRng as _},
+  rng::{ChaCha20, CryptoSeedableRng as _, Rng as _},
   tls::{TlsConfig, TlsConnectorBuilder, TlsCtx},
 };
 use alloc::string::String;
@@ -36,12 +36,12 @@ where
     let uri = local_vars.wtx_database_uri.as_str().into();
 
     let mut config = Config::from_uri(&uri)?;
+    let mut rng = ChaCha20::from_std_random()?;
     let mut db_name = String::new();
     db_name.push('_');
-    db_name.push_str(timestamp_str(|dur| dur.as_nanos())?.1.as_str());
+    db_name.push_str(&nstr64(u64::from_be_bytes(rng.u8_8())));
 
     let orig_db = String::from(config.db());
-    let mut rng = ChaCha20::from_std_random()?;
     {
       let mut client = PostgresClient::<_, _, _>::connect(
         ClientBuffer::new(MAX_STMTS, &mut rng),

@@ -100,7 +100,9 @@ impl<T> Future for StdSpawnFuture<T> {
       // This branch can only occur once, therefore, multiple awakes will always face `Ok`.
       //
       // The replaced future can be anything, it is just a placeholder for the swap operation.
-      Err(err) => return Poll::Ready(Err(mem::replace(err, crate::Error::ExpiredFuture))),
+      Err(err) => {
+        return Poll::Ready(Err(mem::replace(err, ExecutorError::ExpiredFuture.into())));
+      }
     };
     Poll::Ready(Ok(ready!(Pin::new(fut).poll(cx))))
   }

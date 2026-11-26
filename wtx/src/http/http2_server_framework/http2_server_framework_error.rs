@@ -15,6 +15,13 @@ pub enum Http2ServerFrameworkError {
   FormDataHeaderIsMissingDelimiter,
   /// Client sent a request with invalid WebSocket tunneling parameters
   InvalidWebSocketParameters,
+  /// Path exists but method is not supported
+  MethodNotFoundInPath,
   /// Entered in a route that has an incompatible operation mode
   OperationModeMismatch,
+  /// The same path was registered under different nested routers, making its middleware chain
+  /// ambiguous.
+  PathWithConflictingNesting,
+  /// Path with duplicated method
+  PathWithDuplicatedMethod,
 }

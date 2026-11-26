@@ -40,7 +40,7 @@ fn main() -> wtx::Result<()> {
     )?,
   );
   let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-  let router = HttpRouter::paths(wtx::paths!(
+  let router = HttpRouter::from_paths(wtx::paths!(
     ("/db/{id}", get(db)),
     ("/json", json(Method::Post, deserialization_and_serialization)),
     (
@@ -55,7 +55,8 @@ fn main() -> wtx::Result<()> {
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
     .set_data(db_pool)
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run_in_threads(&host_from_args(), router)
+    .set_http_router(router)
+    .run_in_threads(&host_from_args())
 }
 
 async fn db(

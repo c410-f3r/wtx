@@ -9,7 +9,7 @@ use crate::{
       linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, LeaseMut, char_slice},
+  misc::{Lease, LeaseMut, char_slice, unlikely_unreachable},
 };
 use core::{
   cmp::Ordering,
@@ -308,7 +308,9 @@ where
   #[inline]
   fn clone(&self) -> Self {
     let mut this = Self::new();
-    let _rslt = this.0.extend_from_cloneable_slice(self);
+    if this.0.extend_from_cloneable_slice(self).is_err() {
+      unlikely_unreachable();
+    }
     this
   }
 }

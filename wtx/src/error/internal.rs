@@ -85,6 +85,13 @@ impl From<crate::codec::CodecError> for Error {
   }
 }
 
+impl From<crate::collections::CollectionsError> for Error {
+  #[inline]
+  fn from(from: crate::collections::CollectionsError) -> Self {
+    Self::Collections(from)
+  }
+}
+
 #[cfg(feature = "crypto")]
 impl From<crate::crypto::CryptoError> for Error {
   #[inline]

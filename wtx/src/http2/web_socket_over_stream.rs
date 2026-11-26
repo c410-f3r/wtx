@@ -4,7 +4,7 @@ use crate::{
   MAX_PAYLOAD_LEN,
   collections::{ArrayVectorU16, SingleTypeStorage, VectorUsize},
   futures::JoinArrayVector,
-  http::{Headers, StatusCode},
+  http::{Headers, HttpError, StatusCode},
   http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
   misc::LeaseMut,
   net::StreamWriter,
@@ -46,7 +46,7 @@ where
       .send_headers(&mut VectorUsize::new(), headers, false, StatusCode::Ok)
       .await?;
     if hss.is_closed() {
-      return Err(crate::Error::ClosedHttpConnection);
+      return Err(HttpError::ClosedHttpConnection.into());
     }
     Ok(Self { no_masking, rng, stream })
   }
@@ -85,7 +85,7 @@ where
       return Ok(FrameMut::new(true, rfi.op_code, buffer, 0));
     }
     if is_eos {
-      return Err(crate::Error::ClosedHttpConnection);
+      return Err(HttpError::ClosedHttpConnection.into());
     }
     Err(protocol_err(Http2Error::WebSocketContinuationFrame))
   }
@@ -106,7 +106,7 @@ where
     .await;
     for result in results {
       if result?.is_closed() {
-        return Err(crate::Error::ClosedHttpConnection);
+        return Err(HttpError::ClosedHttpConnection.into());
       }
     }
     Ok(())
@@ -146,7 +146,7 @@ where
     .await?
   {
     Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) => {
-      return Err(crate::Error::ClosedHttpConnection);
+      return Err(HttpError::ClosedHttpConnection.into());
     }
     Http2RecvStatus::Eos(data) => {
       let (rfi, before) = extend_buffer(buffer, no_masking, &data)?;
@@ -175,7 +175,7 @@ where
   .await;
   for result in results {
     if result?.is_closed() {
-      return Err(crate::Error::ClosedHttpConnection);
+      return Err(HttpError::ClosedHttpConnection.into());
     }
   }
   Ok(())

@@ -1,3 +1,4 @@
+#[cfg(feature = "secret")]
 pub(crate) mod hardened_sk_ctx;
 pub(crate) mod plaintext_ctx;
 pub(crate) mod sk_ctx;
@@ -9,7 +10,6 @@ use crate::{
   codec::{Decode as _, DecodeWrapper, Pem},
   collections::{ShortBoxSliceU16, VectorU16},
   rng::CryptoRng,
-  secret::{SecretSlice, SecretStr},
   tls::{SignatureScheme, TlsMode},
   x509::{KeyTy, Pkcs8},
 };
@@ -73,11 +73,13 @@ impl TlsCtxSkInput for ShortBoxSliceU16<u8> {
   type TlsCtxSk = sk_ctx::SkCtx;
 }
 
-impl TlsCtxSkInput for SecretSlice {
+#[cfg(feature = "secret")]
+impl TlsCtxSkInput for crate::secret::SecretSlice {
   type TlsCtxSk = hardened_sk_ctx::HardenedSkCtx;
 }
 
-impl TlsCtxSkInput for SecretStr {
+#[cfg(feature = "secret")]
+impl TlsCtxSkInput for crate::secret::SecretStr {
   type TlsCtxSk = hardened_sk_ctx::HardenedSkCtx;
 }
 

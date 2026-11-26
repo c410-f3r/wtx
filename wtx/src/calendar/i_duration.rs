@@ -5,6 +5,7 @@ use crate::{
   },
   misc::int_conv::{i32i64, u8i64, u16i64, u32i64},
 };
+use core::time::Duration;
 
 /// Signed Duration. A span of time with nanosecond precision.
 ///
@@ -153,16 +154,16 @@ impl IDuration {
   }
 }
 
-impl TryFrom<core::time::Duration> for IDuration {
+impl TryFrom<Duration> for IDuration {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: core::time::Duration) -> crate::Result<Self> {
+  fn try_from(from: Duration) -> crate::Result<Self> {
     Ok(Self::new(from.as_secs().try_into()?, from.subsec_nanos().cast_signed())?)
   }
 }
 
-impl TryFrom<IDuration> for core::time::Duration {
+impl TryFrom<IDuration> for Duration {
   type Error = crate::Error;
 
   #[inline]

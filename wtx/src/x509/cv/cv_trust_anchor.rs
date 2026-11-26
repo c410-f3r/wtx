@@ -110,7 +110,7 @@ pub(crate) type CvTrustAnchorRaw = (
   Option<(u8, u8)>,
   &'static [u8],
   Option<([u8; 20], bool)>,
-  (&'static [u8], Option<(&'static [u8], u8)>, &'static [u8]),
+  (&'static [u8], Option<&'static [u8]>, &'static [u8]),
   (i64, i64),
 );
 
@@ -179,11 +179,7 @@ where
       AlgorithmIdentifier::new(
         spki.algorithm.algorithm,
         if let Some(elem) = &spki.algorithm.parameters {
-          Some(Any::new(
-            elem.bytes().lease().try_into().map_err(Into::into)?,
-            elem.tag(),
-            *elem.len(),
-          ))
+          Some(Any::from_bytes(elem.bytes().lease().try_into().map_err(Into::into)?)?)
         } else {
           None
         },
@@ -238,7 +234,7 @@ where
     B0::Error: Into<crate::Error>,
   {
     use crate::{
-      asn1::{Len, Oid},
+      asn1::Oid,
       calendar::Datetime,
       collections::ArrayVectorCopy,
       x509::{KeyIdentifier, Time},
@@ -259,9 +255,8 @@ where
       }),
       {
         let algorithm = Oid::from_bytes(raw.6.0.lease())?;
-        let parameters = if let Some((bytes, tag)) = raw.6.1 {
-          let len = Len::from_u8(bytes.len().try_into()?);
-          Some(Any::new(bytes.try_into().map_err(Into::into)?, tag, len))
+        let parameters = if let Some(bytes) = raw.6.1 {
+          Some(Any::from_bytes(bytes.try_into().map_err(Into::into)?)?)
         } else {
           None
         };

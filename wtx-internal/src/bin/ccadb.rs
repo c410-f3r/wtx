@@ -10,6 +10,7 @@ use wtx::{
   codec::{Csv, HexDisplay, HexEncMode},
   collections::{ArrayVectorCopy, HashSet, VectorUsize},
   http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
+  misc::Lease,
   net::UriRef,
   tls::TlsConfig,
   x509::{Certificate, CvTrustAnchor, X509Error},
@@ -259,9 +260,7 @@ fn write_subject_public_key_info(file_buffer: &mut VectorUsize<u8>, ta: &CvTrust
   let spki = ta.subject_public_key_info();
   file_buffer.write_fmt(format_args!("(b\"{}\",", spki.algorithm.algorithm)).unwrap();
   if let Some(params) = &spki.algorithm.parameters {
-    file_buffer
-      .write_fmt(format_args!("Some((&{},{})),", Bytes(params.data()), params.tag()))
-      .unwrap();
+    file_buffer.write_fmt(format_args!("Some(&{}),", Bytes(params.bytes().lease()))).unwrap();
   } else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
   }

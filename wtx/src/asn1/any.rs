@@ -13,12 +13,6 @@ pub struct Any<B> {
 }
 
 impl<B> Any<B> {
-  /// Doesn't perform checks that ensure that `len` is equal to the length of `bytes`.
-  #[inline]
-  pub const fn new(bytes: B, tag: u8, len: Len) -> Self {
-    Self { bytes, tag, len }
-  }
-
   /// The whole slice that contains the tag, the length and the data.
   #[inline]
   pub const fn bytes(&self) -> &B {
@@ -42,7 +36,17 @@ impl<B> Any<B>
 where
   B: Lease<[u8]>,
 {
-  /// Generic data
+  /// Decodes the TLV from `bytes`.
+  #[inline]
+  pub fn from_bytes(bytes: B) -> crate::Result<Self> {
+    let (tag, len, _, rest) = decode_asn1_tlv(bytes.lease())?;
+    if !rest.is_empty() {
+      return Err(Asn1Error::InvalidAnyBytes.into());
+    }
+    Ok(Self { bytes, tag, len })
+  }
+
+  /// Everything after the tag and the length.
   #[inline]
   pub fn data(&self) -> &[u8] {
     let skip = 1u8.wrapping_add(self.len.bytes().len());

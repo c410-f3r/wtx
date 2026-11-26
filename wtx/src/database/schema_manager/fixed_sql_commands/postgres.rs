@@ -170,7 +170,14 @@ where
   WHERE
     nspname NOT IN ('information_schema', 'pg_catalog', 'public')
     AND nspname NOT LIKE 'pg_toast%'
-    AND nspname NOT LIKE 'pg_temp_%'";
+    AND nspname NOT LIKE 'pg_temp_%'
+    AND NOT EXISTS (
+    SELECT 1
+      FROM pg_catalog.pg_depend dep
+      WHERE dep.classid = 'pg_catalog.pg_namespace'::regclass
+        AND dep.objid = pc_ns.oid
+        AND dep.deptype = 'e'
+    );";
   let records = executor.execute_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;

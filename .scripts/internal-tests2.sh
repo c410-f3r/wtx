@@ -17,11 +17,14 @@ $rt test-with-features wtx httparse
 $rt test-with-features wtx libc
 $rt test-with-features wtx macros
 $rt test-with-features wtx memchr
+$rt test-with-features wtx odf
 $rt test-with-features wtx optimizations
+$rt test-with-features wtx optimizations-std
 $rt test-with-features wtx parking_lot
 $rt test-with-features wtx portable-atomic
 $rt test-with-features wtx portable-atomic-util
 $rt test-with-features wtx postgres
+$rt test-with-features wtx postgres-pool
 $rt test-with-features wtx quick-protobuf
 $rt test-with-features wtx rand_core
 $rt test-with-features wtx rust_decimal

@@ -26,7 +26,9 @@ pub(crate) fn mask_frame<P, R, const IS_CLIENT: bool>(
   if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
     let mask: [u8; 4] = rng.u8_4();
     frame.set_mask(mask);
-    mask_op(frame.payload_mut().lease_mut(), mask);
+    // SAFETY: Resulting data is not UTF-8 but it is still necessary to mask contents because
+    //         the RFC demands it.
+    mask_op(unsafe { frame.payload_mut().lease_mut() }, mask);
   }
 }
 
