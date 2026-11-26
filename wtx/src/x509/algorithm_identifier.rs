@@ -84,8 +84,7 @@ where
 mod tests {
   use crate::{
     asn1::{
-      Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, OID_NIST_HASH_SHA256,
-      OID_PKCS1_RSASSAPSS,
+      Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, OID_NIST_HASH_SHA256, OID_PKCS1_RSASSAPSS,
     },
     codec::{Decode, DecodeWrapper, Encode, EncodeWrapper},
     collections::VectorUsize,
@@ -96,15 +95,16 @@ mod tests {
   fn pss_params() {
     let ai = AlgorithmIdentifier {
       algorithm: OID_PKCS1_RSASSAPSS,
-      parameters: Some(Any::new(
-        &[
-          48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 161, 28, 48, 26, 6,
-          9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5,
-          0, 162, 3, 2, 1, 32,
-        ][..],
-        48,
-        Len::from_u8(52),
-      )),
+      parameters: Some(
+        Any::from_bytes(
+          &[
+            48, 52, 160, 15, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 161, 28, 48, 26,
+            6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 8, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2,
+            1, 5, 0, 162, 3, 2, 1, 32,
+          ][..],
+        )
+        .unwrap(),
+      ),
     };
     assert_eq!(ai.params_oid(), Some(OID_NIST_HASH_SHA256));
 

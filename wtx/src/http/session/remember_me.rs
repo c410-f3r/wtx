@@ -1,7 +1,5 @@
-/// Makes session cookies persistent.
+/// Custom parameter used for long-lived sessions.
 ///
-/// When configured in [`SessionManagerBuilder`](crate::http::SessionManagerBuilder), session cookies
-/// are emitted with an `Expires` attribute and therefore survive browser restarts. Without it, the
-/// cookie is session-only and is discarded when the browser closes.
+/// At the current time this structure does nothing.
 #[derive(Debug, Default)]
 pub struct RememberMe {}

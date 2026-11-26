@@ -4,7 +4,6 @@
 mod macros;
 
 mod buf_stream_reader;
-mod bytes_stream;
 mod connection_state;
 #[cfg(feature = "embassy-net")]
 mod embassy_net;
@@ -15,6 +14,7 @@ mod role;
 mod std;
 mod stream;
 mod stream_common;
+mod stream_mock;
 mod stream_reader;
 mod stream_writer;
 mod tcp_listener;
@@ -27,12 +27,12 @@ mod udp_stream;
 mod uri;
 
 pub use buf_stream_reader::BufStreamReader;
-pub use bytes_stream::BytesStream;
 pub use connection_state::ConnectionState;
 pub use net_error::NetError;
 pub use role::{Client, Role, RoleTy, Server};
 pub use stream::Stream;
 pub use stream_common::StreamCommon;
+pub use stream_mock::StreamMock;
 pub use stream_reader::StreamReader;
 pub use stream_writer::StreamWriter;
 pub use tcp_listener::TcpListener;

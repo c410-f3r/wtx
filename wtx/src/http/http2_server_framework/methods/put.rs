@@ -3,7 +3,7 @@ use crate::{
   futures::FnFut,
   http::{
     AutoStream, ManualStream, Method, OperationMode, StatusCode,
-    http2_server_framework::{Endpoint, EndpointNode, RouteMatch, misc::check_method},
+    http2_server_framework::{Endpoint, EndpointNode, HttpRouterNode, misc::check_method},
   },
 };
 
@@ -34,20 +34,20 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
     check_method(Method::Put, auto_stream.req.method)?;
-    self.0.auto(auto_stream, path_defs).await
+    self.0.auto(auto_stream, path_leafs).await
   }
 
   #[inline]
   async fn manual(
     &self,
     manual_stream: ManualStream<D, S>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<(), E> {
     check_method(Method::Put, manual_stream.req.method)?;
-    self.0.manual(manual_stream, path_defs).await
+    self.0.manual(manual_stream, path_leafs).await
   }
 }
 
@@ -59,10 +59,15 @@ where
   const IS_ROUTER: bool = false;
 
   #[inline]
+  fn method(&self) -> Option<Method> {
+    Some(Method::Put)
+  }
+
+  #[inline]
   fn paths_indices(
     &self,
-    _: ArrayVectorCopy<RouteMatch, 4>,
-    _: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>,
+    _: &mut VectorU16<ArrayVectorCopy<HttpRouterNode, 4>>,
+    _: ArrayVectorCopy<HttpRouterNode, 4>,
   ) -> crate::Result<()> {
     Ok(())
   }

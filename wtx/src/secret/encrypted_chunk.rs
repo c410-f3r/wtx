@@ -4,7 +4,7 @@ use crate::{
     AEAD_NONCE_LEN, AEAD_TAG_LEN, Aead as _, Aes256GcmGlobal, Hash as _, Sha256Global,
     gen_aead_nonce,
   },
-  misc::{LeaseMut as _, SensitiveBytes, mlock_slice, munlock_slice},
+  misc::{LeaseMut as _, SensitiveBytes, mlock_slice, munlock_slice, unlikely_unreachable},
   rng::{ChaCha20, CryptoSeedableRng as _, Rng as _},
   secret::{ProtectedChunk, SecretData},
 };
@@ -56,6 +56,18 @@ impl EncryptedChunk {
       &gen_secret_key(&self.context, &self.salt),
     )?;
     Ok((buffer, range))
+  }
+}
+
+impl Clone for EncryptedChunk {
+  #[inline]
+  #[track_caller]
+  fn clone(&self) -> Self {
+    let mut context = self.context.clone();
+    if mlock_slice(&mut context).is_err() {
+      unlikely_unreachable();
+    }
+    Self { aead: self.aead.clone(), context, salt: self.salt }
   }
 }
 
@@ -113,7 +125,7 @@ fn gen_secret_key(context: &[u8], salt: &[u8; SECRET_LEN]) -> SensitiveBytes<[u8
 }
 
 /// An [`EncryptedChunk`] that represents a fixed-size array of secret bytes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct EncryptedChunkArray<const N: usize>(EncryptedChunk);
 impl<const N: usize> SecretData for EncryptedChunkArray<N> {
@@ -148,7 +160,7 @@ impl<const N: usize> Deref for EncryptedChunkArrayReprSrc<N> {
 }
 
 /// An [`EncryptedChunk`] that represents a dynamically-sized slice of secret bytes.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[repr(transparent)]
 pub struct EncryptedChunkSlice(EncryptedChunk);
 impl SecretData for EncryptedChunkSlice {
@@ -178,7 +190,7 @@ impl Deref for EncryptedChunkSliceReprSrc {
 }
 
 /// An [`EncryptedChunk`] that represents a valid UTF-8 secret string.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[repr(transparent)]
 pub struct EncryptedChunkStr(EncryptedChunk);
 impl SecretData for EncryptedChunkStr {

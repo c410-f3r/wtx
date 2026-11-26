@@ -3,6 +3,7 @@
 #![allow(clippy::disallowed_types, reason = "traits require the `Arc` from std")]
 
 mod executor_error;
+mod no_std_executor;
 mod no_std_runtime;
 #[cfg(feature = "std")]
 mod std_executor;
@@ -13,6 +14,9 @@ mod tokio_executor;
 
 use crate::net::{TcpListener, TcpStream};
 pub use executor_error::ExecutorError;
+pub use no_std_executor::{
+  NoStdExecutor, NoStdSpawnFuture, NoStdSpawnLocalFuture, TcpListenerDummy, TcpStreamDummy,
+};
 pub use no_std_runtime::NoStdRuntime;
 #[cfg(feature = "tokio")]
 pub use tokio_executor::{TokioExecutor, TokioSpawnFutureFuture};
@@ -27,6 +31,8 @@ pub use {
 /// Identifies the associated executor.
 #[derive(Clone, Copy, Debug)]
 pub enum ExecutorTy {
+  /// See [`NoStdExecutor`].
+  NoStd,
   /// See [`StdExecutor`].
   Std,
   /// See [`TokioExecutor`]

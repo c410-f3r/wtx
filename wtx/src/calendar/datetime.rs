@@ -101,7 +101,7 @@ impl Datetime<Utc> {
     let mut rslt = i32i64(self.date().ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    rslt = rslt.wrapping_add(u32i64(time.seconds_since_mn()));
+    rslt = rslt.wrapping_add(u32i64(time.seconds_since_midnight()));
     (rslt, time.nanosecond())
   }
 }
@@ -143,7 +143,10 @@ where
     if duration.is_zero() {
       return Ok(self);
     }
-    let (time, remaining) = self.time().overflowing_add(duration);
+    let (time, remaining) = match self.time().overflowing_add(duration) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
     let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
@@ -191,7 +194,10 @@ where
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
   pub const fn sub(self, duration: IDuration) -> Result<Self, CalendarError> {
-    let (time, remaining) = self.time().overflowing_sub(duration);
+    let (time, remaining) = match self.time().overflowing_sub(duration) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
     let rhs = match IDuration::from_seconds(remaining) {
       Ok(elem) => elem,
       Err(err) => return Err(err),
@@ -233,7 +239,7 @@ where
     let mut rslt = i32i64(self.date().ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    rslt = rslt.wrapping_add(u32i64(time.seconds_since_mn()));
+    rslt = rslt.wrapping_add(u32i64(time.seconds_since_midnight()));
     rslt = rslt.wrapping_sub(i16i64(self.tz.minutes()).wrapping_mul(u8i64(SECONDS_PER_MINUTE)));
     (rslt, time.nanosecond())
   }

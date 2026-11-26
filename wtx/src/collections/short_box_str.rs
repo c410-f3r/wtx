@@ -183,6 +183,16 @@ where
   }
 }
 
+impl<L> Ord for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    self.as_str().cmp(other.as_str())
+  }
+}
+
 impl<L> PartialEq for ShortBoxStr<L>
 where
   L: LinearStorageLen,
@@ -190,6 +200,16 @@ where
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     **self == **other
+  }
+}
+
+impl<L> PartialOrd for ShortBoxStr<L>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+    Some(self.cmp(other))
   }
 }
 

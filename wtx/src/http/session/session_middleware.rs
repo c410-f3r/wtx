@@ -38,6 +38,10 @@ where
   ) -> Self {
     Self { allowed_paths, session_manager, session_store }
   }
+
+  fn has_allowed_path(&self, path: &str) -> bool {
+    self.allowed_paths.iter().any(|el| el.as_str() == path)
+  }
 }
 
 impl<CS, E, RM, RNG> SessionMiddleware<CS, E, RM, RNG>
@@ -143,7 +147,7 @@ where
     _: &mut Self::Aux,
     req: &mut Request<MsgBufferString>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    let session_name = self.session_manager.inner.session_cookie_name.as_str();
+    let session_name = self.session_manager.inner.session_cookie_name().as_str();
     let ParsedHeaders { csrf, psc } = self.parse_headers(req, session_name).await?;
     // `data` must only reflect the current request, otherwise a request without a session cookie
     // would inherit the state established by a previous request on the same connection.
@@ -151,8 +155,8 @@ where
     match psc {
       ParsedSessionCookie::Absent => {
         let path = req.msg_data.uri.path();
-        if self.allowed_paths.iter().all(|el| el.as_str() != path) {
-          _trace!("Session was not found in headers and path is forbidden");
+        if !self.has_allowed_path(path) {
+          _trace!("Session was not found in headers b path is forbidden");
           req.clear();
           return Ok(ControlFlow::Break(StatusCode::Forbidden));
         }

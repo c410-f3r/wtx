@@ -62,7 +62,10 @@ mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::collections::{ExpansionTy, LinearStorageLen, TryExtend, Vector, misc::drop_elements};
+use crate::{
+  collections::{ExpansionTy, LinearStorageLen, TryExtend, Vector, misc::drop_elements},
+  misc::unlikely_unreachable,
+};
 use core::{
   fmt::{Debug, Formatter},
   mem::{DropGuard, needs_drop},
@@ -774,9 +777,12 @@ where
   T: Clone,
 {
   #[inline]
+  #[track_caller]
   fn clone(&self) -> Self {
     let mut instance = Deque::new();
-    let _rslt = instance.extend_back_from_iter(self.iter().cloned());
+    if instance.extend_back_from_iter(self.iter().cloned()).is_err() {
+      unlikely_unreachable();
+    }
     instance
   }
 }

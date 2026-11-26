@@ -9,6 +9,8 @@ pub struct SessionState<CS> {
   pub expires_at: u64,
   /// No session can be greater than this upper bound, specified as a UNIX timestamp in seconds
   pub expires_at_ub: u64,
+  /// Whether the session cookie should survive browser restarts.
+  pub remember_me: bool,
   /// CSRF token
   pub session_csrf: SessionCsrf,
   /// Identifier
@@ -22,9 +24,10 @@ impl<CS> SessionState<CS> {
     custom_state: CS,
     expires_at: u64,
     expires_at_ub: u64,
+    remember_me: bool,
     session_csrf: SessionCsrf,
     session_key: SessionKey,
   ) -> Self {
-    Self { custom_state, expires_at, expires_at_ub, session_csrf, session_key }
+    Self { custom_state, expires_at, expires_at_ub, remember_me, session_csrf, session_key }
   }
 }

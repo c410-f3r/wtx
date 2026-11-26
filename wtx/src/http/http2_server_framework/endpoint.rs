@@ -2,7 +2,7 @@ use crate::{
   futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode,
-    http2_server_framework::{Http2ServerFrameworkError, ResFinalizer, RouteMatch},
+    http2_server_framework::{Http2ServerFrameworkError, HttpRouterNode, ResFinalizer},
   },
 };
 
@@ -19,7 +19,7 @@ where
   fn auto(
     &self,
     _: &mut AutoStream<D>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> impl Future<Output = Result<StatusCode, E>> {
     async { Err(crate::Error::from(Http2ServerFrameworkError::OperationModeMismatch).into()) }
   }
@@ -29,7 +29,7 @@ where
   fn manual(
     &self,
     _: ManualStream<D, S>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> impl Future<Output = Result<(), E>> {
     async { Err(crate::Error::from(Http2ServerFrameworkError::OperationModeMismatch).into()) }
   }
@@ -46,18 +46,18 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
-    (*self).auto(auto_stream, path_defs).await
+    (*self).auto(auto_stream, path_leafs).await
   }
 
   #[inline]
   async fn manual(
     &self,
     manual_stream: ManualStream<D, S>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<(), E> {
-    (*self).manual(manual_stream, path_defs).await
+    (*self).manual(manual_stream, path_leafs).await
   }
 }
 
@@ -71,7 +71,7 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
     auto_stream.req.clear();
     self.0.call(()).await.finalize_response(&mut auto_stream.req)
@@ -89,7 +89,7 @@ where
   async fn manual(
     &self,
     manual_stream: ManualStream<D, S>,
-    _: (u8, &[RouteMatch]),
+    _: (u8, &[HttpRouterNode]),
   ) -> Result<(), E> {
     self.0.call((manual_stream,)).await?;
     Ok(())

@@ -1,24 +1,22 @@
 //! Different types of redirects.
 
 use wtx::{
-  executor::TokioExecutor,
   http::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, Redirect, StateClean, get},
   },
-  rng::{ChaCha20, CryptoSeedableRng as _},
   tls::TlsConfig,
 };
 use wtx_examples::{PUBLIC_KEY, SECRET_KEY, host_from_args};
 
 fn main() -> wtx::Result<()> {
-  let rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-  let router =
-    HttpRouter::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
-  Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
+  Http2ServerFramework::tokio(TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?)?
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run_in_threads(&host_from_args(), router)
+    .set_http_router(HttpRouter::from_paths(wtx::paths!(
+      ("/permanent", get(permanent)),
+      ("/temporary", get(temporary))
+    ))?)
+    .run_in_threads(&host_from_args())
 }
 
 async fn permanent() -> Redirect {

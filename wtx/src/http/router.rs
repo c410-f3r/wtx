@@ -76,14 +76,10 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
 
   /// Tries to find registered path that corresponds to `route`.
   #[inline]
-  pub fn find<'this, 'data, 'rslt>(
-    &'this self,
-    route_str: &'data str,
-  ) -> crate::Result<RouterMatch<'rslt, T, MC, MD>>
-  where
-    'data: 'rslt,
-    'this: 'rslt,
-  {
+  pub fn find<'instance, 'route>(
+    &'instance self,
+    route_str: &'route str,
+  ) -> crate::Result<RouterMatch<'instance, 'route, T, MC, MD>> {
     let Self { rows } = self;
     let route_short_str = ShortStrU8::new(route_str)?;
     let route = route_short_str.into_short_slice();
@@ -168,14 +164,14 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
   }
 
   #[inline(always)]
-  fn check_edge<'this>(
+  fn check_edge<'instance>(
     edge: Edge,
-    edges: &mut &'this ArrayVectorCopy<Edge, MC>,
-    curr_route: &mut &'this [u8],
+    edges: &mut &'instance ArrayVectorCopy<Edge, MC>,
+    curr_route: &mut &[u8],
     path_rows: &mut ArrayVectorCopy<RouterMatchParamIndices, MD>,
     route_len: u8,
-    rows: &'this [Row<T, MC>],
-  ) -> CheckSearchRowRslt<'this, T, MC> {
+    rows: &'instance [Row<T, MC>],
+  ) -> CheckSearchRowRslt<'instance, T, MC> {
     let row_idx = edge.row_target_idx;
     // SAFETY: constructed edges always point to valid row indices
     let row = unsafe { rows.get(usize::from(row_idx)).unwrap_unchecked() };
@@ -190,14 +186,14 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
   }
 
   #[inline(always)]
-  fn check_row<'this>(
-    curr_route: &mut &'this [u8],
+  fn check_row<'instance>(
+    curr_route: &mut &[u8],
     path_rows: &mut ArrayVectorCopy<RouterMatchParamIndices, MD>,
     route_len: u8,
-    row: &'this Row<T, MC>,
+    row: &'instance Row<T, MC>,
     row_idx: u8,
-    rows: &'this [Row<T, MC>],
-  ) -> CheckSearchRowRslt<'this, T, MC> {
+    rows: &'instance [Row<T, MC>],
+  ) -> CheckSearchRowRslt<'instance, T, MC> {
     match row.ty {
       RowTy::Literal => {
         let row_route = row.route.as_bytes();
@@ -257,14 +253,14 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
   }
 
   #[inline(always)]
-  fn find_single_edge<'this>(
+  fn find_single_edge<'instance>(
     curr_ident_first: u8,
-    curr_route: &mut &'this [u8],
-    edges: &mut &'this ArrayVectorCopy<Edge, MC>,
+    curr_route: &mut &[u8],
+    edges: &mut &'instance ArrayVectorCopy<Edge, MC>,
     path_rows: &mut ArrayVectorCopy<RouterMatchParamIndices, MD>,
     route_len: u8,
-    rows: &'this [Row<T, MC>],
-  ) -> Option<CheckSearchRowRslt<'this, T, MC>> {
+    rows: &'instance [Row<T, MC>],
+  ) -> Option<CheckSearchRowRslt<'instance, T, MC>> {
     let [edge] = edges.as_slice() else {
       return None;
     };
@@ -294,11 +290,11 @@ impl<T, const MC: usize, const MD: usize> Router<T, MC, MD> {
   }
 
   #[inline(always)]
-  fn param_slash<'this>(
-    rest: &'this [u8],
-    row: &'this Row<T, MC>,
-    rows: &'this [Row<T, MC>],
-  ) -> ParamSlashRslt<'this, T, MC> {
+  fn param_slash<'instance, 'route>(
+    rest: &'route [u8],
+    row: &'instance Row<T, MC>,
+    rows: &'instance [Row<T, MC>],
+  ) -> ParamSlashRslt<'instance, 'route, T, MC> {
     let [edge] = row.edges.as_slice() else {
       return ParamSlashRslt::NotApplicable;
     };
@@ -693,21 +689,22 @@ impl<T, const MC: usize, const MD: usize> Drop for RouterBuilder<'_, T, MC, MD> 
 /// Path constructed from a root route
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RouterMatch<
-  'any,
+  'instance,
+  'route,
   T,
   const MC: usize = DEFAULT_MAX_CHILDREN,
   const MD: usize = DEFAULT_MAX_DEPTH,
 > {
   rmpi: ArrayVectorCopy<RouterMatchParamIndices, MD>,
-  route: ShortSliceU8<'any, u8>,
-  rows: &'any VectorU16<Row<T, MC>>,
-  value: &'any T,
+  route: ShortSliceU8<'route, u8>,
+  rows: &'instance VectorU16<Row<T, MC>>,
+  value: &'instance T,
 }
 
-impl<T, const MC: usize, const MD: usize> RouterMatch<'_, T, MC, MD> {
+impl<'instance, T, const MC: usize, const MD: usize> RouterMatch<'instance, '_, T, MC, MD> {
   /// User data originated from a route
   #[inline]
-  pub const fn data(&self) -> &T {
+  pub const fn data(&self) -> &'instance T {
     self.value
   }
 
@@ -769,9 +766,9 @@ impl<'any> RouterMatchParam<'any> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum CheckSearchRowRslt<'any, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
-  CompleteMatch(&'any T),
-  IncompleteMatch(&'any ArrayVectorCopy<Edge, MC>),
+enum CheckSearchRowRslt<'instance, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
+  CompleteMatch(&'instance T),
+  IncompleteMatch(&'instance ArrayVectorCopy<Edge, MC>),
   Mismatch,
 }
 
@@ -784,9 +781,9 @@ enum CompareRowRslt<const MC: usize = DEFAULT_MAX_CHILDREN> {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum ParamSlashRslt<'any, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
-  CompleteMatch(&'any T),
-  IncompleteMatch(&'any [u8], &'any ArrayVectorCopy<Edge, MC>),
+enum ParamSlashRslt<'instance, 'route, T, const MC: usize = DEFAULT_MAX_CHILDREN> {
+  CompleteMatch(&'instance T),
+  IncompleteMatch(&'route [u8], &'instance ArrayVectorCopy<Edge, MC>),
   NotApplicable,
 }
 

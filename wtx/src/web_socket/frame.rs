@@ -54,8 +54,13 @@ impl<P> Frame<P> {
   }
 
   /// Mutable version of [`Self::payload`].
+  ///
+  /// # SAFETY
+  ///
+  /// If this instance demands text data like [`OpCode::Text`], then it is up to you to to keep
+  /// inner contents compatible with UTF-8. If not, then data can be freely modified.
   #[inline]
-  pub const fn payload_mut(&mut self) -> &mut P {
+  pub const unsafe fn payload_mut(&mut self) -> &mut P {
     &mut self.payload
   }
 
@@ -134,6 +139,7 @@ where
   pub fn text_payload(&self) -> Option<&str> {
     self.op_code.is_text().then(|| {
       // SAFETY:
+      //
       // # Instantiating
       //
       // No constructor allows the insertion of non UTF8 data if the [`OpCode`] is Text.

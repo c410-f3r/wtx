@@ -15,10 +15,10 @@ use crate::{
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
+use alloc::string::String;
 use core::{
   array::TryFromSliceError,
-  fmt::{Debug, Display, Formatter},
-  ops::RangeInclusive,
+  fmt::{Arguments, Debug, Display, Formatter, Write as _},
   slice::GetDisjointMutError,
 };
 
@@ -168,26 +168,16 @@ pub enum Error {
 
   // Generic
   //
-  /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
-  ClosedHttpConnection,
   /// The amount of elements exceeds the underlying storage.
   CounterWriterOverflow,
-  /// Future should complete before a certain duration but didn't
-  ExpiredFuture,
   /// Generic error
   Generic(ShortBoxStrU16),
   /// Generic static error
   GenericStatic(ShortStrU8<'static>),
-  /// It is not possible to add an element into an `Option` because it is already occupied.
-  InsufficientOptionCapacity,
-  /// A `u8` value is not a valid [`crate::net::ConnectionState`] discriminant.
-  InvalidConnectionState(u8),
   /// Invalid PPM value
   InvalidPpmValue,
   /// Invalid UTF-8.
   InvalidUTF8,
-  /// An index that cuts an UTF-8 string makes the sequence invalid.
-  InvalidUTF8Bound,
   /// Invalid URI
   InvalidUri,
   /// Weight is zero, negative or overflowed list
@@ -207,13 +197,6 @@ pub enum Error {
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
   /// involved code was not built the way it should be.
   ProgrammingError,
-  /// Unexpected Unsigned integer
-  UnboundedNumber {
-    /// Expected bounds
-    expected: RangeInclusive<i32>,
-    /// Received number
-    received: i32,
-  },
   /// Unexpected bytes
   UnexpectedBytes {
     /// Length of the unexpected bytes
@@ -237,10 +220,6 @@ pub enum Error {
   UnsupportedLinuxKernel,
   /// Unsupported operation
   UnsupportedOperation,
-  /// Only appending is possible but overwritten is still viable through resetting.
-  UriPathCanNotBeOverwritten,
-  /// Only appending is possible but overwritten is still viable through resetting.
-  UriQueryCanNotBeOverwritten,
   /// Wrapper serialization should be called only once.
   WrapperSerializationDoesNotExpectConcurrentAccess,
 
@@ -268,6 +247,8 @@ pub enum Error {
   ClientApiFramework(crate::client_api_framework::ClientApiFrameworkError),
   #[doc = associated_element_doc!()]
   Codec(Box<crate::codec::CodecError>),
+  #[doc = associated_element_doc!()]
+  Collections(crate::collections::CollectionsError),
   #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
   Crypto(crate::crypto::CryptoError),
@@ -387,4 +368,11 @@ impl<T> SendError<T> {
       SendError::Disconnected(_) => SendError::Disconnected(()),
     }
   }
+}
+
+fn oapque_string_err(elem: Arguments<'_>) -> String {
+  let mut string = String::new();
+  let _rslt = string.write_fmt(format_args!("{elem:?}"));
+  string.truncate(string.floor_char_boundary(1024));
+  string
 }

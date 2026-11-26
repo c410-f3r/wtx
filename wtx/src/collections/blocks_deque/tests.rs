@@ -157,7 +157,7 @@ fn push_reserve_and_push() {
 
 #[test]
 fn reserve_does_not_corrupt_wrapped_data() {
-  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 4).expect("failed to create deque");
+  let mut bq = BlocksDequeUsize::with_exact_capacity(2, 4).unwrap();
   bq.push_back_from_copyable_data([&[10, 20][..]], ()).unwrap();
   bq.push_front_from_copyable_data([&[30][..]], ()).unwrap();
   assert_eq!(bq.get(0).unwrap().data, &[30]);

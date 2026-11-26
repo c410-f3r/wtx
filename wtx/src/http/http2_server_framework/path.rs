@@ -2,7 +2,7 @@ use crate::{
   futures::{FnFut, FnFutWrapper},
   http::{
     AutoStream, HttpError, StatusCode,
-    http2_server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
+    http2_server_framework::{Endpoint, HttpRouterNode, ResFinalizer, StateGeneric},
   },
   misc::bytes_split1,
   net::UriString,
@@ -28,9 +28,9 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
-    let path = manage_path(path_defs, &auto_stream.req.msg_data.uri)?;
+    let path = manage_path(path_leafs, &auto_stream.req.msg_data.uri)?;
     let path_owned = Path(P::from_str(path).map_err(Into::into)?);
     auto_stream.req.clear();
     self.0.call((path_owned,)).await.finalize_response(&mut auto_stream.req)
@@ -50,9 +50,9 @@ where
   async fn auto(
     &self,
     auto_stream: &mut AutoStream<D>,
-    path_defs: (u8, &[RouteMatch]),
+    path_leafs: (u8, &[HttpRouterNode]),
   ) -> Result<StatusCode, E> {
-    let path = manage_path(path_defs, &auto_stream.req.msg_data.uri)?;
+    let path = manage_path(path_leafs, &auto_stream.req.msg_data.uri)?;
     let path_owned = Path(P::from_str(path).map_err(Into::into)?);
     self
       .0
@@ -63,13 +63,13 @@ where
 }
 
 fn manage_path<'uri>(
-  path_defs: (u8, &[RouteMatch]),
+  path_leafs: (u8, &[HttpRouterNode]),
   uri: &'uri UriString,
 ) -> crate::Result<&'uri str> {
   let fun = || {
     let path = uri.path();
     let mut prev_idx: usize = 0;
-    let mut iter = path_defs.1.iter().map(|el| el.path.as_bytes());
+    let mut iter = path_leafs.1.iter().map(|el| el.path.as_bytes());
     while let Some([b'/', sub_path_def @ ..]) = iter.next() {
       prev_idx = prev_idx.wrapping_add(1);
       let mut is_first = true;

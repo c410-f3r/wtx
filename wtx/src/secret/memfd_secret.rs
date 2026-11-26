@@ -1,4 +1,7 @@
-use crate::{misc::SensitiveBytes, secret::SecretData};
+use crate::{
+  misc::{SensitiveBytes, unlikely_unreachable},
+  secret::SecretData,
+};
 use alloc::string::String;
 use core::{
   fmt::{Debug, Formatter},
@@ -20,7 +23,11 @@ impl MemFdSecret {
   #[inline]
   pub fn new(bytes: &mut [u8], cloexec: bool) -> Option<Self> {
     let bytes_sb = SensitiveBytes::new(bytes);
-    let len = bytes_sb.len();
+    Self::from_bytes(&bytes_sb, cloexec)
+  }
+
+  fn from_bytes(bytes: &[u8], cloexec: bool) -> Option<Self> {
+    let len = bytes.len();
     if len == 0 {
       return Some(Self::default());
     }
@@ -60,13 +67,24 @@ impl MemFdSecret {
     let dst_ptr = dst.cast::<u8>();
     // SAFETY: `dst_ptr` is a fresh valid mapping and both pointers have `len` bytes
     unsafe {
-      ptr::copy_nonoverlapping(bytes_sb.as_ptr(), dst_ptr, len);
+      ptr::copy_nonoverlapping(bytes.as_ptr(), dst_ptr, len);
     }
     Some(Self {
       // Safety: `dst_ptr` is non-null because `mmap` succeeded
       ptr: unsafe { NonNull::new_unchecked(dst_ptr) },
       len,
     })
+  }
+}
+
+impl Clone for MemFdSecret {
+  #[inline]
+  #[track_caller]
+  fn clone(&self) -> Self {
+    match Self::from_bytes(self, true) {
+      None => unlikely_unreachable(),
+      Some(elem) => elem,
+    }
   }
 }
 
@@ -122,7 +140,7 @@ unsafe impl Send for MemFdSecret {}
 unsafe impl Sync for MemFdSecret {}
 
 /// A [`MemFdSecret`] that represents a fixed-size array of secret bytes.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct MemFdSecretArray<const N: usize>(MemFdSecret);
 impl<const N: usize> SecretData for MemFdSecretArray<N> {
@@ -154,7 +172,7 @@ impl<const N: usize> Deref for MemFdSecretArrayReprSrc<'_, N> {
 }
 
 /// A [`MemFdSecret`] that represents a dynamically-sized slice of secret bytes.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[repr(transparent)]
 pub struct MemFdSecretSlice(MemFdSecret);
 impl SecretData for MemFdSecretSlice {
@@ -183,7 +201,7 @@ impl Deref for MemFdSecretSliceReprSrc<'_> {
 }
 
 /// A [`MemFdSecret`] that represents a valid UTF-8 secret string.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 #[repr(transparent)]
 pub struct MemFdSecretStr(MemFdSecret);
 impl SecretData for MemFdSecretStr {

@@ -59,7 +59,7 @@ macro_rules! impl_session_custom_state {
         where
           R: Record<'exec, Database = D>,
         {
-          record.decode(3)
+          record.decode(4)
         }
 
         #[inline]

@@ -20,6 +20,8 @@ mod misc;
 mod msg_buffer;
 mod msg_builder;
 mod msg_data;
+#[cfg(feature = "open_api")]
+pub mod open_api;
 mod operation_mode;
 mod protocol;
 mod request;

@@ -1,7 +1,7 @@
 use crate::http::{MsgBufferString, Request, Response, StatusCode};
 use core::ops::ControlFlow;
 
-/// Request middleware
+/// Middleware behavior.
 pub trait Middleware<D, ER>
 where
   ER: From<crate::Error>,

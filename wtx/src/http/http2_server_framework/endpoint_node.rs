@@ -1,6 +1,9 @@
 use crate::{
   collections::{ArrayVectorCopy, VectorU16},
-  http::http2_server_framework::{Endpoint, RouteMatch},
+  http::{
+    Method,
+    http2_server_framework::{Endpoint, HttpRouterNode},
+  },
 };
 
 /// Can be a terminal endpoint, a router, or a set of paths.
@@ -11,11 +14,14 @@ where
   /// If the implementation is a router.
   const IS_ROUTER: bool;
 
+  /// HTTP method required by this endpoint, or `None` if it accepts any method.
+  fn method(&self) -> Option<Method>;
+
   /// Paths indices
   fn paths_indices(
     &self,
-    prev: ArrayVectorCopy<RouteMatch, 4>,
-    vec: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>,
+    buffer: &mut VectorU16<ArrayVectorCopy<HttpRouterNode, 4>>,
+    prev: ArrayVectorCopy<HttpRouterNode, 4>,
   ) -> crate::Result<()>;
 }
 
@@ -27,12 +33,17 @@ where
   const IS_ROUTER: bool = T::IS_ROUTER;
 
   #[inline]
+  fn method(&self) -> Option<Method> {
+    T::method(*self)
+  }
+
+  #[inline]
   fn paths_indices(
     &self,
-    prev: ArrayVectorCopy<RouteMatch, 4>,
-    vec: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>,
+    buffer: &mut VectorU16<ArrayVectorCopy<HttpRouterNode, 4>>,
+    prev: ArrayVectorCopy<HttpRouterNode, 4>,
   ) -> crate::Result<()> {
-    (*self).paths_indices(prev, vec)
+    (*self).paths_indices(buffer, prev)
   }
 }
 
@@ -41,12 +52,12 @@ mod tests {
   use crate::{
     collections::{ArrayVectorCopy, VectorU16},
     http::{
-      ManualStream, OperationMode, StatusCode,
-      http2_server_framework::{EndpointNode, HttpRouter, RouteMatch, StateClean, get},
+      ManualStream, Method, OperationMode, StatusCode,
+      http2_server_framework::{EndpointNode, HttpRouter, HttpRouterNode, StateClean, get},
     },
   };
 
-  //     /a          /f/g          /i/j/k
+  //     /a          /f/g    /i/j/k
   //   /  |  \       |
   //  /   |   \      |
   // /b  /c/d  /d    /h
@@ -57,90 +68,101 @@ mod tests {
   fn paths_indices() {
     let paths = paths!(
       ("/a", get(auto)),
-      ("/a", HttpRouter::paths(paths!(("/b", get(auto)))).unwrap()),
-      ("/a", HttpRouter::paths(paths!(("/c/d", get(auto)))).unwrap()),
+      ("/a", HttpRouter::from_paths(paths!(("/b", get(auto)))).unwrap()),
+      ("/a", HttpRouter::from_paths(paths!(("/c/d", get(auto)))).unwrap()),
       (
         "/a",
-        HttpRouter::paths(paths!(("/d", HttpRouter::paths(paths!(("/e", get(auto)))).unwrap())))
-          .unwrap()
+        HttpRouter::from_paths(paths!((
+          "/d",
+          HttpRouter::from_paths(paths!(("/e", get(auto)))).unwrap()
+        )))
+        .unwrap()
       ),
       ("/f/g", get(auto)),
-      ("/f/g", HttpRouter::paths(paths!(("/h", get(auto)))).unwrap()),
+      ("/f/g", HttpRouter::from_paths(paths!(("/h", get(auto)))).unwrap()),
       ("/i/j/k", get(manual)),
       (
         "/l",
-        HttpRouter::paths(paths!(
+        HttpRouter::from_paths(paths!(
           ("/m", get(auto)),
           ("/n", get(auto)),
-          ("/o", HttpRouter::paths(paths!(("/p", get(auto)), ("/q", get(auto)))).unwrap())
+          ("/o", HttpRouter::from_paths(paths!(("/p", get(auto)), ("/q", get(auto)))).unwrap())
         ))
         .unwrap()
       ),
     );
     let mut vec = VectorU16::new();
-    paths.paths_indices(ArrayVectorCopy::new(), &mut vec).unwrap();
+    paths.paths_indices(&mut vec, ArrayVectorCopy::new()).unwrap();
     assert_eq!(
       vec.as_slice(),
       &[
-        ArrayVectorCopy::from_copyable_slice(&[RouteMatch::new(
+        ArrayVectorCopy::from_copyable_slice(&[HttpRouterNode::new(
           0,
+          Some(Method::Get),
           OperationMode::Auto,
           "/a".try_into().unwrap()
         )])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(1, OperationMode::Auto, "/a".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/b".try_into().unwrap())
+          HttpRouterNode::new(1, None, OperationMode::Auto, "/a".try_into().unwrap()),
+          HttpRouterNode::new(0, Some(Method::Get), OperationMode::Auto, "/b".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(2, OperationMode::Auto, "/a".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/c/d".try_into().unwrap())
+          HttpRouterNode::new(2, None, OperationMode::Auto, "/a".try_into().unwrap()),
+          HttpRouterNode::new(
+            0,
+            Some(Method::Get),
+            OperationMode::Auto,
+            "/c/d".try_into().unwrap()
+          )
         ])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(3, OperationMode::Auto, "/a".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/d".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/e".try_into().unwrap())
+          HttpRouterNode::new(3, None, OperationMode::Auto, "/a".try_into().unwrap()),
+          HttpRouterNode::new(0, None, OperationMode::Auto, "/d".try_into().unwrap()),
+          HttpRouterNode::new(0, Some(Method::Get), OperationMode::Auto, "/e".try_into().unwrap())
         ])
         .unwrap(),
-        ArrayVectorCopy::from_copyable_slice(&[RouteMatch::new(
+        ArrayVectorCopy::from_copyable_slice(&[HttpRouterNode::new(
           4,
+          Some(Method::Get),
           OperationMode::Auto,
           "/f/g".try_into().unwrap()
         )])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(5, OperationMode::Auto, "/f/g".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/h".try_into().unwrap())
+          HttpRouterNode::new(5, None, OperationMode::Auto, "/f/g".try_into().unwrap()),
+          HttpRouterNode::new(0, Some(Method::Get), OperationMode::Auto, "/h".try_into().unwrap())
         ])
         .unwrap(),
-        ArrayVectorCopy::from_copyable_slice(&[RouteMatch::new(
+        ArrayVectorCopy::from_copyable_slice(&[HttpRouterNode::new(
           6,
+          Some(Method::Get),
           OperationMode::Manual,
           "/i/j/k".try_into().unwrap()
         )])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/m".try_into().unwrap())
+          HttpRouterNode::new(7, None, OperationMode::Auto, "/l".try_into().unwrap()),
+          HttpRouterNode::new(0, Some(Method::Get), OperationMode::Auto, "/m".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
-          RouteMatch::new(1, OperationMode::Auto, "/n".try_into().unwrap())
+          HttpRouterNode::new(7, None, OperationMode::Auto, "/l".try_into().unwrap()),
+          HttpRouterNode::new(1, Some(Method::Get), OperationMode::Auto, "/n".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
-          RouteMatch::new(2, OperationMode::Auto, "/o".try_into().unwrap()),
-          RouteMatch::new(0, OperationMode::Auto, "/p".try_into().unwrap())
+          HttpRouterNode::new(7, None, OperationMode::Auto, "/l".try_into().unwrap()),
+          HttpRouterNode::new(2, None, OperationMode::Auto, "/o".try_into().unwrap()),
+          HttpRouterNode::new(0, Some(Method::Get), OperationMode::Auto, "/p".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorCopy::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
-          RouteMatch::new(2, OperationMode::Auto, "/o".try_into().unwrap()),
-          RouteMatch::new(1, OperationMode::Auto, "/q".try_into().unwrap())
+          HttpRouterNode::new(7, None, OperationMode::Auto, "/l".try_into().unwrap()),
+          HttpRouterNode::new(2, None, OperationMode::Auto, "/o".try_into().unwrap()),
+          HttpRouterNode::new(1, Some(Method::Get), OperationMode::Auto, "/q".try_into().unwrap())
         ])
         .unwrap(),
       ]

@@ -13,9 +13,6 @@ use core::time::Duration;
 
 /// Default and optional parameters for the construction of a [`SessionManager`].
 ///
-/// Session cookies are session-only by default. Use [`Self::remember_me`] to make them persistent
-/// across browser restarts.
-///
 /// # Rotation
 ///
 /// - **Lifetime**: Once half of the lifetime has elapsed, the session key is rotated and its
@@ -29,8 +26,8 @@ pub struct SessionManagerBuilder {
   cookie_def: SetCookieGeneric<ShortBoxStrU8, VectorU16<u8>>,
   grace_period: Duration,
   inspection_interval: Duration,
-  lifetime: Duration,
-  lifetime_ub: Duration,
+  lifetime: Option<Duration>,
+  lifetime_ub: Option<Duration>,
   remember_me: Option<RememberMe>,
 }
 
@@ -39,10 +36,6 @@ impl SessionManagerBuilder {
   pub const DEFAULT_GRACE_PERIOD: Duration = Duration::from_secs(30);
   /// Default inspection interval.
   pub const DEFAULT_INSPECTION_INTERVAL: Duration = Duration::from_mins(30);
-  /// Default lifetime.
-  pub const DEFAULT_LIFETIME: Duration = Duration::from_hours(6);
-  /// Default lifetime upper bound.
-  pub const DEFAULT_LIFETIME_UB: Duration = Duration::from_hours(24);
 
   pub(crate) fn new() -> Self {
     Self {
@@ -59,8 +52,8 @@ impl SessionManagerBuilder {
       },
       grace_period: Self::DEFAULT_GRACE_PERIOD,
       inspection_interval: Self::DEFAULT_INSPECTION_INTERVAL,
-      lifetime: Self::DEFAULT_LIFETIME,
-      lifetime_ub: Self::DEFAULT_LIFETIME_UB,
+      lifetime: None,
+      lifetime_ub: None,
       remember_me: None,
     }
   }
@@ -113,25 +106,20 @@ impl SessionManagerBuilder {
       mut cookie_def,
       grace_period,
       inspection_interval,
-      mut lifetime,
+      lifetime,
       lifetime_ub,
-      remember_me,
+      remember_me: _,
     } = self;
     cookie_def.expires = None;
     cookie_def.max_age = None;
-    lifetime = lifetime.min(lifetime_ub);
-    if grace_period.as_secs() >= lifetime.as_secs().div_ceil(2) {
+    let shortest_lifetime_ub =
+      lifetime_ub.unwrap_or(SessionManager::<CS, E, RNG>::DEFAULT_LF_UB_EPHEMERAL);
+    let shortest_lifetime = lifetime
+      .unwrap_or(SessionManager::<CS, E, RNG>::DEFAULT_LF_EPHEMERAL)
+      .min(shortest_lifetime_ub);
+    if grace_period.as_secs() >= shortest_lifetime.as_secs().div_ceil(2) {
       return Err(SessionError::InvalidGracePeriod.into());
     }
-    #[cfg(feature = "http2-server-framework")]
-    let session_cookie_name = cookie_def.name;
-    let sync = AsyncMutex::new(SessionManagerSync::new(
-      cookie_def,
-      lifetime_ub,
-      remember_me,
-      rng,
-      session_secret,
-    ));
     Ok((
       async move {
         loop {
@@ -140,13 +128,13 @@ impl SessionManagerBuilder {
         }
       },
       SessionManager {
-        inner: Arc::new(SessionManagerInner {
+        inner: Arc::new(SessionManagerInner::new(
           grace_period,
           lifetime,
           #[cfg(feature = "http2-server-framework")]
-          session_cookie_name,
-          sync,
-        }),
+          cookie_def.name,
+          AsyncMutex::new(SessionManagerSync::new(cookie_def, lifetime_ub, rng, session_secret)),
+        )),
       },
     ))
   }
@@ -188,7 +176,7 @@ impl SessionManagerBuilder {
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
   pub const fn lifetime(mut self, elem: Duration) -> Self {
-    self.lifetime = elem;
+    self.lifetime = Some(elem);
     self
   }
 
@@ -196,7 +184,7 @@ impl SessionManagerBuilder {
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
   pub const fn lifetime_ub(mut self, elem: Duration) -> Self {
-    self.lifetime_ub = elem;
+    self.lifetime_ub = Some(elem);
     self
   }
 
@@ -216,13 +204,11 @@ impl SessionManagerBuilder {
     self
   }
 
-  /// Makes session cookies persistent.
-  ///
-  /// Passing `None` makes session cookies session-only.
+  /// Uses a custom set of parameters for long-lived sessions.
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
-  pub fn remember_me(mut self, elem: Option<RememberMe>) -> Self {
-    self.remember_me = elem;
+  pub fn remember_me(mut self, elem: RememberMe) -> Self {
+    self.remember_me = Some(elem);
     self
   }
 

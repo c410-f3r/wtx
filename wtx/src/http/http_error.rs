@@ -3,6 +3,8 @@ use crate::http::{KnownHeaderName, Method, Mime};
 /// Http error
 #[derive(Clone, Copy, Debug)]
 pub enum HttpError {
+  /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
+  ClosedHttpConnection,
   /// Invalid `form/data` content
   InvalidFormDataContent,
   /// Invalid HTTP/2 or HTTP/3 header

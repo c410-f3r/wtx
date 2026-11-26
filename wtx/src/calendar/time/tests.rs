@@ -88,8 +88,8 @@ fn overflowing_add_and_sub() {
   macro_rules! test {
     ($lhs:expr, $rhs:expr, $rslt:expr) => {{
       let (this, rem) = $rslt;
-      assert_eq!($lhs.overflowing_add($rhs), (this, rem));
-      assert_eq!($lhs.overflowing_sub($rhs.neg()), (this, -rem));
+      assert_eq!($lhs.overflowing_add($rhs).unwrap(), (this, rem));
+      assert_eq!($lhs.overflowing_sub($rhs.neg()).unwrap(), (this, -rem));
     }};
   }
 
@@ -131,6 +131,13 @@ fn overflowing_add_and_sub() {
     (instance(3, 5, 58, 900), 86_400)
   );
   test!(instance(3, 5, 59, 900), IDuration::ZERO, (instance(3, 5, 59, 900), 0));
+
+  assert!(
+    Time::from_hms(Hour::N1, Sixty::N0, Sixty::N0)
+      .overflowing_add(IDuration::from_seconds(i64::MAX).unwrap())
+      .is_err()
+  );
+  assert!(Time::ZERO.overflowing_sub(IDuration::MAX).is_err());
 }
 
 #[test]
@@ -143,10 +150,10 @@ fn second() {
 
 #[test]
 fn seconds_from_mn() {
-  assert_eq!(Time::ZERO.seconds_since_mn(), 0);
-  assert_eq!(Time::MAX.seconds_since_mn(), 86_399);
-  assert_eq!(_8_48_05_234_445_009().seconds_since_mn(), 28800 + 2880 + 5);
-  assert_eq!(_14_20_30().seconds_since_mn(), 50400 + 1200 + 30);
+  assert_eq!(Time::ZERO.seconds_since_midnight(), 0);
+  assert_eq!(Time::MAX.seconds_since_midnight(), 86_399);
+  assert_eq!(_8_48_05_234_445_009().seconds_since_midnight(), 28800 + 2880 + 5);
+  assert_eq!(_14_20_30().seconds_since_midnight(), 50400 + 1200 + 30);
 }
 
 fn instance(h: u8, m: u8, s: u8, ms: u16) -> Time {

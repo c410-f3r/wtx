@@ -13,7 +13,7 @@ use crate::{
 };
 use core::{
   fmt::{Debug, Display, Formatter},
-  hint::unreachable_unchecked,
+  hint::{cold_path, unreachable_unchecked},
 };
 
 /// Clock time with nanosecond precision.
@@ -92,7 +92,10 @@ impl Time {
   /// Computes `self + duration`, returning an error if an overflow occurred.
   #[inline]
   pub const fn add(self, duration: IDuration) -> Result<Self, CalendarError> {
-    let (this, remaining) = self.overflowing_add(duration);
+    let (this, remaining) = match self.overflowing_add(duration) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
     if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);
     }
@@ -138,17 +141,24 @@ impl Time {
   /// in the integral number of days ignored from the addition.
   #[inline]
   #[must_use = must_use_itself_generic_doc!()]
-  pub const fn overflowing_add(self, duration: IDuration) -> (Self, i64) {
+  pub const fn overflowing_add(self, duration: IDuration) -> Result<(Self, i64), CalendarError> {
     if duration.is_zero() {
-      return (self, 0);
+      return Ok((self, 0));
     }
-    let mut seconds = u32i64(self.seconds_since_mn());
-    let mut nanosecond = self.nanosecond.num().cast_signed();
-    seconds = seconds.wrapping_add(duration.seconds());
-    nanosecond = nanosecond.wrapping_add(duration.nanoseconds());
-    manage_out_of_bounds!(@one, 0, NANOSECONDS_PER_SECOND.cast_signed(), nanosecond, seconds);
+    // Will not overflow: 999_999_999 + 999_999_999 < i32::MAX
+    let mut nanoseconds = self.nanosecond.num().cast_signed().wrapping_add(duration.nanoseconds());
+    let Some(mut seconds) = u32i64(self.seconds_since_midnight()).checked_add(duration.seconds())
+    else {
+      cold_path();
+      return Err(CalendarError::ArithmeticOverflow);
+    };
+    manage_out_of_bounds!(@one, 0, NANOSECONDS_PER_SECOND.cast_signed(), nanoseconds, seconds);
     let (day_seconds, this_hours, this_minutes, this_seconds) = Time::hms_from_seconds(seconds);
-    (
+    let Some(days_in_seconds) = seconds.checked_sub(i32i64(day_seconds)) else {
+      cold_path();
+      return Err(CalendarError::ArithmeticOverflow);
+    };
+    Ok((
       Self::from_hms_ns(
         match Hour::from_num(this_hours) {
           Ok(elem) => elem,
@@ -165,23 +175,26 @@ impl Time {
           // SAFETY: `hms_from_seconds` keeps `seconds` within bounds
           Err(_) => unsafe { unreachable_unchecked() },
         },
-        match Nanosecond::from_num(nanosecond.cast_unsigned()) {
+        match Nanosecond::from_num(nanoseconds.cast_unsigned()) {
           Ok(elem) => elem,
           // SAFETY: `manage_out_of_bounds` keeps `nanosecond` within bounds
           Err(_) => unsafe { unreachable_unchecked() },
         },
       ),
-      seconds.wrapping_sub(i32i64(day_seconds)),
-    )
+      days_in_seconds,
+    ))
   }
 
   /// Subtracts the given `duration` from the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the subtraction.
   #[inline]
-  pub const fn overflowing_sub(self, duration: IDuration) -> (Self, i64) {
-    let (time, rhs) = self.overflowing_add(duration.neg());
+  pub const fn overflowing_sub(self, duration: IDuration) -> Result<(Self, i64), CalendarError> {
+    let (time, rhs) = match self.overflowing_add(duration.neg()) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
     #[expect(clippy::arithmetic_side_effects, reason = "`rhs` will never reach `i64::MAX`")]
-    (time, -rhs)
+    Ok((time, -rhs))
   }
 
   /// Seconds of a minute
@@ -192,7 +205,7 @@ impl Time {
 
   /// The total number of seconds since midnight (00:00:00).
   #[inline]
-  pub const fn seconds_since_mn(self) -> u32 {
+  pub const fn seconds_since_midnight(self) -> u32 {
     let mut rslt = (u8u32(self.hour().num())).wrapping_mul(u16u32(SECONDS_PER_HOUR));
     rslt = rslt.wrapping_add(u8u32(self.minute().num()).wrapping_mul(u8u32(SECONDS_PER_MINUTE)));
     rslt.wrapping_add(u8u32(self.second().num()))
@@ -201,7 +214,10 @@ impl Time {
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
   pub const fn sub(self, duration: IDuration) -> Result<Self, CalendarError> {
-    let (this, remaining) = self.overflowing_sub(duration);
+    let (this, remaining) = match self.overflowing_sub(duration) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
     if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);
     }

@@ -1,3 +1,4 @@
+use crate::net::NetError;
 #[cfg(any(feature = "http2", feature = "tls", feature = "web-socket"))]
 use {crate::sync::AtomicU8, core::sync::atomic::Ordering};
 
@@ -188,7 +189,7 @@ impl TryFrom<u8> for ConnectionState {
       3 => ConnectionState::Open,
       4 => ConnectionState::ReadClosed,
       5 => ConnectionState::WriteClosed,
-      _ => return Err(crate::Error::InvalidConnectionState(from)),
+      _ => return Err(NetError::InvalidConnectionState(from).into()),
     })
   }
 }

@@ -8,7 +8,7 @@ use crate::{
     },
     misc::drop_elements,
   },
-  misc::{Lease, LeaseMut, Wrapper, char_slice},
+  misc::{Lease, LeaseMut, Wrapper, char_slice, unlikely_unreachable},
 };
 use core::{
   cmp::Ordering,
@@ -310,9 +310,12 @@ where
   T: Clone,
 {
   #[inline]
+  #[track_caller]
   fn clone(&self) -> Self {
     let mut this = Self::new();
-    let _rslt = this.0.extend_from_cloneable_slice(self);
+    if this.0.extend_from_cloneable_slice(self).is_err() {
+      unlikely_unreachable();
+    }
     this
   }
 }

@@ -19,12 +19,15 @@ $rt test-with-features wtx crypto
 $rt test-with-features wtx crypto-alr,_hack
 $rt test-with-features wtx crypto-graviola
 $rt test-with-features wtx crypto-ring
+$rt test-with-features wtx crypto-ruco
 $rt test-with-features wtx database
 $rt test-with-features wtx database-tests
 $rt test-with-features wtx default
 $rt test-with-features wtx embassy-net,_hack
 $rt test-with-features wtx embassy-time,_hack
+$rt test-with-features wtx error-loc
 $rt test-with-features wtx executor
+$rt test-with-features wtx fixed-point
 $rt test-with-features wtx foldhash
 $rt test-with-features wtx getrandom
 $rt test-with-features wtx grpc

@@ -105,10 +105,7 @@ impl HpackEncoder {
   // It is not possible to lower the initial set value
   pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
-      return Err(crate::Error::UnboundedNumber {
-        expected: 0..=self.max_dyn_super_bytes.try_into().unwrap_or(i32::MAX),
-        received: max_dyn_sub_bytes.try_into().unwrap_or(i32::MAX),
-      });
+      return Err(crate::Error::Http2(Http2Error::UnboundedHpackLen));
     }
     match self.max_dyn_sub_bytes {
       Some((lower, None | Some(_))) => {

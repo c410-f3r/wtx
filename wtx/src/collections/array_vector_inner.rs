@@ -1,7 +1,10 @@
-use crate::collections::{
-  ArrayVectorError, LinearStorageLen,
-  linear_storage::{LinearStorage, linear_storage_mut::LinearStorageMut},
-  misc::drop_elements,
+use crate::{
+  collections::{
+    ArrayVectorError, LinearStorageLen,
+    linear_storage::{LinearStorage, linear_storage_mut::LinearStorageMut},
+    misc::drop_elements,
+  },
+  misc::unlikely_unreachable,
 };
 use core::{
   iter::FusedIterator,
@@ -209,9 +212,12 @@ where
   T: Clone,
 {
   #[inline]
+  #[track_caller]
   fn clone(&self) -> Self {
     let mut this = Self::new();
-    let _rslt = this.extend_from_cloneable_slice(self.as_slice());
+    if this.extend_from_cloneable_slice(self.as_slice()).is_err() {
+      unlikely_unreachable();
+    }
     this
   }
 }

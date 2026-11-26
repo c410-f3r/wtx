@@ -162,6 +162,9 @@ pub(crate) fn decode_asn1_tlv(bytes: &[u8]) -> crate::Result<(u8, Len, &[u8], &[
   let [tag, maybe_len, maybe_after_len @ ..] = bytes else {
     return Err(Asn1Error::InvalidTlv.into());
   };
+  if tag & 0b11_111 == 0b11_111 {
+    return Err(Asn1Error::InvalidTlv.into());
+  }
   let (len, after_len) = if *maybe_len <= 127 {
     (Len::from_u8(*maybe_len), maybe_after_len)
   } else if *maybe_len == 129 {

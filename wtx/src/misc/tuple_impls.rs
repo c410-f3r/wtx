@@ -81,9 +81,11 @@ macro_rules! impl_tuples {
       use crate::{
         collections::{ArrayVectorCopy, VectorU16, ShortStrU8},
         http::{
-          OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
+          OperationMode, HttpError, Method, StatusCode, AutoStream, ManualStream, Request,
           MsgBufferString, Response,
-          http2_server_framework::{Endpoint, Middleware, RouteMatch, EndpointNode, PathParams}
+          http2_server_framework::{
+            Endpoint, Middleware, PathParams, HttpRouterNode, EndpointNode,
+          }
         },
       };
       use core::ops::ControlFlow;
@@ -149,19 +151,22 @@ macro_rules! impl_tuples {
           async fn auto(
             &self,
             _auto_stream: &mut AutoStream<DATA>,
-            _path_defs: (u8, &[RouteMatch]),
+            _path_leafs: (u8, &[HttpRouterNode]),
           ) -> Result<StatusCode, ERR> {
-            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
-              $(
-                Some($IDX) => {
-                  return self
-                    .$IDX
-                    .value
-                    .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
-                    .await;
-                }
-              )*
-              _ => Err(ERR::from(HttpError::UriMismatch.into()))
+            match _path_leafs.1.get(usize::from(_path_leafs.0)) {
+              Some(el) => match el.idx {
+                $(
+                  $IDX => {
+                    return self
+                      .$IDX
+                      .value
+                      .auto(_auto_stream, (_path_leafs.0.wrapping_add(1), _path_leafs.1))
+                      .await;
+                  }
+                )*
+                _ => Err(ERR::from(HttpError::UriMismatch.into()))
+              },
+              None => Ok(StatusCode::MethodNotAllowed)
             }
           }
 
@@ -169,15 +174,15 @@ macro_rules! impl_tuples {
           async fn manual(
             &self,
             _manual_stream: ManualStream<DATA, STREAM>,
-            _path_defs: (u8, &[RouteMatch]),
+            _path_leafs: (u8, &[HttpRouterNode]),
           ) -> Result<(), ERR> {
-            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
+            match _path_leafs.1.get(usize::from(_path_leafs.0)).map(|el| el.idx) {
               $(
                 Some($IDX) => {
                   return self
                     .$IDX
                     .value
-                    .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
+                    .manual(_manual_stream, (_path_leafs.0.wrapping_add(1), _path_leafs.1))
                     .await;
                 }
               )*
@@ -194,16 +199,26 @@ macro_rules! impl_tuples {
           const IS_ROUTER: bool = false;
 
           #[inline]
+          fn method(&self) -> Option<Method> {
+            None
+          }
+
+          #[inline]
           fn paths_indices(
             &self,
-            _prev: ArrayVectorCopy<RouteMatch, 4>,
-            _vec: &mut VectorU16<ArrayVectorCopy<RouteMatch, 4>>
+            _vec: &mut VectorU16<ArrayVectorCopy<HttpRouterNode, 4>>,
+            _prev: ArrayVectorCopy<HttpRouterNode, 4>
           ) -> crate::Result<()> {
             $({
               let mut local_prev = _prev.clone();
-              local_prev.push(RouteMatch::new($IDX, $T::OM, ShortStrU8::new(self.$IDX.full_path)?))?;
+              local_prev.push(HttpRouterNode::new(
+                $IDX,
+                $T::method(&self.$IDX.value),
+                $T::OM,
+                ShortStrU8::new(self.$IDX.full_path)?,
+              ))?;
               if $T::IS_ROUTER {
-                self.$IDX.value.paths_indices(local_prev, _vec)?;
+                self.$IDX.value.paths_indices(_vec, local_prev)?;
               } else {
                 _vec.push(local_prev)?;
               }

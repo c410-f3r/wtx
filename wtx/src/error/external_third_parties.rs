@@ -243,7 +243,7 @@ impl From<zlib_rs::InflateError> for crate::Error {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use alloc::string::ToString as _;
+  use crate::error::oapque_string_err;
   use core::fmt::Display;
 
   impl serde::ser::Error for crate::Error {
@@ -252,9 +252,7 @@ mod serde {
     where
       T: Display,
     {
-      let mut string = msg.to_string();
-      string.truncate(1024);
-      Self::Generic(string.try_into().unwrap_or_default())
+      Self::Generic(oapque_string_err(format_args!("{msg}")).try_into().unwrap_or_default())
     }
   }
 }

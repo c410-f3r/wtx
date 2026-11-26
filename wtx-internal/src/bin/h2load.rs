@@ -10,11 +10,11 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let router = HttpRouter::paths(wtx::paths!(("/", get(root)),))?;
   Http2ServerFramework::tokio(TlsConfig::plaintext())?
     .set_http_recv_params(HttpRecvParams::with_permissive_params())
+    .set_http_router(HttpRouter::from_paths(wtx::paths!(("/", get(root)),))?)
     .set_error_cb(|err| println!("Error: {err}"))
-    .run("127.0.0.1:9000", router)
+    .run("127.0.0.1:9000")
     .await
 }
 

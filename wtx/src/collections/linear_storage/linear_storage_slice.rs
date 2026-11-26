@@ -1,6 +1,6 @@
 use crate::{
   collections::{
-    LinearStorageLen as _,
+    CollectionsError, LinearStorageLen as _,
     linear_storage::linear_storage_mut::LinearStorageMut,
     misc::{drop_elements, is_char_boundary},
   },
@@ -159,7 +159,7 @@ impl LinearStorageSlice for str {
       return Ok(());
     }
     if !is_char_boundary(new_len.usize(), lsm.as_slice().as_bytes()) {
-      return Err(crate::Error::InvalidUTF8Bound);
+      return Err(CollectionsError::InvalidUTF8Bound.into());
     }
     // SAFETY: Depends on the correct implementation of all associated traits.
     unsafe {

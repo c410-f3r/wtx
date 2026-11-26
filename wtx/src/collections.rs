@@ -14,6 +14,7 @@ mod auto_clear;
 mod blocks_deque;
 mod capacity_upper_bound;
 mod clear;
+mod collections_error;
 mod csr;
 mod deque;
 mod dyn_str;
@@ -48,6 +49,7 @@ pub use blocks_deque::{
 };
 pub use capacity_upper_bound::CapacityUpperBound;
 pub use clear::Clear;
+pub use collections_error::CollectionsError;
 pub use csr::{Csr, CsrError, CsrLineBuilder, CsrRow, CsrRowIter, CsrU8, CsrU16, CsrU32, CsrUsize};
 pub use deque::{Deque, DequeU8, DequeU16, DequeU32, DequeUsize, DequeueError};
 pub use dyn_str::{DynStr, DynStrU7, DynStrU15, DynStrU31};

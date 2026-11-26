@@ -3,7 +3,7 @@
 
 use crate::{
   collections::{LinearStorageLen, Vector},
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, unlikely_unreachable},
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::{
@@ -47,6 +47,13 @@ where
     // SAFETY: `Box` is guaranteed to be non-null.
     let ptr = unsafe { NonNull::new_unchecked(Box::into_raw(data).cast()) };
     Ok(Self { ptr, len })
+  }
+
+  /// If there are no elements
+  #[inline]
+  pub fn is_empty(&self) -> bool {
+    let len = self.len;
+    len == L::ZERO
   }
 
   /// Length
@@ -113,8 +120,10 @@ where
   #[inline]
   fn clone(&self) -> Self {
     let slice = &**self;
-    // SAFETY: Length is already verified
-    unsafe { slice.to_vec().try_into().unwrap_unchecked() }
+    match slice.to_vec().try_into() {
+      Err(_err) => unlikely_unreachable(),
+      Ok(elem) => elem,
+    }
   }
 }
 

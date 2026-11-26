@@ -8,13 +8,11 @@ extern crate wtx_examples;
 use std::borrow::Cow;
 use wtx::{
   codec::format::QuickProtobuf,
-  executor::TokioExecutor,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
     StatusCode,
     http2_server_framework::{Http2ServerFramework, HttpRouter, State, post},
   },
-  rng::{ChaCha20, CryptoSeedableRng},
   tls::TlsConfig,
 };
 use wtx_examples::{
@@ -24,16 +22,14 @@ use wtx_examples::{
 };
 
 fn main() -> wtx::Result<()> {
-  let rng = ChaCha20::from_std_random()?;
-  let tls_config = TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?;
-  let router = HttpRouter::new(
-    wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
-    GrpcMiddleware,
-  )?;
-  Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
+  Http2ServerFramework::tokio(TlsConfig::from_keys_pem(PUBLIC_KEY, SECRET_KEY)?)?
     .set_data(GrpcManager::from_drsr(QuickProtobuf))
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run_in_threads(&host_from_args(), router)
+    .set_http_router(HttpRouter::new(
+      wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
+      GrpcMiddleware,
+    )?)
+    .run_in_threads(&host_from_args())
 }
 
 async fn wtx_generic_service_generic_method(

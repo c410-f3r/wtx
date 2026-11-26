@@ -1,9 +1,7 @@
+use crate::{Error, RecvError, SendError, error::oapque_string_err};
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
-use alloc::string::String;
-use core::{any::Any, array::TryFromSliceError, fmt::Write as _, slice::GetDisjointMutError};
-
-use crate::{Error, RecvError, SendError};
+use core::{any::Any, array::TryFromSliceError, slice::GetDisjointMutError};
 
 impl From<core::net::AddrParseError> for Error {
   #[inline]
@@ -93,9 +91,6 @@ impl From<core::str::Utf8Error> for Error {
 impl From<Box<dyn Any + Send + 'static>> for Error {
   #[inline]
   fn from(from: Box<dyn Any + Send + 'static>) -> Self {
-    let mut string = String::new();
-    string.truncate(1024);
-    let _rslt = string.write_fmt(format_args!("{from:?}"));
-    Self::Generic(string.try_into().unwrap_or_default())
+    Self::Generic(oapque_string_err(format_args!("{from:?}")).try_into().unwrap_or_default())
   }
 }

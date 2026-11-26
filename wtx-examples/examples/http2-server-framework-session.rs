@@ -17,6 +17,7 @@
 //!   csrf VARCHAR(32) NOT NULL,
 //!   expires_at BIGINT NOT NULL,
 //!   expires_at_ub BIGINT NOT NULL,
+//!   remember_me BOOLEAN NOT NULL,
 //!   -- Native rust types always hardcode the name "custom_state". However, you can
 //!   -- change the name of this field implementing "SessionCustomState".
 //!   custom_state INT NOT NULL
@@ -29,7 +30,7 @@ use wtx::{
   database::{DbClient, Record},
   executor::TokioExecutor,
   http::{
-    MsgData, RememberMe, SessionManager, SessionMiddleware, SessionState, StatusCode,
+    MsgData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     http2_server_framework::{
       DynParams, Http2ServerFramework, HttpRouter, State, StateClean, VerbatimParams, get, post,
     },
@@ -56,7 +57,6 @@ fn main() -> wtx::Result<()> {
     )?,
   );
   let (cleaner, session_manager) = LocalSessionManager::builder()
-    .remember_me(Some(RememberMe::default()))
     .build_generating_key(ChaCha20::from_crypto_rng(&mut rng)?, db_pool.clone())?;
   tokio::spawn(async move {
     if let Err(err) = cleaner.await {
@@ -73,7 +73,8 @@ fn main() -> wtx::Result<()> {
   Http2ServerFramework::new(TokioExecutor::default(), rng, tls_config)?
     .set_data(Data { db_pool, session_manager, session_state: None })
     .set_error_cb(|err| eprintln!("Error: {err}"))
-    .run_in_threads(&host_from_args(), router)
+    .set_http_router(router)
+    .run_in_threads(&host_from_args())
 }
 
 async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
@@ -102,10 +103,11 @@ async fn login(State { data, req }: State<'_, Data>) -> wtx::Result<DynParams> {
   }
   serde_json::to_writer(&mut req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
-  // CSRF tokens are already included in "x-csrf-token" headers so the returned values here are only
+  // CSRF tokens are already included in "x-csrf-token" headers so the returned value here is only
   // meant for inspection purposes.
-  let _csrf =
-    session_manager.set_session_cookie(&id, &mut req.msg_data, session_state, db_pool).await?;
+  let _csrf = session_manager
+    .set_session_cookie(&id, &mut req.msg_data, false, session_state, db_pool)
+    .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 

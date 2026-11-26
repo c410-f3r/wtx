@@ -118,6 +118,8 @@ pub enum Http2Error {
   UnexpectedHeaderFrame,
   /// Received an Hpack index that does not adhere to the standard
   UnexpectedHpackIdx,
+  /// Unexpected HPACK length
+  UnboundedHpackLen,
   /// The stream is in a state where it can only receive control frames
   UnexpectedNonControlFrame,
   /// Unknown header name.

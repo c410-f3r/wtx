@@ -66,10 +66,11 @@ pub use tls_connector::{
   TlsConnector,
 };
 pub use tls_connector_builder::TlsConnectorBuilder;
+#[cfg(feature = "secret")]
+pub use tls_ctx::hardened_sk_ctx::HardenedSkCtx;
 pub use tls_ctx::{
-  TlsCtx, TlsCtxSk, TlsCtxSkInput, TlsCtxSkLoader, hardened_sk_ctx::HardenedSkCtx,
-  plaintext_ctx::PlaintextCtx, sk_ctx::SkCtx, trusted_ctx::TrustedCtx,
-  unverified_ctx::UnverifiedCtx,
+  TlsCtx, TlsCtxSk, TlsCtxSkInput, TlsCtxSkLoader, plaintext_ctx::PlaintextCtx, sk_ctx::SkCtx,
+  trusted_ctx::TrustedCtx, unverified_ctx::UnverifiedCtx,
 };
 pub use tls_error::TlsError;
 pub use tls_mode::TlsMode;
